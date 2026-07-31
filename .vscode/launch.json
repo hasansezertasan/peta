@@ -43,6 +43,15 @@
     },
     
     
+    {
+      "name": "Python: TUI",
+      "type": "debugpy",
+      "request": "launch",
+      "justMyCode": true,
+      "module": "uv",
+      "args": ["run", "peta-tui"]
+    },
+    
     
     
   ],

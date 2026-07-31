@@ -19,3 +19,12 @@ To use ``peta`` as a command-line tool:
 
    peta version
    peta info
+
+As a TUI
+--------
+
+To launch the terminal user interface:
+
+.. code-block:: sh
+
+   peta-tui

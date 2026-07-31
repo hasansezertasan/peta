@@ -33,5 +33,12 @@ Typer command-line interface exposing ``version`` and ``info`` commands.
 
 .. automodule:: peta.cli.app
 
+TUI (``peta.tui``)
+----------------------------
+
+Textual terminal user interface.
+
+.. automodule:: peta.tui.app
+
 
 .. TODO @hasansezertasan: Document your own modules here as the project grows.

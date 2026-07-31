@@ -23,7 +23,7 @@ include_pydantic_settings: false
 include_redis: false
 include_sonarcloud: false
 include_sourcery: false
-include_tui: false
+include_tui: true
 include_vpn: false
 include_web: false
 include_worker: false

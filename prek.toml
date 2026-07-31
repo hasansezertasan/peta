@@ -100,7 +100,7 @@ hooks = [
   # mypy's duplicate-module check on the sibling examples/*/main.py demo scripts
   # and (b) surfaces strict-decorator errors in tests/ that the canonical run
   # never checks — neither is part of the shipped, type-checked surface.
-  { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = ["typer", ] },
+  { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = ["typer", "textual", ] },
 ]
 
 [[repos]]

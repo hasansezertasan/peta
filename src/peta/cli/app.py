@@ -72,3 +72,15 @@ def info() -> None:
     typer.echo(f"Python Version: {python_version} ({python_implementation})")
     typer.echo(f"Platform: {platform.system()}")
     logger.info("Application information displayed successfully.")
+
+
+@app.command()
+def interactive() -> None:  # pragma: no cover
+    """Start interactive mode for peta.
+
+    Show application information:
+        peta interactive
+    """
+    from peta.tui.app import main  # noqa: PLC0415
+
+    _ = main()

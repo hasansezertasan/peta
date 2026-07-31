@@ -61,6 +61,14 @@ peta version
 peta info
 ```
 
+### TUI
+
+```bash
+peta-tui
+```
+
+An interactive terminal user interface displays project information. Press 'q' to exit.
+
 ### Debugging
 
 Debug your application in VS Code using the provided launch configurations:
@@ -84,6 +92,7 @@ If you have any questions or need help, feel free to open an issue on the [GitHu
 ## Features
 
 - **CLI Application**: Command-line interface built with Typer
+- **TUI Application**: Terminal user interface built with Textual
 - **Type Safety**: Full type hints checked by mypy, basedpyright, ty, pyrefly, and zuban
 - **Code Quality**: Comprehensive linting and formatting with ruff
 - **Testing**: pytest with coverage reporting and parallel execution

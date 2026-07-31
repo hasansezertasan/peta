@@ -18,6 +18,7 @@ keywords = [
     "command-line",
     "python",
     "typer",
+    "textual", "tui",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -43,15 +44,17 @@ classifiers = [
   "Topic :: Software Development",
   "Typing :: Typed",
   "Topic :: Utilities",
+  "Topic :: Terminals",
 ]
 requires-python = ">=3.10"
 dependencies = []
 
 [project.optional-dependencies]
 cli = ["typer>=0.20.0"]
-
+tui = ["textual>=0.50.0", "typing-extensions>=4.4.0"]
 all = [
     "typer>=0.20.0",
+    "textual>=0.50.0",
 ]
 
 
@@ -66,7 +69,7 @@ source = "https://github.com/hasansezertasan/peta.git"
 
 [project.scripts]
 peta = "peta.cli.app:app"
-
+peta-tui = "peta.tui.app:main"
 
 
 
@@ -259,7 +262,7 @@ ignore_decorators = [
 # ``arguments`` parameter is mandated by the call_tool signature, the Textual
 # names (CSS/compose/on_mount/title/BINDINGS) are invoked by the TUI framework,
 # and ``pytestmark`` is consumed by pytest at collection time.
-ignore_names = ["CONFIG_FILE_PATH", "logger", "main", "model_config"]
+ignore_names = ["CONFIG_FILE_PATH", "logger", "main", "model_config", "CSS", "compose", "on_mount", "title", "BINDINGS"]
 min_confidence = 60
 paths = ["src", "tests"]
 
