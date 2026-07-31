@@ -4,6 +4,7 @@ Installation
 Possible extras:
 
 - ``cli``: Installs typer and adds ``peta`` as a command.
+- ``tui``: Installs textual and adds ``peta-tui`` as a command.
 - ``all``: Installs all extras if available.
 
 Stable release
