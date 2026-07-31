@@ -15,14 +15,22 @@ dictionaries:
 allowCompoundWords: true
 words:
   # Tooling referenced in the generated docs
+  - basedpyright
+  - cobo
   - codespell
   - ghalint
   - megalinter
   - prek
   - unticked
+  - zizmor
+  - zuban
   - MYENVPREFIX
   # Project identifiers, so a project never trips on its own name/handle.
   # Quoted so a name that is a YAML boolean/null token (e.g. a repo literally
   # named "off" or "null") still renders as a string, which cspell requires.
   - "hasansezertasan"
   - "peta"
+  # Author display name
+  - Hasan
+  - Sezer
+  - Tasan
