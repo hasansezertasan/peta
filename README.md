@@ -2,7 +2,6 @@
 
 <!-- TODO @hasansezertasan: Make it work, make it right, make it fast. -->
 [![CI](https://github.com/hasansezertasan/peta/actions/workflows/ci.yml/badge.svg)](https://github.com/hasansezertasan/peta/actions/workflows/ci.yml)
-[![MegaLinter](https://github.com/hasansezertasan/peta/actions/workflows/mega-linter.yml/badge.svg)](https://github.com/hasansezertasan/peta/actions/workflows/mega-linter.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/hasansezertasan/peta)](https://codecov.io/gh/hasansezertasan/peta)
 [![Documentation Status](https://img.shields.io/github/deployments/hasansezertasan/peta/github-pages?label=docs)](https://hasansezertasan.github.io/peta)
 [![PyPI - Version](https://img.shields.io/pypi/v/peta.svg)](https://pypi.org/project/peta)
