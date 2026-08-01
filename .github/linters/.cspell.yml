@@ -30,7 +30,8 @@ words:
   # named "off" or "null") still renders as a string, which cspell requires.
   - "hasansezertasan"
   - "peta"
-  # Author display name
-  - Hasan
-  - Sezer
-  - Tasan
+  # Author display-name tokens, derived from author_full_name so an author never
+  # trips on their own name in the generated README/CITATION/CODE_OF_CONDUCT.
+  - "Hasan"
+  - "Sezer"
+  - "Tasan"
