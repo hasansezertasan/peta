@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
 
+__all__ = ["format_deps", "format_files", "format_info", "format_versions"]
+
 
 def format_info(pkg: PackageInfo) -> str:
     """Format :class:`PackageInfo` as a JSON string.

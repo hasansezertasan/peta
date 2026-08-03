@@ -15,6 +15,9 @@ from peta.cli.commands import (
     versions as versions_mod,
 )
 
+__all__ = ["deps", "files", "info", "main", "run", "versions"]
+
+
 _SUBCOMMANDS = {"info", "deps", "files", "versions", "--help", "-h", "--version", "-V"}
 
 app = typer.Typer(

@@ -15,6 +15,8 @@ from peta.output.tables import render_versions as rich_format
 if TYPE_CHECKING:
     from peta.core.remote import PyPIReleaseFile, PyPIResponse
 
+__all__ = ["get_versions", "versions"]
+
 
 def get_versions(name: str) -> list[dict[str, str]]:
     """Fetch all published versions for a package from PyPI.

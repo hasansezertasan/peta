@@ -11,6 +11,8 @@ from peta.core.local import (
 from peta.output.json import format_files as json_format
 from peta.output.tables import render_files as rich_format
 
+__all__ = ["files"]
+
 
 def files(package: str, *, use_json: bool = False) -> None:
     """List files installed by a local package.

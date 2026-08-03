@@ -3,6 +3,6 @@
     "extends": ".github/linters/.markdownlint.yml",
   },
   "fix": true,
-  "globs": ["**/*.md", "**/*.markdown", "!CHANGELOG.md"],
+  "globs": ["**/*.md", "**/*.markdown", "!CHANGELOG.md", "!docs/superpowers/**"],
   "gitignore": true,
 }

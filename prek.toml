@@ -25,6 +25,9 @@ exclude = '''(?x)^(
     |build
     |dist
     |alembic
+
+    # Internal SDD design docs (excluded from ruff + Sphinx too)
+    |docs/superpowers/.*
 )$'''
 
 # Fast Rust-native reimplementations of common pre-commit-hooks. No git clone.

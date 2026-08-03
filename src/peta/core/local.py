@@ -10,6 +10,8 @@ from peta.core.models import PackageInfo
 if TYPE_CHECKING:
     from importlib.metadata import PackageMetadata
 
+__all__ = ["PackageNotFoundError", "get_package"]
+
 
 class PackageNotFoundError(Exception):
     """Raised when a package is not installed locally."""

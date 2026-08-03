@@ -13,6 +13,8 @@ from rich.tree import Tree
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
 
+__all__ = ["render_deps", "render_files", "render_info", "render_versions"]
+
 
 def _to_string(renderable: object) -> str:
     buf = StringIO()

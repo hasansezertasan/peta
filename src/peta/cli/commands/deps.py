@@ -21,6 +21,9 @@ from peta.output.tables import render_deps as rich_format
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
 
+__all__ = ["deps"]
+
+
 # Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter
 # cannot strip the parentheses into Python-2-only ``except A, B`` syntax.
 _NOT_FOUND = (LocalNotFound, RemoteNotFound)
