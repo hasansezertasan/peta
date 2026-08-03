@@ -284,6 +284,10 @@ layers = [
 
 
 [tool.ruff]
+# SDD plan/spec docs under docs/superpowers embed the package source as fenced
+# code blocks; they are historical artifacts (also excluded from the Sphinx
+# build) and must not be lint-fixed or reformatted as if they were live source.
+extend-exclude = ["docs/superpowers"]
 fix = true
 output-format = "full"
 preview = true
