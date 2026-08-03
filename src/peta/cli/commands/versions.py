@@ -24,7 +24,7 @@ def _sorted_version_keys(releases: dict[str, list[PyPIReleaseFile]]) -> list[str
 
     ``packaging.version.Version`` raises ``InvalidVersion`` on legacy keys that
     PyPI still serves, so parse defensively: PEP 440 versions sort newest-first,
-    and any unparseable keys are kept (sorted after) rather than letting one bad
+    and any unparsable keys are kept (sorted after) rather than letting one bad
     key abort the whole listing with a traceback.
 
     Returns:
