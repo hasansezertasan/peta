@@ -93,7 +93,7 @@ If you have any questions or need help, feel free to open an issue on the [GitHu
 - **CLI Application**: Command-line interface built with Typer
 - **TUI Application**: Terminal user interface built with Textual
 - **Type Safety**: Full type hints checked by mypy, basedpyright, ty, pyrefly, and zuban
-- **Code Quality**: Comprehensive linting and formatting with ruff
+- **Code Quality**: Comprehensive linting and formatting with ruff, plus architecture-contract enforcement with import-linter
 - **Testing**: pytest with coverage reporting and parallel execution
 - **Documentation**: Sphinx documentation with the Shibuya theme, GitHub Pages deployment, and live per-PR documentation previews
 - **CI/CD**: Automated testing, building, and publishing across multiple platforms

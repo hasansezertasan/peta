@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from functools import cache
 from pathlib import Path
 
 from peta.__metadata__ import PROJECT_NAME
@@ -51,6 +52,17 @@ class Settings:
     )
 
 
-# Global settings instance
-settings = Settings()
-"""The global settings instance for the project."""
+@cache
+def get_settings() -> Settings:
+    """Return the cached settings singleton.
+
+    Cached so all callers share one instance; tests can reset or override it
+    via ``get_settings.cache_clear()`` instead of patching an import-time value.
+
+    Returns:
+        Settings: The cached settings instance.
+    """
+    return Settings()
+
+
+__all__ = ["Settings", "get_settings"]

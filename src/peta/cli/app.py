@@ -9,7 +9,11 @@ from importlib.metadata import Distribution, PackageNotFoundError
 import typer
 
 from peta.__metadata__ import PROJECT_NAME
-from peta.core.logging_setup import logger
+from peta.core.logging_setup import get_logger
+
+__all__ = ["app", "info", "interactive", "show_version"]
+
+logger = get_logger()
 
 app = typer.Typer(name="peta", no_args_is_help=True)
 
@@ -30,7 +34,7 @@ def show_version() -> None:
     try:
         distribution = Distribution.from_name(PROJECT_NAME)
     except PackageNotFoundError:
-        logger.error("Package metadata not found for %s", PROJECT_NAME)
+        logger.exception("Package metadata not found for %s", PROJECT_NAME)
         typer.echo(
             f"Error: Package '{PROJECT_NAME}' metadata not found. Is the package installed correctly?",  # noqa: E501
             err=True,
@@ -59,7 +63,7 @@ def info() -> None:
     try:
         distribution = Distribution.from_name(PROJECT_NAME)
     except PackageNotFoundError:
-        logger.error("Package metadata not found for %s", PROJECT_NAME)
+        logger.exception("Package metadata not found for %s", PROJECT_NAME)
         typer.echo(
             f"Error: Package '{PROJECT_NAME}' metadata not found. Is the package installed correctly?",  # noqa: E501
             err=True,

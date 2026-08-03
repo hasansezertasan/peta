@@ -90,6 +90,7 @@ style = [
   "actionlint-py==1.7.12.24",
   "basedpyright==1.39.8",
   "editorconfig-checker==3.6.1",
+  "import-linter==2.13",
   "mypy==2.1.0",
   "pyrefly==1.1.1",
   "ruff==0.15.19",
@@ -269,6 +270,28 @@ paths = ["src", "tests"]
 
 [tool.slotscheck]
 strict-imports = false
+
+
+[tool.importlinter]
+root_package = "peta"
+
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture with independent components"
+type = "layers"
+# Layers are listed high -> low: a layer may import lower layers but never a
+# higher one. Modules joined by ` | ` on one line are independent SIBLINGS that
+# may not import each other. `cli` is the orchestrator layer — its subcommands
+# launch the other components (web/gui/tui) via lazy imports — so it sits ABOVE
+# the independent component group, which sits above `core`, which sits above the
+# leaf `utils`. `__metadata__` is left outside the contract as an unconstrained
+# foundation.
+layers = [
+  "peta.cli",
+  "peta.tui",
+  "peta.core",
+  "peta.utils",
+]
 
 
 [tool.ruff]
@@ -476,6 +499,9 @@ commands = [
     "-m",
     "slotscheck",
     "src",
+  ],
+  [
+    "lint-imports",
   ],
   [
     "taplo",
