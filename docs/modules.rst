@@ -11,34 +11,28 @@ The API reference below is generated automatically from the source docstrings.
 Core (``peta.core``)
 ----------------------------
 
-Always-included infrastructure.
+.. automodule:: peta.core.models
 
-.. automodule:: peta.core.config
+.. automodule:: peta.core.local
 
-.. automodule:: peta.core.dirs
+.. automodule:: peta.core.remote
 
-.. automodule:: peta.core.logging_setup
-
-Utilities (``peta.utils``)
+Output (``peta.output``)
 ----------------------------
 
-Shared helper functions.
+.. automodule:: peta.output.tables
 
-.. automodule:: peta.utils
+.. automodule:: peta.output.json
 
 CLI (``peta.cli``)
 ----------------------------
 
-Typer command-line interface exposing ``version`` and ``info`` commands.
-
 .. automodule:: peta.cli.app
 
-TUI (``peta.tui``)
-----------------------------
+.. automodule:: peta.cli.commands.info
 
-Textual terminal user interface.
+.. automodule:: peta.cli.commands.deps
 
-.. automodule:: peta.tui.app
+.. automodule:: peta.cli.commands.files
 
-
-.. TODO @hasansezertasan: Document your own modules here as the project grows.
+.. automodule:: peta.cli.commands.versions

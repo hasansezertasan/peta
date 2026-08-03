@@ -1,50 +1,32 @@
 Installation
 ============
 
-Possible extras:
+``peta`` is an end-user command-line tool. Install it into an isolated
+environment with your preferred tool manager.
 
-- ``cli``: Installs typer and adds ``peta`` as a command.
-- ``tui``: Installs textual and adds ``peta-tui`` as a command.
-- ``all``: Installs all extras if available.
+Requirements
+------------
 
-Stable release
---------------
+* Python 3.14 or newer.
 
-To install ``peta``, run this command in your terminal:
+Using uv
+--------
 
-.. code-block:: sh
+.. code-block:: bash
 
-   uv add peta
+   uvx peta requests        # run without installing
+   uv tool install peta     # install as a persistent tool
 
-Or if you prefer to use ``pip``:
+Using pipx
+----------
 
-.. code-block:: sh
+.. code-block:: bash
+
+   pipx install peta
+
+Using pip
+---------
+
+.. code-block:: bash
 
    pip install peta
-
-From source
------------
-
-The source files for ``peta`` can be downloaded from the
-`GitHub repo <https://github.com/hasansezertasan/peta>`_.
-
-You can either clone the public repository:
-
-.. code-block:: sh
-
-   git clone https://github.com/hasansezertasan/peta.git
-
-Or download the
-`tarball <https://github.com/hasansezertasan/peta/tarball/main>`_:
-
-.. code-block:: sh
-
-   mkdir peta
-   curl -fL https://github.com/hasansezertasan/peta/tarball/main | tar -xz --strip-components=1 -C peta
-
-Once you have a copy of the source, you can install it with:
-
-.. code-block:: sh
-
-   cd peta
-   uv pip install .
