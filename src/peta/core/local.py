@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from peta.core.models import PackageInfo
-
-if TYPE_CHECKING:
-    from importlib.metadata import PackageMetadata
 
 __all__ = ["PackageNotFoundError", "get_package"]
 
@@ -22,7 +19,7 @@ class PackageNotFoundError(Exception):
         super().__init__(f"Package '{name}' is not installed")
 
 
-def _parse_project_urls(meta: PackageMetadata) -> dict[str, str]:
+def _parse_project_urls(meta: importlib_metadata.PackageMetadata) -> dict[str, str]:
     urls: dict[str, str] = {}
     # importlib.metadata's PackageMetadata is untyped (email.Message based), so
     # get_all yields Any; cast the headers we read into the typed world.
@@ -34,7 +31,7 @@ def _parse_project_urls(meta: PackageMetadata) -> dict[str, str]:
     return urls
 
 
-def _parse_keywords(meta: PackageMetadata) -> list[str]:
+def _parse_keywords(meta: importlib_metadata.PackageMetadata) -> list[str]:
     raw = meta.get("Keywords")
     if not raw:
         return []
