@@ -1,0 +1,115 @@
+"""Test cases for the Typer CLI application commands."""
+
+from __future__ import annotations
+
+import importlib
+from importlib.metadata import Distribution, PackageNotFoundError
+from typing import TYPE_CHECKING
+
+import pytest
+from typer.testing import CliRunner
+
+from peta.cli.app import app
+
+if TYPE_CHECKING:
+    from typer.testing import Result
+
+# The cli ``__init__`` re-exports the Typer ``app`` object, which shadows the
+# ``app`` submodule on any attribute-based import (``from ... import app``,
+# ``import ...app as ...``). importlib returns the real module from sys.modules —
+# the object the monkeypatch below needs to patch.
+cli_app = importlib.import_module("peta.cli.app")
+
+
+class _MissingDistribution:
+    """Stub whose ``from_name`` always reports missing package metadata."""
+
+    @staticmethod
+    def from_name(name: str) -> Distribution:
+        raise PackageNotFoundError(name)
+
+
+@pytest.fixture
+def runner() -> CliRunner:
+    """Fixture that provides a CLI runner for testing Typer commands."""
+    return CliRunner()
+
+
+def test_version(runner: CliRunner) -> None:
+    """Test the `version` command of the CLI application.
+
+    This test checks if the `version` command runs without any errors.
+
+    Scenario:
+        - Run the `version` command of the CLI application.
+
+    Expected Result:
+        - The command should execute successfully and return the application version.
+    Given:
+        - The application is set up with a `version` command.
+    When:
+        - The `version` command is invoked using the CLI runner.
+    Then:
+        - The command should exit with code 0, indicating success.
+        - The output should contain the application version information.
+    And:
+        - If the command fails, the test should fail with the output message.
+
+    Note:
+        - This test does not check the actual version number,
+        only that the command runs successfully.
+
+    """
+    result: Result = runner.invoke(app, ["version"])
+    assert result.exit_code == 0, result.output
+
+
+def test_info(runner: CliRunner) -> None:
+    """Test the `info` command of the CLI application.
+
+    This test checks if the `info` command runs without any errors.
+
+    Scenario:
+        - Run the `info` command of the CLI application.
+
+    Expected Result:
+        - The command should execute successfully and return the application
+        information.
+    Given:
+        - The application is set up with an `info` command.
+    When:
+        - The `info` command is invoked using the CLI runner.
+    Then:
+        - The command should exit with code 0, indicating success.
+        - The output should contain the application information.
+    And:
+        - If the command fails, the test should fail with the output message.
+
+    Note:
+        - This test does not check the actual information content,
+        only that the command runs successfully.
+
+    """
+    result: Result = runner.invoke(app, ["info"])
+    assert result.exit_code == 0, result.output
+
+
+@pytest.mark.parametrize("command", ["version", "info"])
+def test_command_fails_loudly_when_metadata_missing(
+    runner: CliRunner, monkeypatch: pytest.MonkeyPatch, command: str
+) -> None:
+    """Commands exit non-zero with an error when package metadata is missing.
+
+    Given:
+        - Package metadata cannot be resolved (broken/partial install).
+    When:
+        - The `version` or `info` command is invoked.
+    Then:
+        - The command exits with code 1 (the documented ``typer.Exit`` contract)
+          instead of dumping a traceback or silently printing nothing.
+    """
+    monkeypatch.setattr(cli_app, "Distribution", _MissingDistribution)
+
+    result: Result = runner.invoke(app, [command])
+
+    assert result.exit_code == 1

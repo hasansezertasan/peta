@@ -1,0 +1,162 @@
+"""TUI application for the project."""
+
+from __future__ import annotations
+
+import platform
+import sys
+from importlib.metadata import Distribution, PackageNotFoundError
+from typing import TYPE_CHECKING, ClassVar, final
+
+from typing_extensions import override
+
+from peta.__metadata__ import PROJECT_NAME
+from peta.core.logging_setup import get_logger
+
+if TYPE_CHECKING:
+    from textual.binding import BindingType
+
+__all__ = ["TuiDisplayError", "build_info_message", "main"]
+
+logger = get_logger()
+
+
+class TuiDisplayError(RuntimeError):
+    """Raised when the TUI cannot be displayed."""
+
+
+def build_info_message() -> str:
+    """Return a short application information message for display.
+
+    Returns:
+        str: A multi-line summary of the project name, version, and platform.
+    """
+    try:
+        distribution = Distribution.from_name(PROJECT_NAME)
+        version = distribution.version
+    except PackageNotFoundError:
+        logger.warning("Package metadata not found for %s", PROJECT_NAME)
+        version = "unknown"
+    python_version = platform.python_version()
+    python_implementation = platform.python_implementation()
+    system_name = platform.system()
+    return (
+        f"{PROJECT_NAME}\n\n"
+        f"Version: {version}\n"
+        f"Python: {python_version} ({python_implementation})\n"
+        f"Platform: {system_name}"
+    )
+
+
+def _display_tui(message: str) -> None:  # noqa: C901  # pragma: no cover
+    """Display the information message in a Textual TUI application.
+
+    Raises:
+        TuiDisplayError: If Textual is unavailable or the app fails to run.
+        KeyboardInterrupt: If the user interrupts the running application.
+        SystemExit: If the application requests interpreter exit.
+    """
+    try:
+        from textual.app import App, ComposeResult  # noqa: PLC0415
+        from textual.containers import ScrollableContainer  # noqa: PLC0415
+        from textual.widgets import Static  # noqa: PLC0415
+    except ImportError as exc:
+        msg = "Textual is not available."
+        raise TuiDisplayError(msg) from exc
+
+    @final
+    class InfoApp(App[None]):
+        """Simple TUI application displaying project info."""
+
+        CSS = """
+        Screen {
+            align: center middle;
+            background: $surface;
+        }
+
+        #info-container {
+            width: 60;
+            height: auto;
+            border: solid $primary;
+            background: $panel;
+        }
+
+        Static {
+            width: 100%;
+            height: auto;
+            padding: 1;
+        }
+
+        #title {
+            dock: top;
+            height: 3;
+            border-bottom: solid $primary;
+            background: $boost;
+            text-align: center;
+            content-align: center middle;
+        }
+
+        #footer {
+            dock: bottom;
+            height: 1;
+            border-top: solid $primary;
+            text-align: center;
+            background: $boost;
+        }
+        """
+
+        @override
+        def compose(self) -> ComposeResult:
+            """Compose the TUI layout.
+
+            Yields:
+                Widget: The widgets that make up the screen layout.
+            """
+            yield Static(PROJECT_NAME, id="title")
+            with ScrollableContainer(id="info-container"):
+                yield Static(message)
+            yield Static("Press 'q' to quit", id="footer")
+
+        def on_mount(self) -> None:
+            """Set focus and style on mount."""
+            self.title = f"{PROJECT_NAME} Info"
+
+        # The "quit" action bound below is Textual's built-in App.action_quit.
+        BINDINGS: ClassVar[list[BindingType]] = [("q", "quit", "Quit")]
+
+    try:
+        app = InfoApp()
+        app.run()
+    except (KeyboardInterrupt, SystemExit):
+        raise  # Let these propagate naturally
+    except Exception as exc:
+        msg = f"Failed to display TUI: {exc}"
+        raise TuiDisplayError(msg) from exc
+
+
+def main(*, show_tui: bool = True) -> int:
+    """Entry point for the TUI script.
+
+    Args:
+        show_tui: When ``False``, write the info to stdout instead of starting
+            the TUI (useful for headless environments and tests).
+
+    Returns:
+        int: ``0`` on success, ``1`` if the TUI could not be displayed.
+    """
+    info_message = build_info_message()
+    logger.info("TUI entry point invoked. show_tui=%s", show_tui)
+
+    if not show_tui:
+        logger.info("TUI display skipped; writing info to stdout.")
+        _ = sys.stdout.write(f"{info_message}\n")
+        return 0
+
+    try:
+        _display_tui(info_message)
+    except TuiDisplayError:
+        logger.exception("Failed to display TUI; falling back to stdout.")
+        _ = sys.stdout.write(f"{info_message}\n")
+        return 1
+
+    logger.info("TUI application closed successfully.")
+    return 0
