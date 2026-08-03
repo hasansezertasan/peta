@@ -280,9 +280,9 @@ root_package = "peta"
 name = "Layered architecture with independent components"
 type = "layers"
 # Layers are listed high -> low: a layer may import lower layers but never a
-# higher one. `cli` is the orchestrator layer, sitting above `core`.
-# `__metadata__` is left outside the contract as an unconstrained foundation.
-layers = ["peta.cli", "peta.core"]
+# higher one. `cli` is the orchestrator layer, sitting above `output`, which
+# in turn sits above `core`.
+layers = ["peta.cli", "peta.output", "peta.core"]
 
 
 [tool.ruff]
@@ -533,7 +533,7 @@ commands = [
   [
     "peta",
     { replace = "posargs", default = [
-      "version",
+      "--version",
     ], extend = true },
   ],
 ]

@@ -110,7 +110,7 @@ def render_versions(name: str, versions: list[dict[str, str]]) -> str:
     Returns:
         The version table rendered as text.
     """
-    table = Table(title=f"{name} versions ({len(versions)} total)")
+    table = Table(title=f"{name} versions ({len(versions)} shown)")
     table.add_column("Version", style="bold")
     table.add_column("Released")
     for v in versions:
