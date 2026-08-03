@@ -3,12 +3,18 @@
 from __future__ import annotations
 
 import json
+from typing import TYPE_CHECKING
 
-from peta.core.models import PackageInfo
+if TYPE_CHECKING:
+    from peta.core.models import PackageInfo
 
 
 def format_info(pkg: PackageInfo) -> str:
-    """Format :class:`PackageInfo` as a JSON string."""
+    """Format :class:`PackageInfo` as a JSON string.
+
+    Returns:
+        The metadata serialized as an indented JSON string.
+    """
     data = {
         "name": pkg.name,
         "version": pkg.version,
@@ -20,7 +26,12 @@ def format_info(pkg: PackageInfo) -> str:
         "project_urls": pkg.project_urls,
         "dependencies": pkg.dependencies,
         "vulnerabilities": [
-            {"id": v.id, "aliases": v.aliases, "summary": v.summary, "fixed_in": v.fixed_in}
+            {
+                "id": v.id,
+                "aliases": v.aliases,
+                "summary": v.summary,
+                "fixed_in": v.fixed_in,
+            }
             for v in pkg.vulnerabilities
         ],
         "source": pkg.source,
@@ -29,7 +40,11 @@ def format_info(pkg: PackageInfo) -> str:
 
 
 def format_deps(pkg: PackageInfo) -> str:
-    """Format a package's dependency list as a JSON string."""
+    """Format a package's dependency list as a JSON string.
+
+    Returns:
+        The dependency list serialized as an indented JSON string.
+    """
     data = {
         "name": pkg.name,
         "version": pkg.version,
@@ -39,11 +54,19 @@ def format_deps(pkg: PackageInfo) -> str:
 
 
 def format_files(pkg: PackageInfo) -> str:
-    """Format a package's file list as a JSON string."""
+    """Format a package's file list as a JSON string.
+
+    Returns:
+        The file list serialized as an indented JSON string.
+    """
     data = {"name": pkg.name, "version": pkg.version, "files": pkg.files or []}
     return json.dumps(data, indent=2)
 
 
 def format_versions(name: str, versions: list[dict[str, str]]) -> str:
-    """Format a version list as a JSON string."""
+    """Format a version list as a JSON string.
+
+    Returns:
+        The version list serialized as an indented JSON string.
+    """
     return json.dumps({"name": name, "versions": versions}, indent=2)

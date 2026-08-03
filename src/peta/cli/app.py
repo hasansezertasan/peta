@@ -7,10 +7,12 @@ import sys
 import typer
 
 from peta import __version__
-from peta.cli.commands import deps as deps_mod
-from peta.cli.commands import files as files_mod
-from peta.cli.commands import info as info_mod
-from peta.cli.commands import versions as versions_mod
+from peta.cli.commands import (
+    deps as deps_mod,
+    files as files_mod,
+    info as info_mod,
+    versions as versions_mod,
+)
 
 _SUBCOMMANDS = {"info", "deps", "files", "versions", "--help", "-h", "--version", "-V"}
 
@@ -29,7 +31,7 @@ def _version_callback(value: bool) -> None:
 
 @app.callback(invoke_without_command=True)
 def main(
-    version: bool = typer.Option(  # noqa: ARG001
+    version: bool = typer.Option(
         False,
         "--version",
         "-V",

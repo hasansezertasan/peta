@@ -16,6 +16,7 @@ class PackageNotFoundError(Exception):
     """Raised when a package is not found on PyPI."""
 
     def __init__(self, name: str, version: str | None = None) -> None:
+        """Store the missing package name and optional version."""
         self.name = name
         self.version = version
         target = f"{name}=={version}" if version else name
@@ -26,6 +27,7 @@ class NetworkError(Exception):
     """Raised when a network request fails."""
 
     def __init__(self, message: str) -> None:
+        """Wrap a network failure message."""
         super().__init__(f"Network error: {message}")
 
 
@@ -36,6 +38,15 @@ def _pypi_url(name: str, version: str | None) -> str:
 
 
 def _fetch(name: str, version: str | None) -> dict[str, Any]:
+    """Fetch the raw PyPI JSON payload for a package.
+
+    Returns:
+        The decoded JSON body from the PyPI JSON API.
+
+    Raises:
+        PackageNotFoundError: If PyPI responds 404 for the package/version.
+        NetworkError: If the request fails or returns a non-success status.
+    """
     url = _pypi_url(name, version)
     try:
         response = httpx.get(url, timeout=DEFAULT_TIMEOUT)
@@ -48,7 +59,8 @@ def _fetch(name: str, version: str | None) -> dict[str, Any]:
     try:
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise NetworkError(f"PyPI returned HTTP {exc.response.status_code}") from exc
+        msg = f"PyPI returned HTTP {exc.response.status_code}"
+        raise NetworkError(msg) from exc
 
     data: dict[str, Any] = response.json()
     return data
@@ -80,11 +92,8 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         version: Optional specific version; if ``None`` the latest is fetched.
 
     Returns:
-        A :class:`PackageInfo` with ``source="remote"``.
-
-    Raises:
-        PackageNotFoundError: If the package/version does not exist on PyPI.
-        NetworkError: If the request fails.
+        A :class:`PackageInfo` with ``source="remote"``. Not-found and network
+        failures propagate from :func:`_fetch`.
     """
     data = _fetch(name, version)
     info: dict[str, Any] = data["info"]

@@ -3,20 +3,24 @@
 from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
-from email.message import Message
+from typing import TYPE_CHECKING
 
 from peta.core.models import PackageInfo
+
+if TYPE_CHECKING:
+    from importlib.metadata import PackageMetadata
 
 
 class PackageNotFoundError(Exception):
     """Raised when a package is not installed locally."""
 
     def __init__(self, name: str) -> None:
+        """Store the missing package name."""
         self.name = name
         super().__init__(f"Package '{name}' is not installed")
 
 
-def _parse_project_urls(meta: Message) -> dict[str, str]:
+def _parse_project_urls(meta: PackageMetadata) -> dict[str, str]:
     urls: dict[str, str] = {}
     for entry in meta.get_all("Project-URL") or []:
         if ", " in entry:
@@ -25,7 +29,7 @@ def _parse_project_urls(meta: Message) -> dict[str, str]:
     return urls
 
 
-def _parse_keywords(meta: Message) -> list[str]:
+def _parse_keywords(meta: PackageMetadata) -> list[str]:
     raw = meta.get("Keywords")
     if not raw:
         return []

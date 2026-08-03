@@ -54,6 +54,20 @@ def test_parses_urls_keywords_deps_files(mock_meta: MagicMock) -> None:
 
 
 @patch("peta.core.local.importlib_metadata")
+def test_skips_malformed_project_url(mock_meta: MagicMock) -> None:
+    md = _msg(Name="x", Version="1.0.0")
+    md["Project-URL"] = "MalformedNoComma"
+    dist = MagicMock()
+    dist.metadata = md
+    dist.requires = None
+    dist.files = None
+    mock_meta.distribution.return_value = dist
+
+    result = get_package("x")
+    assert result.project_urls == {}
+
+
+@patch("peta.core.local.importlib_metadata")
 def test_not_found_raises(mock_meta: MagicMock) -> None:
     import importlib.metadata as real
 

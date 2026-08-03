@@ -77,7 +77,12 @@ def test_parses_vulnerabilities(mock_httpx: MagicMock) -> None:
     payload = {
         "info": {**_INFO, "keywords": None, "requires_dist": None},
         "vulnerabilities": [
-            {"id": "PYSEC-2024-001", "aliases": ["CVE-2024-1"], "summary": "x", "fixed_in": ["1.0.1"]},
+            {
+                "id": "PYSEC-2024-001",
+                "aliases": ["CVE-2024-1"],
+                "summary": "x",
+                "fixed_in": ["1.0.1"],
+            }
         ],
     }
     mock_httpx.get.return_value = _resp(200, payload)

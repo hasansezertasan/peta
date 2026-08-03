@@ -308,7 +308,6 @@ skip-magic-trailing-comma = true
 [tool.ruff.lint]
 fixable = ["ALL"]
 ignore = ["COM812", "CPY", "FIX", "TD"]
-logger-objects = ["logging_setup.logger"]
 preview = true
 select = ["ALL"]
 
@@ -342,14 +341,30 @@ convention = "pep257"
 [tool.ruff.lint.per-file-ignores]
 # Recursive glob so nested test packages (tests/cli, tests/gui, ...) are covered.
 # Tests legitimately use asserts/magic values, reach into package internals,
-# don't need return-value documentation on their fixtures and helpers, and are
-# implicit namespace packages (no __init__.py required).
-"tests/**/*.py" = ["S101", "PLR2004", "PLC2701", "DOC201", "INP001"]
+# don't need docstrings on test classes/functions/fixtures nor return-value
+# documentation, use self-less test methods (pytest style), and import lazily
+# inside a test to exercise import-time behavior. They are implicit namespace
+# packages (no __init__.py required).
+"tests/**/*.py" = [
+  "S101",
+  "PLR2004",
+  "PLC2701",
+  "DOC201",
+  "INP001",
+  "D101",
+  "D102",
+  "D103",
+  "D104",
+  "D105",
+  "D107",
+  "PLR6301",
+  "PLC0415",
+]
 "examples/*.py" = ["INP001"]
 # The Sphinx config is a standalone module, not part of an importable package.
 "docs/conf.py" = ["INP001"]
-# Typer uses Option()/Argument() defaults and bool flags.
-"src/peta/cli/**/*.py" = ["B008", "FBT001", "FBT002"]
+# Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
+"src/peta/cli/**/*.py" = ["B008", "FBT001", "FBT002", "FBT003"]
 # dataclass fields `id`/`license` shadow builtins by design.
 "src/peta/core/models.py" = ["A003"]
 

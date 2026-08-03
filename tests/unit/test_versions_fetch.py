@@ -1,0 +1,62 @@
+"""Unit tests for the PyPI version fetcher (httpx mocked)."""
+
+from unittest.mock import MagicMock, patch
+
+import httpx
+import pytest
+
+from peta.cli.commands.versions import get_versions
+from peta.core.remote import NetworkError
+
+pytestmark = pytest.mark.unit
+
+
+def _resp(status: int, payload: dict | None = None) -> MagicMock:
+    r = MagicMock()
+    r.status_code = status
+    r.json.return_value = payload or {}
+    return r
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_success_sorted_newest_first(mock_httpx: MagicMock) -> None:
+    payload = {
+        "releases": {
+            "1.0.0": [{"upload_time": "2020-01-01T00:00:00"}],
+            "2.0.0": [{"upload_time": "2021-02-03T10:00:00"}],
+            "1.5.0": [],
+        }
+    }
+    mock_httpx.get.return_value = _resp(200, payload)
+    result = get_versions("pkg")
+    assert [r["version"] for r in result] == ["2.0.0", "1.5.0", "1.0.0"]
+    assert result[0]["upload_time"] == "2021-02-03"
+    # Release with no files yields an empty upload_time.
+    assert result[1] == {"version": "1.5.0", "upload_time": ""}
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_not_found_returns_empty(mock_httpx: MagicMock) -> None:
+    mock_httpx.get.return_value = _resp(404)
+    assert get_versions("nope-xyz") == []
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_request_error_raises_network_error(mock_httpx: MagicMock) -> None:
+    mock_httpx.RequestError = httpx.RequestError
+    mock_httpx.get.side_effect = httpx.ConnectError("refused")
+    with pytest.raises(NetworkError):
+        get_versions("pkg")
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_http_status_error_raises_network_error(mock_httpx: MagicMock) -> None:
+    mock_httpx.HTTPStatusError = httpx.HTTPStatusError
+    mock_httpx.RequestError = httpx.RequestError
+    resp = _resp(500)
+    resp.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "boom", request=MagicMock(), response=MagicMock(status_code=500)
+    )
+    mock_httpx.get.return_value = resp
+    with pytest.raises(NetworkError):
+        get_versions("pkg")

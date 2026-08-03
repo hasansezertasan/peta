@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import typer
 
-from peta.core.local import PackageNotFoundError as LocalNotFound
-from peta.core.local import get_package as local_get_package
+from peta.core.local import (
+    PackageNotFoundError as LocalNotFound,
+    get_package as local_get_package,
+)
 from peta.output.json import format_files as json_format
 from peta.output.tables import render_files as rich_format
 
 
 def files(package: str, *, use_json: bool = False) -> None:
-    """List files installed by a local package."""
+    """List files installed by a local package.
+
+    Raises:
+        Exit: With code 1 if the package is not installed locally.
+    """
     try:
         pkg = local_get_package(package)
     except LocalNotFound:

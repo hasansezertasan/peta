@@ -2,16 +2,28 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import typer
 
-from peta.core.local import PackageNotFoundError as LocalNotFound
-from peta.core.local import get_package as local_get_package
-from peta.core.models import PackageInfo
-from peta.core.remote import NetworkError
-from peta.core.remote import PackageNotFoundError as RemoteNotFound
-from peta.core.remote import get_package as remote_get_package
+from peta.core.local import (
+    PackageNotFoundError as LocalNotFound,
+    get_package as local_get_package,
+)
+from peta.core.remote import (
+    NetworkError,
+    PackageNotFoundError as RemoteNotFound,
+    get_package as remote_get_package,
+)
 from peta.output.json import format_info as json_format
 from peta.output.tables import render_info as rich_format
+
+if TYPE_CHECKING:
+    from peta.core.models import PackageInfo
+
+# Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter
+# cannot strip the parentheses into Python-2-only ``except A, B`` syntax.
+_NOT_FOUND = (LocalNotFound, RemoteNotFound)
 
 
 def _parse_package_arg(package: str) -> tuple[str, str | None]:
@@ -35,11 +47,17 @@ def _resolve(package: str, *, local: bool, remote: bool) -> PackageInfo:
         return remote_get_package(name)
 
 
-def info(package: str, *, use_json: bool = False, local: bool = False, remote: bool = False) -> None:
-    """Show detailed package metadata."""
+def info(
+    package: str, *, use_json: bool = False, local: bool = False, remote: bool = False
+) -> None:
+    """Show detailed package metadata.
+
+    Raises:
+        Exit: With code 1 if the package is not found, or code 2 on network failure.
+    """
     try:
         pkg = _resolve(package, local=local, remote=remote)
-    except (LocalNotFound, RemoteNotFound):
+    except _NOT_FOUND:
         typer.echo(f"Package '{package}' not found.", err=True)
         raise typer.Exit(code=1) from None
     except NetworkError as exc:

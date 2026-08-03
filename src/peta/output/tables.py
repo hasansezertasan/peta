@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from io import StringIO
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-from peta.core.models import PackageInfo
+if TYPE_CHECKING:
+    from peta.core.models import PackageInfo
 
 
 def _to_string(renderable: object) -> str:
@@ -18,12 +20,7 @@ def _to_string(renderable: object) -> str:
     return buf.getvalue()
 
 
-def _info_table(pkg: PackageInfo) -> Table:
-    table = Table(show_header=False, box=None, padding=(0, 2))
-    table.add_column("Field", style="bold cyan")
-    table.add_column("Value")
-    table.add_row("Name", pkg.name)
-    table.add_row("Version", pkg.version)
+def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
     for label, value in (
         ("Summary", pkg.summary),
         ("Author", pkg.author),
@@ -36,10 +33,24 @@ def _info_table(pkg: PackageInfo) -> Table:
             table.add_row(label, value)
     for url_label, url in pkg.project_urls.items():
         table.add_row(f"  {url_label}", url)
-    if pkg.dependencies:
-        table.add_row("Dependencies", str(len(pkg.dependencies)))
-        for dep in pkg.dependencies:
-            table.add_row("", f"  {dep}")
+
+
+def _add_dependency_rows(table: Table, pkg: PackageInfo) -> None:
+    if not pkg.dependencies:
+        return
+    table.add_row("Dependencies", str(len(pkg.dependencies)))
+    for dep in pkg.dependencies:
+        table.add_row("", f"  {dep}")
+
+
+def _info_table(pkg: PackageInfo) -> Table:
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Field", style="bold cyan")
+    table.add_column("Value")
+    table.add_row("Name", pkg.name)
+    table.add_row("Version", pkg.version)
+    _add_optional_rows(table, pkg)
+    _add_dependency_rows(table, pkg)
     return table
 
 
@@ -54,7 +65,11 @@ def _vuln_block(pkg: PackageInfo) -> str:
 
 
 def render_info(pkg: PackageInfo) -> str:
-    """Render :class:`PackageInfo` as a Rich panel string."""
+    """Render :class:`PackageInfo` as a Rich panel string.
+
+    Returns:
+        The formatted panel text, with any vulnerability block appended.
+    """
     source_label = "local" if pkg.source == "local" else "pypi"
     panel = Panel(
         _info_table(pkg),
@@ -65,7 +80,11 @@ def render_info(pkg: PackageInfo) -> str:
 
 
 def render_deps(pkg: PackageInfo) -> str:
-    """Render a package's dependencies as a Rich tree string."""
+    """Render a package's dependencies as a Rich tree string.
+
+    Returns:
+        The dependency tree rendered as text.
+    """
     tree = Tree(f"{pkg.name} {pkg.version}")
     for dep in pkg.dependencies:
         tree.add(dep)
@@ -73,7 +92,11 @@ def render_deps(pkg: PackageInfo) -> str:
 
 
 def render_files(pkg: PackageInfo) -> str:
-    """Render a package's file listing as a string."""
+    """Render a package's file listing as a string.
+
+    Returns:
+        The file listing rendered as text.
+    """
     if not pkg.files:
         return f"No file information available for {pkg.name}.\n"
     lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)\n"]
@@ -82,7 +105,11 @@ def render_files(pkg: PackageInfo) -> str:
 
 
 def render_versions(name: str, versions: list[dict[str, str]]) -> str:
-    """Render a version list as a Rich table string."""
+    """Render a version list as a Rich table string.
+
+    Returns:
+        The version table rendered as text.
+    """
     table = Table(title=f"{name} versions ({len(versions)} total)")
     table.add_column("Version", style="bold")
     table.add_column("Released")

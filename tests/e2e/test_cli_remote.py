@@ -1,6 +1,7 @@
 """E2E: full CLI against real PyPI. Opt-in (network).
 
-Run with: uv run pytest -m e2e_remote  (deselected by default).
+Skipped unless PETA_E2E_NETWORK=1 is set. Run with:
+``PETA_E2E_NETWORK=1 uv run pytest -m e2e``.
 """
 
 import os

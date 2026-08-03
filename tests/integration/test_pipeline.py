@@ -12,11 +12,19 @@ runner = CliRunner()
 
 _PAYLOAD = {
     "info": {
-        "name": "flask", "version": "3.0.0", "summary": "web",
-        "author": "a", "author_email": None, "maintainer": None,
-        "license": "BSD", "requires_python": ">=3.8", "home_page": None,
-        "project_urls": {}, "requires_dist": ["werkzeug", "jinja2"],
-        "classifiers": [], "keywords": "web,wsgi",
+        "name": "flask",
+        "version": "3.0.0",
+        "summary": "web",
+        "author": "a",
+        "author_email": None,
+        "maintainer": None,
+        "license": "BSD",
+        "requires_python": ">=3.8",
+        "home_page": None,
+        "project_urls": {},
+        "requires_dist": ["werkzeug", "jinja2"],
+        "classifiers": [],
+        "keywords": "web,wsgi",
     },
     "vulnerabilities": [],
 }

@@ -14,7 +14,15 @@ from peta.output.tables import render_versions as rich_format
 
 
 def get_versions(name: str) -> list[dict[str, str]]:
-    """Fetch all published versions for a package from PyPI."""
+    """Fetch all published versions for a package from PyPI.
+
+    Returns:
+        A list of ``{"version", "upload_time"}`` dicts, newest first; empty
+        if the package is not found (HTTP 404).
+
+    Raises:
+        NetworkError: If the request fails or returns a non-success status.
+    """
     url = f"{PYPI_BASE_URL}/{name}/json"
     try:
         response = httpx.get(url, timeout=DEFAULT_TIMEOUT)
@@ -27,12 +35,15 @@ def get_versions(name: str) -> list[dict[str, str]]:
     try:
         response.raise_for_status()
     except httpx.HTTPStatusError as exc:
-        raise NetworkError(f"PyPI returned HTTP {exc.response.status_code}") from exc
+        msg = f"PyPI returned HTTP {exc.response.status_code}"
+        raise NetworkError(msg) from exc
 
     data: dict[str, Any] = response.json()
     releases: dict[str, list[dict[str, Any]]] = data.get("releases", {})
     result: list[dict[str, str]] = []
-    for ver, files in sorted(releases.items(), key=lambda kv: Version(kv[0]), reverse=True):
+    for ver, files in sorted(
+        releases.items(), key=lambda kv: Version(kv[0]), reverse=True
+    ):
         upload_time = files[0].get("upload_time", "")[:10] if files else ""
         result.append({"version": ver, "upload_time": upload_time})
     return result
@@ -43,7 +54,11 @@ remote_get_versions = get_versions
 
 
 def versions(package: str, *, use_json: bool = False, limit: int = 20) -> None:
-    """Show published versions of a package from PyPI."""
+    """Show published versions of a package from PyPI.
+
+    Raises:
+        Exit: With code 2 on network failure, or code 1 if the package is absent.
+    """
     try:
         vers = remote_get_versions(package)
     except NetworkError as exc:
