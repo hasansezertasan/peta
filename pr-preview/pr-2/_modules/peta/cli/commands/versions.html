@@ -117,85 +117,107 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="2">
 </span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 </span><span data-line="4">
-</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">cast</span>
-</span><span data-line="6">
-</span><span data-line="7"><span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span>
-</span><span data-line="8"><span class="kn">import</span><span class="w"> </span><span class="nn">typer</span>
-</span><span data-line="9"><span class="kn">from</span><span class="w"> </span><span class="nn">packaging.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">Version</span>
-</span><span data-line="10">
-</span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEFAULT_TIMEOUT</span><span class="p">,</span> <span class="n">PYPI_BASE_URL</span><span class="p">,</span> <span class="n">NetworkError</span>
-</span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.json</span><span class="w"> </span><span class="kn">import</span> <span class="n">format_versions</span> <span class="k">as</span> <span class="n">json_format</span>
-</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.tables</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_versions</span> <span class="k">as</span> <span class="n">rich_format</span>
-</span><span data-line="14">
-</span><span data-line="15"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-</span><span data-line="16">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">PyPIReleaseFile</span><span class="p">,</span> <span class="n">PyPIResponse</span>
-</span><span data-line="17">
-</span><span data-line="18"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;get_versions&quot;</span><span class="p">,</span> <span class="s2">&quot;versions&quot;</span><span class="p">]</span>
-</span><span data-line="19">
+</span><span data-line="5"><span class="kn">import</span><span class="w"> </span><span class="nn">operator</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">cast</span>
+</span><span data-line="7">
+</span><span data-line="8"><span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span>
+</span><span data-line="9"><span class="kn">import</span><span class="w"> </span><span class="nn">typer</span>
+</span><span data-line="10"><span class="kn">from</span><span class="w"> </span><span class="nn">packaging.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">InvalidVersion</span><span class="p">,</span> <span class="n">Version</span>
+</span><span data-line="11">
+</span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">DEFAULT_TIMEOUT</span><span class="p">,</span> <span class="n">PYPI_BASE_URL</span><span class="p">,</span> <span class="n">NetworkError</span>
+</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.json</span><span class="w"> </span><span class="kn">import</span> <span class="n">format_versions</span> <span class="k">as</span> <span class="n">json_format</span>
+</span><span data-line="14"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.tables</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_versions</span> <span class="k">as</span> <span class="n">rich_format</span>
+</span><span data-line="15">
+</span><span data-line="16"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+</span><span data-line="17">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">PyPIReleaseFile</span><span class="p">,</span> <span class="n">PyPIResponse</span>
+</span><span data-line="18">
+</span><span data-line="19"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;get_versions&quot;</span><span class="p">,</span> <span class="s2">&quot;versions&quot;</span><span class="p">]</span>
 </span><span data-line="20">
+</span><span data-line="21">
+</span><span data-line="22"><span class="k">def</span><span class="w"> </span><span class="nf">_sorted_version_keys</span><span class="p">(</span><span class="n">releases</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">PyPIReleaseFile</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="23"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Return release keys newest-first, tolerating non-PEP-440 keys.</span>
+</span><span data-line="24">
+</span><span data-line="25"><span class="sd">    ``packaging.version.Version`` raises ``InvalidVersion`` on legacy keys that</span>
+</span><span data-line="26"><span class="sd">    PyPI still serves, so parse defensively: PEP 440 versions sort newest-first,</span>
+</span><span data-line="27"><span class="sd">    and any unparseable keys are kept (sorted after) rather than letting one bad</span>
+</span><span data-line="28"><span class="sd">    key abort the whole listing with a traceback.</span>
+</span><span data-line="29">
+</span><span data-line="30"><span class="sd">    Returns:</span>
+</span><span data-line="31"><span class="sd">        Release keys, PEP 440 versions newest-first, then non-PEP-440 keys.</span>
+</span><span data-line="32"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="33">    <span class="n">valid</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="n">Version</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="34">    <span class="n">invalid</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="35">    <span class="k">for</span> <span class="n">ver</span> <span class="ow">in</span> <span class="n">releases</span><span class="p">:</span>
+</span><span data-line="36">        <span class="k">try</span><span class="p">:</span>
+</span><span data-line="37">            <span class="n">valid</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">Version</span><span class="p">(</span><span class="n">ver</span><span class="p">),</span> <span class="n">ver</span><span class="p">))</span>
+</span><span data-line="38">        <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
+</span><span data-line="39">            <span class="n">invalid</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">ver</span><span class="p">)</span>
+</span><span data-line="40">    <span class="n">valid</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">key</span><span class="o">=</span><span class="n">operator</span><span class="o">.</span><span class="n">itemgetter</span><span class="p">(</span><span class="mi">0</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="41">    <span class="k">return</span> <span class="p">[</span><span class="n">ver</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">ver</span> <span class="ow">in</span> <span class="n">valid</span><span class="p">]</span> <span class="o">+</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">invalid</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="42">
+</span><span data-line="43">
 <div class="viewcode-block" id="get_versions">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.commands.versions.get_versions">[docs]</a>
-</span><span data-line="21"><span class="k">def</span><span class="w"> </span><span class="nf">get_versions</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
-</span><span data-line="22"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch all published versions for a package from PyPI.</span>
-</span><span data-line="23">
-</span><span data-line="24"><span class="sd">    Returns:</span>
-</span><span data-line="25"><span class="sd">        A list of ``{&quot;version&quot;, &quot;upload_time&quot;}`` dicts, newest first; empty</span>
-</span><span data-line="26"><span class="sd">        if the package is not found (HTTP 404).</span>
-</span><span data-line="27">
-</span><span data-line="28"><span class="sd">    Raises:</span>
-</span><span data-line="29"><span class="sd">        NetworkError: If the request fails or returns a non-success status.</span>
-</span><span data-line="30"><span class="sd">    &quot;&quot;&quot;</span>
-</span><span data-line="31">    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">PYPI_BASE_URL</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/json&quot;</span>
-</span><span data-line="32">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="33">        <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">DEFAULT_TIMEOUT</span><span class="p">)</span>
-</span><span data-line="34">    <span class="k">except</span> <span class="n">httpx</span><span class="o">.</span><span class="n">RequestError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="35">        <span class="k">raise</span> <span class="n">NetworkError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-</span><span data-line="36">
-</span><span data-line="37">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>  <span class="c1"># noqa: PLR2004</span>
-</span><span data-line="38">        <span class="k">return</span> <span class="p">[]</span>
-</span><span data-line="39">
-</span><span data-line="40">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="41">        <span class="n">_</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
-</span><span data-line="42">    <span class="k">except</span> <span class="n">httpx</span><span class="o">.</span><span class="n">HTTPStatusError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="43">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;PyPI returned HTTP </span><span class="si">{</span><span class="n">exc</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">&quot;</span>
-</span><span data-line="44">        <span class="k">raise</span> <span class="n">NetworkError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-</span><span data-line="45">
-</span><span data-line="46">    <span class="c1"># Single typed boundary: the PyPI JSON API is untyped, so cast the decoded</span>
-</span><span data-line="47">    <span class="c1"># body into our TypedDict view of the fields we actually read.</span>
-</span><span data-line="48">    <span class="n">data</span><span class="p">:</span> <span class="n">PyPIResponse</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;PyPIResponse&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
-</span><span data-line="49">    <span class="n">releases</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">PyPIReleaseFile</span><span class="p">]]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;releases&quot;</span><span class="p">,</span> <span class="p">{})</span>
-</span><span data-line="50">    <span class="n">result</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="51">    <span class="k">for</span> <span class="n">ver</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span>
-</span><span data-line="52">        <span class="n">releases</span><span class="o">.</span><span class="n">items</span><span class="p">(),</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">kv</span><span class="p">:</span> <span class="n">Version</span><span class="p">(</span><span class="n">kv</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span>
-</span><span data-line="53">    <span class="p">):</span>
-</span><span data-line="54">        <span class="n">upload_time</span> <span class="o">=</span> <span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;upload_time&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
-</span><span data-line="55">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">ver</span><span class="p">,</span> <span class="s2">&quot;upload_time&quot;</span><span class="p">:</span> <span class="n">upload_time</span><span class="p">})</span>
-</span><span data-line="56">    <span class="k">return</span> <span class="n">result</span></div>
-
-</span><span data-line="57">
-</span><span data-line="58">
-</span><span data-line="59"><span class="c1"># Patch target used by tests.</span>
-</span><span data-line="60"><span class="n">remote_get_versions</span> <span class="o">=</span> <span class="n">get_versions</span>
-</span><span data-line="61">
+</span><span data-line="44"><span class="k">def</span><span class="w"> </span><span class="nf">get_versions</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]:</span>
+</span><span data-line="45"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch all published versions for a package from PyPI.</span>
+</span><span data-line="46">
+</span><span data-line="47"><span class="sd">    Returns:</span>
+</span><span data-line="48"><span class="sd">        A list of ``{&quot;version&quot;, &quot;upload_time&quot;}`` dicts, newest first; empty</span>
+</span><span data-line="49"><span class="sd">        if the package is not found (HTTP 404).</span>
+</span><span data-line="50">
+</span><span data-line="51"><span class="sd">    Raises:</span>
+</span><span data-line="52"><span class="sd">        NetworkError: If the request fails or returns a non-success status.</span>
+</span><span data-line="53"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="54">    <span class="n">url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">PYPI_BASE_URL</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/json&quot;</span>
+</span><span data-line="55">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="56">        <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">DEFAULT_TIMEOUT</span><span class="p">)</span>
+</span><span data-line="57">    <span class="k">except</span> <span class="n">httpx</span><span class="o">.</span><span class="n">RequestError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="58">        <span class="k">raise</span> <span class="n">NetworkError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</span><span data-line="59">
+</span><span data-line="60">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>  <span class="c1"># noqa: PLR2004</span>
+</span><span data-line="61">        <span class="k">return</span> <span class="p">[]</span>
 </span><span data-line="62">
+</span><span data-line="63">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="64">        <span class="n">_</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+</span><span data-line="65">    <span class="k">except</span> <span class="n">httpx</span><span class="o">.</span><span class="n">HTTPStatusError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="66">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;PyPI returned HTTP </span><span class="si">{</span><span class="n">exc</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span data-line="67">        <span class="k">raise</span> <span class="n">NetworkError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</span><span data-line="68">
+</span><span data-line="69">    <span class="c1"># Single typed boundary: the PyPI JSON API is untyped, so cast the decoded</span>
+</span><span data-line="70">    <span class="c1"># body into our TypedDict view of the fields we actually read.</span>
+</span><span data-line="71">    <span class="n">data</span><span class="p">:</span> <span class="n">PyPIResponse</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;PyPIResponse&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
+</span><span data-line="72">    <span class="n">releases</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">PyPIReleaseFile</span><span class="p">]]</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;releases&quot;</span><span class="p">,</span> <span class="p">{})</span>
+</span><span data-line="73">    <span class="n">result</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="74">    <span class="k">for</span> <span class="n">ver</span> <span class="ow">in</span> <span class="n">_sorted_version_keys</span><span class="p">(</span><span class="n">releases</span><span class="p">):</span>
+</span><span data-line="75">        <span class="n">files</span> <span class="o">=</span> <span class="n">releases</span><span class="p">[</span><span class="n">ver</span><span class="p">]</span>
+</span><span data-line="76">        <span class="n">upload_time</span> <span class="o">=</span> <span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;upload_time&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+</span><span data-line="77">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">ver</span><span class="p">,</span> <span class="s2">&quot;upload_time&quot;</span><span class="p">:</span> <span class="n">upload_time</span><span class="p">})</span>
+</span><span data-line="78">    <span class="k">return</span> <span class="n">result</span></div>
+
+</span><span data-line="79">
+</span><span data-line="80">
+</span><span data-line="81"><span class="c1"># Patch target used by tests.</span>
+</span><span data-line="82"><span class="n">remote_get_versions</span> <span class="o">=</span> <span class="n">get_versions</span>
+</span><span data-line="83">
+</span><span data-line="84">
 <div class="viewcode-block" id="versions">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.commands.versions.versions">[docs]</a>
-</span><span data-line="63"><span class="k">def</span><span class="w"> </span><span class="nf">versions</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="64"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show published versions of a package from PyPI.</span>
-</span><span data-line="65">
-</span><span data-line="66"><span class="sd">    Raises:</span>
-</span><span data-line="67"><span class="sd">        Exit: With code 2 on network failure, or code 1 if the package is absent.</span>
-</span><span data-line="68"><span class="sd">    &quot;&quot;&quot;</span>
-</span><span data-line="69">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="70">        <span class="n">vers</span> <span class="o">=</span> <span class="n">remote_get_versions</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
-</span><span data-line="71">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="72">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="73">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="74">    <span class="k">if</span> <span class="ow">not</span> <span class="n">vers</span><span class="p">:</span>
-</span><span data-line="75">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found on PyPI.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="76">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="77">    <span class="n">shown</span> <span class="o">=</span> <span class="n">vers</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span>
-</span><span data-line="78">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_json</span> <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">))</span></div>
+</span><span data-line="85"><span class="k">def</span><span class="w"> </span><span class="nf">versions</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="86"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show published versions of a package from PyPI.</span>
+</span><span data-line="87">
+</span><span data-line="88"><span class="sd">    Raises:</span>
+</span><span data-line="89"><span class="sd">        Exit: With code 2 on network failure, or code 1 if the package is absent.</span>
+</span><span data-line="90"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="91">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="92">        <span class="n">vers</span> <span class="o">=</span> <span class="n">remote_get_versions</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+</span><span data-line="93">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="94">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="95">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="96">    <span class="k">if</span> <span class="ow">not</span> <span class="n">vers</span><span class="p">:</span>
+</span><span data-line="97">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found on PyPI.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="98">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="99">    <span class="n">shown</span> <span class="o">=</span> <span class="n">vers</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span>
+</span><span data-line="100">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_json</span> <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">))</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
