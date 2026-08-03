@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import operator
 from typing import TYPE_CHECKING, cast
 
 import httpx
 import typer
-from packaging.version import Version
+from packaging.version import InvalidVersion, Version
 
 from peta.core.remote import DEFAULT_TIMEOUT, PYPI_BASE_URL, NetworkError
 from peta.output.json import format_versions as json_format
@@ -16,6 +17,28 @@ if TYPE_CHECKING:
     from peta.core.remote import PyPIReleaseFile, PyPIResponse
 
 __all__ = ["get_versions", "versions"]
+
+
+def _sorted_version_keys(releases: dict[str, list[PyPIReleaseFile]]) -> list[str]:
+    """Return release keys newest-first, tolerating non-PEP-440 keys.
+
+    ``packaging.version.Version`` raises ``InvalidVersion`` on legacy keys that
+    PyPI still serves, so parse defensively: PEP 440 versions sort newest-first,
+    and any unparseable keys are kept (sorted after) rather than letting one bad
+    key abort the whole listing with a traceback.
+
+    Returns:
+        Release keys, PEP 440 versions newest-first, then non-PEP-440 keys.
+    """
+    valid: list[tuple[Version, str]] = []
+    invalid: list[str] = []
+    for ver in releases:
+        try:
+            valid.append((Version(ver), ver))
+        except InvalidVersion:
+            invalid.append(ver)
+    valid.sort(key=operator.itemgetter(0), reverse=True)
+    return [ver for _, ver in valid] + sorted(invalid, reverse=True)
 
 
 def get_versions(name: str) -> list[dict[str, str]]:
@@ -48,9 +71,8 @@ def get_versions(name: str) -> list[dict[str, str]]:
     data: PyPIResponse = cast("PyPIResponse", response.json())
     releases: dict[str, list[PyPIReleaseFile]] = data.get("releases", {})
     result: list[dict[str, str]] = []
-    for ver, files in sorted(
-        releases.items(), key=lambda kv: Version(kv[0]), reverse=True
-    ):
+    for ver in _sorted_version_keys(releases):
+        files = releases[ver]
         upload_time = files[0].get("upload_time", "")[:10] if files else ""
         result.append({"version": ver, "upload_time": upload_time})
     return result

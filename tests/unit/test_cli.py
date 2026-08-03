@@ -193,6 +193,12 @@ class TestVersions:
         m.side_effect = NetworkError("down")
         assert runner.invoke(app, ["versions", "x"]).exit_code == 2
 
+    def test_versions_negative_limit_rejected(self) -> None:
+        # A negative --limit must be rejected by Typer, not become a reverse
+        # slice (vers[:-1]) that prints all-but-last.
+        result = runner.invoke(app, ["versions", "requests", "-n", "-1"])
+        assert result.exit_code != 0
+
 
 class TestRun:
     def test_shorthand_inserts_info(self, monkeypatch: pytest.MonkeyPatch) -> None:

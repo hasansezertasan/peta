@@ -95,7 +95,7 @@ def versions(
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
     limit: Annotated[
-        int, typer.Option("--limit", "-n", help="Max versions to show.")
+        int, typer.Option("--limit", "-n", min=1, help="Max versions to show.")
     ] = 20,
 ) -> None:
     """Show published versions of a package from PyPI."""

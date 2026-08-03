@@ -36,6 +36,21 @@ def test_success_sorted_newest_first(mock_httpx: MagicMock) -> None:
 
 
 @patch("peta.cli.commands.versions.httpx")
+def test_tolerates_non_pep440_release_keys(mock_httpx: MagicMock) -> None:
+    payload = {
+        "releases": {
+            "2.0.0": [{"upload_time": "2021-02-03T10:00:00"}],
+            "1.0.0": [{"upload_time": "2020-01-01T00:00:00"}],
+            "not-a-version": [{"upload_time": "2019-01-01T00:00:00"}],
+        }
+    }
+    mock_httpx.get.return_value = _resp(200, payload)
+    # A single legacy key must not abort the listing with an InvalidVersion.
+    result = get_versions("pkg")
+    assert [r["version"] for r in result] == ["2.0.0", "1.0.0", "not-a-version"]
+
+
+@patch("peta.cli.commands.versions.httpx")
 def test_not_found_returns_empty(mock_httpx: MagicMock) -> None:
     mock_httpx.get.return_value = _resp(404)
     assert get_versions("nope-xyz") == []
