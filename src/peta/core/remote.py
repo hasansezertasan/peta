@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Required, TypedDict, cast
 
 import httpx
 
@@ -12,13 +12,60 @@ PYPI_BASE_URL = "https://pypi.org/pypi"
 DEFAULT_TIMEOUT = 10.0
 
 
+# The PyPI JSON API is untyped from Python's perspective (``response.json()``
+# returns ``Any``). These ``TypedDict``\ s describe only the fields peta reads,
+# so the decoded body can be brought into the typed world with a single
+# ``typing.cast`` at each ``.json()`` boundary. Fields peta always indexes
+# directly are ``Required``; everything read via ``.get(...)`` is optional
+# (``total=False``), mirroring the fact that PyPI does not guarantee any key.
+class PyPIInfo(TypedDict, total=False):
+    """The ``info`` object of a PyPI package payload."""
+
+    name: Required[str]
+    version: Required[str]
+    summary: str | None
+    author: str | None
+    author_email: str | None
+    maintainer: str | None
+    license: str | None
+    requires_python: str | None
+    home_page: str | None
+    project_urls: dict[str, str] | None
+    requires_dist: list[str] | None
+    classifiers: list[str]
+    keywords: str | None
+
+
+class PyPIVulnerability(TypedDict, total=False):
+    """A single entry of the ``vulnerabilities`` array."""
+
+    id: Required[str]
+    aliases: list[str]
+    summary: str
+    fixed_in: list[str]
+
+
+class PyPIReleaseFile(TypedDict, total=False):
+    """A single distribution file within a release entry."""
+
+    upload_time: str
+
+
+class PyPIResponse(TypedDict, total=False):
+    """The top-level PyPI JSON payload for a package."""
+
+    info: Required[PyPIInfo]
+    vulnerabilities: list[PyPIVulnerability]
+    releases: dict[str, list[PyPIReleaseFile]]
+
+
 class PackageNotFoundError(Exception):
     """Raised when a package is not found on PyPI."""
 
     def __init__(self, name: str, version: str | None = None) -> None:
         """Store the missing package name and optional version."""
-        self.name = name
-        self.version = version
+        self.name: str = name
+        self.version: str | None = version
         target = f"{name}=={version}" if version else name
         super().__init__(f"Package '{target}' not found on PyPI")
 
@@ -37,7 +84,7 @@ def _pypi_url(name: str, version: str | None) -> str:
     return f"{PYPI_BASE_URL}/{name}/json"
 
 
-def _fetch(name: str, version: str | None) -> dict[str, Any]:
+def _fetch(name: str, version: str | None) -> PyPIResponse:
     """Fetch the raw PyPI JSON payload for a package.
 
     Returns:
@@ -57,13 +104,14 @@ def _fetch(name: str, version: str | None) -> dict[str, Any]:
         raise PackageNotFoundError(name, version)
 
     try:
-        response.raise_for_status()
+        _ = response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         msg = f"PyPI returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    data: dict[str, Any] = response.json()
-    return data
+    # Single typed boundary: the PyPI JSON API is untyped, so cast the decoded
+    # body into our TypedDict view of the fields we actually read.
+    return cast("PyPIResponse", response.json())
 
 
 def _parse_keywords(raw: str | None) -> list[str]:
@@ -72,7 +120,7 @@ def _parse_keywords(raw: str | None) -> list[str]:
     return [k.strip() for k in raw.split(",") if k.strip()]
 
 
-def _parse_vulnerabilities(raw: list[dict[str, Any]]) -> list[Vulnerability]:
+def _parse_vulnerabilities(raw: list[PyPIVulnerability]) -> list[Vulnerability]:
     return [
         Vulnerability(
             id=v["id"],
@@ -96,7 +144,7 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         failures propagate from :func:`_fetch`.
     """
     data = _fetch(name, version)
-    info: dict[str, Any] = data["info"]
+    info: PyPIInfo = data["info"]
     return PackageInfo(
         name=info["name"],
         version=info["version"],

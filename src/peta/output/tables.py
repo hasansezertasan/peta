@@ -87,7 +87,7 @@ def render_deps(pkg: PackageInfo) -> str:
     """
     tree = Tree(f"{pkg.name} {pkg.version}")
     for dep in pkg.dependencies:
-        tree.add(dep)
+        _ = tree.add(dep)
     return _to_string(tree)
 
 

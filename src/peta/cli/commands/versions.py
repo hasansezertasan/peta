@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, cast
 
 import httpx
 import typer
@@ -11,6 +11,9 @@ from packaging.version import Version
 from peta.core.remote import DEFAULT_TIMEOUT, PYPI_BASE_URL, NetworkError
 from peta.output.json import format_versions as json_format
 from peta.output.tables import render_versions as rich_format
+
+if TYPE_CHECKING:
+    from peta.core.remote import PyPIReleaseFile, PyPIResponse
 
 
 def get_versions(name: str) -> list[dict[str, str]]:
@@ -33,13 +36,15 @@ def get_versions(name: str) -> list[dict[str, str]]:
         return []
 
     try:
-        response.raise_for_status()
+        _ = response.raise_for_status()
     except httpx.HTTPStatusError as exc:
         msg = f"PyPI returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    data: dict[str, Any] = response.json()
-    releases: dict[str, list[dict[str, Any]]] = data.get("releases", {})
+    # Single typed boundary: the PyPI JSON API is untyped, so cast the decoded
+    # body into our TypedDict view of the fields we actually read.
+    data = cast("PyPIResponse", response.json())
+    releases: dict[str, list[PyPIReleaseFile]] = data.get("releases", {})
     result: list[dict[str, str]] = []
     for ver, files in sorted(
         releases.items(), key=lambda kv: Version(kv[0]), reverse=True

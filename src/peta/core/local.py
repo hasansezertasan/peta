@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from peta.core.models import PackageInfo
 
@@ -16,13 +16,16 @@ class PackageNotFoundError(Exception):
 
     def __init__(self, name: str) -> None:
         """Store the missing package name."""
-        self.name = name
+        self.name: str = name
         super().__init__(f"Package '{name}' is not installed")
 
 
 def _parse_project_urls(meta: PackageMetadata) -> dict[str, str]:
     urls: dict[str, str] = {}
-    for entry in meta.get_all("Project-URL") or []:
+    # importlib.metadata's PackageMetadata is untyped (email.Message based), so
+    # get_all yields Any; cast the headers we read into the typed world.
+    entries = cast("list[str]", meta.get_all("Project-URL") or [])
+    for entry in entries:
         if ", " in entry:
             label, url = entry.split(", ", 1)
             urls[label.strip()] = url.strip()

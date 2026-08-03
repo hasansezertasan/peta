@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from typing import Annotated
 
 import typer
 
@@ -31,24 +32,32 @@ def _version_callback(value: bool) -> None:
 
 @app.callback(invoke_without_command=True)
 def main(
-    version: bool = typer.Option(
-        False,
-        "--version",
-        "-V",
-        callback=_version_callback,
-        is_eager=True,
-        help="Show version and exit.",
-    ),
+    _version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            "-V",
+            callback=_version_callback,
+            is_eager=True,
+            help="Show version and exit.",
+        ),
+    ] = False,
 ) -> None:
     """Human-friendly Python package metadata viewer."""
 
 
 @app.command()
 def info(
-    package: str = typer.Argument(..., help="Package name (optionally name==version)."),
-    use_json: bool = typer.Option(False, "--json", help="Output as JSON."),
-    local: bool = typer.Option(False, "--local", "-l", help="Force local lookup."),
-    remote: bool = typer.Option(False, "--remote", "-r", help="Force PyPI lookup."),
+    package: Annotated[
+        str, typer.Argument(help="Package name (optionally name==version).")
+    ],
+    use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    local: Annotated[
+        bool, typer.Option("--local", "-l", help="Force local lookup.")
+    ] = False,
+    remote: Annotated[
+        bool, typer.Option("--remote", "-r", help="Force PyPI lookup.")
+    ] = False,
 ) -> None:
     """Show detailed package metadata."""
     info_mod.info(package, use_json=use_json, local=local, remote=remote)
@@ -56,10 +65,14 @@ def info(
 
 @app.command()
 def deps(
-    package: str = typer.Argument(..., help="Package name."),
-    use_json: bool = typer.Option(False, "--json", help="Output as JSON."),
-    local: bool = typer.Option(False, "--local", "-l", help="Force local lookup."),
-    remote: bool = typer.Option(False, "--remote", "-r", help="Force PyPI lookup."),
+    package: Annotated[str, typer.Argument(help="Package name.")],
+    use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    local: Annotated[
+        bool, typer.Option("--local", "-l", help="Force local lookup.")
+    ] = False,
+    remote: Annotated[
+        bool, typer.Option("--remote", "-r", help="Force PyPI lookup.")
+    ] = False,
 ) -> None:
     """Show a package's declared dependencies."""
     deps_mod.deps(package, use_json=use_json, local=local, remote=remote)
@@ -67,8 +80,8 @@ def deps(
 
 @app.command()
 def files(
-    package: str = typer.Argument(..., help="Package name."),
-    use_json: bool = typer.Option(False, "--json", help="Output as JSON."),
+    package: Annotated[str, typer.Argument(help="Package name.")],
+    use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
 ) -> None:
     """List files installed by a local package."""
     files_mod.files(package, use_json=use_json)
@@ -76,9 +89,11 @@ def files(
 
 @app.command()
 def versions(
-    package: str = typer.Argument(..., help="Package name."),
-    use_json: bool = typer.Option(False, "--json", help="Output as JSON."),
-    limit: int = typer.Option(20, "--limit", "-n", help="Max versions to show."),
+    package: Annotated[str, typer.Argument(help="Package name.")],
+    use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    limit: Annotated[
+        int, typer.Option("--limit", "-n", help="Max versions to show.")
+    ] = 20,
 ) -> None:
     """Show published versions of a package from PyPI."""
     versions_mod.versions(package, use_json=use_json, limit=limit)
