@@ -1,5 +1,7 @@
 """Unit tests for Rich renderers."""
 
+from dataclasses import replace
+
 import pytest
 
 from peta.core.models import PackageInfo, Vulnerability
@@ -9,19 +11,18 @@ pytestmark = pytest.mark.unit
 
 
 def _pkg(**over: object) -> PackageInfo:
-    base: dict[str, object] = {
-        "name": "requests",
-        "version": "2.31.0",
-        "source": "local",
-        "summary": "Python HTTP for Humans.",
-        "homepage": "https://x",
-        "project_urls": {"Repo": "https://github.com/psf/requests"},
-        "dependencies": ["urllib3", "idna"],
-        "files": None,
-        "vulnerabilities": [],
-    }
-    base.update(over)
-    return PackageInfo(**base)  # type: ignore[arg-type]
+    base = PackageInfo(
+        name="requests",
+        version="2.31.0",
+        source="local",
+        summary="Python HTTP for Humans.",
+        homepage="https://x",
+        project_urls={"Repo": "https://github.com/psf/requests"},
+        dependencies=["urllib3", "idna"],
+        files=None,
+        vulnerabilities=[],
+    )
+    return replace(base, **over)
 
 
 def test_render_info_string() -> None:

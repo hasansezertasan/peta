@@ -1,6 +1,7 @@
 """Unit tests for JSON formatters."""
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -11,16 +12,15 @@ pytestmark = pytest.mark.unit
 
 
 def _pkg(**over: object) -> PackageInfo:
-    base: dict[str, object] = {
-        "name": "requests",
-        "version": "2.31.0",
-        "source": "local",
-        "dependencies": ["urllib3"],
-        "files": None,
-        "vulnerabilities": [],
-    }
-    base.update(over)
-    return PackageInfo(**base)  # type: ignore[arg-type]
+    base = PackageInfo(
+        name="requests",
+        version="2.31.0",
+        source="local",
+        dependencies=["urllib3"],
+        files=None,
+        vulnerabilities=[],
+    )
+    return replace(base, **over)
 
 
 def test_info_basic() -> None:
