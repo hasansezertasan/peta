@@ -75,7 +75,7 @@ def test_not_found(mock_httpx: MagicMock) -> None:
 @patch("peta.core.remote.httpx")
 def test_parses_vulnerabilities(mock_httpx: MagicMock) -> None:
     payload = {
-        "info": {**_INFO, "keywords": None, "requires_dist": None},
+        "info": {**_INFO, "keywords": None, "requires_dist": None, "classifiers": None},
         "vulnerabilities": [
             {
                 "id": "PYSEC-2024-001",
@@ -89,6 +89,8 @@ def test_parses_vulnerabilities(mock_httpx: MagicMock) -> None:
     result = get_package("vuln-pkg")
     assert result.vulnerabilities[0].id == "PYSEC-2024-001"
     assert result.keywords == []
+    # An explicit null classifiers must normalize to [], not None.
+    assert result.classifiers == []
     assert result.dependencies == []
 
 

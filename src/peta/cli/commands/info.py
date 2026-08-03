@@ -36,10 +36,17 @@ def _parse_package_arg(package: str) -> tuple[str, str | None]:
     return package, None
 
 
+def _resolve_versioned(name: str, version: str, *, local: bool) -> PackageInfo:
+    if local:
+        msg = "--local cannot be combined with a version specifier."
+        raise typer.BadParameter(msg)
+    return remote_get_package(name, version)
+
+
 def _resolve(package: str, *, local: bool, remote: bool) -> PackageInfo:
     name, version = _parse_package_arg(package)
     if version:
-        return remote_get_package(name, version)
+        return _resolve_versioned(name, version, local=local)
     if remote:
         return remote_get_package(name)
     if local:

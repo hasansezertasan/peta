@@ -17,9 +17,9 @@
 - Strict gates must pass: ruff `select = ALL`, mypy strict, basedpyright, cyclomatic complexity ≤ 5, coverage `fail_under = 99` on the offline tiers (smoke + unit + integration).
 - **Never** name the internal reference repository or its URL in source, docs, comments, or commit messages. Refer to it only as "the reference implementation."
 - No AI-authorship trailers/footers in commits or docs. Conventional Commits.
-- **Reference source of truth (this session only):** the reference is cloned read-only at
-  `/private/tmp/claude-501/-Users-hasansezertasan-orca-workspaces-peta-cuskeel/b26cc9d6-f45b-437c-9b4e-e01efea3dea0/scratchpad/ref`.
-  This plan embeds the conformed target code; the clone is only a cross-check.
+- **Reference source of truth (this session only):** the reference was cloned
+  read-only into a local temporary directory. This plan embeds the conformed
+  target code; the clone is only a cross-check.
 - **Ruff gating rule (skill gotcha #1):** the template sets ruff `fix=true`+`unsafe-fixes`. Before running any hook or `ruff check` that autofixes, run `uv run ruff check --diff src tests` and review. Autofix can silently delete `typer.echo`/`print` patterns — inspect before applying.
 
 ---

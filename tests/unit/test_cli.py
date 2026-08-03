@@ -69,6 +69,14 @@ class TestInfo:
         assert runner.invoke(app, ["info", "requests", "-l"]).exit_code == 0
         ml.assert_called_once()
 
+    @patch("peta.cli.commands.info.remote_get_package")
+    def test_local_with_version_rejected(self, mr: MagicMock) -> None:
+        # --local with a name==version specifier is contradictory; it must be
+        # rejected, not silently fall through to a remote lookup.
+        result = runner.invoke(app, ["info", "requests==2.28.0", "-l"])
+        assert result.exit_code != 0
+        mr.assert_not_called()
+
     @patch("peta.cli.commands.info.local_get_package")
     def test_shows_vuln(self, ml: MagicMock) -> None:
         v = Vulnerability(id="PYSEC-1", aliases=[], summary="s", fixed_in=["2.32.0"])
@@ -237,6 +245,12 @@ class TestRun:
 class TestRoot:
     def test_help(self) -> None:
         r = runner.invoke(app, ["--help"])
+        assert r.exit_code == 0
+        assert "peta" in r.output.lower()
+
+    def test_dash_h_shows_help(self) -> None:
+        # -h is advertised in _SUBCOMMANDS; it must actually render help.
+        r = runner.invoke(app, ["-h"])
         assert r.exit_code == 0
         assert "peta" in r.output.lower()
 
