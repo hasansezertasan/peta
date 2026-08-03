@@ -3,21 +3,19 @@ name = "peta"
 description = "Human-friendly Python package metadata viewer"
 license = "MIT"
 readme = "README.md"
-authors = [
-  { name = "Hasan Sezer Tasan", email = "hasansezertasan@gmail.com" },
-]
+authors = [{ name = "Hasan Sezer Tasan", email = "hasansezertasan@gmail.com" }]
 maintainers = [
   { name = "Hasan Sezer Tasan", email = "hasansezertasan@gmail.com" },
 ]
 dynamic = ["version"]
 keywords = [
-    "packaging",
-    "metadata",
-    "pypi",
-    "cli",
-    "command-line",
-    "python",
-    "typer",
+  "packaging",
+  "metadata",
+  "pypi",
+  "cli",
+  "command-line",
+  "python",
+  "typer",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
@@ -40,12 +38,7 @@ classifiers = [
   "Topic :: Terminals",
 ]
 requires-python = ">=3.14"
-dependencies = [
-  "typer",
-  "rich",
-  "httpx",
-  "packaging",
-]
+dependencies = ["typer", "rich", "httpx", "packaging"]
 
 
 [project.urls]
@@ -59,11 +52,6 @@ source = "https://github.com/hasansezertasan/peta.git"
 
 [project.scripts]
 peta = "peta.cli.app:run"
-
-
-
-
-
 
 
 [dependency-groups]
@@ -114,16 +102,16 @@ test = [
   "inline-snapshot",
 ]
 docs = [
-    "sphinx==8.1.3",
-    "shibuya==2026.5.19",
-    "sphinx-autobuild==2024.10.3",  # 2025.x drops Python 3.10 (requires-python >= 3.11)
-    "sphinx-copybutton==0.5.2",
-    "sphinx-design==0.6.1",  # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
-    "sphinx-togglebutton==0.4.5",
-    "sphinx-paramlinks==0.6.0",
-    "auto-pytabs[sphinx]==0.5.0",
-    "myst-parser==4.0.1",
-    "sphinx-click==6.2.0",
+  "sphinx==8.1.3",
+  "shibuya==2026.5.19",
+  "sphinx-autobuild==2024.10.3", # 2025.x drops Python 3.10 (requires-python >= 3.11)
+  "sphinx-copybutton==0.5.2",
+  "sphinx-design==0.6.1",        # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
+  "sphinx-togglebutton==0.4.5",
+  "sphinx-paramlinks==0.6.0",
+  "auto-pytabs[sphinx]==0.5.0",
+  "myst-parser==4.0.1",
+  "sphinx-click==6.2.0",
 ]
 tool = [
   "commitizen==4.10.0",
@@ -131,9 +119,7 @@ tool = [
   # "inflection==0.5.1",
   # "copier==9.11.0",
 ]
-prek = [
-    "prek==0.4.3",
-]
+prek = ["prek==0.4.3"]
 
 
 [build-system]
@@ -188,9 +174,7 @@ name = "cz_conventional_commits"
 # addopts = "-rXs --strict-config --strict-markers"
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
-filterwarnings = [
-  "error",
-]
+filterwarnings = ["error"]
 markers = [
   "smoke: fast import/entrypoint checks",
   "unit: pure logic, fully mocked, no I/O",
@@ -229,11 +213,7 @@ peta = ["src/peta", "*/site-packages/peta"]
 # so a pattern like `def main\(` would silently un-measure any future `main()`
 # with real logic (and did mask the tested GUI/TUI entrypoints). Pragmas carry the
 # exclusion decision next to the code it affects. See ADR-008.
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
 fail_under = 99
 # Patterns match both the `src/` (editable) and installed (`site-packages`)
 # layouts (see [tool.coverage.run] omit).
@@ -258,9 +238,34 @@ ignore_decorators = [
 # ``arguments`` parameter is mandated by the call_tool signature, the Textual
 # names (CSS/compose/on_mount/title/BINDINGS) are invoked by the TUI framework,
 # and ``pytestmark`` is consumed by pytest at collection time.
-ignore_names = ["CONFIG_FILE_PATH", "logger", "main", "model_config", "CSS", "compose", "on_mount", "title", "BINDINGS"]
+ignore_names = [
+  "CONFIG_FILE_PATH",
+  "logger",
+  "main",
+  "model_config",
+  "CSS",
+  "compose",
+  "on_mount",
+  "title",
+  "BINDINGS",
+  # pytest markers, mock attributes, and external PyPI-schema TypedDict fields (accessed via string keys)
+  "pytestmark",
+  "return_value",
+  "side_effect",
+  "author_email",
+  "home_page",
+  "requires_dist",
+  "requires_python",
+]
 min_confidence = 60
 paths = ["src", "tests"]
+
+
+[tool.typos.default.extend-words]
+# `certifi` is a real PyPI package name (the CA-bundle package), not a typo of
+# "certify"/"certified"; it shows up in the PyPI-schema example payload under
+# docs/superpowers/plans.
+certifi = "certifi"
 
 
 [tool.slotscheck]
@@ -277,10 +282,7 @@ type = "layers"
 # Layers are listed high -> low: a layer may import lower layers but never a
 # higher one. `cli` is the orchestrator layer, sitting above `core`.
 # `__metadata__` is left outside the contract as an unconstrained foundation.
-layers = [
-  "peta.cli",
-  "peta.core",
-]
+layers = ["peta.cli", "peta.core"]
 
 
 [tool.ruff]
@@ -326,8 +328,6 @@ author = "Hasan Sezer Tasan <hasansezertasan@gmail.com>"
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
-
-
 
 
 [tool.ruff.lint.mccabe]
@@ -421,11 +421,7 @@ project-includes = ["src"]
 # and would hang/fail under ``tox run`` in CI (where no broker is available).
 # The worker is covered by its pytest TestBroker suite; run it on demand with
 # ``tox -e worker`` when a broker is up (e.g. inside the devcontainer).
-env_list = [
-    "style",
-    "cli",
-    "3.14",
-]
+env_list = ["style", "cli", "3.14"]
 requires = ["tox>=4"]
 
 
@@ -462,55 +458,17 @@ wheel_build_env = ".pkg"
 [tool.tox.env.style]
 base_python = ["3.14"]
 commands = [
-  [
-    "ruff",
-    "check",
-    "--no-fix",
-  ],
-  [
-    "ruff",
-    "format",
-    "--check",
-    "--diff",
-  ],
-  [
-    "mypy",
-    "--python-version",
-    "3.14",
-  ],
-  [
-    "basedpyright",
-  ],
-  [
-    "ty",
-    "check",
-  ],
-  [
-    "pyrefly",
-    "check",
-  ],
-  [
-    "zuban",
-    "check",
-    "src",
-  ],
-  [
-    "vulture",
-  ],
-  [
-    "python",
-    "-m",
-    "slotscheck",
-    "src",
-  ],
-  [
-    "lint-imports",
-  ],
-  [
-    "taplo",
-    "lint",
-    "*.toml",
-  ],
+  ["ruff", "check", "--no-fix"],
+  ["ruff", "format", "--check", "--diff"],
+  ["mypy", "--python-version", "3.14"],
+  ["basedpyright"],
+  ["ty", "check"],
+  ["pyrefly", "check"],
+  ["zuban", "check", "src"],
+  ["vulture"],
+  ["python", "-m", "slotscheck", "src"],
+  ["lint-imports"],
+  ["taplo", "lint", "*.toml"],
   # NOTE: kept in fix mode (not `--check`) because the rendered TOML is not yet
   # guaranteed taplo-formatted across every component combination. The `*.toml`
   # glob is non-recursive, so it scopes taplo to this project's own root TOML
@@ -518,29 +476,12 @@ commands = [
   # trees — no `.taplo.toml` exclude config needed. Making this a strict
   # `--check` gate is a follow-up that first requires the generated
   # pyproject/prek to be clean.
-  [
-    "taplo",
-    "format",
-    "*.toml",
-  ],
-  [
-    "validate-pyproject",
-    "pyproject.toml",
-  ],
-  [
-    "typos",
-    "--diff",
-  ],
-  [
-    "actionlint",
-  ],
-  [
-    "ec",
-  ],
-  [
-    "sphinx-lint",
-    "docs",
-  ],
+  ["taplo", "format", "*.toml"],
+  ["validate-pyproject", "pyproject.toml"],
+  ["typos", "--diff"],
+  ["actionlint"],
+  ["ec"],
+  ["sphinx-lint", "docs"],
   # ["yamlfmt", "."],
 ]
 # `test` is included so the type checkers that scope tests (e.g. ty) can
@@ -574,12 +515,27 @@ runner = "uv-venv-runner"
 [tool.tox.env.docs-linkcheck]
 # On-demand link checker. Also run weekly (non-blocking) by docs-linkcheck.yml.
 # Hits the network, so it is deliberately not part of the `style` env or PR CI.
-commands = [["sphinx-build", "-b", "linkcheck", "docs", "docs/_build/linkcheck"]]
+commands = [
+  [
+    "sphinx-build",
+    "-b",
+    "linkcheck",
+    "docs",
+    "docs/_build/linkcheck",
+  ],
+]
 dependency_groups = ["docs"]
 description = "Check documentation for broken links"
 runner = "uv-venv-runner"
 
 [tool.tox.env.cli]
-commands = [["peta", { replace = "posargs", default = ["version"], extend = true }]]
+commands = [
+  [
+    "peta",
+    { replace = "posargs", default = [
+      "version",
+    ], extend = true },
+  ],
+]
 description = "Run the CLI application."
 runner = "uv-venv-runner"
