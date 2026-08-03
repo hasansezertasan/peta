@@ -29,7 +29,8 @@ Resolution
 
 For ``info`` and ``deps``, ``peta`` checks the local environment first and
 falls back to PyPI. Force a source with ``--local``/``-l`` or
-``--remote``/``-r``. A ``name==version`` argument always queries PyPI.
+``--remote``/``-r``. A ``name==version`` argument is supported by ``info``
+only and always queries PyPI (it cannot be combined with ``--local``).
 ``files`` is local-only; ``versions`` is PyPI-only.
 
 Exit codes

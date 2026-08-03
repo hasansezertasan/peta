@@ -151,7 +151,8 @@ command for machine-readable output.</p>
 <h2>Resolution<a class="headerlink" href="#resolution" title="Link to this heading">¶</a></h2>
 <p>For <code class="docutils literal notranslate"><span class="pre">info</span></code> and <code class="docutils literal notranslate"><span class="pre">deps</span></code>, <code class="docutils literal notranslate"><span class="pre">peta</span></code> checks the local environment first and
 falls back to PyPI. Force a source with <code class="docutils literal notranslate"><span class="pre">--local</span></code>/<code class="docutils literal notranslate"><span class="pre">-l</span></code> or
-<code class="docutils literal notranslate"><span class="pre">--remote</span></code>/<code class="docutils literal notranslate"><span class="pre">-r</span></code>. A <code class="docutils literal notranslate"><span class="pre">name==version</span></code> argument always queries PyPI.
+<code class="docutils literal notranslate"><span class="pre">--remote</span></code>/<code class="docutils literal notranslate"><span class="pre">-r</span></code>. A <code class="docutils literal notranslate"><span class="pre">name==version</span></code> argument is supported by <code class="docutils literal notranslate"><span class="pre">info</span></code>
+only and always queries PyPI (it cannot be combined with <code class="docutils literal notranslate"><span class="pre">--local</span></code>).
 <code class="docutils literal notranslate"><span class="pre">files</span></code> is local-only; <code class="docutils literal notranslate"><span class="pre">versions</span></code> is PyPI-only.</p>
 </section>
 <section id="exit-codes">
