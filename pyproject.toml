@@ -31,14 +31,8 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
-  "Programming Language :: Python :: Implementation :: PyPy",
-  "Programming Language :: Python",
   "Topic :: Software Development :: Libraries :: Python Modules",
   "Topic :: Software Development :: Libraries",
   "Topic :: Software Development",
@@ -46,15 +40,12 @@ classifiers = [
   "Topic :: Utilities",
   "Topic :: Terminals",
 ]
-requires-python = ">=3.10"
-dependencies = []
-
-[project.optional-dependencies]
-cli = ["typer>=0.20.0"]
-tui = ["textual>=0.50.0", "typing-extensions>=4.4.0"]
-all = [
-    "typer>=0.20.0",
-    "textual>=0.50.0",
+requires-python = ">=3.14"
+dependencies = [
+  "typer",
+  "rich",
+  "httpx",
+  "packaging",
 ]
 
 
@@ -68,8 +59,7 @@ source = "https://github.com/hasansezertasan/peta.git"
 
 
 [project.scripts]
-peta = "peta.cli.app:app"
-peta-tui = "peta.tui.app:main"
+peta = "peta.cli.app:run"
 
 
 
@@ -79,7 +69,7 @@ peta-tui = "peta.tui.app:main"
 
 [dependency-groups]
 dev = [
-  "peta[all]",
+  "peta",
   "tox==4.31.0",
   "tox-uv==1.29.0",
   "debugpy==1.8.0",
@@ -202,6 +192,12 @@ asyncio_mode = "auto"
 filterwarnings = [
   "error",
 ]
+markers = [
+  "smoke: fast import/entrypoint checks",
+  "unit: pure logic, fully mocked, no I/O",
+  "integration: real components wired, no external network",
+  "e2e: full CLI via entry point; e2e-remote hits real PyPI (opt-in)",
+]
 testpaths = ["tests"]
 xfail_strict = true
 
@@ -300,7 +296,7 @@ output-format = "full"
 preview = true
 show-fixes = true
 src = ["src", "tests", "examples"]
-target-version = "py310"
+target-version = "py314"
 unsafe-fixes = true
 
 
@@ -352,12 +348,17 @@ convention = "pep257"
 
 [tool.ruff.lint.per-file-ignores]
 # Recursive glob so nested test packages (tests/cli, tests/gui, ...) are covered.
-# Tests legitimately use asserts/magic values, reach into package internals, and
-# don't need return-value documentation on their fixtures and helpers.
-"tests/**/*.py" = ["S101", "PLR2004", "PLC2701", "DOC201"]
+# Tests legitimately use asserts/magic values, reach into package internals,
+# don't need return-value documentation on their fixtures and helpers, and are
+# implicit namespace packages (no __init__.py required).
+"tests/**/*.py" = ["S101", "PLR2004", "PLC2701", "DOC201", "INP001"]
 "examples/*.py" = ["INP001"]
 # The Sphinx config is a standalone module, not part of an importable package.
 "docs/conf.py" = ["INP001"]
+# Typer uses Option()/Argument() defaults and bool flags.
+"src/peta/cli/**/*.py" = ["B008", "FBT001", "FBT002"]
+# dataclass fields `id`/`license` shadow builtins by design.
+"src/peta/core/models.py" = ["A003"]
 
 
 [tool.ruff.lint.pyupgrade]
@@ -371,14 +372,14 @@ parenthesize-tuple-in-subscript = true
 [tool.mypy]
 files = ["src"]
 pretty = true
-python_version = "3.10"
+python_version = "3.14"
 strict = true
 
 
 [tool.basedpyright]
 exclude = [".venv"]
 include = ["src/peta"]
-pythonVersion = "3.10"
+pythonVersion = "3.14"
 venv = ".venv"
 # venvPath is the directory *containing* the venv, not the venv itself; ".venv"
 # here would make basedpyright look for ".venv/.venv". Use "." so both the venv
@@ -392,7 +393,7 @@ respect-ignore-files = false
 
 
 [tool.ty.environment]
-python-version = "3.10"
+python-version = "3.14"
 
 
 [tool.ty.terminal]
@@ -400,7 +401,7 @@ error-on-warning = true
 
 
 [tool.pyrefly]
-python-version = "3.10"
+python-version = "3.14"
 project-includes = ["src"]
 
 [tool.tox]
@@ -412,10 +413,6 @@ env_list = [
     "style",
     "cli",
     "3.14",
-    "3.13",
-    "3.12",
-    "3.11",
-    "3.10"
 ]
 requires = ["tox>=4"]
 
@@ -442,7 +439,6 @@ env_tmp_dir = "{toxworkdir}/tmp/{envname}"
 # `coverage run` plus `parallel = true` writes per-env data files that the CI
 # `coverage combine` step merges.
 set_env = { COVERAGE_PROCESS_START = "{tox_root}/pyproject.toml" }
-extras = ["all"]
 
 package = "wheel"
 
@@ -452,7 +448,7 @@ wheel_build_env = ".pkg"
 
 
 [tool.tox.env.style]
-base_python = ["3.10"]
+base_python = ["3.14"]
 commands = [
   [
     "ruff",
@@ -464,11 +460,6 @@ commands = [
     "format",
     "--check",
     "--diff",
-  ],
-  [
-    "mypy",
-    "--python-version",
-    "3.10",
   ],
   [
     "mypy",
@@ -556,7 +547,6 @@ runner = "uv-venv-runner"
 
 [tool.tox.env.docs-build]
 commands = [["sphinx-build", "-b", "html", "docs", "docs/_build/html"]]
-extras = ["all"]
 dependency_groups = ["docs"]
 description = "Build Docs"
 runner = "uv-venv-runner"
@@ -564,7 +554,6 @@ runner = "uv-venv-runner"
 
 [tool.tox.env.docs-server]
 commands = [["sphinx-autobuild", "docs", "docs/_build/html"]]
-extras = ["all"]
 dependency_groups = ["docs"]
 description = "Start the live-reloading docs server"
 runner = "uv-venv-runner"
@@ -574,7 +563,6 @@ runner = "uv-venv-runner"
 # On-demand link checker. Also run weekly (non-blocking) by docs-linkcheck.yml.
 # Hits the network, so it is deliberately not part of the `style` env or PR CI.
 commands = [["sphinx-build", "-b", "linkcheck", "docs", "docs/_build/linkcheck"]]
-extras = ["all"]
 dependency_groups = ["docs"]
 description = "Check documentation for broken links"
 runner = "uv-venv-runner"
