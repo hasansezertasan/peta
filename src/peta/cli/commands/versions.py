@@ -45,7 +45,7 @@ def get_versions(name: str) -> list[dict[str, str]]:
 
     # Single typed boundary: the PyPI JSON API is untyped, so cast the decoded
     # body into our TypedDict view of the fields we actually read.
-    data = cast("PyPIResponse", response.json())
+    data: PyPIResponse = cast("PyPIResponse", response.json())
     releases: dict[str, list[PyPIReleaseFile]] = data.get("releases", {})
     result: list[dict[str, str]] = []
     for ver, files in sorted(

@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from peta.cli.app import _SUBCOMMANDS, app
+from peta.cli.app import _SUBCOMMANDS, app, run
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.remote import PackageNotFoundError as RemoteNotFound
@@ -196,31 +196,25 @@ class TestVersions:
 
 class TestRun:
     def test_shorthand_inserts_info(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import peta.cli.app as app_mod
-
         monkeypatch.setattr("sys.argv", ["peta", "requests"])
-        monkeypatch.setattr(app_mod, "app", lambda: None)
-        app_mod.run()
+        monkeypatch.setattr("peta.cli.app.app", lambda: None)
+        run()
         import sys
 
         assert sys.argv[:2] == ["peta", "info"]
 
     def test_subcommand_not_rewritten(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import peta.cli.app as app_mod
-
         monkeypatch.setattr("sys.argv", ["peta", "info", "requests"])
-        monkeypatch.setattr(app_mod, "app", lambda: None)
-        app_mod.run()
+        monkeypatch.setattr("peta.cli.app.app", lambda: None)
+        run()
         import sys
 
         assert sys.argv == ["peta", "info", "requests"]
 
     def test_flag_not_rewritten(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import peta.cli.app as app_mod
-
         monkeypatch.setattr("sys.argv", ["peta", "--version"])
-        monkeypatch.setattr(app_mod, "app", lambda: None)
-        app_mod.run()
+        monkeypatch.setattr("peta.cli.app.app", lambda: None)
+        run()
         import sys
 
         assert sys.argv == ["peta", "--version"]
