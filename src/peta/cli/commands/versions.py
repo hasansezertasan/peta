@@ -60,10 +60,38 @@ def _extract_releases(body: object) -> dict[str, list[PyPIReleaseFile]]:
         raise NetworkError(msg)
     releases_map = cast("dict[str, object]", releases)
     return {
-        ver: cast("list[PyPIReleaseFile]", files)
-        for ver, files in releases_map.items()
-        if isinstance(files, list)
+        ver: cleaned
+        for ver, raw in releases_map.items()
+        if (cleaned := _clean_files(raw)) is not None
     }
+
+
+def _clean_files(raw: object) -> list[PyPIReleaseFile] | None:
+    """Coerce one release's file list, dropping non-dict members.
+
+    Returns:
+        The list of file dicts, or ``None`` if ``raw`` is not a list at all.
+    """
+    if not isinstance(raw, list):
+        return None
+    items = cast("list[object]", raw)
+    return cast("list[PyPIReleaseFile]", [f for f in items if isinstance(f, dict)])
+
+
+def _decode_body(response: httpx.Response) -> object:
+    """Decode a JSON response body, mapping a decode failure to NetworkError.
+
+    Returns:
+        The decoded body as an untyped object.
+
+    Raises:
+        NetworkError: If the body is not valid JSON.
+    """
+    try:
+        return cast("object", response.json())
+    except ValueError as exc:  # includes json.JSONDecodeError
+        msg = "malformed response from PyPI"
+        raise NetworkError(msg) from exc
 
 
 def get_versions(name: str) -> list[dict[str, str]]:
@@ -95,7 +123,7 @@ def get_versions(name: str) -> list[dict[str, str]]:
 
     # The PyPI JSON API is untyped and its shape is not guaranteed, so
     # validate the decoded body before casting into our typed view.
-    releases = _extract_releases(cast("object", response.json()))
+    releases = _extract_releases(_decode_body(response))
     result: list[dict[str, str]] = []
     for ver in _sorted_version_keys(releases):
         files = releases[ver]

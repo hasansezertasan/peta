@@ -1,5 +1,6 @@
 """Unit tests for the PyPI version fetcher (httpx mocked)."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -92,6 +93,26 @@ def test_non_list_release_entry_is_skipped(mock_httpx: MagicMock) -> None:
     mock_httpx.get.return_value = _resp(200, payload)
     result = get_versions("pkg")
     assert [r["version"] for r in result] == ["1.0.0"]
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_non_dict_release_file_member_is_dropped(mock_httpx: MagicMock) -> None:
+    # A release whose file list contains a non-dict member must not crash on
+    # ``files[0].get(...)``; the bad member is dropped.
+    payload = {"releases": {"1.0.0": [None, {"upload_time": "2020-01-01T00:00:00"}]}}
+    mock_httpx.get.return_value = _resp(200, payload)
+    result = get_versions("pkg")
+    assert result == [{"version": "1.0.0", "upload_time": "2020-01-01"}]
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_json_decode_error_raises_network_error(mock_httpx: MagicMock) -> None:
+    r = MagicMock()
+    r.status_code = 200
+    r.json.side_effect = json.JSONDecodeError("bad", "", 0)
+    mock_httpx.get.return_value = r
+    with pytest.raises(NetworkError):
+        get_versions("pkg")
 
 
 @patch("peta.cli.commands.versions.httpx")
