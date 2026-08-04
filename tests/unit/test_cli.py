@@ -478,6 +478,14 @@ class TestRoot:
         assert r.exit_code == 0
         assert r.output.strip().startswith("peta ")
 
+    @patch("peta.cli.app.Distribution")
+    def test_version_missing_metadata_exits_1(self, mdist: MagicMock) -> None:
+        from importlib.metadata import PackageNotFoundError
+
+        mdist.from_name.side_effect = PackageNotFoundError("peta")
+        r = runner.invoke(app, ["--version"])
+        assert r.exit_code == 1
+
     def test_subcommands_registry(self) -> None:
         assert "info" in _SUBCOMMANDS
         assert "requests" not in _SUBCOMMANDS

@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import sys
+from importlib.metadata import Distribution, PackageNotFoundError
 from typing import Annotated, cast
 
 import typer
 
-from peta import __version__
+from peta.__metadata__ import PROJECT_NAME
 from peta.cli.commands import (
     compare as compare_mod,
     deps as deps_mod,
@@ -42,9 +43,15 @@ app = typer.Typer(
 
 
 def _version_callback(value: bool) -> None:
-    if value:
-        typer.echo(f"peta {__version__}")
-        raise typer.Exit
+    if not value:
+        return
+    try:
+        distribution = Distribution.from_name(PROJECT_NAME)
+    except PackageNotFoundError as exc:
+        typer.echo("Error: peta package metadata not found.", err=True)
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"peta {distribution.version}")
+    raise typer.Exit
 
 
 def _color_from_ctx(ctx: typer.Context) -> bool:
