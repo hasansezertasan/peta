@@ -57,6 +57,17 @@ def test_unions_aliases_and_fixed_in() -> None:
     assert set(result[0].fixed_in) == {"1.0", "1.1"}
 
 
+def test_absorbed_id_preserved_for_transitive_dedup() -> None:
+    a = Vulnerability(id="PYSEC-1", aliases=["CVE-1"], summary="a", fixed_in=[])
+    b = Vulnerability(id="GHSA-2", aliases=["CVE-1"], summary="b", fixed_in=[])
+    # A later item sharing only GHSA-2 (b's absorbed id) must still dedup — the
+    # merged entry has to retain GHSA-2 in its identity set.
+    c = Vulnerability(id="OTHER", aliases=["GHSA-2"], summary="c", fixed_in=[])
+    result = merge_vulnerabilities([a], [b, c])
+    assert len(result) == 1
+    assert "GHSA-2" in result[0].aliases
+
+
 def test_preserves_order_existing_then_new() -> None:
     a = Vulnerability(id="A", aliases=[], summary="", fixed_in=[])
     b = Vulnerability(id="B", aliases=[], summary="", fixed_in=[])

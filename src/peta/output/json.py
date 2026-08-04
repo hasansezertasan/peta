@@ -33,6 +33,7 @@ def format_info(pkg: PackageInfo) -> str:
                 "aliases": v.aliases,
                 "summary": v.summary,
                 "fixed_in": v.fixed_in,
+                "severity": v.severity,
             }
             for v in pkg.vulnerabilities
         ],

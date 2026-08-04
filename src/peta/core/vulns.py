@@ -17,7 +17,11 @@ def _identity(vuln: Vulnerability) -> set[str]:
 
 def _combine(existing: Vulnerability, extra: Vulnerability) -> Vulnerability:
     severity = existing.severity or extra.severity
-    aliases = list(dict.fromkeys([*existing.aliases, *extra.aliases]))
+    # Fold the absorbed entry's own id in as an alias (unless it equals the
+    # surviving id) so the merged entry's identity set stays closed — otherwise
+    # a later item sharing only that id would fail to dedup.
+    candidates = [*existing.aliases, *extra.aliases, extra.id]
+    aliases = [a for a in dict.fromkeys(candidates) if a != existing.id]
     fixed_in = list(dict.fromkeys([*existing.fixed_in, *extra.fixed_in]))
     return replace(existing, aliases=aliases, fixed_in=fixed_in, severity=severity)
 
