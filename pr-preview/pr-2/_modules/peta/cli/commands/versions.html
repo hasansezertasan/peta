@@ -245,40 +245,41 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="127">    <span class="n">result</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
 </span><span data-line="128">    <span class="k">for</span> <span class="n">ver</span> <span class="ow">in</span> <span class="n">_sorted_version_keys</span><span class="p">(</span><span class="n">releases</span><span class="p">):</span>
 </span><span data-line="129">        <span class="n">files</span> <span class="o">=</span> <span class="n">releases</span><span class="p">[</span><span class="n">ver</span><span class="p">]</span>
-</span><span data-line="130">        <span class="n">upload_time</span> <span class="o">=</span> <span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;upload_time&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)[:</span><span class="mi">10</span><span class="p">]</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
-</span><span data-line="131">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">ver</span><span class="p">,</span> <span class="s2">&quot;upload_time&quot;</span><span class="p">:</span> <span class="n">upload_time</span><span class="p">})</span>
-</span><span data-line="132">    <span class="k">return</span> <span class="n">result</span></div>
+</span><span data-line="130">        <span class="n">raw_time</span><span class="p">:</span> <span class="nb">object</span> <span class="o">=</span> <span class="n">files</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;upload_time&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+</span><span data-line="131">        <span class="n">upload_time</span> <span class="o">=</span> <span class="n">raw_time</span><span class="p">[:</span><span class="mi">10</span><span class="p">]</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw_time</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+</span><span data-line="132">        <span class="n">result</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;version&quot;</span><span class="p">:</span> <span class="n">ver</span><span class="p">,</span> <span class="s2">&quot;upload_time&quot;</span><span class="p">:</span> <span class="n">upload_time</span><span class="p">})</span>
+</span><span data-line="133">    <span class="k">return</span> <span class="n">result</span></div>
 
-</span><span data-line="133">
 </span><span data-line="134">
-</span><span data-line="135"><span class="c1"># Patch target used by tests.</span>
-</span><span data-line="136"><span class="n">remote_get_versions</span> <span class="o">=</span> <span class="n">get_versions</span>
-</span><span data-line="137">
+</span><span data-line="135">
+</span><span data-line="136"><span class="c1"># Patch target used by tests.</span>
+</span><span data-line="137"><span class="n">remote_get_versions</span> <span class="o">=</span> <span class="n">get_versions</span>
 </span><span data-line="138">
+</span><span data-line="139">
 <div class="viewcode-block" id="versions">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.commands.versions.versions">[docs]</a>
-</span><span data-line="139"><span class="k">def</span><span class="w"> </span><span class="nf">versions</span><span class="p">(</span>
-</span><span data-line="140">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-</span><span data-line="141"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="142"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show published versions of a package from PyPI.</span>
-</span><span data-line="143">
-</span><span data-line="144"><span class="sd">    Raises:</span>
-</span><span data-line="145"><span class="sd">        Exit: With code 2 on network failure, or code 1 if the package is absent.</span>
-</span><span data-line="146"><span class="sd">    &quot;&quot;&quot;</span>
-</span><span data-line="147">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="148">        <span class="n">vers</span> <span class="o">=</span> <span class="n">remote_get_versions</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
-</span><span data-line="149">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="150">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="151">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="152">    <span class="k">if</span> <span class="ow">not</span> <span class="n">vers</span><span class="p">:</span>
-</span><span data-line="153">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found on PyPI.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="154">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="155">    <span class="n">shown</span> <span class="o">=</span> <span class="n">vers</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span>
-</span><span data-line="156">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span>
-</span><span data-line="157">        <span class="n">json_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">)</span>
-</span><span data-line="158">        <span class="k">if</span> <span class="n">use_json</span>
-</span><span data-line="159">        <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
-</span><span data-line="160">    <span class="p">)</span></div>
+</span><span data-line="140"><span class="k">def</span><span class="w"> </span><span class="nf">versions</span><span class="p">(</span>
+</span><span data-line="141">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="142"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="143"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show published versions of a package from PyPI.</span>
+</span><span data-line="144">
+</span><span data-line="145"><span class="sd">    Raises:</span>
+</span><span data-line="146"><span class="sd">        Exit: With code 2 on network failure, or code 1 if the package is absent.</span>
+</span><span data-line="147"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="148">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="149">        <span class="n">vers</span> <span class="o">=</span> <span class="n">remote_get_versions</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+</span><span data-line="150">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="151">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="152">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="153">    <span class="k">if</span> <span class="ow">not</span> <span class="n">vers</span><span class="p">:</span>
+</span><span data-line="154">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found on PyPI.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="155">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="156">    <span class="n">shown</span> <span class="o">=</span> <span class="n">vers</span><span class="p">[:</span><span class="n">limit</span><span class="p">]</span>
+</span><span data-line="157">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span>
+</span><span data-line="158">        <span class="n">json_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">)</span>
+</span><span data-line="159">        <span class="k">if</span> <span class="n">use_json</span>
+</span><span data-line="160">        <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">shown</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+</span><span data-line="161">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
