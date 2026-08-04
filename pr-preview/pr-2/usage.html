@@ -189,6 +189,12 @@ excludes the running interpreter) are skipped. A dependency that reappears
 on its own ancestor path is shown once more and marked <code class="docutils literal notranslate"><span class="pre">(circular)</span></code> rather
 than being expanded again. Recursion stops at <code class="docutils literal notranslate"><span class="pre">--depth</span></code> (default <code class="docutils literal notranslate"><span class="pre">10</span></code>)
 levels; deeper dependencies are omitted.</p>
+<p>The tree is a metadata view, not a full dependency resolution: each
+dependency is expanded from its currently-installed or latest-published
+metadata (a version specifier such as <code class="docutils literal notranslate"><span class="pre">foo&lt;2</span></code> narrows what is <em>shown</em>, not
+which release is expanded), and dependencies gated behind an <code class="docutils literal notranslate"><span class="pre">extra</span></code> are
+not activated. <code class="docutils literal notranslate"><span class="pre">--why</span></code> searches only the tree built at the current
+<code class="docutils literal notranslate"><span class="pre">--depth</span></code>, so raise <code class="docutils literal notranslate"><span class="pre">--depth</span></code> if a target is deeper than the default.</p>
 <p>Pass <code class="docutils literal notranslate"><span class="pre">--why</span> <span class="pre">&lt;target&gt;</span></code> to show every chain of dependencies that pulls
 <code class="docutils literal notranslate"><span class="pre">&lt;target&gt;</span></code> into the tree, instead of the full tree, e.g. <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">deps</span> <span class="pre">flask</span>
 <span class="pre">--why</span> <span class="pre">certifi</span></code>. If <code class="docutils literal notranslate"><span class="pre">&lt;target&gt;</span></code> is not present anywhere in the tree, <code class="docutils literal notranslate"><span class="pre">peta</span></code>
