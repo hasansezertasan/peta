@@ -227,6 +227,9 @@ class TestCompare:
         mr.side_effect = RemoteNotFound("nope")
         r = runner.invoke(app, ["compare", "nope", "httpx"])
         assert r.exit_code == 1
+        # Message names the failed package cleanly (no double-wrapped exception).
+        assert "Package 'nope' not found." in r.output
+        assert "not found on PyPI" not in r.output
 
     @patch("peta.core.resolve.remote_get_package")
     @patch("peta.core.resolve.local_get_package")
