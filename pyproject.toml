@@ -235,19 +235,13 @@ ignore_decorators = [
 # Public API surfaces vulture cannot see being used: ``main`` entry points are
 # referenced only via pyproject scripts, ``model_config`` is consumed by
 # pydantic-settings, ``logger`` is imported only by optional components, the MCP
-# ``arguments`` parameter is mandated by the call_tool signature, the Textual
-# names (CSS/compose/on_mount/title/BINDINGS) are invoked by the TUI framework,
-# and ``pytestmark`` is consumed by pytest at collection time.
+# ``arguments`` parameter is mandated by the call_tool signature, and
+# ``pytestmark`` is consumed by pytest at collection time.
 ignore_names = [
   "CONFIG_FILE_PATH",
   "logger",
   "main",
   "model_config",
-  "CSS",
-  "compose",
-  "on_mount",
-  "title",
-  "BINDINGS",
   # pytest markers, mock attributes, and external PyPI-schema TypedDict fields (accessed via string keys)
   "pytestmark",
   "return_value",
