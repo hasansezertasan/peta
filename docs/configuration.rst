@@ -13,3 +13,9 @@ provide defaults for behavior that has no dedicated flag.
      - Any non-empty value disables colored Rich output, the same as passing
        ``--no-color``. The ``--no-color`` flag always takes precedence over
        this variable.
+   * - ``LIBRARIES_IO_API_KEY``
+     - API key used to look up a package's dependent count from
+       `libraries.io <https://libraries.io/>`_. Without it, ``peta info``
+       simply omits the dependent count (it degrades to ``None``); no
+       request is made. Not required for the download count, which comes
+       from `pypistats.org <https://pypistats.org/>`_.

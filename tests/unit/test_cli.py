@@ -147,6 +147,53 @@ class TestInfo:
         mo.assert_not_called()
         assert "GHSA-osv" not in r.output
 
+    @patch("peta.cli.commands.info.stats.libraries_io_api_key")
+    @patch("peta.cli.commands.info.stats.get_dependent_count")
+    @patch("peta.cli.commands.info.stats.get_download_count")
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_stats_enrich_output(
+        self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
+    ) -> None:
+        ml.return_value = _pkg()
+        mdl.return_value = 1234567
+        mdep.return_value = 42
+        mkey.return_value = "secret"
+        r = runner.invoke(app, ["info", "requests"])
+        assert r.exit_code == 0
+        assert "1,234,567" in r.output
+        assert "42" in r.output
+        mdep.assert_called_once_with("requests", api_key="secret")
+
+    @patch("peta.cli.commands.info.stats.get_dependent_count")
+    @patch("peta.cli.commands.info.stats.get_download_count")
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_no_stats_skips_lookup(
+        self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock
+    ) -> None:
+        ml.return_value = _pkg()
+        r = runner.invoke(app, ["info", "requests", "--no-stats"])
+        assert r.exit_code == 0
+        mdl.assert_not_called()
+        mdep.assert_not_called()
+        assert "Downloads" not in r.output
+        assert "Dependents" not in r.output
+
+    @patch("peta.cli.commands.info.stats.libraries_io_api_key")
+    @patch("peta.cli.commands.info.stats.get_dependent_count")
+    @patch("peta.cli.commands.info.stats.get_download_count")
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_stats_in_json(
+        self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
+    ) -> None:
+        ml.return_value = _pkg()
+        mdl.return_value = 100
+        mdep.return_value = 5
+        mkey.return_value = None
+        r = runner.invoke(app, ["info", "requests", "--json"])
+        data = json.loads(r.output)
+        assert data["download_count"] == 100
+        assert data["dependent_count"] == 5
+
 
 class TestDeps:
     @patch("peta.cli.commands.deps.local_get_package")

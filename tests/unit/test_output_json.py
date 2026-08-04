@@ -36,6 +36,18 @@ def test_info_vulns() -> None:
     assert data["vulnerabilities"][0]["id"] == "PYSEC-1"
 
 
+def test_info_stats() -> None:
+    data = json.loads(format_info(_pkg(download_count=12345, dependent_count=42)))
+    assert data["download_count"] == 12345
+    assert data["dependent_count"] == 42
+
+
+def test_info_stats_default_none() -> None:
+    data = json.loads(format_info(_pkg()))
+    assert data["download_count"] is None
+    assert data["dependent_count"] is None
+
+
 def test_deps() -> None:
     data = json.loads(format_deps(_pkg()))
     assert isinstance(data["dependencies"], list)

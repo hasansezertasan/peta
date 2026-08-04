@@ -35,6 +35,13 @@ def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
         table.add_row(f"  {url_label}", url)
 
 
+def _add_stats_rows(table: Table, pkg: PackageInfo) -> None:
+    if pkg.download_count is not None:
+        table.add_row("Downloads (last month)", f"{pkg.download_count:,}")
+    if pkg.dependent_count is not None:
+        table.add_row("Dependents", f"{pkg.dependent_count:,}")
+
+
 def _add_dependency_rows(table: Table, pkg: PackageInfo) -> None:
     if not pkg.dependencies:
         return
@@ -50,6 +57,7 @@ def _info_table(pkg: PackageInfo) -> Table:
     table.add_row("Name", pkg.name)
     table.add_row("Version", pkg.version)
     _add_optional_rows(table, pkg)
+    _add_stats_rows(table, pkg)
     _add_dependency_rows(table, pkg)
     return table
 

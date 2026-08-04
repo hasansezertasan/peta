@@ -48,6 +48,18 @@ def test_render_info_no_dependencies() -> None:
     assert "Dependencies" not in out
 
 
+def test_render_info_stats() -> None:
+    out = render_info(_pkg(download_count=1234567, dependent_count=42), color=False)
+    assert "1,234,567" in out
+    assert "42" in out
+
+
+def test_render_info_no_stats() -> None:
+    out = render_info(_pkg(), color=False)
+    assert "Downloads" not in out
+    assert "Dependents" not in out
+
+
 def test_render_deps() -> None:
     assert "urllib3" in render_deps(_pkg(), color=False)
 

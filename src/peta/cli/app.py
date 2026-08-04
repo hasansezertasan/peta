@@ -85,6 +85,9 @@ def info(
     no_osv: Annotated[
         bool, typer.Option("--no-osv", help="Skip the OSV vulnerability lookup.")
     ] = False,
+    no_stats: Annotated[
+        bool, typer.Option("--no-stats", help="Skip download/dependent count lookups.")
+    ] = False,
 ) -> None:
     """Show detailed package metadata."""
     info_mod.info(
@@ -94,6 +97,7 @@ def info(
         remote=remote,
         color=_color_from_ctx(ctx),
         no_osv=no_osv,
+        no_stats=no_stats,
     )
 
 

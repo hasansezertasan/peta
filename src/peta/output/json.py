@@ -37,6 +37,8 @@ def format_info(pkg: PackageInfo) -> str:
             }
             for v in pkg.vulnerabilities
         ],
+        "download_count": pkg.download_count,
+        "dependent_count": pkg.dependent_count,
         "source": pkg.source,
     }
     return json.dumps(data, indent=2)

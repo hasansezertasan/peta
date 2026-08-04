@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from peta.core import osv
+from peta.core import osv, stats
 from peta.core.local import (
     PackageNotFoundError as LocalNotFound,
     get_package as local_get_package,
@@ -67,6 +67,27 @@ def _enrich_with_osv(pkg: PackageInfo) -> PackageInfo:
     )
 
 
+def _enrich_with_stats(pkg: PackageInfo) -> PackageInfo:
+    return dataclasses.replace(
+        pkg,
+        download_count=stats.get_download_count(pkg.name),
+        dependent_count=stats.get_dependent_count(
+            pkg.name, api_key=stats.libraries_io_api_key()
+        ),
+    )
+
+
+def _resolve_and_enrich(
+    package: str, *, local: bool, remote: bool, no_osv: bool, no_stats: bool
+) -> PackageInfo:
+    pkg = _resolve(package, local=local, remote=remote)
+    if not no_osv:
+        pkg = _enrich_with_osv(pkg)
+    if not no_stats:
+        pkg = _enrich_with_stats(pkg)
+    return pkg
+
+
 def info(
     package: str,
     *,
@@ -75,6 +96,7 @@ def info(
     remote: bool = False,
     color: bool = False,
     no_osv: bool = False,
+    no_stats: bool = False,
 ) -> None:
     """Show detailed package metadata.
 
@@ -82,13 +104,13 @@ def info(
         Exit: With code 1 if the package is not found, or code 2 on network failure.
     """
     try:
-        pkg = _resolve(package, local=local, remote=remote)
+        pkg = _resolve_and_enrich(
+            package, local=local, remote=remote, no_osv=no_osv, no_stats=no_stats
+        )
     except _NOT_FOUND:
         typer.echo(f"Package '{package}' not found.", err=True)
         raise typer.Exit(code=1) from None
     except NetworkError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from None
-    if not no_osv:
-        pkg = _enrich_with_osv(pkg)
     typer.echo(json_format(pkg) if use_json else rich_format(pkg, color=color))

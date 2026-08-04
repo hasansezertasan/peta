@@ -41,6 +41,17 @@ advisories and deduping entries that share an id or alias. This lookup is
 best-effort: network failures leave the PyPI-only results in place and never
 change the exit code. Pass ``--no-osv`` to skip it entirely.
 
+Download and dependent counts
+------------------------------
+
+``peta info`` also shows a package's last-month download count from
+`pypistats.org <https://pypistats.org/>`_ and its dependent count from
+`libraries.io <https://libraries.io/>`_ by default. Both lookups are
+best-effort: a network failure simply omits the corresponding field and
+never changes the exit code. The dependent count additionally requires a
+``LIBRARIES_IO_API_KEY`` (see :doc:`configuration`); without one it is
+omitted with no request made. Pass ``--no-stats`` to skip both lookups.
+
 Resolution
 ----------
 

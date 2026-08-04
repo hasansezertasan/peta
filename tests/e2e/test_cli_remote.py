@@ -4,6 +4,7 @@ Skipped unless PETA_E2E_NETWORK=1 is set. Run with:
 ``PETA_E2E_NETWORK=1 uv run pytest -m e2e``.
 """
 
+import json
 import os
 
 import pytest
@@ -39,3 +40,22 @@ def test_info_remote_osv_enrichment() -> None:
     result = runner.invoke(app, ["info", "jinja2==2.4.1", "--remote"])
     assert result.exit_code == 0
     assert "vulnerabilities" in result.output.lower()
+
+
+def test_info_remote_download_count() -> None:
+    result = runner.invoke(app, ["info", "requests", "--remote", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert isinstance(data["download_count"], int)
+    assert data["download_count"] > 0
+
+
+@pytest.mark.skipif(
+    os.environ.get("LIBRARIES_IO_API_KEY") is None,
+    reason="dependent count requires LIBRARIES_IO_API_KEY",
+)
+def test_info_remote_dependent_count() -> None:
+    result = runner.invoke(app, ["info", "requests", "--remote", "--json"])
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert isinstance(data["dependent_count"], int)

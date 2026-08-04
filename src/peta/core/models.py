@@ -39,3 +39,5 @@ class PackageInfo:
     keywords: list[str] = field(default_factory=list)
     files: list[str] | None = None
     vulnerabilities: list[Vulnerability] = field(default_factory=list)
+    download_count: int | None = None
+    dependent_count: int | None = None

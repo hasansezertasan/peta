@@ -262,6 +262,10 @@ ignore_names = [
   "events",
   "ranges",
   "score",
+  # pypistats.org/libraries.io-schema TypedDict fields read via string keys
+  # in core/stats.py
+  "last_month",
+  "dependents_count",
 ]
 min_confidence = 60
 paths = ["src", "tests"]
@@ -342,8 +346,9 @@ max-complexity = 5
 
 [tool.ruff.lint.pylint]
 # Typer command handlers accumulate one boolean flag per feature (--local,
-# --remote, --no-osv, ...); the default of 5 is too tight for that pattern.
-max-args = 6
+# --remote, --no-osv, --no-stats, ...); the default of 5 is too tight for
+# that pattern.
+max-args = 7
 
 
 [tool.ruff.lint.pycodestyle]
