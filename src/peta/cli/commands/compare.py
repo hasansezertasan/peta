@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 
 import typer
 
+from peta.cli.output.json import format_compare as json_format
+from peta.cli.output.tables import render_compare as rich_format
 from peta.core.enrich import enrich
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import resolve_package
-from peta.output.json import format_compare as json_format
-from peta.output.tables import render_compare as rich_format
 
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo

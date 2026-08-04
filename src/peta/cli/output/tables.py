@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-from peta.output.console import render as _render
+from peta.cli.output.console import render as _render
 
 if TYPE_CHECKING:
     from peta.core.models import DependencyNode, PackageInfo

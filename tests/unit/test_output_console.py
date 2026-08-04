@@ -1,8 +1,8 @@
-"""Unit tests for :mod:`peta.output.console`."""
+"""Unit tests for :mod:`peta.cli.output.console`."""
 
 import pytest
 
-from peta.output.console import render, resolve_color
+from peta.cli.output.console import render, resolve_color
 
 pytestmark = pytest.mark.unit
 

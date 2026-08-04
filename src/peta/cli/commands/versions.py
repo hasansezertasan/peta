@@ -9,9 +9,9 @@ import httpx
 import typer
 from packaging.version import InvalidVersion, Version
 
+from peta.cli.output.json import format_versions as json_format
+from peta.cli.output.tables import render_versions as rich_format
 from peta.core.remote import DEFAULT_TIMEOUT, PYPI_BASE_URL, NetworkError
-from peta.output.json import format_versions as json_format
-from peta.output.tables import render_versions as rich_format
 
 if TYPE_CHECKING:
     from peta.core.remote import PyPIReleaseFile

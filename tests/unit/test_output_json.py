@@ -5,8 +5,7 @@ from dataclasses import replace
 
 import pytest
 
-from peta.core.models import DependencyNode, PackageInfo, Vulnerability
-from peta.output.json import (
+from peta.cli.output.json import (
     format_compare,
     format_dep_tree,
     format_files,
@@ -14,6 +13,7 @@ from peta.output.json import (
     format_versions,
     format_why,
 )
+from peta.core.models import DependencyNode, PackageInfo, Vulnerability
 
 pytestmark = pytest.mark.unit
 

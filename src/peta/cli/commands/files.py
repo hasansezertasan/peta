@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import typer
 
+from peta.cli.output.json import format_files as json_format
+from peta.cli.output.tables import render_files as rich_format
 from peta.core.local import (
     PackageNotFoundError as LocalNotFound,
     get_package as local_get_package,
 )
-from peta.output.json import format_files as json_format
-from peta.output.tables import render_files as rich_format
 
 __all__ = ["files"]
 

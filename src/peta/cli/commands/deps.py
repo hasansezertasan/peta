@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import typer
 
+from peta.cli.output.json import format_dep_tree, format_why
+from peta.cli.output.tables import render_dep_tree, render_why
 from peta.core.deptree import build_tree, find_why
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
-from peta.output.json import format_dep_tree, format_why
-from peta.output.tables import render_dep_tree, render_why
 
 __all__ = ["deps"]
 

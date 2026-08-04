@@ -15,8 +15,8 @@ from peta.cli.commands import (
     info as info_mod,
     versions as versions_mod,
 )
+from peta.cli.output.console import resolve_color
 from peta.cli.state import CliState
-from peta.output.console import resolve_color
 
 __all__ = ["compare", "deps", "files", "info", "main", "run", "versions"]
 
