@@ -127,7 +127,8 @@ def get_versions(name: str) -> list[dict[str, str]]:
     result: list[dict[str, str]] = []
     for ver in _sorted_version_keys(releases):
         files = releases[ver]
-        upload_time = files[0].get("upload_time", "")[:10] if files else ""
+        raw_time: object = files[0].get("upload_time", "") if files else ""
+        upload_time = raw_time[:10] if isinstance(raw_time, str) else ""
         result.append({"version": ver, "upload_time": upload_time})
     return result
 

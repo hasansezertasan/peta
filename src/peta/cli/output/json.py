@@ -24,10 +24,14 @@ def _package_dict(pkg: PackageInfo) -> dict[str, object]:
         "version": pkg.version,
         "summary": pkg.summary,
         "author": pkg.author,
+        "author_email": pkg.author_email,
+        "maintainer": pkg.maintainer,
         "license": pkg.license,
         "python_requires": pkg.python_requires,
         "homepage": pkg.homepage,
         "project_urls": pkg.project_urls,
+        "classifiers": pkg.classifiers,
+        "keywords": pkg.keywords,
         "dependencies": pkg.dependencies,
         "vulnerabilities": [
             {

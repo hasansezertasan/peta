@@ -106,6 +106,15 @@ def test_non_dict_release_file_member_is_dropped(mock_httpx: MagicMock) -> None:
 
 
 @patch("peta.cli.commands.versions.httpx")
+def test_non_string_upload_time_is_blanked(mock_httpx: MagicMock) -> None:
+    # A scalar/non-string upload_time must not crash the ``[:10]`` slice.
+    payload = {"releases": {"1.0.0": [{"upload_time": 12345}]}}
+    mock_httpx.get.return_value = _resp(200, payload)
+    result = get_versions("pkg")
+    assert result == [{"version": "1.0.0", "upload_time": ""}]
+
+
+@patch("peta.cli.commands.versions.httpx")
 def test_json_decode_error_raises_network_error(mock_httpx: MagicMock) -> None:
     r = MagicMock()
     r.status_code = 200

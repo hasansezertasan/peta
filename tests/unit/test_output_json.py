@@ -35,6 +35,9 @@ def test_info_basic() -> None:
     assert data["name"] == "requests"
     assert data["source"] == "local"
     assert "urllib3" in data["dependencies"]
+    # Full metadata surface is serialized.
+    for key in ("author_email", "maintainer", "classifiers", "keywords"):
+        assert key in data
 
 
 def test_info_vulns() -> None:
