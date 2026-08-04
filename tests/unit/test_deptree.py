@@ -27,6 +27,18 @@ class TestBuildTree:
         assert tree.children[0].children[0].children == []
 
     @patch("peta.core.deptree.resolve_package")
+    def test_skips_malformed_and_extra_gated_requirements(self, m: MagicMock) -> None:
+        # A malformed requires_dist string (InvalidRequirement) and an
+        # optional extra-gated dep must be skipped, never crash the tree.
+        pkgs = {
+            "a": _pkg("a", ["b", "!!!broken syntax!!!", 'x; extra == "test"']),
+            "b": _pkg("b", []),
+        }
+        m.side_effect = lambda name, **_kw: pkgs[name]
+        tree = build_tree("a", local=False, remote=False)
+        assert [c.name for c in tree.children] == ["b"]
+
+    @patch("peta.core.deptree.resolve_package")
     def test_diamond_resolves_shared_dep_once(self, m: MagicMock) -> None:
         pkgs = {
             "a": _pkg("a", ["b", "c"]),

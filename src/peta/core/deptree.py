@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from packaging.requirements import Requirement
+from packaging.markers import UndefinedEnvironmentName
+from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from peta.core.local import PackageNotFoundError as LocalNotFound
@@ -42,16 +43,44 @@ def _resolve_cached(
     return pkg
 
 
+def _marker_satisfied(req: Requirement) -> bool:
+    """Whether a requirement's environment marker holds for a base install.
+
+    Evaluates with ``extra=""`` so optional ``extra == "..."`` dependencies
+    resolve to unsatisfied (they are not part of the base install) rather than
+    raising ``UndefinedEnvironmentName``; any other undefined marker variable is
+    likewise treated as unsatisfied.
+
+    Returns:
+        ``True`` if there is no marker or the marker is satisfied.
+    """
+    if req.marker is None:
+        return True
+    try:
+        # bool(): packaging is unstubbed in the isolated prek mypy env, where
+        # Marker.evaluate is seen as returning Any.
+        return bool(req.marker.evaluate({"extra": ""}))
+    except UndefinedEnvironmentName:
+        return False
+
+
 def _kept_requirements(pkg: PackageInfo) -> list[Requirement]:
     """Parse a package's ``requires_dist`` entries, dropping unmet markers.
+
+    Malformed entries (``InvalidRequirement``) are skipped so one bad transitive
+    ``requires_dist`` string cannot abort the whole tree — only the root
+    resolution is allowed to fail.
 
     Returns:
         The requirements whose environment marker (if any) is satisfied.
     """
     kept: list[Requirement] = []
     for raw in pkg.dependencies:
-        req = Requirement(raw)
-        if req.marker is None or req.marker.evaluate():
+        try:
+            req = Requirement(raw)
+        except InvalidRequirement:
+            continue
+        if _marker_satisfied(req):
             kept.append(req)
     return kept
 
