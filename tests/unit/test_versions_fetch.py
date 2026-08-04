@@ -65,6 +65,36 @@ def test_request_error_raises_network_error(mock_httpx: MagicMock) -> None:
 
 
 @patch("peta.cli.commands.versions.httpx")
+def test_null_releases_raises_network_error(mock_httpx: MagicMock) -> None:
+    mock_httpx.get.return_value = _resp(200, {"releases": None})
+    with pytest.raises(NetworkError):
+        get_versions("pkg")
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_non_dict_root_raises_network_error(mock_httpx: MagicMock) -> None:
+    r = MagicMock()
+    r.status_code = 200
+    r.json.return_value = []
+    mock_httpx.get.return_value = r
+    with pytest.raises(NetworkError):
+        get_versions("pkg")
+
+
+@patch("peta.cli.commands.versions.httpx")
+def test_non_list_release_entry_is_skipped(mock_httpx: MagicMock) -> None:
+    payload = {
+        "releases": {
+            "1.0.0": [{"upload_time": "2020-01-01T00:00:00"}],
+            "2.0.0": "not-a-list",
+        }
+    }
+    mock_httpx.get.return_value = _resp(200, payload)
+    result = get_versions("pkg")
+    assert [r["version"] for r in result] == ["1.0.0"]
+
+
+@patch("peta.cli.commands.versions.httpx")
 def test_http_status_error_raises_network_error(mock_httpx: MagicMock) -> None:
     mock_httpx.HTTPStatusError = httpx.HTTPStatusError
     mock_httpx.RequestError = httpx.RequestError

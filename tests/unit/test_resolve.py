@@ -28,6 +28,18 @@ class TestParsePackageArg:
     def test_strips_whitespace(self) -> None:
         assert parse_package_arg(" requests == 2.28.0 ") == ("requests", "2.28.0")
 
+    def test_empty_version_after_double_equals_rejected(self) -> None:
+        with pytest.raises(typer.BadParameter):
+            parse_package_arg("requests==")
+
+    def test_empty_name_before_double_equals_rejected(self) -> None:
+        with pytest.raises(typer.BadParameter):
+            parse_package_arg("==1.0")
+
+    def test_whitespace_only_rejected(self) -> None:
+        with pytest.raises(typer.BadParameter):
+            parse_package_arg("  ==  ")
+
 
 class TestResolvePackage:
     @patch("peta.core.resolve.local_get_package")

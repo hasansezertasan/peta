@@ -14,7 +14,7 @@ from peta.output.json import format_versions as json_format
 from peta.output.tables import render_versions as rich_format
 
 if TYPE_CHECKING:
-    from peta.core.remote import PyPIReleaseFile, PyPIResponse
+    from peta.core.remote import PyPIReleaseFile
 
 __all__ = ["get_versions", "versions"]
 
@@ -41,6 +41,31 @@ def _sorted_version_keys(releases: dict[str, list[PyPIReleaseFile]]) -> list[str
     return [ver for _, ver in valid] + sorted(invalid, reverse=True)
 
 
+def _extract_releases(body: object) -> dict[str, list[PyPIReleaseFile]]:
+    """Validate and pull the ``releases`` mapping out of a decoded PyPI body.
+
+    Returns:
+        The release mapping, with any non-list release values dropped.
+
+    Raises:
+        NetworkError: If the body, or its ``releases`` field, is not a dict.
+    """
+    if not isinstance(body, dict):
+        msg = "malformed response from PyPI"
+        raise NetworkError(msg)
+    mapping = cast("dict[str, object]", body)
+    releases = mapping.get("releases", {})
+    if not isinstance(releases, dict):
+        msg = "malformed response from PyPI"
+        raise NetworkError(msg)
+    releases_map = cast("dict[str, object]", releases)
+    return {
+        ver: cast("list[PyPIReleaseFile]", files)
+        for ver, files in releases_map.items()
+        if isinstance(files, list)
+    }
+
+
 def get_versions(name: str) -> list[dict[str, str]]:
     """Fetch all published versions for a package from PyPI.
 
@@ -49,7 +74,9 @@ def get_versions(name: str) -> list[dict[str, str]]:
         if the package is not found (HTTP 404).
 
     Raises:
-        NetworkError: If the request fails or returns a non-success status.
+        NetworkError: If the request fails, returns a non-success status, or
+            the decoded body is malformed (not a dict, or ``releases`` is not
+            a dict).
     """
     url = f"{PYPI_BASE_URL}/{name}/json"
     try:
@@ -66,10 +93,9 @@ def get_versions(name: str) -> list[dict[str, str]]:
         msg = f"PyPI returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    # Single typed boundary: the PyPI JSON API is untyped, so cast the decoded
-    # body into our TypedDict view of the fields we actually read.
-    data: PyPIResponse = cast("PyPIResponse", response.json())
-    releases: dict[str, list[PyPIReleaseFile]] = data.get("releases", {})
+    # The PyPI JSON API is untyped and its shape is not guaranteed, so
+    # validate the decoded body before casting into our typed view.
+    releases = _extract_releases(cast("object", response.json()))
     result: list[dict[str, str]] = []
     for ver in _sorted_version_keys(releases):
         files = releases[ver]

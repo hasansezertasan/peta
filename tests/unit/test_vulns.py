@@ -78,3 +78,13 @@ def test_preserves_order_existing_then_new() -> None:
 
 def test_empty_inputs() -> None:
     assert merge_vulnerabilities([], []) == []
+
+
+def test_bridging_candidate_merges_all_matches_into_one() -> None:
+    a = Vulnerability(id="A", aliases=["X"], summary="a", fixed_in=[])
+    b = Vulnerability(id="B", aliases=["Y"], summary="b", fixed_in=[])
+    c = Vulnerability(id="C", aliases=["X", "Y"], summary="c", fixed_in=[])
+    result = merge_vulnerabilities([a, b], [c])
+    assert len(result) == 1
+    identity = {result[0].id, *result[0].aliases}
+    assert identity >= {"A", "B", "C", "X", "Y"}

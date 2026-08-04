@@ -1,8 +1,10 @@
 Configuration
 =============
 
-``peta`` reads its behavior from CLI flags first; environment variables
-provide defaults for behavior that has no dedicated flag.
+``peta`` reads its behavior from CLI flags first, then from the environment
+variables below. Some of these variables also have a dedicated flag, in
+which case that flag always takes precedence; others have no flag and are
+the only way to configure that behavior.
 
 .. list-table::
    :header-rows: 1

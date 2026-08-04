@@ -240,6 +240,13 @@ class TestCompare:
         assert r.exit_code == 1
 
     @patch("peta.core.resolve.remote_get_package")
+    def test_compare_not_found_with_version_shows_version(self, mr: MagicMock) -> None:
+        mr.side_effect = RemoteNotFound("nope", "9.9.9")
+        r = runner.invoke(app, ["compare", "nope==9.9.9", "requests"])
+        assert r.exit_code == 1
+        assert "Package 'nope==9.9.9' not found." in r.output
+
+    @patch("peta.core.resolve.remote_get_package")
     def test_compare_network_error_exit_2(self, mr: MagicMock) -> None:
         from peta.core.remote import NetworkError
 
@@ -332,7 +339,8 @@ class TestDeps:
         m.return_value = _pkg()
         r = runner.invoke(app, ["deps", "requests", "--why", "nope"])
         assert r.exit_code == 1
-        assert "not a dependency" in r.output
+        assert "was not found in the dependency tree of 'requests'" in r.output
+        assert "depth" in r.output
 
     @patch("peta.core.resolve.local_get_package")
     def test_deps_why_json(self, m: MagicMock) -> None:

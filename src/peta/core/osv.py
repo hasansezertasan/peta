@@ -26,7 +26,13 @@ OSV_API_URL = "https://api.osv.dev/v1/query"
 # Best-effort errors swallowed to ``[]`` (network, or a malformed/partial body).
 # Kept as a named tuple so ``ruff format`` cannot rewrite a parenthesized
 # ``except (...)`` into invalid ``except A, B:`` syntax.
-_BEST_EFFORT_ERRORS = (httpx.RequestError, KeyError, TypeError, ValueError)
+_BEST_EFFORT_ERRORS = (
+    httpx.RequestError,
+    AttributeError,
+    KeyError,
+    TypeError,
+    ValueError,
+)
 
 
 # The OSV API is untyped from Python's perspective (``response.json()``

@@ -72,12 +72,14 @@ def _info_table(pkg: PackageInfo) -> Table:
 def _vuln_block(pkg: PackageInfo) -> str:
     if not pkg.vulnerabilities:
         return ""
-    lines = ["\n⚠ Vulnerabilities:"]
+    lines = ["⚠ Vulnerabilities:"]
     for v in pkg.vulnerabilities:
         fixed = ", ".join(v.fixed_in) if v.fixed_in else "no fix"
         severity = f" [{v.severity}]" if v.severity else ""
         lines.append(f"  {v.id}{severity}: {v.summary} (fix: {fixed})")
-    return "\n".join(lines) + "\n"
+    # Leading blank line separates the block from the panel above; no
+    # trailing newline, since ``typer.echo`` supplies exactly one.
+    return "\n\n" + "\n".join(lines)
 
 
 def render_info(pkg: PackageInfo, *, color: bool) -> str:
@@ -132,8 +134,8 @@ def render_why(target: str, paths: list[list[str]], *, color: bool) -> str:
     """
     del color
     if not paths:
-        return f"'{target}' is not a dependency.\n"
-    return "\n".join(" → ".join(path) for path in paths) + "\n"
+        return f"'{target}' is not a dependency."
+    return "\n".join(" → ".join(path) for path in paths)
 
 
 def render_files(pkg: PackageInfo, *, color: bool) -> str:
@@ -147,10 +149,10 @@ def render_files(pkg: PackageInfo, *, color: bool) -> str:
     """
     del color
     if not pkg.files:
-        return f"No file information available for {pkg.name}.\n"
+        return f"No file information available for {pkg.name}."
     lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)\n"]
     lines.extend(f"  {f}" for f in pkg.files)
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines)
 
 
 def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:

@@ -33,9 +33,10 @@ def render(renderable: object, *, color: bool, width: int = 100) -> str:
 
     Returns:
         The rendered text: ANSI-colored when ``color`` is ``True``, plain
-        otherwise.
+        otherwise. Has no trailing newline; callers (e.g. ``typer.echo``)
+        supply exactly one.
     """
     buf = StringIO()
     console = Console(file=buf, force_terminal=color, no_color=not color, width=width)
-    console.print(renderable)
+    console.print(renderable, end="")
     return buf.getvalue()

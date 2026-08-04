@@ -19,10 +19,20 @@ _NOT_FOUND = (LocalNotFound, RemoteNotFound)
 
 
 def _print_why(
-    package: str, target: str, paths: list[list[str]], *, use_json: bool, color: bool
+    package: str,
+    target: str,
+    paths: list[list[str]],
+    *,
+    use_json: bool,
+    color: bool,
+    depth: int,
 ) -> None:
     if not paths:
-        typer.echo(f"'{target}' is not a dependency of '{package}'.", err=True)
+        msg = (
+            f"'{target}' was not found in the dependency tree of "
+            f"'{package}' (depth {depth})."
+        )
+        typer.echo(msg, err=True)
         raise typer.Exit(code=1)
     typer.echo(
         format_why(target, paths)
@@ -57,7 +67,14 @@ def deps(
         raise typer.Exit(code=2) from None
 
     if why is not None:
-        _print_why(package, why, find_why(tree, why), use_json=use_json, color=color)
+        _print_why(
+            package,
+            why,
+            find_why(tree, why),
+            use_json=use_json,
+            color=color,
+            depth=depth,
+        )
         return
     typer.echo(
         format_dep_tree(tree) if use_json else render_dep_tree(tree, color=color)

@@ -51,7 +51,7 @@ def test_info_remote_download_count() -> None:
 
 
 @pytest.mark.skipif(
-    os.environ.get("LIBRARIES_IO_API_KEY") is None,
+    not os.environ.get("LIBRARIES_IO_API_KEY"),
     reason="dependent count requires LIBRARIES_IO_API_KEY",
 )
 def test_info_remote_dependent_count() -> None:

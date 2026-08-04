@@ -51,6 +51,27 @@ class TestGetDownloadCount:
         mock_httpx.get.return_value = _resp(200, {})
         assert get_download_count("requests") is None
 
+    @patch("peta.core.stats.httpx")
+    def test_non_dict_json_root_returns_none(self, mock_httpx: MagicMock) -> None:
+        mock_httpx.RequestError = httpx.RequestError
+        r = MagicMock()
+        r.status_code = 200
+        r.json.return_value = []
+        mock_httpx.get.return_value = r
+        assert get_download_count("requests") is None
+
+    @patch("peta.core.stats.httpx")
+    def test_string_count_returns_none(self, mock_httpx: MagicMock) -> None:
+        mock_httpx.RequestError = httpx.RequestError
+        mock_httpx.get.return_value = _resp(200, {"data": {"last_month": "12345"}})
+        assert get_download_count("requests") is None
+
+    @patch("peta.core.stats.httpx")
+    def test_bool_count_returns_none(self, mock_httpx: MagicMock) -> None:
+        mock_httpx.RequestError = httpx.RequestError
+        mock_httpx.get.return_value = _resp(200, {"data": {"last_month": True}})
+        assert get_download_count("requests") is None
+
 
 class TestLibrariesIoApiKey:
     def test_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -98,4 +119,16 @@ class TestGetDependentCount:
     def test_malformed_body_returns_none(self, mock_httpx: MagicMock) -> None:
         mock_httpx.RequestError = httpx.RequestError
         mock_httpx.get.return_value = _resp(200, {})
+        assert get_dependent_count("requests", api_key="secret") is None
+
+    @patch("peta.core.stats.httpx")
+    def test_string_count_returns_none(self, mock_httpx: MagicMock) -> None:
+        mock_httpx.RequestError = httpx.RequestError
+        mock_httpx.get.return_value = _resp(200, {"dependents_count": "42"})
+        assert get_dependent_count("requests", api_key="secret") is None
+
+    @patch("peta.core.stats.httpx")
+    def test_bool_count_returns_none(self, mock_httpx: MagicMock) -> None:
+        mock_httpx.RequestError = httpx.RequestError
+        mock_httpx.get.return_value = _resp(200, {"dependents_count": False})
         assert get_dependent_count("requests", api_key="secret") is None

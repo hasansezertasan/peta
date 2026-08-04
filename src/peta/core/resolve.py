@@ -23,11 +23,23 @@ def parse_package_arg(package: str) -> tuple[str, str | None]:
 
     Returns:
         A ``(name, version)`` tuple; ``version`` is ``None`` when unspecified.
+
+    Raises:
+        typer.BadParameter: If the package name is empty, or the argument
+            contains ``==`` but the version text after it is empty.
     """
     if "==" in package:
         name, version = package.split("==", 1)
-        return name.strip(), version.strip()
-    return package, None
+        name, version = name.strip(), version.strip()
+        if not version:
+            msg = f"Missing version after '==' in {package!r}."
+            raise typer.BadParameter(msg)
+    else:
+        name, version = package.strip(), None
+    if not name:
+        msg = f"Missing package name in {package!r}."
+        raise typer.BadParameter(msg)
+    return name, version
 
 
 def _resolve_versioned(name: str, version: str, *, local: bool) -> PackageInfo:

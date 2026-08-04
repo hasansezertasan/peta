@@ -119,3 +119,13 @@ def test_missing_vulns_key_returns_empty(mock_httpx: MagicMock) -> None:
     mock_httpx.RequestError = httpx.RequestError
     mock_httpx.post.return_value = _resp(200, {})
     assert get_vulnerabilities("pkg") == []
+
+
+@patch("peta.core.osv.httpx")
+def test_non_dict_json_root_returns_empty(mock_httpx: MagicMock) -> None:
+    mock_httpx.RequestError = httpx.RequestError
+    r = MagicMock()
+    r.status_code = 200
+    r.json.return_value = []
+    mock_httpx.post.return_value = r
+    assert get_vulnerabilities("pkg") == []

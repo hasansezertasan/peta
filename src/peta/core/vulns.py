@@ -26,15 +26,30 @@ def _combine(existing: Vulnerability, extra: Vulnerability) -> Vulnerability:
     return replace(existing, aliases=aliases, fixed_in=fixed_in, severity=severity)
 
 
+def _matching_indices(merged: list[Vulnerability], cand_ids: set[str]) -> list[int]:
+    return [i for i, v in enumerate(merged) if _identity(v) & cand_ids]
+
+
+def _fold_in(
+    merged: list[Vulnerability], candidate: Vulnerability, indices: list[int]
+) -> Vulnerability:
+    combined = merged[indices[0]]
+    for i in indices[1:]:
+        combined = _combine(combined, merged[i])
+    return _combine(combined, candidate)
+
+
 def merge_vulnerabilities(
     existing: list[Vulnerability], extra: list[Vulnerability]
 ) -> list[Vulnerability]:
     """Merge two vulnerability lists, deduping by identity.
 
     Two vulnerabilities are the same if they share their ``id`` or any
-    overlapping alias. When duplicates are found, one entry is kept: the
-    result prefers a non-``None`` ``severity`` and unions ``aliases`` and
-    ``fixed_in``.
+    overlapping alias. When a candidate's identity bridges several existing
+    entries (e.g. it carries aliases of two otherwise-unrelated entries),
+    ALL of them are folded into one cumulative entry rather than merging
+    into only the first match. The result prefers a non-``None``
+    ``severity`` and unions ``aliases`` and ``fixed_in``.
 
     Args:
         existing: Vulnerabilities already known (e.g. from PyPI).
@@ -45,12 +60,15 @@ def merge_vulnerabilities(
     """
     merged: list[Vulnerability] = list(existing)
     for candidate in extra:
-        cand_ids = _identity(candidate)
-        match_index = next(
-            (i for i, v in enumerate(merged) if _identity(v) & cand_ids), None
-        )
-        if match_index is None:
+        indices = _matching_indices(merged, _identity(candidate))
+        if not indices:
             merged.append(candidate)
-        else:
-            merged[match_index] = _combine(merged[match_index], candidate)
+            continue
+        combined = _fold_in(merged, candidate, indices)
+        redundant = set(indices[1:])
+        merged = [
+            combined if i == indices[0] else v
+            for i, v in enumerate(merged)
+            if i not in redundant
+        ]
     return merged

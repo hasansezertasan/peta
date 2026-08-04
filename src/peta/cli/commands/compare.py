@@ -56,7 +56,9 @@ def compare(
             b, local=local, remote=remote, no_osv=no_osv, no_stats=no_stats
         )
     except _NOT_FOUND as exc:
-        typer.echo(f"Package '{exc.name}' not found.", err=True)
+        version = getattr(exc, "version", None)
+        target = f"{exc.name}=={version}" if version else exc.name
+        typer.echo(f"Package '{target}' not found.", err=True)
         raise typer.Exit(code=1) from None
     except NetworkError as exc:
         typer.echo(str(exc), err=True)

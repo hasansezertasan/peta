@@ -27,7 +27,13 @@ LIBRARIES_IO_URL = "https://libraries.io/api/pypi"
 # Best-effort errors swallowed to ``None``/``0`` (network, or a
 # malformed/partial body). Kept as a named tuple so ``ruff format`` cannot
 # rewrite a parenthesized ``except (...)`` into invalid ``except A, B:`` syntax.
-_BEST_EFFORT_ERRORS = (httpx.RequestError, KeyError, TypeError, ValueError)
+_BEST_EFFORT_ERRORS = (
+    httpx.RequestError,
+    AttributeError,
+    KeyError,
+    TypeError,
+    ValueError,
+)
 
 
 # Both pypistats.org and libraries.io are untyped from Python's perspective
@@ -52,6 +58,20 @@ class LibrariesIoResponse(TypedDict, total=False):
     dependents_count: Required[int]
 
 
+def _as_int(value: object) -> int | None:
+    """Validate a decoded count value.
+
+    ``bool`` is rejected even though it is a ``int`` subclass, since a JSON
+    ``true``/``false`` is not a meaningful count.
+
+    Returns:
+        ``value`` if it is a genuine ``int``, else ``None``.
+    """
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    return None
+
+
 def _fetch_pypistats(name: str) -> PypiStatsResponse:
     response = httpx.get(f"{PYPISTATS_URL}/{name}/recent", timeout=DEFAULT_TIMEOUT)
     if response.status_code != 200:  # noqa: PLR2004
@@ -74,7 +94,7 @@ def get_download_count(name: str) -> int | None:
     """
     try:
         data = _fetch_pypistats(name)
-        return data["data"]["last_month"]
+        return _as_int(data["data"]["last_month"])
     except _BEST_EFFORT_ERRORS:
         return None
 
@@ -118,6 +138,6 @@ def get_dependent_count(name: str, *, api_key: str | None) -> int | None:
         return None
     try:
         data = _fetch_libraries_io(name, api_key)
-        return data["dependents_count"]
+        return _as_int(data["dependents_count"])
     except _BEST_EFFORT_ERRORS:
         return None

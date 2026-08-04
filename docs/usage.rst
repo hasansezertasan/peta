@@ -66,6 +66,13 @@ on its own ancestor path is shown once more and marked ``(circular)`` rather
 than being expanded again. Recursion stops at ``--depth`` (default ``10``)
 levels; deeper dependencies are omitted.
 
+The tree is a metadata view, not a full dependency resolution: each
+dependency is expanded from its currently-installed or latest-published
+metadata (a version specifier such as ``foo<2`` narrows what is *shown*, not
+which release is expanded), and dependencies gated behind an ``extra`` are
+not activated. ``--why`` searches only the tree built at the current
+``--depth``, so raise ``--depth`` if a target is deeper than the default.
+
 Pass ``--why <target>`` to show every chain of dependencies that pulls
 ``<target>`` into the tree, instead of the full tree, e.g. ``peta deps flask
 --why certifi``. If ``<target>`` is not present anywhere in the tree, ``peta``
