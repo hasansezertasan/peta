@@ -347,8 +347,9 @@ max-complexity = 5
 [tool.ruff.lint.pylint]
 # Typer command handlers accumulate one boolean flag per feature (--local,
 # --remote, --no-osv, --no-stats, ...); the default of 5 is too tight for
-# that pattern.
-max-args = 7
+# that pattern. `compare(ctx, a, b, use_json, local, remote, no_osv, no_stats)`
+# needs 8 (two package arguments instead of one).
+max-args = 8
 
 
 [tool.ruff.lint.pycodestyle]

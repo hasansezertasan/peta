@@ -23,6 +23,8 @@ Commands
      - Files installed by a local package.
    * - ``peta versions <package>``
      - Published versions from PyPI.
+   * - ``peta compare <a> <b>``
+     - Side-by-side metadata comparison of two packages.
 
 Color
 -----
@@ -55,11 +57,13 @@ omitted with no request made. Pass ``--no-stats`` to skip both lookups.
 Resolution
 ----------
 
-For ``info`` and ``deps``, ``peta`` checks the local environment first and
-falls back to PyPI. Force a source with ``--local``/``-l`` or
-``--remote``/``-r``. A ``name==version`` argument is supported by ``info``
-only and always queries PyPI (it cannot be combined with ``--local``).
-``files`` is local-only; ``versions`` is PyPI-only.
+For ``info``, ``deps``, and ``compare``, ``peta`` checks the local
+environment first and falls back to PyPI. Force a source with
+``--local``/``-l`` or ``--remote``/``-r``. A ``name==version`` argument is
+supported by ``info`` only and always queries PyPI (it cannot be combined
+with ``--local``). ``files`` is local-only; ``versions`` is PyPI-only.
+``compare`` resolves and enriches both packages the same way ``info`` does,
+including the ``--no-osv``/``--no-stats`` flags.
 
 Exit codes
 ----------

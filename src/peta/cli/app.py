@@ -9,6 +9,7 @@ import typer
 
 from peta import __version__
 from peta.cli.commands import (
+    compare as compare_mod,
     deps as deps_mod,
     files as files_mod,
     info as info_mod,
@@ -17,10 +18,20 @@ from peta.cli.commands import (
 from peta.cli.state import CliState
 from peta.output.console import resolve_color
 
-__all__ = ["deps", "files", "info", "main", "run", "versions"]
+__all__ = ["compare", "deps", "files", "info", "main", "run", "versions"]
 
 
-_SUBCOMMANDS = {"info", "deps", "files", "versions", "--help", "-h", "--version", "-V"}
+_SUBCOMMANDS = {
+    "info",
+    "deps",
+    "files",
+    "versions",
+    "compare",
+    "--help",
+    "-h",
+    "--version",
+    "-V",
+}
 
 app = typer.Typer(
     name="peta",
@@ -92,6 +103,38 @@ def info(
     """Show detailed package metadata."""
     info_mod.info(
         package,
+        use_json=use_json,
+        local=local,
+        remote=remote,
+        color=_color_from_ctx(ctx),
+        no_osv=no_osv,
+        no_stats=no_stats,
+    )
+
+
+@app.command()
+def compare(
+    ctx: typer.Context,
+    a: Annotated[str, typer.Argument(help="First package name.")],
+    b: Annotated[str, typer.Argument(help="Second package name.")],
+    use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    local: Annotated[
+        bool, typer.Option("--local", "-l", help="Force local lookup.")
+    ] = False,
+    remote: Annotated[
+        bool, typer.Option("--remote", "-r", help="Force PyPI lookup.")
+    ] = False,
+    no_osv: Annotated[
+        bool, typer.Option("--no-osv", help="Skip the OSV vulnerability lookup.")
+    ] = False,
+    no_stats: Annotated[
+        bool, typer.Option("--no-stats", help="Skip download/dependent count lookups.")
+    ] = False,
+) -> None:
+    """Compare two packages' metadata side by side."""
+    compare_mod.compare(
+        a,
+        b,
         use_json=use_json,
         local=local,
         remote=remote,

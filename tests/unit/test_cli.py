@@ -30,46 +30,46 @@ def _pkg(**over: object) -> PackageInfo:
 
 
 class TestInfo:
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_local(self, m: MagicMock) -> None:
         m.return_value = _pkg()
         r = runner.invoke(app, ["info", "requests"])
         assert r.exit_code == 0
         assert "requests" in r.output
 
-    @patch("peta.cli.commands.info.remote_get_package")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_fallback_to_remote(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["info", "x"]).exit_code == 0
 
-    @patch("peta.cli.commands.info.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package")
     def test_version_specifier(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(version="2.28.0", source="remote")
         r = runner.invoke(app, ["info", "requests==2.28.0"])
         assert r.exit_code == 0
         mr.assert_called_once_with("requests", "2.28.0")
 
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_json(self, m: MagicMock) -> None:
         m.return_value = _pkg()
         r = runner.invoke(app, ["info", "requests", "--json"])
         assert json.loads(r.output)["name"] == "requests"
 
-    @patch("peta.cli.commands.info.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package")
     def test_remote_flag(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["info", "requests", "-r"]).exit_code == 0
         mr.assert_called_once()
 
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_local_flag(self, ml: MagicMock) -> None:
         ml.return_value = _pkg()
         assert runner.invoke(app, ["info", "requests", "-l"]).exit_code == 0
         ml.assert_called_once()
 
-    @patch("peta.cli.commands.info.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package")
     def test_local_with_version_rejected(self, mr: MagicMock) -> None:
         # --local with a name==version specifier is contradictory; it must be
         # rejected, not silently fall through to a remote lookup.
@@ -77,28 +77,28 @@ class TestInfo:
         assert result.exit_code != 0
         mr.assert_not_called()
 
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_shows_vuln(self, ml: MagicMock) -> None:
         v = Vulnerability(id="PYSEC-1", aliases=[], summary="s", fixed_in=["2.32.0"])
         ml.return_value = _pkg(vulnerabilities=[v])
         assert "PYSEC-1" in runner.invoke(app, ["info", "requests"]).output
 
-    @patch("peta.cli.commands.info.remote_get_package")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_not_found(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("n")
         mr.side_effect = RemoteNotFound("n")
         assert runner.invoke(app, ["info", "n"]).exit_code == 1
 
-    @patch("peta.cli.commands.info.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package")
     def test_network_error_exit_2(self, mr: MagicMock) -> None:
         from peta.core.remote import NetworkError
 
         mr.side_effect = NetworkError("down")
         assert runner.invoke(app, ["info", "x", "-r"]).exit_code == 2
 
-    @patch("peta.cli.commands.info.osv.get_vulnerabilities")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.resolve.local_get_package")
     def test_osv_enriches_output(self, ml: MagicMock, mo: MagicMock) -> None:
         ml.return_value = _pkg()
         mo.return_value = [
@@ -109,8 +109,8 @@ class TestInfo:
         assert "GHSA-osv" in r.output
         mo.assert_called_once_with("requests", "2.31.0")
 
-    @patch("peta.cli.commands.info.osv.get_vulnerabilities")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.resolve.local_get_package")
     def test_osv_deduped_against_pypi_vuln_by_alias(
         self, ml: MagicMock, mo: MagicMock
     ) -> None:
@@ -135,8 +135,8 @@ class TestInfo:
         assert "GHSA-2" not in r.output
         assert "[HIGH]" in r.output
 
-    @patch("peta.cli.commands.info.osv.get_vulnerabilities")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.resolve.local_get_package")
     def test_no_osv_skips_lookup(self, ml: MagicMock, mo: MagicMock) -> None:
         ml.return_value = _pkg()
         mo.return_value = [
@@ -147,10 +147,10 @@ class TestInfo:
         mo.assert_not_called()
         assert "GHSA-osv" not in r.output
 
-    @patch("peta.cli.commands.info.stats.libraries_io_api_key")
-    @patch("peta.cli.commands.info.stats.get_dependent_count")
-    @patch("peta.cli.commands.info.stats.get_download_count")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.enrich.stats.libraries_io_api_key")
+    @patch("peta.core.enrich.stats.get_dependent_count")
+    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.resolve.local_get_package")
     def test_stats_enrich_output(
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
     ) -> None:
@@ -164,9 +164,9 @@ class TestInfo:
         assert "42" in r.output
         mdep.assert_called_once_with("requests", api_key="secret")
 
-    @patch("peta.cli.commands.info.stats.get_dependent_count")
-    @patch("peta.cli.commands.info.stats.get_download_count")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.enrich.stats.get_dependent_count")
+    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.resolve.local_get_package")
     def test_no_stats_skips_lookup(
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock
     ) -> None:
@@ -178,10 +178,10 @@ class TestInfo:
         assert "Downloads" not in r.output
         assert "Dependents" not in r.output
 
-    @patch("peta.cli.commands.info.stats.libraries_io_api_key")
-    @patch("peta.cli.commands.info.stats.get_dependent_count")
-    @patch("peta.cli.commands.info.stats.get_download_count")
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.enrich.stats.libraries_io_api_key")
+    @patch("peta.core.enrich.stats.get_dependent_count")
+    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.resolve.local_get_package")
     def test_stats_in_json(
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
     ) -> None:
@@ -193,6 +193,82 @@ class TestInfo:
         data = json.loads(r.output)
         assert data["download_count"] == 100
         assert data["dependent_count"] == 5
+
+
+class TestCompare:
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_table(self, ml: MagicMock, mr: MagicMock) -> None:
+        ml.side_effect = [_pkg(), LocalNotFound("httpx")]
+        mr.return_value = _pkg(name="httpx", version="0.27.0", source="remote")
+        r = runner.invoke(app, ["compare", "requests", "httpx"])
+        assert r.exit_code == 0
+        assert "requests" in r.output
+        assert "httpx" in r.output
+        assert "2.31.0" in r.output
+        assert "0.27.0" in r.output
+
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_json(self, ml: MagicMock, mr: MagicMock) -> None:
+        ml.side_effect = [_pkg(), LocalNotFound("httpx")]
+        mr.return_value = _pkg(name="httpx", version="0.27.0", source="remote")
+        r = runner.invoke(app, ["compare", "requests", "httpx", "--json"])
+        assert r.exit_code == 0
+        data = json.loads(r.output)
+        assert len(data["packages"]) == 2
+        assert data["packages"][0]["name"] == "requests"
+        assert data["packages"][1]["name"] == "httpx"
+
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_not_found_in_first(self, ml: MagicMock, mr: MagicMock) -> None:
+        ml.side_effect = LocalNotFound("nope")
+        mr.side_effect = RemoteNotFound("nope")
+        r = runner.invoke(app, ["compare", "nope", "httpx"])
+        assert r.exit_code == 1
+
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_not_found_in_second(self, ml: MagicMock, mr: MagicMock) -> None:
+        ml.side_effect = [_pkg(), LocalNotFound("nope")]
+        mr.side_effect = RemoteNotFound("nope")
+        r = runner.invoke(app, ["compare", "requests", "nope"])
+        assert r.exit_code == 1
+
+    @patch("peta.core.resolve.remote_get_package")
+    def test_compare_network_error_exit_2(self, mr: MagicMock) -> None:
+        from peta.core.remote import NetworkError
+
+        mr.side_effect = NetworkError("down")
+        r = runner.invoke(app, ["compare", "a", "b", "-r"])
+        assert r.exit_code == 2
+
+    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_no_osv_skips_lookup(
+        self, ml: MagicMock, mr: MagicMock, mo: MagicMock
+    ) -> None:
+        ml.side_effect = [_pkg(), LocalNotFound("httpx")]
+        mr.return_value = _pkg(name="httpx", version="0.27.0", source="remote")
+        r = runner.invoke(app, ["compare", "requests", "httpx", "--no-osv"])
+        assert r.exit_code == 0
+        mo.assert_not_called()
+
+    @patch("peta.core.enrich.stats.get_dependent_count")
+    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_no_stats_skips_lookup(
+        self, ml: MagicMock, mr: MagicMock, mdl: MagicMock, mdep: MagicMock
+    ) -> None:
+        ml.side_effect = [_pkg(), LocalNotFound("httpx")]
+        mr.return_value = _pkg(name="httpx", version="0.27.0", source="remote")
+        r = runner.invoke(app, ["compare", "requests", "httpx", "--no-stats"])
+        assert r.exit_code == 0
+        mdl.assert_not_called()
+        mdep.assert_not_called()
 
 
 class TestDeps:
@@ -362,7 +438,7 @@ class TestRoot:
 
 
 class TestNoColor:
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_no_color_flag_still_plain(self, m: MagicMock) -> None:
         # CliRunner output is already non-TTY, but --no-color must not break
         # anything and must still print the package plainly.
@@ -372,7 +448,7 @@ class TestNoColor:
         assert "requests" in r.output
         assert "\x1b" not in r.output
 
-    @patch("peta.cli.commands.info.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_no_color_env_var(
         self, m: MagicMock, monkeypatch: pytest.MonkeyPatch
     ) -> None:

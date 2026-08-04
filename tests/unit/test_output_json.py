@@ -6,7 +6,13 @@ from dataclasses import replace
 import pytest
 
 from peta.core.models import PackageInfo, Vulnerability
-from peta.output.json import format_deps, format_files, format_info, format_versions
+from peta.output.json import (
+    format_compare,
+    format_deps,
+    format_files,
+    format_info,
+    format_versions,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -46,6 +52,14 @@ def test_info_stats_default_none() -> None:
     data = json.loads(format_info(_pkg()))
     assert data["download_count"] is None
     assert data["dependent_count"] is None
+
+
+def test_compare() -> None:
+    b = _pkg(name="httpx", version="0.27.0", dependencies=["httpcore"])
+    data = json.loads(format_compare(_pkg(), b))
+    assert len(data["packages"]) == 2
+    assert data["packages"][0]["name"] == "requests"
+    assert data["packages"][1]["name"] == "httpx"
 
 
 def test_deps() -> None:

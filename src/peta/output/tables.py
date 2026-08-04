@@ -13,7 +13,13 @@ from peta.output.console import render as _render
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
 
-__all__ = ["render_deps", "render_files", "render_info", "render_versions"]
+__all__ = [
+    "render_compare",
+    "render_deps",
+    "render_files",
+    "render_info",
+    "render_versions",
+]
 
 
 def _to_string(renderable: object, *, color: bool) -> str:
@@ -115,6 +121,43 @@ def render_files(pkg: PackageInfo, *, color: bool) -> str:
     lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)\n"]
     lines.extend(f"  {f}" for f in pkg.files)
     return "\n".join(lines) + "\n"
+
+
+def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
+    def count_or_dash(value: int | None) -> str:
+        return "-" if value is None else f"{value:,}"
+
+    fields: list[tuple[str, str, str]] = [
+        ("Version", a.version, b.version),
+        ("Summary", a.summary or "-", b.summary or "-"),
+        ("Author", a.author or "-", b.author or "-"),
+        ("License", a.license or "-", b.license or "-"),
+        ("Python", a.python_requires or "-", b.python_requires or "-"),
+        ("Dependencies", str(len(a.dependencies)), str(len(b.dependencies))),
+        ("Downloads", count_or_dash(a.download_count), count_or_dash(b.download_count)),
+        (
+            "Dependents",
+            count_or_dash(a.dependent_count),
+            count_or_dash(b.dependent_count),
+        ),
+        ("Vulnerabilities", str(len(a.vulnerabilities)), str(len(b.vulnerabilities))),
+    ]
+    return fields
+
+
+def render_compare(a: PackageInfo, b: PackageInfo, *, color: bool) -> str:
+    """Render two :class:`PackageInfo` objects as a side-by-side Rich table.
+
+    Returns:
+        The comparison table rendered as text.
+    """
+    table = Table(title=f"{a.name} vs {b.name}")
+    table.add_column("Field", style="bold cyan")
+    table.add_column(a.name)
+    table.add_column(b.name)
+    for label, a_value, b_value in _compare_rows(a, b):
+        table.add_row(label, a_value, b_value)
+    return _to_string(table, color=color)
 
 
 def render_versions(name: str, versions: list[dict[str, str]], *, color: bool) -> str:

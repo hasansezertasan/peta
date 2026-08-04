@@ -8,16 +8,17 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
 
-__all__ = ["format_deps", "format_files", "format_info", "format_versions"]
+__all__ = [
+    "format_compare",
+    "format_deps",
+    "format_files",
+    "format_info",
+    "format_versions",
+]
 
 
-def format_info(pkg: PackageInfo) -> str:
-    """Format :class:`PackageInfo` as a JSON string.
-
-    Returns:
-        The metadata serialized as an indented JSON string.
-    """
-    data = {
+def _package_dict(pkg: PackageInfo) -> dict[str, object]:
+    return {
         "name": pkg.name,
         "version": pkg.version,
         "summary": pkg.summary,
@@ -41,7 +42,25 @@ def format_info(pkg: PackageInfo) -> str:
         "dependent_count": pkg.dependent_count,
         "source": pkg.source,
     }
-    return json.dumps(data, indent=2)
+
+
+def format_info(pkg: PackageInfo) -> str:
+    """Format :class:`PackageInfo` as a JSON string.
+
+    Returns:
+        The metadata serialized as an indented JSON string.
+    """
+    return json.dumps(_package_dict(pkg), indent=2)
+
+
+def format_compare(a: PackageInfo, b: PackageInfo) -> str:
+    """Format two :class:`PackageInfo` objects as a JSON comparison string.
+
+    Returns:
+        A ``{"packages": [a, b]}`` JSON string, each package in the same
+        format as :func:`format_info`.
+    """
+    return json.dumps({"packages": [_package_dict(a), _package_dict(b)]}, indent=2)
 
 
 def format_deps(pkg: PackageInfo) -> str:

@@ -56,6 +56,7 @@ peta info requests==2.31.0    # a specific version from PyPI
 peta deps flask               # declared dependencies
 peta files rich               # files installed locally
 peta versions httpx           # published versions on PyPI
+peta compare requests httpx   # side-by-side metadata comparison
 peta requests --json          # machine-readable output
 ```
 

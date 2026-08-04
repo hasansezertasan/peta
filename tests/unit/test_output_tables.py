@@ -5,7 +5,13 @@ from dataclasses import replace
 import pytest
 
 from peta.core.models import PackageInfo, Vulnerability
-from peta.output.tables import render_deps, render_files, render_info, render_versions
+from peta.output.tables import (
+    render_compare,
+    render_deps,
+    render_files,
+    render_info,
+    render_versions,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -58,6 +64,43 @@ def test_render_info_no_stats() -> None:
     out = render_info(_pkg(), color=False)
     assert "Downloads" not in out
     assert "Dependents" not in out
+
+
+def test_render_compare() -> None:
+    b = _pkg(name="httpx", version="0.27.0", dependencies=["httpcore"])
+    out = render_compare(_pkg(), b, color=False)
+    assert "requests" in out
+    assert "httpx" in out
+    assert "2.31.0" in out
+    assert "0.27.0" in out
+
+
+def test_render_compare_missing_values_show_dash() -> None:
+    a = _pkg(
+        summary=None,
+        author=None,
+        license=None,
+        python_requires=None,
+        download_count=None,
+        dependent_count=None,
+    )
+    b = _pkg(name="httpx", version="0.27.0")
+    out = render_compare(a, b, color=False)
+    assert "-" in out
+
+
+def test_render_compare_counts() -> None:
+    v = Vulnerability(id="PYSEC-1", aliases=[], summary="bad", fixed_in=["1.0"])
+    a = _pkg(
+        dependencies=["urllib3"],
+        vulnerabilities=[v],
+        download_count=1234567,
+        dependent_count=42,
+    )
+    b = _pkg(name="httpx", version="0.27.0", dependencies=[])
+    out = render_compare(a, b, color=False)
+    assert "1,234,567" in out
+    assert "42" in out
 
 
 def test_render_deps() -> None:
