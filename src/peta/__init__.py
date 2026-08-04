@@ -1,1 +1,1 @@
-"""Top-level package for the project."""
+"""peta - Human-friendly Python package metadata viewer."""

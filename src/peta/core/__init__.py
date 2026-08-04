@@ -1,1 +1,1 @@
-"""Core package for the project."""
+"""Core data models and metadata fetchers."""

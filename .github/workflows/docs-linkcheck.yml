@@ -40,4 +40,4 @@ jobs:
         if: steps.setup-uv.outputs.cache-hit == 'true'
         run: echo "Cache was restored"
       - name: Check documentation links
-        run: uv run --no-default-groups --extra all --group docs sphinx-build -b linkcheck docs docs/_build/linkcheck
+        run: uv run --no-default-groups --group docs sphinx-build -b linkcheck docs docs/_build/linkcheck

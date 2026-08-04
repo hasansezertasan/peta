@@ -25,6 +25,9 @@ exclude = '''(?x)^(
     |build
     |dist
     |alembic
+
+    # Internal SDD design docs (excluded from ruff + Sphinx too)
+    |docs/superpowers/.*
 )$'''
 
 # Fast Rust-native reimplementations of common pre-commit-hooks. No git clone.
@@ -83,7 +86,9 @@ hooks = [
 [[repos]]
 repo = "local"
 hooks = [
-  { id = "basedpyright", name = "basedpyright Type Checker", entry = "uv run --locked --group style basedpyright", language = "system", types = ["python"], pass_filenames = false },
+  { id = "basedpyright", name = "basedpyright Type Checker", entry = "uv run --locked --group style basedpyright", language = "system", types = [
+    "python",
+  ], pass_filenames = false },
   # editorconfig-checker is run via the uv `style` group (not an upstream prek
   # repo) so its version has a single source of truth: its PyPI wrapper lags the
   # Go release tags, so a separate `rev` pin would drift permanently out of sync
@@ -106,7 +111,10 @@ hooks = [
   # mypy's duplicate-module check on the sibling examples/*/main.py demo scripts
   # and (b) surfaces strict-decorator errors in tests/ that the canonical run
   # never checks — neither is part of the shipped, type-checked surface.
-  { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = ["typer", "textual", ] },
+  { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = [
+    "typer",
+    "textual",
+  ] },
 ]
 
 [[repos]]
@@ -123,7 +131,9 @@ hooks = [{ id = "typos", name = "Typos Linter" }]
 repo = "https://github.com/python-jsonschema/check-jsonschema"
 rev = "0.35.0"
 hooks = [
-  { id = "check-github-actions", name = "Validate GitHub Actions", args = ["--verbose"] },
+  { id = "check-github-actions", name = "Validate GitHub Actions", args = [
+    "--verbose",
+  ] },
 ]
 
 [[repos]]
@@ -144,7 +154,12 @@ hooks = [{ id = "zizmor", name = "Zizmor GitHub Actions Auditor" }]
 [[repos]]
 repo = "https://github.com/adrienverge/yamllint.git"
 rev = "v1.37.1"
-hooks = [{ id = "yamllint", name = "YAML Linter", args = ["-c", ".github/yamllint.yaml"] }]
+hooks = [
+  { id = "yamllint", name = "YAML Linter", args = [
+    "-c",
+    ".github/yamllint.yaml",
+  ] },
+]
 
 [[repos]]
 repo = "https://github.com/DavidAnson/markdownlint-cli2"
@@ -154,14 +169,21 @@ hooks = [{ id = "markdownlint-cli2", name = "Markdown Linter" }]
 [[repos]]
 repo = "https://github.com/google/yamlfmt"
 rev = "v0.17.2"
-hooks = [{ id = "yamlfmt", name = "YAML Formatter", exclude = "^\\.copier-answers\\.yml$", args = ["-conf", ".github/yamlfmt.yml"] }]
+hooks = [
+  { id = "yamlfmt", name = "YAML Formatter", exclude = "^\\.copier-answers\\.yml$", args = [
+    "-conf",
+    ".github/yamlfmt.yml",
+  ] },
+]
 
 [[repos]]
 repo = "https://github.com/commitizen-tools/commitizen"
 rev = "v4.10.0"
 hooks = [
   { id = "commitizen", name = "Commitizen" },
-  { id = "commitizen-branch", name = "Commitizen Branch", stages = ["pre-push"] },
+  { id = "commitizen-branch", name = "Commitizen Branch", stages = [
+    "pre-push",
+  ] },
 ]
 
 [[repos]]

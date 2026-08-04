@@ -1,6 +1,5 @@
 # peta
 
-<!-- TODO @hasansezertasan: Make it work, make it right, make it fast. -->
 [![CI](https://github.com/hasansezertasan/peta/actions/workflows/ci.yml/badge.svg)](https://github.com/hasansezertasan/peta/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/hasansezertasan/peta)](https://codecov.io/gh/hasansezertasan/peta)
 [![Documentation Status](https://img.shields.io/github/deployments/hasansezertasan/peta/github-pages?label=docs)](https://hasansezertasan.github.io/peta)
@@ -19,186 +18,62 @@
 [![Downloads/Month](https://pepy.tech/badge/peta/month)](https://pepy.tech/project/peta)
 [![Downloads/Week](https://pepy.tech/badge/peta/week)](https://pepy.tech/project/peta)
 
-> Human-friendly Python package metadata viewer
+**Human-friendly Python package metadata viewer.** Think `cargo info` for Python.
 
------
-
-## Table of Contents
-
-- [Screenshots](#screenshots)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Support](#support-heart)
-- [Motivation](#motivation)
-- [Features](#features)
-- [About](#about)
-- [Author](#author-person_with_crown)
-- [Analysis](#analysis)
-- [Contributing](#contributing-heart)
-- [Development](#development-toolbox)
-- [Releasing](#releasing)
-- [Credits](#credits)
-- [License](#license-scroll)
-- [Changelog](#changelog-memo)
-
-## Screenshots
-
-<!-- TODO @hasansezertasan: Add screenshots or a demo GIF, or remove this section. -->
-
-## Installation
-
-```console
-pip install peta
-```
-
-## Usage
-
-### CLI
-
-```bash
-peta version
-peta info
-```
-
-### TUI
-
-```bash
-peta-tui
-```
-
-An interactive terminal user interface displays project information. Press 'q' to exit.
-
-### Debugging
-
-Debug your application in VS Code using the provided launch configurations:
-
-- **Current File**: Debug the currently open Python file.
-- **Tests**: Debug pytest runs.
-- **Attach**: Attach to a running process (e.g., web app with debugpy).
-- **Web App/CLI/TUI/GUI**: Debug specific entry points (if enabled).
-- **With Profiling**: Debug while profiling with scalene (if profiling enabled).
-
-Select a configuration from the Run and Debug panel in VS Code.
-
-## Support :heart:
-
-If you have any questions or need help, feel free to open an issue on the [GitHub repository][peta].
-
-## Motivation
-
-<!-- TODO @hasansezertasan: Explain why this project exists and what problem it solves, or remove this section. -->
+`peta` shows detailed metadata for a Python package — from your local environment
+or from PyPI — with clean, Rich-formatted terminal output.
 
 ## Features
 
-- **CLI Application**: Command-line interface built with Typer
-- **TUI Application**: Terminal user interface built with Textual
-- **Type Safety**: Full type hints checked by mypy, basedpyright, ty, pyrefly, and zuban
-- **Code Quality**: Comprehensive linting and formatting with ruff, plus architecture-contract enforcement with import-linter
-- **Testing**: pytest with coverage reporting and parallel execution
-- **Documentation**: Sphinx documentation with the Shibuya theme, GitHub Pages deployment, and live per-PR documentation previews
-- **CI/CD**: Automated testing, building, and publishing across multiple platforms
-- **Security**: CodeQL, OpenSSF Scorecard, dependency review, secret scanning (gitleaks), dependency auditing (pip-audit), GitHub Actions static analysis (zizmor — a blocking prek/CI gate plus a Security-tab dashboard, over hardened least-privilege workflows), and a CycloneDX SBOM attached to every release
-- **Managed `.gitignore`**: kept in sync with the upstream [github/gitignore](https://github.com/github/gitignore) templates by [cobo](https://github.com/hasansezertasan/cobo), with a weekly drift check
-- **Modern Python**: uv for dependency management, hatch for building
+- **Local + remote** — inspect installed packages or any package on PyPI
+- **Rich output** — readable tables, panels, and trees
+- **Dependency listing** — see a package's declared dependencies
+- **File listing** — list files installed by a local package
+- **Version listing** — browse published versions from PyPI
+- **JSON output** — `--json` on every command for scripting
 
-## About
+## Installation
 
-<!-- TODO @hasansezertasan: Add background/context about the project, or remove this section. -->
+`peta` is an end-user CLI tool; install it into an isolated environment:
 
-## Author :person_with_crown:
+```bash
+# Run without installing
+uvx peta requests
 
-This project is maintained by [Hasan Sezer Tasan][author], It's me :wave:
-
-## Analysis
-
-- [Snyk Python Package Health Analysis](https://snyk.io/advisor/python/peta)
-- [Libraries.io - PyPI](https://libraries.io/pypi/peta)
-- [Safety DB](https://data.safetycli.com/packages/pypi/peta)
-- [PePy Download Stats](https://www.pepy.tech/projects/peta)
-- [PyPI Download Stats](https://pypistats.org/packages/peta)
-- [Pip Trends Download Stats](https://piptrends.com/package/peta)
-- [PyPI Map Dependency Graph](https://pypimap.com/package/peta)
-
-## Contributing :heart:
-
-Any contributions are welcome! Please follow the [Contributing Guidelines](./.github/CONTRIBUTING.md) to contribute to this project.
-
-<!-- xc-heading -->
-## Development :toolbox:
-
-Clone the repository and cd into the project directory:
-
-```sh
-git clone https://github.com/hasansezertasan/peta
-cd peta
+# Install as a tool
+uv tool install peta
+pipx install peta
 ```
 
-The commands below can also be executed using the [xc task runner](https://xcfile.dev/), which combines the usage instructions with the actual commands. Simply run `xc`, it will pop up an interactive menu with all available tasks.
+**Requires:** Python 3.14+
 
-### `install`
+## Usage
 
-Install the dependencies:
-
-```sh
-uv sync
+```bash
+peta requests                 # info (local first, falls back to PyPI)
+peta info requests            # explicit info
+peta info requests==2.31.0    # a specific version from PyPI
+peta deps flask               # recursive dependency tree
+peta deps flask --why certifi # why is certifi pulled in?
+peta files rich               # files installed locally
+peta versions httpx           # published versions on PyPI
+peta compare requests httpx   # side-by-side metadata comparison
+peta requests --json          # machine-readable output
 ```
 
-### `style`
+### Flags
 
-Run the style checks:
+| Flag | Applies to | Meaning |
+|------|-----------|---------|
+| `--json` | all | JSON output |
+| `--local` / `-l` | info, deps | force local lookup |
+| `--remote` / `-r` | info, deps | force PyPI lookup |
+| `--limit` / `-n` | versions | max versions to show (default 20) |
+| `--why <target>` | deps | show why `<target>` is a dependency |
+| `--depth <n>` | deps | max recursion depth (default 10) |
+| `--no-color` | (root) | disable colored output (also via `NO_COLOR`) |
+| `--version` / `-V` | (root) | print version and exit |
 
-```sh
-uv run --locked tox run -e style
-```
+## License
 
-### `ci`
-
-Run the CI pipeline:
-
-```sh
-uv run --locked tox run
-```
-
-### `docs-build`
-
-Build the documentation site:
-
-```sh
-uv run --locked tox run -e docs-build
-```
-
-### `docs-server`
-
-Start the live-reloading docs server:
-
-```sh
-uv run --locked tox run -e docs-server
-```
-
-### `docs-linkcheck`
-
-Check the documentation for broken links (also runs weekly in CI):
-
-```sh
-uv run --locked tox run -e docs-linkcheck
-```
-
-## Releasing
-
-Versioning and releases are automated with [release-please](https://github.com/googleapis/release-please), driven by [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) PR titles squash-merged into `main`. release-please maintains a release PR that bumps the version and `CHANGELOG.md`; merging it tags the release and publishes to PyPI. See the [Contributing Guidelines](./.github/CONTRIBUTING.md#releasing) for the commit conventions and the one-time [Repository setup](./.github/CONTRIBUTING.md#repository-setup-one-time) (squash-merge settings, Actions permissions, release immutability, and PyPI trusted publishing).
-
-## Credits
-
-This package was created with [Copier](https://github.com/copier-org/copier) and the [hasansezertasan/copier-pyproject](https://github.com/hasansezertasan/copier-pyproject) project template.
-
-## License :scroll:
-
-This project is licensed under the [MIT License](https://spdx.org/licenses/MIT.html).
-
-## Changelog :memo:
-
-For a detailed list of changes, please refer to the [CHANGELOG](./CHANGELOG.md).
-
-<!-- Refs -->
-[author]: https://github.com/hasansezertasan
-[peta]: https://github.com/hasansezertasan/peta
+MIT
