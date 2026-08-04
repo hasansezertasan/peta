@@ -2,7 +2,7 @@
 <html lang="en" data-accent-color="amber" data-content_root="./">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Usage - peta</title><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Architecture" href="architecture.html" /><link rel="prev" title="Installation" href="installation.html" /><script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Usage - peta</title><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="next" title="Configuration" href="configuration.html" /><link rel="prev" title="Installation" href="installation.html" /><script>
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=e1a1ceaf" />
@@ -66,6 +66,7 @@ data-aria-dark="Switch to auto color mode">
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
 </ul>
@@ -81,6 +82,10 @@ data-aria-dark="Switch to auto color mode">
     </button>
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#commands">Commands</a></li>
+<li><a class="reference internal" href="#color">Color</a></li>
+<li><a class="reference internal" href="#vulnerabilities">Vulnerabilities</a></li>
+<li><a class="reference internal" href="#download-and-dependent-counts">Download and dependent counts</a></li>
+<li><a class="reference internal" href="#dependency-tree">Dependency tree</a></li>
 <li><a class="reference internal" href="#resolution">Resolution</a></li>
 <li><a class="reference internal" href="#exit-codes">Exit codes</a></li>
 </ul>
@@ -135,7 +140,7 @@ command for machine-readable output.</p>
 <td><p>Detailed metadata (local first, PyPI fallback).</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">deps</span> <span class="pre">&lt;package&gt;</span></code></p></td>
-<td><p>Declared dependencies of a package.</p></td>
+<td><p>Recursive dependency tree of a package.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">files</span> <span class="pre">&lt;package&gt;</span></code></p></td>
 <td><p>Files installed by a local package.</p></td>
@@ -143,17 +148,61 @@ command for machine-readable output.</p>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">versions</span> <span class="pre">&lt;package&gt;</span></code></p></td>
 <td><p>Published versions from PyPI.</p></td>
 </tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">compare</span> <span class="pre">&lt;a&gt;</span> <span class="pre">&lt;b&gt;</span></code></p></td>
+<td><p>Side-by-side metadata comparison of two packages.</p></td>
+</tr>
 </tbody>
 </table>
 </div>
 </section>
+<section id="color">
+<h2>Color<a class="headerlink" href="#color" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">peta</span></code> colors Rich output when stdout is a terminal. Disable it with the
+root <code class="docutils literal notranslate"><span class="pre">--no-color</span></code> flag or the <code class="docutils literal notranslate"><span class="pre">NO_COLOR</span></code> environment variable; both take
+precedence over TTY detection. <code class="docutils literal notranslate"><span class="pre">--json</span></code> output is always plain. See
+<a class="reference internal" href="configuration.html"><span class="doc">Configuration</span></a> for the <code class="docutils literal notranslate"><span class="pre">NO_COLOR</span></code> variable.</p>
+</section>
+<section id="vulnerabilities">
+<h2>Vulnerabilities<a class="headerlink" href="#vulnerabilities" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span></code> enriches its vulnerability list from <a class="reference external" href="https://api.osv.dev/">OSV.dev</a> by default, merging OSV results with any PyPI
+advisories and deduping entries that share an id or alias. This lookup is
+best-effort: network failures leave the PyPI-only results in place and never
+change the exit code. Pass <code class="docutils literal notranslate"><span class="pre">--no-osv</span></code> to skip it entirely.</p>
+</section>
+<section id="download-and-dependent-counts">
+<h2>Download and dependent counts<a class="headerlink" href="#download-and-dependent-counts" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span></code> also shows a package’s last-month download count from
+<a class="reference external" href="https://pypistats.org/">pypistats.org</a> and its dependent count from
+<a class="reference external" href="https://libraries.io/">libraries.io</a> by default. Both lookups are
+best-effort: a network failure simply omits the corresponding field and
+never changes the exit code. The dependent count additionally requires a
+<code class="docutils literal notranslate"><span class="pre">LIBRARIES_IO_API_KEY</span></code> (see <a class="reference internal" href="configuration.html"><span class="doc">Configuration</span></a>); without one it is
+omitted with no request made. Pass <code class="docutils literal notranslate"><span class="pre">--no-stats</span></code> to skip both lookups.</p>
+</section>
+<section id="dependency-tree">
+<h2>Dependency tree<a class="headerlink" href="#dependency-tree" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">deps</span> <span class="pre">&lt;package&gt;</span></code> prints the package’s full recursive dependency tree
+(not just its direct requirements), resolving each dependency the same way
+<code class="docutils literal notranslate"><span class="pre">info</span></code> does. Requirements whose environment marker is not satisfied (e.g.
+an <code class="docutils literal notranslate"><span class="pre">extra</span></code> that is not requested, or a <code class="docutils literal notranslate"><span class="pre">python_version</span></code> constraint that
+excludes the running interpreter) are skipped. A dependency that reappears
+on its own ancestor path is shown once more and marked <code class="docutils literal notranslate"><span class="pre">(circular)</span></code> rather
+than being expanded again. Recursion stops at <code class="docutils literal notranslate"><span class="pre">--depth</span></code> (default <code class="docutils literal notranslate"><span class="pre">10</span></code>)
+levels; deeper dependencies are omitted.</p>
+<p>Pass <code class="docutils literal notranslate"><span class="pre">--why</span> <span class="pre">&lt;target&gt;</span></code> to show every chain of dependencies that pulls
+<code class="docutils literal notranslate"><span class="pre">&lt;target&gt;</span></code> into the tree, instead of the full tree, e.g. <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">deps</span> <span class="pre">flask</span>
+<span class="pre">--why</span> <span class="pre">certifi</span></code>. If <code class="docutils literal notranslate"><span class="pre">&lt;target&gt;</span></code> is not present anywhere in the tree, <code class="docutils literal notranslate"><span class="pre">peta</span></code>
+prints a message to stderr and exits with code 1.</p>
+</section>
 <section id="resolution">
 <h2>Resolution<a class="headerlink" href="#resolution" title="Link to this heading">¶</a></h2>
-<p>For <code class="docutils literal notranslate"><span class="pre">info</span></code> and <code class="docutils literal notranslate"><span class="pre">deps</span></code>, <code class="docutils literal notranslate"><span class="pre">peta</span></code> checks the local environment first and
-falls back to PyPI. Force a source with <code class="docutils literal notranslate"><span class="pre">--local</span></code>/<code class="docutils literal notranslate"><span class="pre">-l</span></code> or
-<code class="docutils literal notranslate"><span class="pre">--remote</span></code>/<code class="docutils literal notranslate"><span class="pre">-r</span></code>. A <code class="docutils literal notranslate"><span class="pre">name==version</span></code> argument is supported by <code class="docutils literal notranslate"><span class="pre">info</span></code>
-only and always queries PyPI (it cannot be combined with <code class="docutils literal notranslate"><span class="pre">--local</span></code>).
-<code class="docutils literal notranslate"><span class="pre">files</span></code> is local-only; <code class="docutils literal notranslate"><span class="pre">versions</span></code> is PyPI-only.</p>
+<p>For <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">deps</span></code>, and <code class="docutils literal notranslate"><span class="pre">compare</span></code>, <code class="docutils literal notranslate"><span class="pre">peta</span></code> checks the local
+environment first and falls back to PyPI. Force a source with
+<code class="docutils literal notranslate"><span class="pre">--local</span></code>/<code class="docutils literal notranslate"><span class="pre">-l</span></code> or <code class="docutils literal notranslate"><span class="pre">--remote</span></code>/<code class="docutils literal notranslate"><span class="pre">-r</span></code>. A <code class="docutils literal notranslate"><span class="pre">name==version</span></code> argument is
+supported by <code class="docutils literal notranslate"><span class="pre">info</span></code> only and always queries PyPI (it cannot be combined
+with <code class="docutils literal notranslate"><span class="pre">--local</span></code>). <code class="docutils literal notranslate"><span class="pre">files</span></code> is local-only; <code class="docutils literal notranslate"><span class="pre">versions</span></code> is PyPI-only.
+<code class="docutils literal notranslate"><span class="pre">compare</span></code> resolves and enriches both packages the same way <code class="docutils literal notranslate"><span class="pre">info</span></code> does,
+including the <code class="docutils literal notranslate"><span class="pre">--no-osv</span></code>/<code class="docutils literal notranslate"><span class="pre">--no-stats</span></code> flags.</p>
 </section>
 <section id="exit-codes">
 <h2>Exit codes<a class="headerlink" href="#exit-codes" title="Link to this heading">¶</a></h2>
@@ -192,10 +241,10 @@ only and always queries PyPI (it cannot be combined with <code class="docutils l
         <span>Previous</span><div class="title">Installation</div></div>
     </a>
   </div><div class="navigation-next">
-    <a href="architecture.html">
+    <a href="configuration.html">
       <div class="page-info">
         <span>Next</span>
-        <div class="title">Architecture</div>
+        <div class="title">Configuration</div>
       </div>
       <i class="i-lucide chevron-right"></i>
     </a>

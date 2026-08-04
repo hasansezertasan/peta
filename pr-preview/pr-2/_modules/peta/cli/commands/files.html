@@ -66,6 +66,7 @@ data-aria-dark="Switch to auto color mode">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">Modules</a></li>
 </ul>
@@ -131,7 +132,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="16">
 <div class="viewcode-block" id="files">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.commands.files.files">[docs]</a>
-</span><span data-line="17"><span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="17"><span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span data-line="18"><span class="w">    </span><span class="sd">&quot;&quot;&quot;List files installed by a local package.</span>
 </span><span data-line="19">
 </span><span data-line="20"><span class="sd">    Raises:</span>
@@ -142,7 +143,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="25">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
 </span><span data-line="26">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found locally.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span data-line="27">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="28">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_json</span> <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">))</span></div>
+</span><span data-line="28">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_json</span> <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">))</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

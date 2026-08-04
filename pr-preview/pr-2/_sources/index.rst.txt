@@ -9,6 +9,7 @@ Human-friendly Python package metadata viewer
 
    installation
    usage
+   configuration
    architecture
    modules
 

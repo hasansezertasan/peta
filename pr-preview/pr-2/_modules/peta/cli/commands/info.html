@@ -66,6 +66,7 @@ data-aria-dark="Switch to auto color mode">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../modules.html">Modules</a></li>
 </ul>
@@ -121,76 +122,59 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="6">
 </span><span data-line="7"><span class="kn">import</span><span class="w"> </span><span class="nn">typer</span>
 </span><span data-line="8">
-</span><span data-line="9"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.local</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span data-line="10">    <span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">LocalNotFound</span><span class="p">,</span>
-</span><span data-line="11">    <span class="n">get_package</span> <span class="k">as</span> <span class="n">local_get_package</span><span class="p">,</span>
-</span><span data-line="12"><span class="p">)</span>
-</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.remote</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-</span><span data-line="14">    <span class="n">NetworkError</span><span class="p">,</span>
-</span><span data-line="15">    <span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">RemoteNotFound</span><span class="p">,</span>
-</span><span data-line="16">    <span class="n">get_package</span> <span class="k">as</span> <span class="n">remote_get_package</span><span class="p">,</span>
-</span><span data-line="17"><span class="p">)</span>
-</span><span data-line="18"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.json</span><span class="w"> </span><span class="kn">import</span> <span class="n">format_info</span> <span class="k">as</span> <span class="n">json_format</span>
-</span><span data-line="19"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.tables</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_info</span> <span class="k">as</span> <span class="n">rich_format</span>
+</span><span data-line="9"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.enrich</span><span class="w"> </span><span class="kn">import</span> <span class="n">enrich</span>
+</span><span data-line="10"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.local</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">LocalNotFound</span>
+</span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">NetworkError</span><span class="p">,</span> <span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">RemoteNotFound</span>
+</span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.resolve</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_package</span>
+</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.json</span><span class="w"> </span><span class="kn">import</span> <span class="n">format_info</span> <span class="k">as</span> <span class="n">json_format</span>
+</span><span data-line="14"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.output.tables</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_info</span> <span class="k">as</span> <span class="n">rich_format</span>
+</span><span data-line="15">
+</span><span data-line="16"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+</span><span data-line="17">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span>
+</span><span data-line="18">
+</span><span data-line="19"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;info&quot;</span><span class="p">]</span>
 </span><span data-line="20">
-</span><span data-line="21"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-</span><span data-line="22">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span>
-</span><span data-line="23">
-</span><span data-line="24"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;info&quot;</span><span class="p">]</span>
+</span><span data-line="21">
+</span><span data-line="22"><span class="c1"># Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter</span>
+</span><span data-line="23"><span class="c1"># cannot strip the parentheses into Python-2-only ``except A, B`` syntax.</span>
+</span><span data-line="24"><span class="n">_NOT_FOUND</span> <span class="o">=</span> <span class="p">(</span><span class="n">LocalNotFound</span><span class="p">,</span> <span class="n">RemoteNotFound</span><span class="p">)</span>
 </span><span data-line="25">
 </span><span data-line="26">
-</span><span data-line="27"><span class="c1"># Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter</span>
-</span><span data-line="28"><span class="c1"># cannot strip the parentheses into Python-2-only ``except A, B`` syntax.</span>
-</span><span data-line="29"><span class="n">_NOT_FOUND</span> <span class="o">=</span> <span class="p">(</span><span class="n">LocalNotFound</span><span class="p">,</span> <span class="n">RemoteNotFound</span><span class="p">)</span>
-</span><span data-line="30">
-</span><span data-line="31">
-</span><span data-line="32"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span data-line="33">    <span class="k">if</span> <span class="s2">&quot;==&quot;</span> <span class="ow">in</span> <span class="n">package</span><span class="p">:</span>
-</span><span data-line="34">        <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">package</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;==&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-</span><span data-line="35">        <span class="k">return</span> <span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-</span><span data-line="36">    <span class="k">return</span> <span class="n">package</span><span class="p">,</span> <span class="kc">None</span>
-</span><span data-line="37">
-</span><span data-line="38">
-</span><span data-line="39"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="40">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
-</span><span data-line="41">        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;--local cannot be combined with a version specifier.&quot;</span>
-</span><span data-line="42">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="43">    <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-</span><span data-line="44">
-</span><span data-line="45">
-</span><span data-line="46"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="47">    <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">_parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
-</span><span data-line="48">    <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
-</span><span data-line="49">        <span class="k">return</span> <span class="n">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
-</span><span data-line="50">    <span class="k">if</span> <span class="n">remote</span><span class="p">:</span>
-</span><span data-line="51">        <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="52">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
-</span><span data-line="53">        <span class="k">return</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="54">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="55">        <span class="k">return</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="56">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
-</span><span data-line="57">        <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="58">
-</span><span data-line="59">
+</span><span data-line="27"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_and_enrich</span><span class="p">(</span>
+</span><span data-line="28">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span>
+</span><span data-line="29"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="30">    <span class="n">pkg</span> <span class="o">=</span> <span class="n">resolve_package</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
+</span><span data-line="31">    <span class="k">return</span> <span class="n">enrich</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">)</span>
+</span><span data-line="32">
+</span><span data-line="33">
 <div class="viewcode-block" id="info">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.commands.info.info">[docs]</a>
-</span><span data-line="60"><span class="k">def</span><span class="w"> </span><span class="nf">info</span><span class="p">(</span>
-</span><span data-line="61">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-</span><span data-line="62"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="63"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show detailed package metadata.</span>
-</span><span data-line="64">
-</span><span data-line="65"><span class="sd">    Raises:</span>
-</span><span data-line="66"><span class="sd">        Exit: With code 1 if the package is not found, or code 2 on network failure.</span>
-</span><span data-line="67"><span class="sd">    &quot;&quot;&quot;</span>
-</span><span data-line="68">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="69">        <span class="n">pkg</span> <span class="o">=</span> <span class="n">_resolve</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
-</span><span data-line="70">    <span class="k">except</span> <span class="n">_NOT_FOUND</span><span class="p">:</span>
-</span><span data-line="71">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="72">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="73">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="74">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="75">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="76">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_json</span> <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">))</span></div>
+</span><span data-line="34"><span class="k">def</span><span class="w"> </span><span class="nf">info</span><span class="p">(</span>
+</span><span data-line="35">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="36">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="37">    <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="38">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="39">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="40">    <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="41">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="42">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="43"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="44"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show detailed package metadata.</span>
+</span><span data-line="45">
+</span><span data-line="46"><span class="sd">    Raises:</span>
+</span><span data-line="47"><span class="sd">        Exit: With code 1 if the package is not found, or code 2 on network failure.</span>
+</span><span data-line="48"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="49">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="50">        <span class="n">pkg</span> <span class="o">=</span> <span class="n">_resolve_and_enrich</span><span class="p">(</span>
+</span><span data-line="51">            <span class="n">package</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span> <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span>
+</span><span data-line="52">        <span class="p">)</span>
+</span><span data-line="53">    <span class="k">except</span> <span class="n">_NOT_FOUND</span><span class="p">:</span>
+</span><span data-line="54">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="55">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="56">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="57">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="58">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="59">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">json_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span> <span class="k">if</span> <span class="n">use_json</span> <span class="k">else</span> <span class="n">rich_format</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">))</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

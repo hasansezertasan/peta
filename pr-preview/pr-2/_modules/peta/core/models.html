@@ -66,6 +66,7 @@ data-aria-dark="Switch to auto color mode">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../modules.html">Modules</a></li>
 </ul>
@@ -119,7 +120,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="4">
 </span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span><span class="p">,</span> <span class="n">field</span>
 </span><span data-line="6">
-</span><span data-line="7"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;PackageInfo&quot;</span><span class="p">,</span> <span class="s2">&quot;Vulnerability&quot;</span><span class="p">]</span>
+</span><span data-line="7"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;DependencyNode&quot;</span><span class="p">,</span> <span class="s2">&quot;PackageInfo&quot;</span><span class="p">,</span> <span class="s2">&quot;Vulnerability&quot;</span><span class="p">]</span>
 </span><span data-line="8">
 </span><span data-line="9">
 <div class="viewcode-block" id="Vulnerability">
@@ -158,7 +159,23 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="38">    <span class="n">classifiers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
 </span><span data-line="39">    <span class="n">keywords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
 </span><span data-line="40">    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="41">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span></div>
+</span><span data-line="41">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="42">    <span class="n">download_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="43">    <span class="n">dependent_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+</span><span data-line="44">
+</span><span data-line="45">
+<div class="viewcode-block" id="DependencyNode">
+<a class="viewcode-back" href="../../../modules.html#peta.core.models.DependencyNode">[docs]</a>
+</span><span data-line="46"><span class="nd">@dataclass</span>
+</span><span data-line="47"><span class="k">class</span><span class="w"> </span><span class="nc">DependencyNode</span><span class="p">:</span>
+</span><span data-line="48"><span class="w">    </span><span class="sd">&quot;&quot;&quot;A node in a package&#39;s recursive dependency tree.&quot;&quot;&quot;</span>
+</span><span data-line="49">
+</span><span data-line="50">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="51">    <span class="n">version_spec</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="52">    <span class="n">installed_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="53">    <span class="n">children</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">DependencyNode</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="54">    <span class="n">circular</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
