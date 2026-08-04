@@ -256,6 +256,12 @@ ignore_names = [
   "home_page",
   "requires_dist",
   "requires_python",
+  # OSV-schema TypedDict fields read via string keys in core/osv.py
+  "vulns",
+  "details",
+  "events",
+  "ranges",
+  "score",
 ]
 min_confidence = 60
 paths = ["src", "tests"]
@@ -332,6 +338,12 @@ ban-relative-imports = "all"
 
 [tool.ruff.lint.mccabe]
 max-complexity = 5
+
+
+[tool.ruff.lint.pylint]
+# Typer command handlers accumulate one boolean flag per feature (--local,
+# --remote, --no-osv, ...); the default of 5 is too tight for that pattern.
+max-args = 6
 
 
 [tool.ruff.lint.pycodestyle]

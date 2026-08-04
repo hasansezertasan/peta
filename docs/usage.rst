@@ -32,6 +32,15 @@ root ``--no-color`` flag or the ``NO_COLOR`` environment variable; both take
 precedence over TTY detection. ``--json`` output is always plain. See
 :doc:`configuration` for the ``NO_COLOR`` variable.
 
+Vulnerabilities
+----------------
+
+``peta info`` enriches its vulnerability list from `OSV.dev
+<https://api.osv.dev/>`_ by default, merging OSV results with any PyPI
+advisories and deduping entries that share an id or alias. This lookup is
+best-effort: network failures leave the PyPI-only results in place and never
+change the exit code. Pass ``--no-osv`` to skip it entirely.
+
 Resolution
 ----------
 

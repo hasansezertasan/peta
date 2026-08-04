@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import dataclasses
 from typing import TYPE_CHECKING
 
 import typer
 
+from peta.core import osv
 from peta.core.local import (
     PackageNotFoundError as LocalNotFound,
     get_package as local_get_package,
@@ -15,6 +17,7 @@ from peta.core.remote import (
     PackageNotFoundError as RemoteNotFound,
     get_package as remote_get_package,
 )
+from peta.core.vulns import merge_vulnerabilities
 from peta.output.json import format_info as json_format
 from peta.output.tables import render_info as rich_format
 
@@ -57,6 +60,13 @@ def _resolve(package: str, *, local: bool, remote: bool) -> PackageInfo:
         return remote_get_package(name)
 
 
+def _enrich_with_osv(pkg: PackageInfo) -> PackageInfo:
+    osv_vulns = osv.get_vulnerabilities(pkg.name, pkg.version)
+    return dataclasses.replace(
+        pkg, vulnerabilities=merge_vulnerabilities(pkg.vulnerabilities, osv_vulns)
+    )
+
+
 def info(
     package: str,
     *,
@@ -64,6 +74,7 @@ def info(
     local: bool = False,
     remote: bool = False,
     color: bool = False,
+    no_osv: bool = False,
 ) -> None:
     """Show detailed package metadata.
 
@@ -78,4 +89,6 @@ def info(
     except NetworkError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from None
+    if not no_osv:
+        pkg = _enrich_with_osv(pkg)
     typer.echo(json_format(pkg) if use_json else rich_format(pkg, color=color))

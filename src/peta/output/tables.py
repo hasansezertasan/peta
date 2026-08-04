@@ -60,7 +60,8 @@ def _vuln_block(pkg: PackageInfo) -> str:
     lines = ["\n⚠ Vulnerabilities:"]
     for v in pkg.vulnerabilities:
         fixed = ", ".join(v.fixed_in) if v.fixed_in else "no fix"
-        lines.append(f"  {v.id}: {v.summary} (fix: {fixed})")
+        severity = f" [{v.severity}]" if v.severity else ""
+        lines.append(f"  {v.id}{severity}: {v.summary} (fix: {fixed})")
     return "\n".join(lines) + "\n"
 
 

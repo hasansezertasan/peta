@@ -97,6 +97,56 @@ class TestInfo:
         mr.side_effect = NetworkError("down")
         assert runner.invoke(app, ["info", "x", "-r"]).exit_code == 2
 
+    @patch("peta.cli.commands.info.osv.get_vulnerabilities")
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_osv_enriches_output(self, ml: MagicMock, mo: MagicMock) -> None:
+        ml.return_value = _pkg()
+        mo.return_value = [
+            Vulnerability(id="GHSA-osv", aliases=[], summary="s", fixed_in=["9.9.9"])
+        ]
+        r = runner.invoke(app, ["info", "requests"])
+        assert r.exit_code == 0
+        assert "GHSA-osv" in r.output
+        mo.assert_called_once_with("requests", "2.31.0")
+
+    @patch("peta.cli.commands.info.osv.get_vulnerabilities")
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_osv_deduped_against_pypi_vuln_by_alias(
+        self, ml: MagicMock, mo: MagicMock
+    ) -> None:
+        pypi_vuln = Vulnerability(
+            id="PYSEC-1", aliases=["CVE-2024-1"], summary="pypi", fixed_in=["1.0"]
+        )
+        ml.return_value = _pkg(vulnerabilities=[pypi_vuln])
+        mo.return_value = [
+            Vulnerability(
+                id="GHSA-2",
+                aliases=["CVE-2024-1"],
+                summary="osv",
+                fixed_in=["1.1"],
+                severity="HIGH",
+            )
+        ]
+        r = runner.invoke(app, ["info", "requests"])
+        assert r.exit_code == 0
+        # Same identity (shared alias) collapses to a single entry; "GHSA-2"
+        # must not appear as a second, separate vulnerability.
+        assert r.output.count("PYSEC-1") == 1
+        assert "GHSA-2" not in r.output
+        assert "[HIGH]" in r.output
+
+    @patch("peta.cli.commands.info.osv.get_vulnerabilities")
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_no_osv_skips_lookup(self, ml: MagicMock, mo: MagicMock) -> None:
+        ml.return_value = _pkg()
+        mo.return_value = [
+            Vulnerability(id="GHSA-osv", aliases=[], summary="s", fixed_in=["9.9.9"])
+        ]
+        r = runner.invoke(app, ["info", "requests", "--no-osv"])
+        assert r.exit_code == 0
+        mo.assert_not_called()
+        assert "GHSA-osv" not in r.output
+
 
 class TestDeps:
     @patch("peta.cli.commands.deps.local_get_package")

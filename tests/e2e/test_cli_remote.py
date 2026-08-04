@@ -31,3 +31,11 @@ def test_info_remote_requests() -> None:
     result = runner.invoke(app, ["info", "requests", "--remote"])
     assert result.exit_code == 0
     assert "requests" in result.output.lower()
+
+
+def test_info_remote_osv_enrichment() -> None:
+    # ``jinja2`` has real, long-standing OSV/PyPI advisories, so this exercises
+    # a live OSV lookup and merge without depending on ephemeral CVE data.
+    result = runner.invoke(app, ["info", "jinja2==2.4.1", "--remote"])
+    assert result.exit_code == 0
+    assert "vulnerabilities" in result.output.lower()

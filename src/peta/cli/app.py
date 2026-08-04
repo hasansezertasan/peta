@@ -82,6 +82,9 @@ def info(
     remote: Annotated[
         bool, typer.Option("--remote", "-r", help="Force PyPI lookup.")
     ] = False,
+    no_osv: Annotated[
+        bool, typer.Option("--no-osv", help="Skip the OSV vulnerability lookup.")
+    ] = False,
 ) -> None:
     """Show detailed package metadata."""
     info_mod.info(
@@ -90,6 +93,7 @@ def info(
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
+        no_osv=no_osv,
     )
 
 
