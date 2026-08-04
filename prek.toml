@@ -113,7 +113,6 @@ hooks = [
   # never checks — neither is part of the shipped, type-checked surface.
   { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = [
     "typer",
-    "textual",
   ] },
 ]
 
