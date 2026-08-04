@@ -1,7 +1,7 @@
 Architecture
 ============
 
-``peta`` is organised into three layers.
+``peta`` is organised into two layers.
 
 CLI (``peta.cli``)
 ------------------
@@ -11,18 +11,21 @@ CLI (``peta.cli``)
 ``sys.argv`` so a bare ``peta <package>`` becomes ``peta info <package>``.
 Each command in ``peta.cli.commands`` orchestrates a fetch and a render.
 
+Rendering lives under this same layer, in ``peta.cli.output``:
+
+* ``peta.cli.output.tables`` — Rich renderers returning strings.
+* ``peta.cli.output.json`` — JSON string formatters.
+* ``peta.cli.output.console`` — shared console/color helpers.
+
+These renderers are typer-free (plain string builders); ``peta.cli``
+commands call them and print/echo the result.
+
 Core (``peta.core``)
 --------------------
 
 * ``peta.core.models`` — ``PackageInfo`` and ``Vulnerability`` dataclasses.
 * ``peta.core.local`` — reads installed metadata via ``importlib.metadata``.
 * ``peta.core.remote`` — fetches from the PyPI JSON API with ``httpx``.
-
-Output (``peta.output``)
-------------------------
-
-* ``peta.output.tables`` — Rich renderers returning strings.
-* ``peta.output.json`` — JSON string formatters.
 
 Error model
 -----------

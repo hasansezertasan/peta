@@ -17,17 +17,14 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.remote
 
-Output (``peta.output``)
-----------------------------
-
-.. automodule:: peta.output.tables
-
-.. automodule:: peta.output.json
-
 CLI (``peta.cli``)
 ----------------------------
 
 .. automodule:: peta.cli.app
+
+.. automodule:: peta.cli.output.tables
+
+.. automodule:: peta.cli.output.json
 
 .. automodule:: peta.cli.commands.info
 

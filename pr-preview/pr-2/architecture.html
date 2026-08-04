@@ -83,7 +83,6 @@ data-aria-dark="Switch to auto color mode">
     <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
 <li><a class="reference internal" href="#cli-peta-cli">CLI (<code class="docutils literal notranslate">cli</span></code>)</a></li>
 <li><a class="reference internal" href="#core-peta-core">Core (<code class="docutils literal notranslate">core</span></code>)</a></li>
-<li><a class="reference internal" href="#output-peta-output">Output (<code class="docutils literal notranslate">output</span></code>)</a></li>
 <li><a class="reference internal" href="#error-model">Error model</a></li>
 </ul>
 </div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
@@ -117,13 +116,21 @@ data-aria-dark="Switch to auto color mode">
   <article class="yue" role="main">
           <section id="architecture">
 <h1>Architecture<a class="headerlink" href="#architecture" title="Link to this heading">¶</a></h1>
-<p><code class="docutils literal notranslate"><span class="pre">peta</span></code> is organised into three layers.</p>
+<p><code class="docutils literal notranslate"><span class="pre">peta</span></code> is organised into two layers.</p>
 <section id="cli-peta-cli">
 <h2>CLI (<code class="docutils literal notranslate"><span class="pre">peta.cli</span></code>)<a class="headerlink" href="#cli-peta-cli" title="Link to this heading">¶</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">peta.cli.app</span></code> defines the Typer application and four commands
 (<code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">deps</span></code>, <code class="docutils literal notranslate"><span class="pre">files</span></code>, <code class="docutils literal notranslate"><span class="pre">versions</span></code>). <code class="docutils literal notranslate"><span class="pre">run()</span></code> rewrites
 <code class="docutils literal notranslate"><span class="pre">sys.argv</span></code> so a bare <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">&lt;package&gt;</span></code> becomes <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span> <span class="pre">&lt;package&gt;</span></code>.
 Each command in <code class="docutils literal notranslate"><span class="pre">peta.cli.commands</span></code> orchestrates a fetch and a render.</p>
+<p>Rendering lives under this same layer, in <code class="docutils literal notranslate"><span class="pre">peta.cli.output</span></code>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.tables</span></code> — Rich renderers returning strings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.json</span></code> — JSON string formatters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.console</span></code> — shared console/color helpers.</p></li>
+</ul>
+<p>These renderers are typer-free (plain string builders); <code class="docutils literal notranslate"><span class="pre">peta.cli</span></code>
+commands call them and print/echo the result.</p>
 </section>
 <section id="core-peta-core">
 <h2>Core (<code class="docutils literal notranslate"><span class="pre">peta.core</span></code>)<a class="headerlink" href="#core-peta-core" title="Link to this heading">¶</a></h2>
@@ -131,13 +138,6 @@ Each command in <code class="docutils literal notranslate"><span class="pre">pet
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.models</span></code> — <code class="docutils literal notranslate"><span class="pre">PackageInfo</span></code> and <code class="docutils literal notranslate"><span class="pre">Vulnerability</span></code> dataclasses.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.local</span></code> — reads installed metadata via <code class="docutils literal notranslate"><span class="pre">importlib.metadata</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.remote</span></code> — fetches from the PyPI JSON API with <code class="docutils literal notranslate"><span class="pre">httpx</span></code>.</p></li>
-</ul>
-</section>
-<section id="output-peta-output">
-<h2>Output (<code class="docutils literal notranslate"><span class="pre">peta.output</span></code>)<a class="headerlink" href="#output-peta-output" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">peta.output.tables</span></code> — Rich renderers returning strings.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">peta.output.json</span></code> — JSON string formatters.</p></li>
 </ul>
 </section>
 <section id="error-model">
