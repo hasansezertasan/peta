@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-__all__ = ["PackageInfo", "Vulnerability"]
+__all__ = ["DependencyNode", "PackageInfo", "Vulnerability"]
 
 
 @dataclass
@@ -41,3 +41,14 @@ class PackageInfo:
     vulnerabilities: list[Vulnerability] = field(default_factory=list)
     download_count: int | None = None
     dependent_count: int | None = None
+
+
+@dataclass
+class DependencyNode:
+    """A node in a package's recursive dependency tree."""
+
+    name: str
+    version_spec: str
+    installed_version: str | None = None
+    children: list[DependencyNode] = field(default_factory=list)
+    circular: bool = False

@@ -4,13 +4,14 @@ from dataclasses import replace
 
 import pytest
 
-from peta.core.models import PackageInfo, Vulnerability
+from peta.core.models import DependencyNode, PackageInfo, Vulnerability
 from peta.output.tables import (
     render_compare,
-    render_deps,
+    render_dep_tree,
     render_files,
     render_info,
     render_versions,
+    render_why,
 )
 
 pytestmark = pytest.mark.unit
@@ -103,8 +104,43 @@ def test_render_compare_counts() -> None:
     assert "42" in out
 
 
-def test_render_deps() -> None:
-    assert "urllib3" in render_deps(_pkg(), color=False)
+def test_render_dep_tree() -> None:
+    child = DependencyNode(
+        name="urllib3", version_spec=">=1.21.1", installed_version="2.0"
+    )
+    root = DependencyNode(
+        name="requests", version_spec="", installed_version="2.31.0", children=[child]
+    )
+    out = render_dep_tree(root, color=False)
+    assert "requests" in out
+    assert "urllib3" in out
+    assert "installed 2.0" in out
+
+
+def test_render_dep_tree_unresolved_child_no_installed_version() -> None:
+    child = DependencyNode(name="missing", version_spec=">=1.0")
+    root = DependencyNode(name="a", version_spec="", children=[child])
+    out = render_dep_tree(root, color=False)
+    assert "missing" in out
+    assert "installed" not in out
+
+
+def test_render_dep_tree_circular() -> None:
+    circular_child = DependencyNode(name="a", version_spec="", circular=True)
+    root = DependencyNode(name="a", version_spec="", children=[circular_child])
+    out = render_dep_tree(root, color=False)
+    assert "(circular)" in out
+
+
+def test_render_why() -> None:
+    out = render_why("certifi", [["flask", "requests", "certifi"]], color=False)
+    assert "flask" in out
+    assert "→" in out
+
+
+def test_render_why_empty() -> None:
+    out = render_why("nope", [], color=False)
+    assert "not a dependency" in out
 
 
 def test_render_files_some_and_none() -> None:

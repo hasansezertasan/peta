@@ -5,13 +5,14 @@ from dataclasses import replace
 
 import pytest
 
-from peta.core.models import PackageInfo, Vulnerability
+from peta.core.models import DependencyNode, PackageInfo, Vulnerability
 from peta.output.json import (
     format_compare,
-    format_deps,
+    format_dep_tree,
     format_files,
     format_info,
     format_versions,
+    format_why,
 )
 
 pytestmark = pytest.mark.unit
@@ -62,9 +63,36 @@ def test_compare() -> None:
     assert data["packages"][1]["name"] == "httpx"
 
 
-def test_deps() -> None:
-    data = json.loads(format_deps(_pkg()))
-    assert isinstance(data["dependencies"], list)
+def test_dep_tree() -> None:
+    child = DependencyNode(
+        name="urllib3", version_spec=">=1.21.1", installed_version="2.0"
+    )
+    root = DependencyNode(
+        name="requests", version_spec="", installed_version="2.31.0", children=[child]
+    )
+    data = json.loads(format_dep_tree(root))
+    assert data["name"] == "requests"
+    assert data["children"][0]["name"] == "urllib3"
+    assert data["children"][0]["installed_version"] == "2.0"
+    assert data["circular"] is False
+
+
+def test_dep_tree_circular() -> None:
+    node = DependencyNode(name="a", version_spec="", circular=True)
+    data = json.loads(format_dep_tree(node))
+    assert data["circular"] is True
+    assert data["children"] == []
+
+
+def test_why() -> None:
+    data = json.loads(format_why("certifi", [["flask", "requests", "certifi"]]))
+    assert data["target"] == "certifi"
+    assert data["paths"] == [["flask", "requests", "certifi"]]
+
+
+def test_why_empty() -> None:
+    data = json.loads(format_why("nope", []))
+    assert data["paths"] == []
 
 
 def test_files_none_and_some() -> None:

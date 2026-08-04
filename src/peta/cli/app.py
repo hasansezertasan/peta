@@ -155,14 +155,22 @@ def deps(
     remote: Annotated[
         bool, typer.Option("--remote", "-r", help="Force PyPI lookup.")
     ] = False,
+    why: Annotated[
+        str | None, typer.Option("--why", help="Show why TARGET is a dependency.")
+    ] = None,
+    depth: Annotated[
+        int, typer.Option("--depth", min=1, help="Max recursion depth.")
+    ] = 10,
 ) -> None:
-    """Show a package's declared dependencies."""
+    """Show a package's recursive dependency tree."""
     deps_mod.deps(
         package,
         use_json=use_json,
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
+        why=why,
+        depth=depth,
     )
 
 

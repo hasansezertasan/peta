@@ -2,24 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import typer
 
-from peta.core.local import (
-    PackageNotFoundError as LocalNotFound,
-    get_package as local_get_package,
-)
-from peta.core.remote import (
-    NetworkError,
-    PackageNotFoundError as RemoteNotFound,
-    get_package as remote_get_package,
-)
-from peta.output.json import format_deps as json_format
-from peta.output.tables import render_deps as rich_format
-
-if TYPE_CHECKING:
-    from peta.core.models import PackageInfo
+from peta.core.deptree import build_tree, find_why
+from peta.core.local import PackageNotFoundError as LocalNotFound
+from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
+from peta.output.json import format_dep_tree, format_why
+from peta.output.tables import render_dep_tree, render_why
 
 __all__ = ["deps"]
 
@@ -29,15 +18,17 @@ __all__ = ["deps"]
 _NOT_FOUND = (LocalNotFound, RemoteNotFound)
 
 
-def _resolve(package: str, *, local: bool, remote: bool) -> PackageInfo:
-    if remote:
-        return remote_get_package(package)
-    if local:
-        return local_get_package(package)
-    try:
-        return local_get_package(package)
-    except LocalNotFound:
-        return remote_get_package(package)
+def _print_why(
+    package: str, target: str, paths: list[list[str]], *, use_json: bool, color: bool
+) -> None:
+    if not paths:
+        typer.echo(f"'{target}' is not a dependency of '{package}'.", err=True)
+        raise typer.Exit(code=1)
+    typer.echo(
+        format_why(target, paths)
+        if use_json
+        else render_why(target, paths, color=color)
+    )
 
 
 def deps(
@@ -47,18 +38,27 @@ def deps(
     local: bool = False,
     remote: bool = False,
     color: bool = False,
+    why: str | None = None,
+    depth: int = 10,
 ) -> None:
-    """Show a package's declared dependencies.
+    """Show a package's recursive dependency tree, or ``--why`` a target is pulled in.
 
     Raises:
-        Exit: With code 1 if the package is not found, or code 2 on network failure.
+        Exit: With code 1 if the package (or, with ``--why``, the target) is
+            not found, or code 2 on network failure.
     """
     try:
-        pkg = _resolve(package, local=local, remote=remote)
+        tree = build_tree(package, local=local, remote=remote, max_depth=depth)
     except _NOT_FOUND:
         typer.echo(f"Package '{package}' not found.", err=True)
         raise typer.Exit(code=1) from None
     except NetworkError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from None
-    typer.echo(json_format(pkg) if use_json else rich_format(pkg, color=color))
+
+    if why is not None:
+        _print_why(package, why, find_why(tree, why), use_json=use_json, color=color)
+        return
+    typer.echo(
+        format_dep_tree(tree) if use_json else render_dep_tree(tree, color=color)
+    )

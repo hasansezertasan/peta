@@ -275,50 +275,85 @@ class TestCompare:
 
 
 class TestDeps:
-    @patch("peta.cli.commands.deps.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_deps(self, m: MagicMock) -> None:
         m.return_value = _pkg()
         assert "urllib3" in runner.invoke(app, ["deps", "requests"]).output
 
-    @patch("peta.cli.commands.deps.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_deps_json(self, m: MagicMock) -> None:
         m.return_value = _pkg()
-        assert "dependencies" in json.loads(
-            runner.invoke(app, ["deps", "requests", "--json"]).output
-        )
+        data = json.loads(runner.invoke(app, ["deps", "requests", "--json"]).output)
+        assert data["name"] == "requests"
+        assert data["children"][0]["name"] == "urllib3"
 
-    @patch("peta.cli.commands.deps.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package")
     def test_deps_remote_flag(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["deps", "requests", "-r"]).exit_code == 0
-        mr.assert_called_once()
+        assert mr.call_args_list[0].args == ("requests",)
 
-    @patch("peta.cli.commands.deps.local_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_deps_local_flag(self, ml: MagicMock) -> None:
         ml.return_value = _pkg()
         assert runner.invoke(app, ["deps", "requests", "-l"]).exit_code == 0
-        ml.assert_called_once()
+        assert ml.call_args_list[0].args == ("requests",)
 
-    @patch("peta.cli.commands.deps.remote_get_package")
-    @patch("peta.cli.commands.deps.local_get_package")
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_deps_fallback_to_remote(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["deps", "x"]).exit_code == 0
 
-    @patch("peta.cli.commands.deps.remote_get_package")
-    @patch("peta.cli.commands.deps.local_get_package")
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
     def test_deps_not_found(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
         mr.side_effect = RemoteNotFound("x")
         assert runner.invoke(app, ["deps", "x"]).exit_code == 1
 
-    @patch("peta.cli.commands.deps.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package")
     def test_deps_network_error_exit_2(self, mr: MagicMock) -> None:
         from peta.core.remote import NetworkError
 
         mr.side_effect = NetworkError("down")
         assert runner.invoke(app, ["deps", "x", "-r"]).exit_code == 2
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_deps_why_found(self, m: MagicMock) -> None:
+        m.return_value = _pkg()
+        r = runner.invoke(app, ["deps", "requests", "--why", "urllib3"])
+        assert r.exit_code == 0
+        assert "urllib3" in r.output
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_deps_why_not_found(self, m: MagicMock) -> None:
+        m.return_value = _pkg()
+        r = runner.invoke(app, ["deps", "requests", "--why", "nope"])
+        assert r.exit_code == 1
+        assert "not a dependency" in r.output
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_deps_why_json(self, m: MagicMock) -> None:
+        m.return_value = _pkg()
+        r = runner.invoke(app, ["deps", "requests", "--why", "urllib3", "--json"])
+        assert r.exit_code == 0
+        data = json.loads(r.output)
+        assert data["target"] == "urllib3"
+        assert data["paths"] == [["requests", "urllib3"]]
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_deps_depth_limits_recursion(self, m: MagicMock) -> None:
+        pkgs = {
+            "requests": _pkg(dependencies=["urllib3"]),
+            "urllib3": _pkg(name="urllib3", dependencies=["brotli"]),
+        }
+        m.side_effect = lambda name: pkgs.get(name, _pkg(name=name, dependencies=[]))
+        r = runner.invoke(app, ["deps", "requests", "--depth", "1"])
+        assert r.exit_code == 0
+        assert "urllib3" in r.output
+        assert "brotli" not in r.output
 
 
 class TestFiles:

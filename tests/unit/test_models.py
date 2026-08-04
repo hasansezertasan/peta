@@ -2,7 +2,7 @@
 
 import pytest
 
-from peta.core.models import PackageInfo, Vulnerability
+from peta.core.models import DependencyNode, PackageInfo, Vulnerability
 
 pytestmark = pytest.mark.unit
 
@@ -42,3 +42,22 @@ class TestPackageInfo:
         assert pkg.classifiers == []
         assert pkg.keywords == []
         assert pkg.files is None
+
+
+class TestDependencyNode:
+    def test_defaults(self) -> None:
+        node = DependencyNode(name="urllib3", version_spec=">=1.21.1")
+        assert node.installed_version is None
+        assert node.children == []
+        assert node.circular is False
+
+    def test_full(self) -> None:
+        child = DependencyNode(name="idna", version_spec="")
+        node = DependencyNode(
+            name="requests",
+            version_spec="==2.31.0",
+            installed_version="2.31.0",
+            children=[child],
+            circular=False,
+        )
+        assert node.children == [child]

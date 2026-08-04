@@ -18,7 +18,7 @@ Commands
    * - ``peta info <package>``
      - Detailed metadata (local first, PyPI fallback).
    * - ``peta deps <package>``
-     - Declared dependencies of a package.
+     - Recursive dependency tree of a package.
    * - ``peta files <package>``
      - Files installed by a local package.
    * - ``peta versions <package>``
@@ -53,6 +53,23 @@ best-effort: a network failure simply omits the corresponding field and
 never changes the exit code. The dependent count additionally requires a
 ``LIBRARIES_IO_API_KEY`` (see :doc:`configuration`); without one it is
 omitted with no request made. Pass ``--no-stats`` to skip both lookups.
+
+Dependency tree
+---------------
+
+``peta deps <package>`` prints the package's full recursive dependency tree
+(not just its direct requirements), resolving each dependency the same way
+``info`` does. Requirements whose environment marker is not satisfied (e.g.
+an ``extra`` that is not requested, or a ``python_version`` constraint that
+excludes the running interpreter) are skipped. A dependency that reappears
+on its own ancestor path is shown once more and marked ``(circular)`` rather
+than being expanded again. Recursion stops at ``--depth`` (default ``10``)
+levels; deeper dependencies are omitted.
+
+Pass ``--why <target>`` to show every chain of dependencies that pulls
+``<target>`` into the tree, instead of the full tree, e.g. ``peta deps flask
+--why certifi``. If ``<target>`` is not present anywhere in the tree, ``peta``
+prints a message to stderr and exits with code 1.
 
 Resolution
 ----------

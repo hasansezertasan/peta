@@ -53,7 +53,8 @@ pipx install peta
 peta requests                 # info (local first, falls back to PyPI)
 peta info requests            # explicit info
 peta info requests==2.31.0    # a specific version from PyPI
-peta deps flask               # declared dependencies
+peta deps flask               # recursive dependency tree
+peta deps flask --why certifi # why is certifi pulled in?
 peta files rich               # files installed locally
 peta versions httpx           # published versions on PyPI
 peta compare requests httpx   # side-by-side metadata comparison
@@ -68,6 +69,8 @@ peta requests --json          # machine-readable output
 | `--local` / `-l` | info, deps | force local lookup |
 | `--remote` / `-r` | info, deps | force PyPI lookup |
 | `--limit` / `-n` | versions | max versions to show (default 20) |
+| `--why <target>` | deps | show why `<target>` is a dependency |
+| `--depth <n>` | deps | max recursion depth (default 10) |
 | `--no-color` | (root) | disable colored output (also via `NO_COLOR`) |
 | `--version` / `-V` | (root) | print version and exit |
 

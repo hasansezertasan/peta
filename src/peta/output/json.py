@@ -6,14 +6,15 @@ import json
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from peta.core.models import PackageInfo
+    from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
     "format_compare",
-    "format_deps",
+    "format_dep_tree",
     "format_files",
     "format_info",
     "format_versions",
+    "format_why",
 ]
 
 
@@ -63,18 +64,32 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
     return json.dumps({"packages": [_package_dict(a), _package_dict(b)]}, indent=2)
 
 
-def format_deps(pkg: PackageInfo) -> str:
-    """Format a package's dependency list as a JSON string.
+def _node_dict(node: DependencyNode) -> dict[str, object]:
+    return {
+        "name": node.name,
+        "version_spec": node.version_spec,
+        "installed_version": node.installed_version,
+        "circular": node.circular,
+        "children": [_node_dict(child) for child in node.children],
+    }
+
+
+def format_dep_tree(node: DependencyNode) -> str:
+    """Format a recursive dependency tree as a JSON string.
 
     Returns:
-        The dependency list serialized as an indented JSON string.
+        The dependency tree serialized as an indented JSON string.
     """
-    data = {
-        "name": pkg.name,
-        "version": pkg.version,
-        "dependencies": [{"name": d} for d in pkg.dependencies],
-    }
-    return json.dumps(data, indent=2)
+    return json.dumps(_node_dict(node), indent=2)
+
+
+def format_why(target: str, paths: list[list[str]]) -> str:
+    """Format root-to-target dependency chains as a JSON string.
+
+    Returns:
+        A ``{"target": ..., "paths": [[...], ...]}`` JSON string.
+    """
+    return json.dumps({"target": target, "paths": paths}, indent=2)
 
 
 def format_files(pkg: PackageInfo) -> str:
