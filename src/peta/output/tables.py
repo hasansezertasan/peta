@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from io import StringIO
 from typing import TYPE_CHECKING
 
-from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
+
+from peta.output.console import render as _render
 
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
@@ -16,10 +16,8 @@ if TYPE_CHECKING:
 __all__ = ["render_deps", "render_files", "render_info", "render_versions"]
 
 
-def _to_string(renderable: object) -> str:
-    buf = StringIO()
-    Console(file=buf, force_terminal=False, width=100).print(renderable)
-    return buf.getvalue()
+def _to_string(renderable: object, *, color: bool) -> str:
+    return _render(renderable, color=color)
 
 
 def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
@@ -66,7 +64,7 @@ def _vuln_block(pkg: PackageInfo) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_info(pkg: PackageInfo) -> str:
+def render_info(pkg: PackageInfo, *, color: bool) -> str:
     """Render :class:`PackageInfo` as a Rich panel string.
 
     Returns:
@@ -78,10 +76,10 @@ def render_info(pkg: PackageInfo) -> str:
         title=f"{pkg.name} {pkg.version}",
         subtitle=f"source: {source_label}",
     )
-    return _to_string(panel) + _vuln_block(pkg)
+    return _to_string(panel, color=color) + _vuln_block(pkg)
 
 
-def render_deps(pkg: PackageInfo) -> str:
+def render_deps(pkg: PackageInfo, *, color: bool) -> str:
     """Render a package's dependencies as a Rich tree string.
 
     Returns:
@@ -90,15 +88,19 @@ def render_deps(pkg: PackageInfo) -> str:
     tree = Tree(f"{pkg.name} {pkg.version}")
     for dep in pkg.dependencies:
         _ = tree.add(dep)
-    return _to_string(tree)
+    return _to_string(tree, color=color)
 
 
-def render_files(pkg: PackageInfo) -> str:
+def render_files(pkg: PackageInfo, *, color: bool) -> str:
     """Render a package's file listing as a string.
+
+    ``color`` is accepted for signature parity with the other renderers but
+    unused: this output is plain lines, not a Rich renderable.
 
     Returns:
         The file listing rendered as text.
     """
+    del color
     if not pkg.files:
         return f"No file information available for {pkg.name}.\n"
     lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)\n"]
@@ -106,7 +108,7 @@ def render_files(pkg: PackageInfo) -> str:
     return "\n".join(lines) + "\n"
 
 
-def render_versions(name: str, versions: list[dict[str, str]]) -> str:
+def render_versions(name: str, versions: list[dict[str, str]], *, color: bool) -> str:
     """Render a version list as a Rich table string.
 
     Returns:
@@ -117,4 +119,4 @@ def render_versions(name: str, versions: list[dict[str, str]]) -> str:
     table.add_column("Released")
     for v in versions:
         table.add_row(v["version"], v.get("upload_time", ""))
-    return _to_string(table)
+    return _to_string(table, color=color)

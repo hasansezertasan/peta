@@ -14,7 +14,7 @@ from peta.output.tables import render_files as rich_format
 __all__ = ["files"]
 
 
-def files(package: str, *, use_json: bool = False) -> None:
+def files(package: str, *, use_json: bool = False, color: bool = False) -> None:
     """List files installed by a local package.
 
     Raises:
@@ -25,4 +25,4 @@ def files(package: str, *, use_json: bool = False) -> None:
     except LocalNotFound:
         typer.echo(f"Package '{package}' not found locally.", err=True)
         raise typer.Exit(code=1) from None
-    typer.echo(json_format(pkg) if use_json else rich_format(pkg))
+    typer.echo(json_format(pkg) if use_json else rich_format(pkg, color=color))

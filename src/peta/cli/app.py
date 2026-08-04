@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from typing import Annotated
+from typing import Annotated, cast
 
 import typer
 
@@ -14,6 +14,8 @@ from peta.cli.commands import (
     info as info_mod,
     versions as versions_mod,
 )
+from peta.cli.state import CliState
+from peta.output.console import resolve_color
 
 __all__ = ["deps", "files", "info", "main", "run", "versions"]
 
@@ -34,8 +36,21 @@ def _version_callback(value: bool) -> None:
         raise typer.Exit
 
 
+def _color_from_ctx(ctx: typer.Context) -> bool:
+    """Read the resolved color setting stashed on the root context.
+
+    Returns:
+        The resolved color flag, or ``False`` if unavailable (e.g. the root
+        callback did not run, as can happen when invoking a command object
+        directly in tests).
+    """
+    obj = cast("object", ctx.obj)
+    return obj.color if isinstance(obj, CliState) else False
+
+
 @app.callback(invoke_without_command=True)
 def main(
+    ctx: typer.Context,
     _version: Annotated[
         bool,
         typer.Option(
@@ -46,12 +61,17 @@ def main(
             help="Show version and exit.",
         ),
     ] = False,
+    no_color: Annotated[
+        bool, typer.Option("--no-color", help="Disable colored output.")
+    ] = False,
 ) -> None:
     """Human-friendly Python package metadata viewer."""
+    ctx.obj = CliState(color=resolve_color(no_color=no_color))
 
 
 @app.command()
 def info(
+    ctx: typer.Context,
     package: Annotated[
         str, typer.Argument(help="Package name (optionally name==version).")
     ],
@@ -64,11 +84,18 @@ def info(
     ] = False,
 ) -> None:
     """Show detailed package metadata."""
-    info_mod.info(package, use_json=use_json, local=local, remote=remote)
+    info_mod.info(
+        package,
+        use_json=use_json,
+        local=local,
+        remote=remote,
+        color=_color_from_ctx(ctx),
+    )
 
 
 @app.command()
 def deps(
+    ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
     local: Annotated[
@@ -79,20 +106,28 @@ def deps(
     ] = False,
 ) -> None:
     """Show a package's declared dependencies."""
-    deps_mod.deps(package, use_json=use_json, local=local, remote=remote)
+    deps_mod.deps(
+        package,
+        use_json=use_json,
+        local=local,
+        remote=remote,
+        color=_color_from_ctx(ctx),
+    )
 
 
 @app.command()
 def files(
+    ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
 ) -> None:
     """List files installed by a local package."""
-    files_mod.files(package, use_json=use_json)
+    files_mod.files(package, use_json=use_json, color=_color_from_ctx(ctx))
 
 
 @app.command()
 def versions(
+    ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
     limit: Annotated[
@@ -100,7 +135,9 @@ def versions(
     ] = 20,
 ) -> None:
     """Show published versions of a package from PyPI."""
-    versions_mod.versions(package, use_json=use_json, limit=limit)
+    versions_mod.versions(
+        package, use_json=use_json, limit=limit, color=_color_from_ctx(ctx)
+    )
 
 
 def run() -> None:

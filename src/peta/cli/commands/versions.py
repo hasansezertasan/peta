@@ -82,7 +82,9 @@ def get_versions(name: str) -> list[dict[str, str]]:
 remote_get_versions = get_versions
 
 
-def versions(package: str, *, use_json: bool = False, limit: int = 20) -> None:
+def versions(
+    package: str, *, use_json: bool = False, limit: int = 20, color: bool = False
+) -> None:
     """Show published versions of a package from PyPI.
 
     Raises:
@@ -97,4 +99,8 @@ def versions(package: str, *, use_json: bool = False, limit: int = 20) -> None:
         typer.echo(f"Package '{package}' not found on PyPI.", err=True)
         raise typer.Exit(code=1) from None
     shown = vers[:limit]
-    typer.echo(json_format(package, shown) if use_json else rich_format(package, shown))
+    typer.echo(
+        json_format(package, shown)
+        if use_json
+        else rich_format(package, shown, color=color)
+    )

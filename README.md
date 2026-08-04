@@ -67,6 +67,7 @@ peta requests --json          # machine-readable output
 | `--local` / `-l` | info, deps | force local lookup |
 | `--remote` / `-r` | info, deps | force PyPI lookup |
 | `--limit` / `-n` | versions | max versions to show (default 20) |
+| `--no-color` | (root) | disable colored output (also via `NO_COLOR`) |
 | `--version` / `-V` | (root) | print version and exit |
 
 ## License

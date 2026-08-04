@@ -24,6 +24,14 @@ Commands
    * - ``peta versions <package>``
      - Published versions from PyPI.
 
+Color
+-----
+
+``peta`` colors Rich output when stdout is a terminal. Disable it with the
+root ``--no-color`` flag or the ``NO_COLOR`` environment variable; both take
+precedence over TTY detection. ``--json`` output is always plain. See
+:doc:`configuration` for the ``NO_COLOR`` variable.
+
 Resolution
 ----------
 

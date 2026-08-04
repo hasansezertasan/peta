@@ -262,3 +262,26 @@ class TestRoot:
     def test_subcommands_registry(self) -> None:
         assert "info" in _SUBCOMMANDS
         assert "requests" not in _SUBCOMMANDS
+
+
+class TestNoColor:
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_no_color_flag_still_plain(self, m: MagicMock) -> None:
+        # CliRunner output is already non-TTY, but --no-color must not break
+        # anything and must still print the package plainly.
+        m.return_value = _pkg()
+        r = runner.invoke(app, ["--no-color", "info", "requests"])
+        assert r.exit_code == 0
+        assert "requests" in r.output
+        assert "\x1b" not in r.output
+
+    @patch("peta.cli.commands.info.local_get_package")
+    def test_no_color_env_var(
+        self, m: MagicMock, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("NO_COLOR", "1")
+        m.return_value = _pkg()
+        r = runner.invoke(app, ["info", "requests"])
+        assert r.exit_code == 0
+        assert "requests" in r.output
+        assert "\x1b" not in r.output

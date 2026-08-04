@@ -58,7 +58,12 @@ def _resolve(package: str, *, local: bool, remote: bool) -> PackageInfo:
 
 
 def info(
-    package: str, *, use_json: bool = False, local: bool = False, remote: bool = False
+    package: str,
+    *,
+    use_json: bool = False,
+    local: bool = False,
+    remote: bool = False,
+    color: bool = False,
 ) -> None:
     """Show detailed package metadata.
 
@@ -73,4 +78,4 @@ def info(
     except NetworkError as exc:
         typer.echo(str(exc), err=True)
         raise typer.Exit(code=2) from None
-    typer.echo(json_format(pkg) if use_json else rich_format(pkg))
+    typer.echo(json_format(pkg) if use_json else rich_format(pkg, color=color))
