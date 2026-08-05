@@ -298,7 +298,7 @@ fix = true
 output-format = "full"
 preview = true
 show-fixes = true
-src = ["src", "tests", "examples"]
+src = ["src", "tests"]
 target-version = "py314"
 unsafe-fixes = true
 
@@ -376,7 +376,6 @@ convention = "pep257"
   "PLR6301",
   "PLC0415",
 ]
-"examples/*.py" = ["INP001"]
 # The Sphinx config is a standalone module, not part of an importable package.
 "docs/conf.py" = ["INP001"]
 # Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
