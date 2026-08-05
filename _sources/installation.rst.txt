@@ -30,3 +30,24 @@ Using pip
 .. code-block:: bash
 
    pip install peta
+
+Using Homebrew
+--------------
+
+On macOS/Linux, install ``peta`` from the
+`Homebrew tap <https://github.com/hasansezertasan/homebrew-tap>`_:
+
+.. code-block:: bash
+
+   brew install hasansezertasan/tap/peta
+
+Using Scoop
+-----------
+
+On Windows, install ``peta`` from the
+`Scoop bucket <https://github.com/hasansezertasan/scoop-bucket>`_:
+
+.. code-block:: bash
+
+   scoop bucket add hasansezertasan https://github.com/hasansezertasan/scoop-bucket
+   scoop install peta
