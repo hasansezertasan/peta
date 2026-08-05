@@ -107,10 +107,9 @@ repo = "https://github.com/pre-commit/mirrors-mypy"
 rev = "v2.1.0"
 hooks = [
   # Scope the hook to src/ to match tox's canonical mypy (which type-checks only
-  # src/). Without this, the hook passes every changed .py file, which (a) trips
-  # mypy's duplicate-module check on the sibling examples/*/main.py demo scripts
-  # and (b) surfaces strict-decorator errors in tests/ that the canonical run
-  # never checks — neither is part of the shipped, type-checked surface.
+  # src/). Without this, the hook passes every changed .py file, which surfaces
+  # strict-decorator errors in tests/ that the canonical run never checks — not
+  # part of the shipped, type-checked surface.
   { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = [
     "typer",
   ] },

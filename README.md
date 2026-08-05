@@ -45,6 +45,19 @@ uv tool install peta
 pipx install peta
 ```
 
+On macOS/Linux via [Homebrew](https://github.com/hasansezertasan/homebrew-tap):
+
+```bash
+brew install hasansezertasan/tap/peta
+```
+
+On Windows via [Scoop](https://github.com/hasansezertasan/scoop-bucket):
+
+```bash
+scoop bucket add hasansezertasan https://github.com/hasansezertasan/scoop-bucket
+scoop install peta
+```
+
 **Requires:** Python 3.14+
 
 ## Usage
@@ -64,7 +77,7 @@ peta requests --json          # machine-readable output
 ### Flags
 
 | Flag | Applies to | Meaning |
-|------|-----------|---------|
+| ------ | ----------- | --------- |
 | `--json` | all | JSON output |
 | `--local` / `-l` | info, deps | force local lookup |
 | `--remote` / `-r` | info, deps | force PyPI lookup |
