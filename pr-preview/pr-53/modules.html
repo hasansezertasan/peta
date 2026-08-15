@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="amber" data-content_root="./">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Modules - peta</title><link rel="index" title="Index" href="genindex.html" /><link rel="search" title="Search" href="search.html" /><link rel="prev" title="Architecture" href="architecture.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx_paramlinks.css" />
+    <link media="print" rel="stylesheet" type="text/css" href="_static/print.css?v=20ff2c19" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="Modules"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="index.html">
+      
+      
+      <strong>peta</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/hasansezertasan/peta" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="architecture.html">Architecture</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div class="localtoc"><h3>On this page</h3><ul>
+<li><a class="reference internal" href="#module-peta.core.models">Core (<code class="docutils literal notranslate">core</span></code>)</a><ul>
+<li><a class="reference internal" href="#peta.core.models.DependencyNode"><code class="docutils literal notranslate"><span class="pre">DependencyNode</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.models.PackageInfo"><code class="docutils literal notranslate"><span class="pre">PackageInfo</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.models.Vulnerability"><code class="docutils literal notranslate"><span class="pre">Vulnerability</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.local.PackageNotFoundError"><code class="docutils literal notranslate"><span class="pre">PackageNotFoundError</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.local.get_package"><code class="docutils literal notranslate"><span class="pre">get_package()</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.remote.NetworkError"><code class="docutils literal notranslate"><span class="pre">NetworkError</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.remote.PackageNotFoundError"><code class="docutils literal notranslate"><span class="pre">PackageNotFoundError</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.remote.PyPIInfo"><code class="docutils literal notranslate"><span class="pre">PyPIInfo</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.remote.PyPIReleaseFile"><code class="docutils literal notranslate"><span class="pre">PyPIReleaseFile</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.remote.PyPIResponse"><code class="docutils literal notranslate"><span class="pre">PyPIResponse</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.remote.PyPIVulnerability"><code class="docutils literal notranslate"><span class="pre">PyPIVulnerability</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.remote.get_package"><code class="docutils literal notranslate"><span class="pre">get_package()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-peta.cli.app">CLI (<code class="docutils literal notranslate">cli</span></code>)</a><ul>
+<li><a class="reference internal" href="#peta.cli.app.compare"><code class="docutils literal notranslate"><span class="pre">compare()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.app.deps"><code class="docutils literal notranslate"><span class="pre">deps()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.app.files"><code class="docutils literal notranslate"><span class="pre">files()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.app.info"><code class="docutils literal notranslate"><span class="pre">info()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.app.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.app.run"><code class="docutils literal notranslate"><span class="pre">run()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.app.versions"><code class="docutils literal notranslate"><span class="pre">versions()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.tables.render_compare"><code class="docutils literal notranslate"><span class="pre">render_compare()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.tables.render_dep_tree"><code class="docutils literal notranslate"><span class="pre">render_dep_tree()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.tables.render_files"><code class="docutils literal notranslate"><span class="pre">render_files()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.tables.render_info"><code class="docutils literal notranslate"><span class="pre">render_info()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.tables.render_versions"><code class="docutils literal notranslate"><span class="pre">render_versions()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.tables.render_why"><code class="docutils literal notranslate"><span class="pre">render_why()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.json.format_compare"><code class="docutils literal notranslate"><span class="pre">format_compare()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.json.format_dep_tree"><code class="docutils literal notranslate"><span class="pre">format_dep_tree()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.json.format_files"><code class="docutils literal notranslate"><span class="pre">format_files()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.json.format_info"><code class="docutils literal notranslate"><span class="pre">format_info()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.json.format_versions"><code class="docutils literal notranslate"><span class="pre">format_versions()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.output.json.format_why"><code class="docutils literal notranslate"><span class="pre">format_why()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.commands.info.info"><code class="docutils literal notranslate"><span class="pre">info()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.commands.deps.deps"><code class="docutils literal notranslate"><span class="pre">deps()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.commands.files.files"><code class="docutils literal notranslate"><span class="pre">files()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.commands.versions.get_versions"><code class="docutils literal notranslate"><span class="pre">get_versions()</span></code></a></li>
+<li><a class="reference internal" href="#peta.cli.commands.versions.versions"><code class="docutils literal notranslate"><span class="pre">versions()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="index.html"><span itemprop="name">peta</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">Modules</strong>
+        <meta itemprop="position" content="2" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <article class="yue" role="main">
+          <section id="modules">
+<h1>Modules<a class="headerlink" href="#modules" title="Link to this heading">¶</a></h1>
+<p>An overview of the packages that make up <code class="docutils literal notranslate"><span class="pre">peta</span></code>.
+The API reference below is generated automatically from the source docstrings.</p>
+<section id="module-peta.core.models">
+<span id="core-peta-core"></span><h2>Core (<code class="docutils literal notranslate"><span class="pre">peta.core</span></code>)<a class="headerlink" href="#module-peta.core.models" title="Link to this heading">¶</a></h2>
+<p>Core data models for peta.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.models.DependencyNode">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.models.</span></span><span class="sig-name descname"><span class="pre">DependencyNode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version_spec</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">installed_version=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">children=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">circular=False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/models.html#DependencyNode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.models.DependencyNode" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>A node in a package’s recursive dependency tree.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version_spec</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>installed_version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>children</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#peta.core.models.DependencyNode" title="peta.core.models.DependencyNode"><em>DependencyNode</em></a><em>]</em>)</p></li>
+<li><p><strong>circular</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.models.PackageInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.models.</span></span><span class="sig-name descname"><span class="pre">PackageInfo</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">summary=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">author=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">author_email=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maintainer=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">license=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">python_requires=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">homepage=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project_urls=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependencies=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">classifiers=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keywords=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">files=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vulnerabilities=&lt;factory&gt;</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">download_count=None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dependent_count=None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/models.html#PackageInfo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.models.PackageInfo" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Package metadata from a local installation or PyPI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>source</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>summary</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>author</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>author_email</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>maintainer</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>license</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>python_requires</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>homepage</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>project_urls</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>dependencies</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>classifiers</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>keywords</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>files</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
+<li><p><strong>vulnerabilities</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference internal" href="#peta.core.models.Vulnerability" title="peta.core.models.Vulnerability"><em>Vulnerability</em></a><em>]</em>)</p></li>
+<li><p><strong>download_count</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>dependent_count</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.models.Vulnerability">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.models.</span></span><span class="sig-name descname"><span class="pre">Vulnerability</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aliases</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">summary</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fixed_in</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">severity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/models.html#Vulnerability"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.models.Vulnerability" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>A known security vulnerability for a package.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>id</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>aliases</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>summary</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>fixed_in</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em>)</p></li>
+<li><p><strong>severity</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.core.local">Local package metadata fetcher using importlib.metadata.</p>
+<dl class="py exception">
+<dt class="sig sig-object py" id="peta.core.local.PackageNotFoundError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.local.</span></span><span class="sig-name descname"><span class="pre">PackageNotFoundError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/local.html#PackageNotFoundError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.local.PackageNotFoundError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
+<p>Raised when a package is not installed locally.</p>
+<p>Store the missing package name.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.core.local.get_package">
+<span class="sig-prename descclassname"><span class="pre">peta.core.local.</span></span><span class="sig-name descname"><span class="pre">get_package</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/local.html#get_package"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.local.get_package" title="Link to this definition">¶</a></dt>
+<dd><p>Get metadata for a locally installed package.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><span class="target" id="peta.core.local.get_package.params.name"></span><strong>name</strong><a class="paramlink headerlink reference internal" href="#peta.core.local.get_package.params.name">¶</a> – Package name to look up.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A <code class="xref py py-class docutils literal notranslate"><span class="pre">PackageInfo</span></code> with <code class="docutils literal notranslate"><span class="pre">source=&quot;local&quot;</span></code>.</p>
+</dd>
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#peta.core.local.PackageNotFoundError" title="peta.core.local.PackageNotFoundError"><strong>PackageNotFoundError</strong></a> – If the package is not installed.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.core.remote">PyPI JSON API client for remote package metadata.</p>
+<dl class="py exception">
+<dt class="sig sig-object py" id="peta.core.remote.NetworkError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.remote.</span></span><span class="sig-name descname"><span class="pre">NetworkError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">message</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/remote.html#NetworkError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.remote.NetworkError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
+<p>Raised when a network request fails.</p>
+<p>Wrap a network failure message.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>message</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py exception">
+<dt class="sig sig-object py" id="peta.core.remote.PackageNotFoundError">
+<em class="property"><span class="pre">exception</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.remote.</span></span><span class="sig-name descname"><span class="pre">PackageNotFoundError</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/remote.html#PackageNotFoundError"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.remote.PackageNotFoundError" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/exceptions.html#Exception" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Exception</span></code></a></p>
+<p>Raised when a package is not found on PyPI.</p>
+<p>Store the missing package name and optional version.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.remote.PyPIInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.remote.</span></span><span class="sig-name descname"><span class="pre">PyPIInfo</span></span><a class="reference internal" href="_modules/peta/core/remote.html#PyPIInfo"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.remote.PyPIInfo" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypedDict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypedDict</span></code></a></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">info</span></code> object of a PyPI package payload.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.remote.PyPIReleaseFile">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.remote.</span></span><span class="sig-name descname"><span class="pre">PyPIReleaseFile</span></span><a class="reference internal" href="_modules/peta/core/remote.html#PyPIReleaseFile"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.remote.PyPIReleaseFile" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypedDict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypedDict</span></code></a></p>
+<p>A single distribution file within a release entry.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.remote.PyPIResponse">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.remote.</span></span><span class="sig-name descname"><span class="pre">PyPIResponse</span></span><a class="reference internal" href="_modules/peta/core/remote.html#PyPIResponse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.remote.PyPIResponse" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypedDict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypedDict</span></code></a></p>
+<p>The top-level PyPI JSON payload for a package.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.remote.PyPIVulnerability">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">peta.core.remote.</span></span><span class="sig-name descname"><span class="pre">PyPIVulnerability</span></span><a class="reference internal" href="_modules/peta/core/remote.html#PyPIVulnerability"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.remote.PyPIVulnerability" title="Link to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.TypedDict" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">TypedDict</span></code></a></p>
+<p>A single entry of the <code class="docutils literal notranslate"><span class="pre">vulnerabilities</span></code> array.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.core.remote.get_package">
+<span class="sig-prename descclassname"><span class="pre">peta.core.remote.</span></span><span class="sig-name descname"><span class="pre">get_package</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/remote.html#get_package"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.remote.get_package" title="Link to this definition">¶</a></dt>
+<dd><p>Get metadata for a package from PyPI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><span class="target" id="peta.core.remote.get_package.params.name"></span><strong>name</strong><a class="paramlink headerlink reference internal" href="#peta.core.remote.get_package.params.name">¶</a> – Package name to look up.</p></li>
+<li><p><span class="target" id="peta.core.remote.get_package.params.version"></span><strong>version</strong><a class="paramlink headerlink reference internal" href="#peta.core.remote.get_package.params.version">¶</a> – Optional specific version; if <code class="docutils literal notranslate"><span class="pre">None</span></code> the latest is fetched.</p></li>
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>version</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A <code class="xref py py-class docutils literal notranslate"><span class="pre">PackageInfo</span></code> with <code class="docutils literal notranslate"><span class="pre">source=&quot;remote&quot;</span></code>. Not-found and network
+failures propagate from <code class="xref py py-func docutils literal notranslate"><span class="pre">_fetch()</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-peta.cli.app">
+<span id="cli-peta-cli"></span><h2>CLI (<code class="docutils literal notranslate"><span class="pre">peta.cli</span></code>)<a class="headerlink" href="#module-peta.cli.app" title="Link to this heading">¶</a></h2>
+<p>Typer application and command registration.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.app.compare">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.app.</span></span><span class="sig-name descname"><span class="pre">compare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_osv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/app.html#compare"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.app.compare" title="Link to this definition">¶</a></dt>
+<dd><p>Compare two packages’ metadata side by side.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
+<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f42bbce34d0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>b</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f42bbce3610&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbce3750&gt;</em><em>]</em>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbce3890&gt;</em><em>]</em>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbce39d0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_osv</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbce3b10&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbce3c50&gt;</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.app.deps">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.app.</span></span><span class="sig-name descname"><span class="pre">deps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">why</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/app.html#deps"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.app.deps" title="Link to this definition">¶</a></dt>
+<dd><p>Show a package’s recursive dependency tree.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f42bbb3c550&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3c690&gt;</em><em>]</em>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3c7d0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3c910&gt;</em><em>]</em>)</p></li>
+<li><p><strong>why</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3ca50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3cb90&gt;</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.app.files">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.app.</span></span><span class="sig-name descname"><span class="pre">files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/app.html#files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.app.files" title="Link to this definition">¶</a></dt>
+<dd><p>List files installed by a local package.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f42bbb3cf50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3d090&gt;</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.app.info">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.app.</span></span><span class="sig-name descname"><span class="pre">info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_osv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/app.html#info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.app.info" title="Link to this definition">¶</a></dt>
+<dd><p>Show detailed package metadata.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f42bbb3d950&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3da90&gt;</em><em>]</em>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3dbd0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3dd10&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_osv</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3de50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3df90&gt;</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.app.main">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.app.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">_version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/app.html#main"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.app.main" title="Link to this definition">¶</a></dt>
+<dd><p>Human-friendly Python package metadata viewer.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
+<li><p><strong>_version</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3e350&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_color</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3e490&gt;</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.app.run">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.app.</span></span><span class="sig-name descname"><span class="pre">run</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/app.html#run"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.app.run" title="Link to this definition">¶</a></dt>
+<dd><p>Entry point; <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">&lt;package&gt;</span></code> is shorthand for <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span> <span class="pre">&lt;package&gt;</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.app.versions">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.app.</span></span><span class="sig-name descname"><span class="pre">versions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ctx</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/app.html#versions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.app.versions" title="Link to this definition">¶</a></dt>
+<dd><p>Show published versions of a package from PyPI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f42bbb3e990&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3ead0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>limit</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f42bbb3ec10&gt;</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.cli.output.tables">Rich text output formatters.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.tables.render_compare">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.tables.</span></span><span class="sig-name descname"><span class="pre">render_compare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/tables.html#render_compare"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.tables.render_compare" title="Link to this definition">¶</a></dt>
+<dd><p>Render two <code class="xref py py-class docutils literal notranslate"><span class="pre">PackageInfo</span></code> objects as a side-by-side Rich table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The comparison table rendered as text.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>a</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p></li>
+<li><p><strong>b</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.tables.render_dep_tree">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.tables.</span></span><span class="sig-name descname"><span class="pre">render_dep_tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/tables.html#render_dep_tree"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.tables.render_dep_tree" title="Link to this definition">¶</a></dt>
+<dd><p>Render a recursive dependency tree as a Rich tree string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The dependency tree rendered as text.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>node</strong> (<a class="reference internal" href="#peta.core.models.DependencyNode" title="peta.core.models.DependencyNode"><em>DependencyNode</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.tables.render_files">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.tables.</span></span><span class="sig-name descname"><span class="pre">render_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pkg</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/tables.html#render_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.tables.render_files" title="Link to this definition">¶</a></dt>
+<dd><p>Render a package’s file listing as a string.</p>
+<p><code class="docutils literal notranslate"><span class="pre">color</span></code> is accepted for signature parity with the other renderers but
+unused: this output is plain lines, not a Rich renderable.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The file listing rendered as text.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>pkg</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.tables.render_info">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.tables.</span></span><span class="sig-name descname"><span class="pre">render_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pkg</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/tables.html#render_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.tables.render_info" title="Link to this definition">¶</a></dt>
+<dd><p>Render <code class="xref py py-class docutils literal notranslate"><span class="pre">PackageInfo</span></code> as a Rich panel string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The formatted panel text, with any vulnerability block appended.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>pkg</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.tables.render_versions">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.tables.</span></span><span class="sig-name descname"><span class="pre">render_versions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versions</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/tables.html#render_versions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.tables.render_versions" title="Link to this definition">¶</a></dt>
+<dd><p>Render a version list as a Rich table string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The version table rendered as text.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>versions</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.tables.render_why">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.tables.</span></span><span class="sig-name descname"><span class="pre">render_why</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">paths</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/tables.html#render_why"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.tables.render_why" title="Link to this definition">¶</a></dt>
+<dd><p>Render root-to-target dependency chains as arrow-joined lines.</p>
+<p><code class="docutils literal notranslate"><span class="pre">color</span></code> is accepted for signature parity with the other renderers but
+unused: this output is plain lines, not a Rich renderable.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Each path rendered as <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">-&gt;</span> <span class="pre">b</span> <span class="pre">-&gt;</span> <span class="pre">target</span></code>, one per line.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.cli.output.json">JSON output formatters.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.json.format_compare">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.json.</span></span><span class="sig-name descname"><span class="pre">format_compare</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/json.html#format_compare"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.json.format_compare" title="Link to this definition">¶</a></dt>
+<dd><p>Format two <code class="xref py py-class docutils literal notranslate"><span class="pre">PackageInfo</span></code> objects as a JSON comparison string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A <code class="docutils literal notranslate"><span class="pre">{&quot;packages&quot;:</span> <span class="pre">[a,</span> <span class="pre">b]}</span></code> JSON string, each package in the same
+format as <a class="reference internal" href="#peta.cli.output.json.format_info" title="peta.cli.output.json.format_info"><code class="xref py py-func docutils literal notranslate"><span class="pre">format_info()</span></code></a>.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>a</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p></li>
+<li><p><strong>b</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.json.format_dep_tree">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.json.</span></span><span class="sig-name descname"><span class="pre">format_dep_tree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/json.html#format_dep_tree"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.json.format_dep_tree" title="Link to this definition">¶</a></dt>
+<dd><p>Format a recursive dependency tree as a JSON string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The dependency tree serialized as an indented JSON string.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>node</strong> (<a class="reference internal" href="#peta.core.models.DependencyNode" title="peta.core.models.DependencyNode"><em>DependencyNode</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.json.format_files">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.json.</span></span><span class="sig-name descname"><span class="pre">format_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pkg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/json.html#format_files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.json.format_files" title="Link to this definition">¶</a></dt>
+<dd><p>Format a package’s file list as a JSON string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The file list serialized as an indented JSON string.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>pkg</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.json.format_info">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.json.</span></span><span class="sig-name descname"><span class="pre">format_info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pkg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/json.html#format_info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.json.format_info" title="Link to this definition">¶</a></dt>
+<dd><p>Format <code class="xref py py-class docutils literal notranslate"><span class="pre">PackageInfo</span></code> as a JSON string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The metadata serialized as an indented JSON string.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>pkg</strong> (<a class="reference internal" href="#peta.core.models.PackageInfo" title="peta.core.models.PackageInfo"><em>PackageInfo</em></a>)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.json.format_versions">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.json.</span></span><span class="sig-name descname"><span class="pre">format_versions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">versions</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/json.html#format_versions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.json.format_versions" title="Link to this definition">¶</a></dt>
+<dd><p>Format a version list as a JSON string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The version list serialized as an indented JSON string.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>versions</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.output.json.format_why">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.output.json.</span></span><span class="sig-name descname"><span class="pre">format_why</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">target</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">paths</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/output/json.html#format_why"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.output.json.format_why" title="Link to this definition">¶</a></dt>
+<dd><p>Format root-to-target dependency chains as a JSON string.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A <code class="docutils literal notranslate"><span class="pre">{&quot;target&quot;:</span> <span class="pre">...,</span> <span class="pre">&quot;paths&quot;:</span> <span class="pre">[[...],</span> <span class="pre">...]}</span></code> JSON string.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>target</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>paths</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)"><em>list</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>]</em><em>]</em>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.cli.commands.info">The <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span></code> command.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.commands.info.info">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.commands.info.</span></span><span class="sig-name descname"><span class="pre">info</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_osv</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_stats</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/commands/info.html#info"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.commands.info.info" title="Link to this definition">¶</a></dt>
+<dd><p>Show detailed package metadata.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>Exit</strong> – With code 1 if the package is not found, or code 2 on network failure.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>no_osv</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>no_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.cli.commands.deps">The <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">deps</span></code> command.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.commands.deps.deps">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.commands.deps.</span></span><span class="sig-name descname"><span class="pre">deps</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remote</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">why</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">depth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/commands/deps.html#deps"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.commands.deps.deps" title="Link to this definition">¶</a></dt>
+<dd><p>Show a package’s recursive dependency tree, or <code class="docutils literal notranslate"><span class="pre">--why</span></code> a target is pulled in.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>Exit</strong> – With code 1 if the package (or, with <code class="docutils literal notranslate"><span class="pre">--why</span></code>, the target) is
+    not found, or code 2 on network failure.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>why</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
+<li><p><strong>depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.cli.commands.files">The <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">files</span></code> command.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.commands.files.files">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.commands.files.</span></span><span class="sig-name descname"><span class="pre">files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/commands/files.html#files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.commands.files.files" title="Link to this definition">¶</a></dt>
+<dd><p>List files installed by a local package.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>Exit</strong> – With code 1 if the package is not installed locally.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p id="module-peta.cli.commands.versions">The <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">versions</span></code> command.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.commands.versions.get_versions">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.commands.versions.</span></span><span class="sig-name descname"><span class="pre">get_versions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/commands/versions.html#get_versions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.commands.versions.get_versions" title="Link to this definition">¶</a></dt>
+<dd><p>Fetch all published versions for a package from PyPI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list of <code class="docutils literal notranslate"><span class="pre">{&quot;version&quot;,</span> <span class="pre">&quot;upload_time&quot;}</span></code> dicts, newest first; empty
+if the package is not found (HTTP 404).</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#peta.core.remote.NetworkError" title="peta.core.remote.NetworkError"><strong>NetworkError</strong></a> – If the request fails, returns a non-success status, or
+    the decoded body is malformed (not a dict, or <code class="docutils literal notranslate"><span class="pre">releases</span></code> is not
+    a dict).</p>
+</dd>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.cli.commands.versions.versions">
+<span class="sig-prename descclassname"><span class="pre">peta.cli.commands.versions.</span></span><span class="sig-name descname"><span class="pre">versions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">package</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_json</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/cli/commands/versions.html#versions"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.cli.commands.versions.versions" title="Link to this definition">¶</a></dt>
+<dd><p>Show published versions of a package from PyPI.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>Exit</strong> – With code 2 on network failure, or code 1 if the package is absent.</p>
+</dd>
+<dt class="field-even">Parameters<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+<li><p><strong>limit</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>)</p></li>
+<li><p><strong>color</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>None</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"><div class="navigation-prev">
+    <a href="architecture.html">
+      <i class="i-lucide chevron-left"></i>
+      <div class="page-info">
+        <span>Previous</span><div class="title">Architecture</div></div>
+    </a>
+  </div></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026, Hasan Sezer Tasan</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+<a href="https://github.com/hasansezertasan/peta" aria-label="GitHub">
+  <iconify-icon icon="simple-icons:github"></iconify-icon>
+</a></div>
+    </div>
+  </div>
+</footer>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="_static/copybutton.js?v=f281be69"></script>
+      <script>let toggleHintShow = 'Click to show';</script>
+      <script>let toggleHintHide = 'Click to hide';</script>
+      <script>let toggleOpenOnPrint = 'true';</script>
+      <script src="_static/togglebutton.js?v=b8b12719"></script>
+      <script src="_static/design-tabs.js?v=f930bc37"></script>
+      <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+      <script src="_static/shibuya.js?v=50760d75"></script>
+      <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script></body>
+</html>
