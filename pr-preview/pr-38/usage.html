@@ -6,7 +6,7 @@
     function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
     setColorMode(localStorage._theme||"auto");
   </script><link rel="stylesheet" type="text/css" href="_static/pygments.css?v=e1a1ceaf" />
-    <link rel="stylesheet" type="text/css" href="_static/shibuya.css?v=9454f7d5" />
+    <link rel="stylesheet" type="text/css" href="_static/shibuya.css?v=2ceb65ce" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="_static/togglebutton.css?v=9c3e77be" />
     <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
@@ -119,12 +119,12 @@ data-aria-dark="Switch to auto color mode">
       <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
   <article class="yue" role="main">
           <section id="usage">
-<h1>Usage<a class="headerlink" href="#usage" title="Link to this heading">¶</a></h1>
+<h1>Usage<a class="headerlink" href="#usage" title="Link to this heading">#</a></h1>
 <p><code class="docutils literal notranslate"><span class="pre">peta</span></code> reads package metadata from your local environment or from the
 PyPI JSON API and prints it with Rich formatting. Add <code class="docutils literal notranslate"><span class="pre">--json</span></code> to any
 command for machine-readable output.</p>
 <section id="commands">
-<h2>Commands<a class="headerlink" href="#commands" title="Link to this heading">¶</a></h2>
+<h2>Commands<a class="headerlink" href="#commands" title="Link to this heading">#</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -156,21 +156,21 @@ command for machine-readable output.</p>
 </div>
 </section>
 <section id="color">
-<h2>Color<a class="headerlink" href="#color" title="Link to this heading">¶</a></h2>
+<h2>Color<a class="headerlink" href="#color" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">peta</span></code> colors Rich output when stdout is a terminal. Disable it with the
 root <code class="docutils literal notranslate"><span class="pre">--no-color</span></code> flag or the <code class="docutils literal notranslate"><span class="pre">NO_COLOR</span></code> environment variable; both take
 precedence over TTY detection. <code class="docutils literal notranslate"><span class="pre">--json</span></code> output is always plain. See
 <a class="reference internal" href="configuration.html"><span class="doc">Configuration</span></a> for the <code class="docutils literal notranslate"><span class="pre">NO_COLOR</span></code> variable.</p>
 </section>
 <section id="vulnerabilities">
-<h2>Vulnerabilities<a class="headerlink" href="#vulnerabilities" title="Link to this heading">¶</a></h2>
+<h2>Vulnerabilities<a class="headerlink" href="#vulnerabilities" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span></code> enriches its vulnerability list from <a class="reference external" href="https://api.osv.dev/">OSV.dev</a> by default, merging OSV results with any PyPI
 advisories and deduping entries that share an id or alias. This lookup is
 best-effort: network failures leave the PyPI-only results in place and never
 change the exit code. Pass <code class="docutils literal notranslate"><span class="pre">--no-osv</span></code> to skip it entirely.</p>
 </section>
 <section id="download-and-dependent-counts">
-<h2>Download and dependent counts<a class="headerlink" href="#download-and-dependent-counts" title="Link to this heading">¶</a></h2>
+<h2>Download and dependent counts<a class="headerlink" href="#download-and-dependent-counts" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span></code> also shows a package’s last-month download count from
 <a class="reference external" href="https://pypistats.org/">pypistats.org</a> and its dependent count from
 <a class="reference external" href="https://libraries.io/">libraries.io</a> by default. Both lookups are
@@ -180,7 +180,7 @@ never changes the exit code. The dependent count additionally requires a
 omitted with no request made. Pass <code class="docutils literal notranslate"><span class="pre">--no-stats</span></code> to skip both lookups.</p>
 </section>
 <section id="dependency-tree">
-<h2>Dependency tree<a class="headerlink" href="#dependency-tree" title="Link to this heading">¶</a></h2>
+<h2>Dependency tree<a class="headerlink" href="#dependency-tree" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">deps</span> <span class="pre">&lt;package&gt;</span></code> prints the package’s full recursive dependency tree
 (not just its direct requirements), resolving each dependency the same way
 <code class="docutils literal notranslate"><span class="pre">info</span></code> does. Requirements whose environment marker is not satisfied (e.g.
@@ -201,7 +201,7 @@ not activated. <code class="docutils literal notranslate"><span class="pre">--wh
 prints a message to stderr and exits with code 1.</p>
 </section>
 <section id="resolution">
-<h2>Resolution<a class="headerlink" href="#resolution" title="Link to this heading">¶</a></h2>
+<h2>Resolution<a class="headerlink" href="#resolution" title="Link to this heading">#</a></h2>
 <p>For <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">deps</span></code>, and <code class="docutils literal notranslate"><span class="pre">compare</span></code>, <code class="docutils literal notranslate"><span class="pre">peta</span></code> checks the local
 environment first and falls back to PyPI. Force a source with
 <code class="docutils literal notranslate"><span class="pre">--local</span></code>/<code class="docutils literal notranslate"><span class="pre">-l</span></code> or <code class="docutils literal notranslate"><span class="pre">--remote</span></code>/<code class="docutils literal notranslate"><span class="pre">-r</span></code>. A <code class="docutils literal notranslate"><span class="pre">name==version</span></code> argument is
@@ -211,7 +211,7 @@ with <code class="docutils literal notranslate"><span class="pre">--local</span>
 including the <code class="docutils literal notranslate"><span class="pre">--no-osv</span></code>/<code class="docutils literal notranslate"><span class="pre">--no-stats</span></code> flags.</p>
 </section>
 <section id="exit-codes">
-<h2>Exit codes<a class="headerlink" href="#exit-codes" title="Link to this heading">¶</a></h2>
+<h2>Exit codes<a class="headerlink" href="#exit-codes" title="Link to this heading">#</a></h2>
 <div class="table-wrapper docutils container">
 <table class="docutils align-default">
 <thead>
@@ -272,15 +272,15 @@ including the <code class="docutils literal notranslate"><span class="pre">--no-
   </p>
 </div>
       <div class="sy-foot-socials">
-<a href="https://github.com/hasansezertasan/peta" aria-label="GitHub">
-  <iconify-icon icon="simple-icons:github"></iconify-icon>
-</a></div>
+  <a href="https://github.com/hasansezertasan/peta" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
     </div>
   </div>
 </footer>
       <script src="_static/documentation_options.js?v=5929fcd5"></script>
-      <script src="_static/doctools.js?v=9bcbadda"></script>
-      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
       <script src="_static/clipboard.min.js?v=a7894cd8"></script>
       <script src="_static/copybutton.js?v=f281be69"></script>
       <script>let toggleHintShow = 'Click to show';</script>
@@ -289,6 +289,5 @@ including the <code class="docutils literal notranslate"><span class="pre">--no-
       <script src="_static/togglebutton.js?v=b8b12719"></script>
       <script src="_static/design-tabs.js?v=f930bc37"></script>
       <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
-      <script src="_static/shibuya.js?v=50760d75"></script>
-      <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script></body>
+      <script src="_static/shibuya.js?v=50760d75"></script></body>
 </html>
