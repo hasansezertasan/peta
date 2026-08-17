@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en" data-accent-color="amber" data-content_root="../../../">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"><title>peta.cli.app - peta</title><link rel="index" title="Index" href="../../../genindex.html" /><link rel="search" title="Search" href="../../../search.html" /><script>
+    function setColorMode(t){let e=document.documentElement;e.setAttribute("data-color-mode",t);let a=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches,s=t;"auto"===t&&(s=a?"dark":"light"),"light"===s?(e.classList.remove("dark"),e.classList.add("light")):(e.classList.remove("light"),e.classList.add("dark"))}
+    setColorMode(localStorage._theme||"auto");
+  </script><link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=e1a1ceaf" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/shibuya.css?v=2ceb65ce" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/togglebutton.css?v=9c3e77be" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/sphinx_paramlinks.css" />
+    <link media="print" rel="stylesheet" type="text/css" href="../../../_static/print.css?v=20ff2c19" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sy-f-text: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+  --sy-f-heading: "Inter", var(--sy-f-sys), var(--sy-f-cjk), sans-serif;
+}
+</style>
+    
+  <meta property="og:type" content="website"/><meta property="og:title" content="peta.cli.app"/>
+    <meta name="twitter:card" content="summary"/>
+  </head>
+<body><div class="sy-head">
+  <div class="sy-head-blur"></div>
+  <div class="sy-head-inner sy-container mx-auto">
+    <a class="sy-head-brand" href="../../../index.html">
+      
+      
+      <strong>peta</strong>
+    </a>
+    <div class="sy-head-nav" id="head-nav">
+      <nav class="sy-head-links"></nav>
+      <div class="sy-head-extra flex items-center print:hidden"><form class="searchbox flex items-center" action="../../../search.html" method="get">
+  <input type="text" name="q" placeholder="Search" />
+  <kbd>/</kbd>
+</form><div class="sy-head-socials">
+  <a href="https://github.com/hasansezertasan/peta" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div></div>
+    </div>
+    <div class="sy-head-actions flex items-center shrink-0 print:hidden"><button class="js-theme theme-switch flex items-center"
+data-aria-auto="Switch to light color mode"
+data-aria-light="Switch to dark color mode"
+data-aria-dark="Switch to auto color mode">
+<i class="i-lucide theme-icon"></i>
+</button><button class="md:hidden flex items-center js-menu" aria-label="Menu" type="button" aria-controls="head-nav" aria-expanded="false">
+        <div class="hamburger">
+          <span class="hamburger_1"></span>
+          <span class="hamburger_2"></span>
+          <span class="hamburger_3"></span>
+        </div>
+      </button>
+    </div>
+  </div>
+</div>
+<div class="sy-page sy-container flex mx-auto">
+  <aside id="lside" class="sy-lside md:w-72 md:shrink-0 print:hidden">
+    <div class="sy-lside-inner md:sticky">
+      <div class="sy-scrollbar p-6">
+        <div class="globaltoc" data-expand-depth="0"><p class="caption" role="heading" aria-level="3"><span class="caption-text">Contents</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../configuration.html">Configuration</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../architecture.html">Architecture</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">Modules</a></li>
+</ul>
+
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="lside-overlay js-menu" role="button" aria-label="Close left sidebar" aria-controls="lside" aria-expanded="false"></div>
+  <aside id="rside" class="sy-rside pb-3 w-64 shrink-0 order-last">
+    <button class="rside-close js-menu xl:hidden" aria-label="Close Table of Contents" type="button" aria-controls="rside" aria-expanded="false">
+      <i class="i-lucide close"></i>
+    </button>
+    <div class="sy-scrollbar sy-rside-inner px-6 xl:top-16 xl:sticky xl:pl-0 pt-6 pb-4"><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
+  </aside>
+  <div class="rside-overlay js-menu" role="button" aria-label="Close Table of Contents" aria-controls="rside" aria-expanded="false"></div>
+  <main class="sy-main w-full max-sm:max-w-full print:pt-6">
+<div class="sy-breadcrumbs" role="navigation">
+  <div class="sy-breadcrumbs-inner flex items-center">
+    <div class="md:hidden mr-3">
+      <button class="js-menu" aria-label="Menu" type="button" aria-controls="lside" aria-expanded="false">
+        <i class="i-lucide menu"></i>
+      </button>
+    </div>
+    <ol class="flex-1" itemscope itemtype="https://schema.org/BreadcrumbList"><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../../index.html"><span itemprop="name">peta</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="1" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <a itemprop="item" href="../../index.html"><span itemprop="name">Module code</span></a>
+        <span>/</span>
+        <meta itemprop="position" content="2" />
+      </li><li itemprop="itemListElement" itemscope itemtype="https://schema.org/ListItem">
+        <strong itemprop="name">peta.cli.app</strong>
+        <meta itemprop="position" content="3" />
+      </li></ol>
+    <div class="xl:hidden ml-1">
+      <button class="js-menu" aria-label="Show table of contents" type="button" aria-controls="rside"
+        aria-expanded="false">
+        <i class="i-lucide outdent"></i>
+      </button>
+    </div>
+  </div>
+</div><div class="flex flex-col break-words justify-between">
+      <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
+  <article class="yue" role="main">
+          <h1>Source code for peta.cli.app</h1><div class="highlight"><pre>
+<span></span><span data-line="1"><span class="sd">&quot;&quot;&quot;Typer application and command registration.&quot;&quot;&quot;</span>
+</span><span data-line="2">
+</span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+</span><span data-line="4">
+</span><span data-line="5"><span class="kn">import</span><span class="w"> </span><span class="nn">sys</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">importlib.metadata</span><span class="w"> </span><span class="kn">import</span> <span class="n">Distribution</span><span class="p">,</span> <span class="n">PackageNotFoundError</span>
+</span><span data-line="7"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Annotated</span><span class="p">,</span> <span class="n">cast</span>
+</span><span data-line="8">
+</span><span data-line="9"><span class="kn">import</span><span class="w"> </span><span class="nn">typer</span>
+</span><span data-line="10">
+</span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.__metadata__</span><span class="w"> </span><span class="kn">import</span> <span class="n">PROJECT_NAME</span>
+</span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.commands</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+</span><span data-line="13">    <span class="n">compare</span> <span class="k">as</span> <span class="n">compare_mod</span><span class="p">,</span>
+</span><span data-line="14">    <span class="n">deps</span> <span class="k">as</span> <span class="n">deps_mod</span><span class="p">,</span>
+</span><span data-line="15">    <span class="n">files</span> <span class="k">as</span> <span class="n">files_mod</span><span class="p">,</span>
+</span><span data-line="16">    <span class="n">info</span> <span class="k">as</span> <span class="n">info_mod</span><span class="p">,</span>
+</span><span data-line="17">    <span class="n">versions</span> <span class="k">as</span> <span class="n">versions_mod</span><span class="p">,</span>
+</span><span data-line="18"><span class="p">)</span>
+</span><span data-line="19"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.output.console</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_color</span>
+</span><span data-line="20"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.state</span><span class="w"> </span><span class="kn">import</span> <span class="n">CliState</span>
+</span><span data-line="21">
+</span><span data-line="22"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;compare&quot;</span><span class="p">,</span> <span class="s2">&quot;deps&quot;</span><span class="p">,</span> <span class="s2">&quot;files&quot;</span><span class="p">,</span> <span class="s2">&quot;info&quot;</span><span class="p">,</span> <span class="s2">&quot;main&quot;</span><span class="p">,</span> <span class="s2">&quot;run&quot;</span><span class="p">,</span> <span class="s2">&quot;versions&quot;</span><span class="p">]</span>
+</span><span data-line="23">
+</span><span data-line="24">
+</span><span data-line="25"><span class="n">_SUBCOMMANDS</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="26">    <span class="s2">&quot;info&quot;</span><span class="p">,</span>
+</span><span data-line="27">    <span class="s2">&quot;deps&quot;</span><span class="p">,</span>
+</span><span data-line="28">    <span class="s2">&quot;files&quot;</span><span class="p">,</span>
+</span><span data-line="29">    <span class="s2">&quot;versions&quot;</span><span class="p">,</span>
+</span><span data-line="30">    <span class="s2">&quot;compare&quot;</span><span class="p">,</span>
+</span><span data-line="31">    <span class="s2">&quot;--help&quot;</span><span class="p">,</span>
+</span><span data-line="32">    <span class="s2">&quot;-h&quot;</span><span class="p">,</span>
+</span><span data-line="33">    <span class="s2">&quot;--version&quot;</span><span class="p">,</span>
+</span><span data-line="34">    <span class="s2">&quot;-V&quot;</span><span class="p">,</span>
+</span><span data-line="35"><span class="p">}</span>
+</span><span data-line="36">
+</span><span data-line="37"><span class="n">app</span> <span class="o">=</span> <span class="n">typer</span><span class="o">.</span><span class="n">Typer</span><span class="p">(</span>
+</span><span data-line="38">    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;peta&quot;</span><span class="p">,</span>
+</span><span data-line="39">    <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Human-friendly Python package metadata viewer.&quot;</span><span class="p">,</span>
+</span><span data-line="40">    <span class="n">no_args_is_help</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span data-line="41">    <span class="n">context_settings</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;help_option_names&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;-h&quot;</span><span class="p">,</span> <span class="s2">&quot;--help&quot;</span><span class="p">]},</span>
+</span><span data-line="42"><span class="p">)</span>
+</span><span data-line="43">
+</span><span data-line="44">
+</span><span data-line="45"><span class="k">def</span><span class="w"> </span><span class="nf">_version_callback</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="46">    <span class="k">if</span> <span class="ow">not</span> <span class="n">value</span><span class="p">:</span>
+</span><span data-line="47">        <span class="k">return</span>
+</span><span data-line="48">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="49">        <span class="n">distribution</span> <span class="o">=</span> <span class="n">Distribution</span><span class="o">.</span><span class="n">from_name</span><span class="p">(</span><span class="n">PROJECT_NAME</span><span class="p">)</span>
+</span><span data-line="50">    <span class="k">except</span> <span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="51">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="s2">&quot;Error: peta package metadata not found.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="52">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</span><span data-line="53">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;peta </span><span class="si">{</span><span class="n">distribution</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span data-line="54">    <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span>
+</span><span data-line="55">
+</span><span data-line="56">
+</span><span data-line="57"><span class="k">def</span><span class="w"> </span><span class="nf">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="58"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Read the resolved color setting stashed on the root context.</span>
+</span><span data-line="59">
+</span><span data-line="60"><span class="sd">    Returns:</span>
+</span><span data-line="61"><span class="sd">        The resolved color flag, or ``False`` if unavailable (e.g. the root</span>
+</span><span data-line="62"><span class="sd">        callback did not run, as can happen when invoking a command object</span>
+</span><span data-line="63"><span class="sd">        directly in tests).</span>
+</span><span data-line="64"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="65">    <span class="n">obj</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;object&quot;</span><span class="p">,</span> <span class="n">ctx</span><span class="o">.</span><span class="n">obj</span><span class="p">)</span>
+</span><span data-line="66">    <span class="k">return</span> <span class="n">obj</span><span class="o">.</span><span class="n">color</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">CliState</span><span class="p">)</span> <span class="k">else</span> <span class="kc">False</span>
+</span><span data-line="67">
+</span><span data-line="68">
+<div class="viewcode-block" id="main">
+<a class="viewcode-back" href="../../../modules.html#peta.cli.app.main">[docs]</a>
+</span><span data-line="69"><span class="nd">@app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">invoke_without_command</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="70"><span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span>
+</span><span data-line="71">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="72">    <span class="n">_version</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="73">        <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="74">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
+</span><span data-line="75">            <span class="s2">&quot;--version&quot;</span><span class="p">,</span>
+</span><span data-line="76">            <span class="s2">&quot;-V&quot;</span><span class="p">,</span>
+</span><span data-line="77">            <span class="n">callback</span><span class="o">=</span><span class="n">_version_callback</span><span class="p">,</span>
+</span><span data-line="78">            <span class="n">is_eager</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span data-line="79">            <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show version and exit.&quot;</span><span class="p">,</span>
+</span><span data-line="80">        <span class="p">),</span>
+</span><span data-line="81">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="82">    <span class="n">no_color</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="83">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--no-color&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Disable colored output.&quot;</span><span class="p">)</span>
+</span><span data-line="84">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="85"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="86"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Human-friendly Python package metadata viewer.&quot;&quot;&quot;</span>
+</span><span data-line="87">    <span class="n">ctx</span><span class="o">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">CliState</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">resolve_color</span><span class="p">(</span><span class="n">no_color</span><span class="o">=</span><span class="n">no_color</span><span class="p">))</span></div>
+
+</span><span data-line="88">
+</span><span data-line="89">
+<div class="viewcode-block" id="info">
+<a class="viewcode-back" href="../../../modules.html#peta.cli.app.info">[docs]</a>
+</span><span data-line="90"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="91"><span class="k">def</span><span class="w"> </span><span class="nf">info</span><span class="p">(</span>
+</span><span data-line="92">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="93">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="94">        <span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">&quot;Package name (optionally name==version).&quot;</span><span class="p">)</span>
+</span><span data-line="95">    <span class="p">],</span>
+</span><span data-line="96">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output as JSON.&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="97">    <span class="n">local</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="98">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--local&quot;</span><span class="p">,</span> <span class="s2">&quot;-l&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Force local lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="99">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="100">    <span class="n">remote</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="101">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--remote&quot;</span><span class="p">,</span> <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Force PyPI lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="102">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="103">    <span class="n">no_osv</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="104">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--no-osv&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Skip the OSV vulnerability lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="105">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="106">    <span class="n">no_stats</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="107">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--no-stats&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Skip download/dependent count lookups.&quot;</span><span class="p">)</span>
+</span><span data-line="108">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="109"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="110"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show detailed package metadata.&quot;&quot;&quot;</span>
+</span><span data-line="111">    <span class="n">info_mod</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+</span><span data-line="112">        <span class="n">package</span><span class="p">,</span>
+</span><span data-line="113">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="114">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="115">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="116">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="117">        <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
+</span><span data-line="118">        <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
+</span><span data-line="119">    <span class="p">)</span></div>
+
+</span><span data-line="120">
+</span><span data-line="121">
+<div class="viewcode-block" id="compare">
+<a class="viewcode-back" href="../../../modules.html#peta.cli.app.compare">[docs]</a>
+</span><span data-line="122"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="123"><span class="k">def</span><span class="w"> </span><span class="nf">compare</span><span class="p">(</span>
+</span><span data-line="124">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="125">    <span class="n">a</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">&quot;First package name.&quot;</span><span class="p">)],</span>
+</span><span data-line="126">    <span class="n">b</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">&quot;Second package name.&quot;</span><span class="p">)],</span>
+</span><span data-line="127">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output as JSON.&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="128">    <span class="n">local</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="129">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--local&quot;</span><span class="p">,</span> <span class="s2">&quot;-l&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Force local lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="130">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="131">    <span class="n">remote</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="132">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--remote&quot;</span><span class="p">,</span> <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Force PyPI lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="133">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="134">    <span class="n">no_osv</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="135">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--no-osv&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Skip the OSV vulnerability lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="136">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="137">    <span class="n">no_stats</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="138">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--no-stats&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Skip download/dependent count lookups.&quot;</span><span class="p">)</span>
+</span><span data-line="139">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="140"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="141"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Compare two packages&#39; metadata side by side.&quot;&quot;&quot;</span>
+</span><span data-line="142">    <span class="n">compare_mod</span><span class="o">.</span><span class="n">compare</span><span class="p">(</span>
+</span><span data-line="143">        <span class="n">a</span><span class="p">,</span>
+</span><span data-line="144">        <span class="n">b</span><span class="p">,</span>
+</span><span data-line="145">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="146">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="147">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="148">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="149">        <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
+</span><span data-line="150">        <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
+</span><span data-line="151">    <span class="p">)</span></div>
+
+</span><span data-line="152">
+</span><span data-line="153">
+<div class="viewcode-block" id="deps">
+<a class="viewcode-back" href="../../../modules.html#peta.cli.app.deps">[docs]</a>
+</span><span data-line="154"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="155"><span class="k">def</span><span class="w"> </span><span class="nf">deps</span><span class="p">(</span>
+</span><span data-line="156">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="157">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">&quot;Package name.&quot;</span><span class="p">)],</span>
+</span><span data-line="158">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output as JSON.&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="159">    <span class="n">local</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="160">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--local&quot;</span><span class="p">,</span> <span class="s2">&quot;-l&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Force local lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="161">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="162">    <span class="n">remote</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="163">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--remote&quot;</span><span class="p">,</span> <span class="s2">&quot;-r&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Force PyPI lookup.&quot;</span><span class="p">)</span>
+</span><span data-line="164">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="165">    <span class="n">why</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="166">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--why&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Show why TARGET is a dependency.&quot;</span><span class="p">)</span>
+</span><span data-line="167">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="168">    <span class="n">depth</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="169">        <span class="nb">int</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--depth&quot;</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Max recursion depth.&quot;</span><span class="p">)</span>
+</span><span data-line="170">    <span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+</span><span data-line="171"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="172"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show a package&#39;s recursive dependency tree.&quot;&quot;&quot;</span>
+</span><span data-line="173">    <span class="n">deps_mod</span><span class="o">.</span><span class="n">deps</span><span class="p">(</span>
+</span><span data-line="174">        <span class="n">package</span><span class="p">,</span>
+</span><span data-line="175">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="176">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="177">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="178">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="179">        <span class="n">why</span><span class="o">=</span><span class="n">why</span><span class="p">,</span>
+</span><span data-line="180">        <span class="n">depth</span><span class="o">=</span><span class="n">depth</span><span class="p">,</span>
+</span><span data-line="181">    <span class="p">)</span></div>
+
+</span><span data-line="182">
+</span><span data-line="183">
+<div class="viewcode-block" id="files">
+<a class="viewcode-back" href="../../../modules.html#peta.cli.app.files">[docs]</a>
+</span><span data-line="184"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="185"><span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span>
+</span><span data-line="186">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="187">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">&quot;Package name.&quot;</span><span class="p">)],</span>
+</span><span data-line="188">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output as JSON.&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="189"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="190"><span class="w">    </span><span class="sd">&quot;&quot;&quot;List files installed by a local package.&quot;&quot;&quot;</span>
+</span><span data-line="191">    <span class="n">files_mod</span><span class="o">.</span><span class="n">files</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">))</span></div>
+
+</span><span data-line="192">
+</span><span data-line="193">
+<div class="viewcode-block" id="versions">
+<a class="viewcode-back" href="../../../modules.html#peta.cli.app.versions">[docs]</a>
+</span><span data-line="194"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="195"><span class="k">def</span><span class="w"> </span><span class="nf">versions</span><span class="p">(</span>
+</span><span data-line="196">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="197">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">&quot;Package name.&quot;</span><span class="p">)],</span>
+</span><span data-line="198">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--json&quot;</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Output as JSON.&quot;</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="199">    <span class="n">limit</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="200">        <span class="nb">int</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">&quot;--limit&quot;</span><span class="p">,</span> <span class="s2">&quot;-n&quot;</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">&quot;Max versions to show.&quot;</span><span class="p">)</span>
+</span><span data-line="201">    <span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+</span><span data-line="202"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="203"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show published versions of a package from PyPI.&quot;&quot;&quot;</span>
+</span><span data-line="204">    <span class="n">versions_mod</span><span class="o">.</span><span class="n">versions</span><span class="p">(</span>
+</span><span data-line="205">        <span class="n">package</span><span class="p">,</span> <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">)</span>
+</span><span data-line="206">    <span class="p">)</span></div>
+
+</span><span data-line="207">
+</span><span data-line="208">
+<div class="viewcode-block" id="run">
+<a class="viewcode-back" href="../../../modules.html#peta.cli.app.run">[docs]</a>
+</span><span data-line="209"><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="210"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Entry point; ``peta &lt;package&gt;`` is shorthand for ``peta info &lt;package&gt;``.&quot;&quot;&quot;</span>
+</span><span data-line="211">    <span class="n">args</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span>
+</span><span data-line="212">    <span class="k">if</span> <span class="n">args</span> <span class="ow">and</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_SUBCOMMANDS</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">args</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">):</span>
+</span><span data-line="213">        <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;info&quot;</span><span class="p">)</span>
+</span><span data-line="214">    <span class="n">app</span><span class="p">()</span></div>
+
+</span></pre></div>
+        </article><button class="back-to-top" type="button">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+    <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+  </svg>
+  <span>Back to top</span>
+</button><div class="navigation flex print:hidden"></div></div>
+    </div>
+  </main>
+</div>
+<footer class="sy-foot">
+  <div class="sy-foot-inner sy-container mx-auto">
+    <div class="sy-foot-reserved md:flex justify-between items-center">
+      <div class="sy-foot-copyright"><p>2026, Hasan Sezer Tasan</p>
+  
+  <p>
+    Made with
+    
+    <a href="https://www.sphinx-doc.org/">Sphinx</a> and
+    
+    <a href="https://shibuya.lepture.com">Shibuya theme</a>.
+  </p>
+</div>
+      <div class="sy-foot-socials">
+  <a href="https://github.com/hasansezertasan/peta" aria-label="GitHub">
+    <iconify-icon icon="simple-icons:github"></iconify-icon>
+  </a></div>
+    </div>
+  </div>
+</footer>
+      <script src="../../../_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="../../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="../../../_static/clipboard.min.js?v=a7894cd8"></script>
+      <script src="../../../_static/copybutton.js?v=f281be69"></script>
+      <script>let toggleHintShow = 'Click to show';</script>
+      <script>let toggleHintHide = 'Click to hide';</script>
+      <script>let toggleOpenOnPrint = 'true';</script>
+      <script src="../../../_static/togglebutton.js?v=b8b12719"></script>
+      <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+      <script>var togglebuttonSelector = '.toggle, .admonition.dropdown';</script>
+      <script src="../../../_static/shibuya.js?v=50760d75"></script></body>
+</html>
