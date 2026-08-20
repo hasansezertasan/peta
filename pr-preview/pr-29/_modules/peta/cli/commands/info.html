@@ -114,7 +114,7 @@ data-aria-dark="Switch to auto color mode">
       <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
   <article class="yue" role="main">
           <h1>Source code for peta.cli.commands.info</h1><div class="highlight"><pre>
-<span></span><span data-line="1"><span class="sd">&quot;&quot;&quot;The ``peta info`` command.&quot;&quot;&quot;</span>
+<span></span><span data-line="1"><span class="sd">"""The ``peta info`` command."""</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 </span><span data-line="4">
@@ -132,7 +132,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="16"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
 </span><span data-line="17">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span>
 </span><span data-line="18">
-</span><span data-line="19"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;info&quot;</span><span class="p">]</span>
+</span><span data-line="19"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"info"</span><span class="p">]</span>
 </span><span data-line="20">
 </span><span data-line="21">
 </span><span data-line="22"><span class="c1"># Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter</span>
@@ -159,17 +159,17 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="41">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 </span><span data-line="42">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 </span><span data-line="43"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="44"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Show detailed package metadata.</span>
+</span><span data-line="44"><span class="w">    </span><span class="sd">"""Show detailed package metadata.</span>
 </span><span data-line="45">
 </span><span data-line="46"><span class="sd">    Raises:</span>
 </span><span data-line="47"><span class="sd">        Exit: With code 1 if the package is not found, or code 2 on network failure.</span>
-</span><span data-line="48"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="48"><span class="sd">    """</span>
 </span><span data-line="49">    <span class="k">try</span><span class="p">:</span>
 </span><span data-line="50">        <span class="n">pkg</span> <span class="o">=</span> <span class="n">_resolve_and_enrich</span><span class="p">(</span>
 </span><span data-line="51">            <span class="n">package</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span> <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span>
 </span><span data-line="52">        <span class="p">)</span>
 </span><span data-line="53">    <span class="k">except</span> <span class="n">_NOT_FOUND</span><span class="p">:</span>
-</span><span data-line="54">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">&#39; not found.&quot;</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="54">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Package '</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">' not found."</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span data-line="55">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
 </span><span data-line="56">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
 </span><span data-line="57">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>

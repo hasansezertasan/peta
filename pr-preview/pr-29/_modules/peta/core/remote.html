@@ -114,7 +114,7 @@ data-aria-dark="Switch to auto color mode">
       <div class="relative min-w-0 max-w-6xl px-6 pb-6 pt-8 xl:px-12">
   <article class="yue" role="main">
           <h1>Source code for peta.core.remote</h1><div class="highlight"><pre>
-<span></span><span data-line="1"><span class="sd">&quot;&quot;&quot;PyPI JSON API client for remote package metadata.&quot;&quot;&quot;</span>
+<span></span><span data-line="1"><span class="sd">"""PyPI JSON API client for remote package metadata."""</span>
 </span><span data-line="2">
 </span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 </span><span data-line="4">
@@ -125,21 +125,21 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="9"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">Vulnerability</span>
 </span><span data-line="10">
 </span><span data-line="11"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="12">    <span class="s2">&quot;NetworkError&quot;</span><span class="p">,</span>
-</span><span data-line="13">    <span class="s2">&quot;PackageNotFoundError&quot;</span><span class="p">,</span>
-</span><span data-line="14">    <span class="s2">&quot;PyPIInfo&quot;</span><span class="p">,</span>
-</span><span data-line="15">    <span class="s2">&quot;PyPIReleaseFile&quot;</span><span class="p">,</span>
-</span><span data-line="16">    <span class="s2">&quot;PyPIResponse&quot;</span><span class="p">,</span>
-</span><span data-line="17">    <span class="s2">&quot;PyPIVulnerability&quot;</span><span class="p">,</span>
-</span><span data-line="18">    <span class="s2">&quot;get_package&quot;</span><span class="p">,</span>
+</span><span data-line="12">    <span class="s2">"NetworkError"</span><span class="p">,</span>
+</span><span data-line="13">    <span class="s2">"PackageNotFoundError"</span><span class="p">,</span>
+</span><span data-line="14">    <span class="s2">"PyPIInfo"</span><span class="p">,</span>
+</span><span data-line="15">    <span class="s2">"PyPIReleaseFile"</span><span class="p">,</span>
+</span><span data-line="16">    <span class="s2">"PyPIResponse"</span><span class="p">,</span>
+</span><span data-line="17">    <span class="s2">"PyPIVulnerability"</span><span class="p">,</span>
+</span><span data-line="18">    <span class="s2">"get_package"</span><span class="p">,</span>
 </span><span data-line="19"><span class="p">]</span>
 </span><span data-line="20">
 </span><span data-line="21">
-</span><span data-line="22"><span class="n">PYPI_BASE_URL</span> <span class="o">=</span> <span class="s2">&quot;https://pypi.org/pypi&quot;</span>
+</span><span data-line="22"><span class="n">PYPI_BASE_URL</span> <span class="o">=</span> <span class="s2">"https://pypi.org/pypi"</span>
 </span><span data-line="23"><span class="n">DEFAULT_TIMEOUT</span> <span class="o">=</span> <span class="mf">10.0</span>
 </span><span data-line="24">
 </span><span data-line="25">
-</span><span data-line="26"><span class="c1"># The PyPI JSON API is untyped from Python&#39;s perspective (``response.json()``</span>
+</span><span data-line="26"><span class="c1"># The PyPI JSON API is untyped from Python's perspective (``response.json()``</span>
 </span><span data-line="27"><span class="c1"># returns ``Any``). These ``TypedDict``\ s describe only the fields peta reads,</span>
 </span><span data-line="28"><span class="c1"># so the decoded body can be brought into the typed world with a single</span>
 </span><span data-line="29"><span class="c1"># ``typing.cast`` at each ``.json()`` boundary. Fields peta always indexes</span>
@@ -148,7 +148,7 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="PyPIInfo">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.PyPIInfo">[docs]</a>
 </span><span data-line="32"><span class="k">class</span><span class="w"> </span><span class="nc">PyPIInfo</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-</span><span data-line="33"><span class="w">    </span><span class="sd">&quot;&quot;&quot;The ``info`` object of a PyPI package payload.&quot;&quot;&quot;</span>
+</span><span data-line="33"><span class="w">    </span><span class="sd">"""The ``info`` object of a PyPI package payload."""</span>
 </span><span data-line="34">
 </span><span data-line="35">    <span class="n">name</span><span class="p">:</span> <span class="n">Required</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
 </span><span data-line="36">    <span class="n">version</span><span class="p">:</span> <span class="n">Required</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
@@ -169,7 +169,7 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="PyPIVulnerability">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.PyPIVulnerability">[docs]</a>
 </span><span data-line="50"><span class="k">class</span><span class="w"> </span><span class="nc">PyPIVulnerability</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-</span><span data-line="51"><span class="w">    </span><span class="sd">&quot;&quot;&quot;A single entry of the ``vulnerabilities`` array.&quot;&quot;&quot;</span>
+</span><span data-line="51"><span class="w">    </span><span class="sd">"""A single entry of the ``vulnerabilities`` array."""</span>
 </span><span data-line="52">
 </span><span data-line="53">    <span class="nb">id</span><span class="p">:</span> <span class="n">Required</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
 </span><span data-line="54">    <span class="n">aliases</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span>
@@ -181,7 +181,7 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="PyPIReleaseFile">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.PyPIReleaseFile">[docs]</a>
 </span><span data-line="59"><span class="k">class</span><span class="w"> </span><span class="nc">PyPIReleaseFile</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-</span><span data-line="60"><span class="w">    </span><span class="sd">&quot;&quot;&quot;A single distribution file within a release entry.&quot;&quot;&quot;</span>
+</span><span data-line="60"><span class="w">    </span><span class="sd">"""A single distribution file within a release entry."""</span>
 </span><span data-line="61">
 </span><span data-line="62">    <span class="n">upload_time</span><span class="p">:</span> <span class="nb">str</span></div>
 
@@ -190,7 +190,7 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="PyPIResponse">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.PyPIResponse">[docs]</a>
 </span><span data-line="65"><span class="k">class</span><span class="w"> </span><span class="nc">PyPIResponse</span><span class="p">(</span><span class="n">TypedDict</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
-</span><span data-line="66"><span class="w">    </span><span class="sd">&quot;&quot;&quot;The top-level PyPI JSON payload for a package.&quot;&quot;&quot;</span>
+</span><span data-line="66"><span class="w">    </span><span class="sd">"""The top-level PyPI JSON payload for a package."""</span>
 </span><span data-line="67">
 </span><span data-line="68">    <span class="n">info</span><span class="p">:</span> <span class="n">Required</span><span class="p">[</span><span class="n">PyPIInfo</span><span class="p">]</span>
 </span><span data-line="69">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PyPIVulnerability</span><span class="p">]</span>
@@ -201,36 +201,36 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="PackageNotFoundError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.PackageNotFoundError">[docs]</a>
 </span><span data-line="73"><span class="k">class</span><span class="w"> </span><span class="nc">PackageNotFoundError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-</span><span data-line="74"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a package is not found on PyPI.&quot;&quot;&quot;</span>
+</span><span data-line="74"><span class="w">    </span><span class="sd">"""Raised when a package is not found on PyPI."""</span>
 </span><span data-line="75">
 </span><span data-line="76">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="77"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Store the missing package name and optional version.&quot;&quot;&quot;</span>
+</span><span data-line="77"><span class="w">        </span><span class="sd">"""Store the missing package name and optional version."""</span>
 </span><span data-line="78">        <span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">name</span>
 </span><span data-line="79">        <span class="bp">self</span><span class="o">.</span><span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="n">version</span>
-</span><span data-line="80">        <span class="n">target</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">==</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="n">name</span>
-</span><span data-line="81">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Package &#39;</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&#39; not found on PyPI&quot;</span><span class="p">)</span></div>
+</span><span data-line="80">        <span class="n">target</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">==</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="n">name</span>
+</span><span data-line="81">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Package '</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">' not found on PyPI"</span><span class="p">)</span></div>
 
 </span><span data-line="82">
 </span><span data-line="83">
 <div class="viewcode-block" id="NetworkError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.NetworkError">[docs]</a>
 </span><span data-line="84"><span class="k">class</span><span class="w"> </span><span class="nc">NetworkError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-</span><span data-line="85"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Raised when a network request fails.&quot;&quot;&quot;</span>
+</span><span data-line="85"><span class="w">    </span><span class="sd">"""Raised when a network request fails."""</span>
 </span><span data-line="86">
 </span><span data-line="87">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="88"><span class="w">        </span><span class="sd">&quot;&quot;&quot;Wrap a network failure message.&quot;&quot;&quot;</span>
-</span><span data-line="89">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Network error: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+</span><span data-line="88"><span class="w">        </span><span class="sd">"""Wrap a network failure message."""</span>
+</span><span data-line="89">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Network error: </span><span class="si">{</span><span class="n">message</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
 
 </span><span data-line="90">
 </span><span data-line="91">
 </span><span data-line="92"><span class="k">def</span><span class="w"> </span><span class="nf">_pypi_url</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 </span><span data-line="93">    <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
-</span><span data-line="94">        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">PYPI_BASE_URL</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">/json&quot;</span>
-</span><span data-line="95">    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">PYPI_BASE_URL</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/json&quot;</span>
+</span><span data-line="94">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">PYPI_BASE_URL</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">/json"</span>
+</span><span data-line="95">    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">PYPI_BASE_URL</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">/json"</span>
 </span><span data-line="96">
 </span><span data-line="97">
 </span><span data-line="98"><span class="k">def</span><span class="w"> </span><span class="nf">_fetch</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PyPIResponse</span><span class="p">:</span>
-</span><span data-line="99"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch the raw PyPI JSON payload for a package.</span>
+</span><span data-line="99"><span class="w">    </span><span class="sd">"""Fetch the raw PyPI JSON payload for a package.</span>
 </span><span data-line="100">
 </span><span data-line="101"><span class="sd">    Returns:</span>
 </span><span data-line="102"><span class="sd">        The decoded JSON body from the PyPI JSON API.</span>
@@ -238,7 +238,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="104"><span class="sd">    Raises:</span>
 </span><span data-line="105"><span class="sd">        PackageNotFoundError: If PyPI responds 404 for the package/version.</span>
 </span><span data-line="106"><span class="sd">        NetworkError: If the request fails or returns a non-success status.</span>
-</span><span data-line="107"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="107"><span class="sd">    """</span>
 </span><span data-line="108">    <span class="n">url</span> <span class="o">=</span> <span class="n">_pypi_url</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
 </span><span data-line="109">    <span class="k">try</span><span class="p">:</span>
 </span><span data-line="110">        <span class="n">response</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">DEFAULT_TIMEOUT</span><span class="p">)</span>
@@ -251,27 +251,27 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="117">    <span class="k">try</span><span class="p">:</span>
 </span><span data-line="118">        <span class="n">_</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
 </span><span data-line="119">    <span class="k">except</span> <span class="n">httpx</span><span class="o">.</span><span class="n">HTTPStatusError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="120">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;PyPI returned HTTP </span><span class="si">{</span><span class="n">exc</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span data-line="120">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"PyPI returned HTTP </span><span class="si">{</span><span class="n">exc</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">"</span>
 </span><span data-line="121">        <span class="k">raise</span> <span class="n">NetworkError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 </span><span data-line="122">
 </span><span data-line="123">    <span class="c1"># Single typed boundary: the PyPI JSON API is untyped, so cast the decoded</span>
 </span><span data-line="124">    <span class="c1"># body into our TypedDict view of the fields we actually read.</span>
-</span><span data-line="125">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">&quot;PyPIResponse&quot;</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
+</span><span data-line="125">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"PyPIResponse"</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span>
 </span><span data-line="126">
 </span><span data-line="127">
 </span><span data-line="128"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_keywords</span><span class="p">(</span><span class="n">raw</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 </span><span data-line="129">    <span class="k">if</span> <span class="ow">not</span> <span class="n">raw</span><span class="p">:</span>
 </span><span data-line="130">        <span class="k">return</span> <span class="p">[]</span>
-</span><span data-line="131">    <span class="k">return</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">raw</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;,&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+</span><span data-line="131">    <span class="k">return</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">raw</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
 </span><span data-line="132">
 </span><span data-line="133">
 </span><span data-line="134"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_vulnerabilities</span><span class="p">(</span><span class="n">raw</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PyPIVulnerability</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]:</span>
 </span><span data-line="135">    <span class="k">return</span> <span class="p">[</span>
 </span><span data-line="136">        <span class="n">Vulnerability</span><span class="p">(</span>
-</span><span data-line="137">            <span class="nb">id</span><span class="o">=</span><span class="n">v</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">],</span>
-</span><span data-line="138">            <span class="n">aliases</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;aliases&quot;</span><span class="p">,</span> <span class="p">[]),</span>
-</span><span data-line="139">            <span class="n">summary</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;summary&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
-</span><span data-line="140">            <span class="n">fixed_in</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;fixed_in&quot;</span><span class="p">,</span> <span class="p">[]),</span>
+</span><span data-line="137">            <span class="nb">id</span><span class="o">=</span><span class="n">v</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span>
+</span><span data-line="138">            <span class="n">aliases</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"aliases"</span><span class="p">,</span> <span class="p">[]),</span>
+</span><span data-line="139">            <span class="n">summary</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"summary"</span><span class="p">,</span> <span class="s2">""</span><span class="p">),</span>
+</span><span data-line="140">            <span class="n">fixed_in</span><span class="o">=</span><span class="n">v</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"fixed_in"</span><span class="p">,</span> <span class="p">[]),</span>
 </span><span data-line="141">        <span class="p">)</span>
 </span><span data-line="142">        <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">raw</span>
 </span><span data-line="143">    <span class="p">]</span>
@@ -280,35 +280,35 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="get_package">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.get_package">[docs]</a>
 </span><span data-line="146"><span class="k">def</span><span class="w"> </span><span class="nf">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="147"><span class="w">    </span><span class="sd">&quot;&quot;&quot;Get metadata for a package from PyPI.</span>
+</span><span data-line="147"><span class="w">    </span><span class="sd">"""Get metadata for a package from PyPI.</span>
 </span><span data-line="148">
 </span><span data-line="149"><span class="sd">    Args:</span>
 </span><span data-line="150"><span class="sd">        name: Package name to look up.</span>
 </span><span data-line="151"><span class="sd">        version: Optional specific version; if ``None`` the latest is fetched.</span>
 </span><span data-line="152">
 </span><span data-line="153"><span class="sd">    Returns:</span>
-</span><span data-line="154"><span class="sd">        A :class:`PackageInfo` with ``source=&quot;remote&quot;``. Not-found and network</span>
+</span><span data-line="154"><span class="sd">        A :class:`PackageInfo` with ``source="remote"``. Not-found and network</span>
 </span><span data-line="155"><span class="sd">        failures propagate from :func:`_fetch`.</span>
-</span><span data-line="156"><span class="sd">    &quot;&quot;&quot;</span>
+</span><span data-line="156"><span class="sd">    """</span>
 </span><span data-line="157">    <span class="n">data</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-</span><span data-line="158">    <span class="n">info</span><span class="p">:</span> <span class="n">PyPIInfo</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;info&quot;</span><span class="p">]</span>
+</span><span data-line="158">    <span class="n">info</span><span class="p">:</span> <span class="n">PyPIInfo</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">"info"</span><span class="p">]</span>
 </span><span data-line="159">    <span class="k">return</span> <span class="n">PackageInfo</span><span class="p">(</span>
-</span><span data-line="160">        <span class="n">name</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
-</span><span data-line="161">        <span class="n">version</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">&quot;version&quot;</span><span class="p">],</span>
-</span><span data-line="162">        <span class="n">summary</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;summary&quot;</span><span class="p">),</span>
-</span><span data-line="163">        <span class="n">author</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;author&quot;</span><span class="p">),</span>
-</span><span data-line="164">        <span class="n">author_email</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;author_email&quot;</span><span class="p">),</span>
-</span><span data-line="165">        <span class="n">maintainer</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;maintainer&quot;</span><span class="p">),</span>
-</span><span data-line="166">        <span class="n">license</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;license&quot;</span><span class="p">),</span>
-</span><span data-line="167">        <span class="n">python_requires</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;requires_python&quot;</span><span class="p">),</span>
-</span><span data-line="168">        <span class="n">homepage</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;home_page&quot;</span><span class="p">),</span>
-</span><span data-line="169">        <span class="n">project_urls</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;project_urls&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{},</span>
-</span><span data-line="170">        <span class="n">dependencies</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;requires_dist&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="171">        <span class="n">classifiers</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;classifiers&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="172">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;keywords&quot;</span><span class="p">)),</span>
+</span><span data-line="160">        <span class="n">name</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span>
+</span><span data-line="161">        <span class="n">version</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">"version"</span><span class="p">],</span>
+</span><span data-line="162">        <span class="n">summary</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"summary"</span><span class="p">),</span>
+</span><span data-line="163">        <span class="n">author</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"author"</span><span class="p">),</span>
+</span><span data-line="164">        <span class="n">author_email</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"author_email"</span><span class="p">),</span>
+</span><span data-line="165">        <span class="n">maintainer</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"maintainer"</span><span class="p">),</span>
+</span><span data-line="166">        <span class="n">license</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license"</span><span class="p">),</span>
+</span><span data-line="167">        <span class="n">python_requires</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requires_python"</span><span class="p">),</span>
+</span><span data-line="168">        <span class="n">homepage</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"home_page"</span><span class="p">),</span>
+</span><span data-line="169">        <span class="n">project_urls</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"project_urls"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{},</span>
+</span><span data-line="170">        <span class="n">dependencies</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requires_dist"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="171">        <span class="n">classifiers</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"classifiers"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="172">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"keywords"</span><span class="p">)),</span>
 </span><span data-line="173">        <span class="n">files</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span data-line="174">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="n">_parse_vulnerabilities</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;vulnerabilities&quot;</span><span class="p">,</span> <span class="p">[])),</span>
-</span><span data-line="175">        <span class="n">source</span><span class="o">=</span><span class="s2">&quot;remote&quot;</span><span class="p">,</span>
+</span><span data-line="174">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="n">_parse_vulnerabilities</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"vulnerabilities"</span><span class="p">,</span> <span class="p">[])),</span>
+</span><span data-line="175">        <span class="n">source</span><span class="o">=</span><span class="s2">"remote"</span><span class="p">,</span>
 </span><span data-line="176">    <span class="p">)</span></div>
 
 </span></pre></div>
