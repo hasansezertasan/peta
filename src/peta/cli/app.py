@@ -1,4 +1,16 @@
+<<<<<<< before updating
 """Typer application and command registration."""
+=======
+"""CLI application for the project.
+
+The ``peta`` command is the single Typer root. Every enabled
+component other than the primary (CLI > GUI > TUI > web > MCP > worker) is hung
+off it as a lazily-imported subcommand — ``peta interactive``
+(TUI), ``peta web``, ``peta mcp``, ... — rather
+than a separate ``peta-<name>`` console script (see ADR-019).
+"""
+# mypy: disable-error-code="misc"
+>>>>>>> after updating
 
 from __future__ import annotations
 
@@ -119,6 +131,7 @@ def info(
     )
 
 
+<<<<<<< before updating
 @app.command()
 def compare(
     ctx: typer.Context,
@@ -149,6 +162,25 @@ def compare(
         no_osv=no_osv,
         no_stats=no_stats,
     )
+=======
+    Raises:
+        typer.Exit: If the package metadata cannot be found.
+    """
+    try:
+        distribution = Distribution.from_name(PROJECT_NAME)
+    except PackageNotFoundError:
+        # An uninstalled or partial package is an expected, user-facing error, so
+        # log without the traceback that logging.exception would add.
+        logger.error("Package metadata not found for %s", PROJECT_NAME)  # noqa: TRY400
+        typer.echo(
+            f"Error: Package '{PROJECT_NAME}' metadata not found. Is the package installed correctly?",  # noqa: E501
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+    logger.info("Command `version` called.")
+    typer.echo(distribution.version)
+    logger.info("Version displayed successfully.")
+>>>>>>> after updating
 
 
 @app.command()
@@ -190,6 +222,7 @@ def files(
     """List files installed by a local package."""
     files_mod.files(package, use_json=use_json, color=_color_from_ctx(ctx))
 
+<<<<<<< before updating
 
 @app.command()
 def versions(
@@ -212,3 +245,26 @@ def run() -> None:
     if args and args[0] not in _SUBCOMMANDS and not args[0].startswith("-"):
         sys.argv.insert(1, "info")
     app()
+=======
+    Raises:
+        typer.Exit: If the package metadata cannot be found.
+    """
+    try:
+        distribution = Distribution.from_name(PROJECT_NAME)
+    except PackageNotFoundError:
+        # An uninstalled or partial package is an expected, user-facing error, so
+        # log without the traceback that logging.exception would add.
+        logger.error("Package metadata not found for %s", PROJECT_NAME)  # noqa: TRY400
+        typer.echo(
+            f"Error: Package '{PROJECT_NAME}' metadata not found. Is the package installed correctly?",  # noqa: E501
+            err=True,
+        )
+        raise typer.Exit(code=1) from None
+    logger.info("Command `info` called.")
+    python_version = platform.python_version()
+    python_implementation = platform.python_implementation()
+    typer.echo(f"Application Version: {distribution.version}")
+    typer.echo(f"Python Version: {python_version} ({python_implementation})")
+    typer.echo(f"Platform: {platform.system()}")
+    logger.info("Application information displayed successfully.")
+>>>>>>> after updating

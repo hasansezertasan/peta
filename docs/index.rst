@@ -13,6 +13,12 @@ Human-friendly Python package metadata viewer
    architecture
    modules
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Maintainer guide
+
+   maintaining/setup
+
 Indices and tables
 ==================
 
