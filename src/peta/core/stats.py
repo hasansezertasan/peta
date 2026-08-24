@@ -74,7 +74,7 @@ def _as_int(value: object) -> int | None:
 
 def _fetch_pypistats(name: str) -> PypiStatsResponse:
     response = httpx.get(f"{PYPISTATS_URL}/{name}/recent", timeout=DEFAULT_TIMEOUT)
-    if response.status_code != 200:  # noqa: PLR2004
+    if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         msg = f"pypistats returned HTTP {response.status_code}"
         raise ValueError(msg)
     return cast("PypiStatsResponse", response.json())
@@ -114,7 +114,7 @@ def _fetch_libraries_io(name: str, api_key: str) -> LibrariesIoResponse:
         params={"api_key": api_key},
         timeout=DEFAULT_TIMEOUT,
     )
-    if response.status_code != 200:  # noqa: PLR2004
+    if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         msg = f"libraries.io returned HTTP {response.status_code}"
         raise ValueError(msg)
     return cast("LibrariesIoResponse", response.json())

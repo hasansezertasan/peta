@@ -111,7 +111,7 @@ def _fetch(name: str, version: str | None) -> PyPIResponse:
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
 
-    if response.status_code == 404:  # noqa: PLR2004
+    if response.status_code == 404:  # ruff: ignore[magic-value-comparison]
         raise PackageNotFoundError(name, version)
 
     try:

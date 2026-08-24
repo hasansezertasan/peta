@@ -91,7 +91,7 @@ def _fetch(name: str, version: str | None) -> OsvResponse:
     response = httpx.post(
         OSV_API_URL, json=_query_body(name, version), timeout=DEFAULT_TIMEOUT
     )
-    if response.status_code != 200:  # noqa: PLR2004
+    if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         msg = f"OSV returned HTTP {response.status_code}"
         raise ValueError(msg)
     return cast("OsvResponse", response.json())
