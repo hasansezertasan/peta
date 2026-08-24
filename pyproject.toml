@@ -70,7 +70,7 @@ style = [
   "import-linter==2.13",
   "mypy==2.3.1",
   "pyrefly==1.2.0",
-  "ruff==0.15.19",
+  "ruff==0.16.4",
   "slotscheck==0.20.1",
   "sphinx-lint==1.0.2",
   "taplo==0.9.3",
@@ -317,7 +317,7 @@ skip-magic-trailing-comma = true
 
 [tool.ruff.lint]
 fixable = ["ALL"]
-ignore = ["COM812", "CPY", "FIX", "TD"]
+ignore = ["missing-trailing-comma", "CPY", "FIX", "TD"]
 preview = true
 select = ["ALL"]
 
@@ -362,26 +362,31 @@ convention = "pep257"
 # inside a test to exercise import-time behavior. They are implicit namespace
 # packages (no __init__.py required).
 "tests/**/*.py" = [
-  "S101",
-  "PLR2004",
-  "PLC2701",
-  "DOC201",
-  "INP001",
-  "D101",
-  "D102",
-  "D103",
-  "D104",
-  "D105",
-  "D107",
-  "PLR6301",
-  "PLC0415",
+  "assert",
+  "magic-value-comparison",
+  "import-private-name",
+  "docstring-missing-returns",
+  "implicit-namespace-package",
+  "undocumented-public-class",
+  "undocumented-public-method",
+  "undocumented-public-function",
+  "undocumented-public-package",
+  "undocumented-magic-method",
+  "undocumented-public-init",
+  "no-self-use",
+  "import-outside-top-level",
 ]
 # The Sphinx config is a standalone module, not part of an importable package.
-"docs/conf.py" = ["INP001"]
+"docs/conf.py" = ["implicit-namespace-package"]
 # Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
-"src/peta/cli/**/*.py" = ["B008", "FBT001", "FBT002", "FBT003"]
+"src/peta/cli/**/*.py" = [
+  "function-call-in-default-argument",
+  "boolean-type-hint-positional-argument",
+  "boolean-default-value-positional-argument",
+  "boolean-positional-value-in-call",
+]
 # dataclass fields `id`/`license` shadow builtins by design.
-"src/peta/core/models.py" = ["A003"]
+"src/peta/core/models.py" = ["builtin-attribute-shadowing"]
 
 
 [tool.ruff.lint.pyupgrade]
