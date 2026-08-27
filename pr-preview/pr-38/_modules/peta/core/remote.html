@@ -245,7 +245,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="111">    <span class="k">except</span> <span class="n">httpx</span><span class="o">.</span><span class="n">RequestError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
 </span><span data-line="112">        <span class="k">raise</span> <span class="n">NetworkError</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">))</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
 </span><span data-line="113">
-</span><span data-line="114">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>  <span class="c1"># noqa: PLR2004</span>
+</span><span data-line="114">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="mi">404</span><span class="p">:</span>  <span class="c1"># ruff: ignore[magic-value-comparison]</span>
 </span><span data-line="115">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
 </span><span data-line="116">
 </span><span data-line="117">    <span class="k">try</span><span class="p">:</span>
