@@ -39,6 +39,12 @@ def test_render_info_string() -> None:
     assert "2.31.0" in out
 
 
+def test_render_info_identifies_license_expression() -> None:
+    out = render_info(_pkg(license="MIT", license_source="expression"), color=False)
+    assert "License (SPDX)" in out
+    assert "MIT" in out
+
+
 def test_render_info_color() -> None:
     out = render_info(_pkg(), color=True)
     assert "\x1b" in out
@@ -76,6 +82,14 @@ def test_render_compare() -> None:
     assert "0.27.0" in out
 
 
+def test_render_compare_identifies_license_expression() -> None:
+    a = _pkg(license="MIT", license_source="expression")
+    b = _pkg(name="httpx", license="BSD", license_source="legacy")
+    out = render_compare(a, b, color=False)
+    assert "MIT (SPDX)" in out
+    assert "BSD" in out
+
+
 def test_render_compare_missing_values_show_dash() -> None:
     a = _pkg(
         summary=None,
@@ -88,6 +102,14 @@ def test_render_compare_missing_values_show_dash() -> None:
     b = _pkg(name="httpx", version="0.27.0")
     out = render_compare(a, b, color=False)
     assert "-" in out
+
+
+def test_render_compare_empty_license_shows_dash() -> None:
+    a = _pkg(license="", license_source="legacy")
+    b = _pkg(name="httpx", license="", license_source="expression")
+    out = render_compare(a, b, color=False)
+    license_row = next(line for line in out.splitlines() if "License" in line)
+    assert license_row.count("-") == 2
 
 
 def test_render_compare_counts() -> None:

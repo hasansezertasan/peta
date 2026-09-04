@@ -32,6 +32,7 @@ class TestPackageInfo:
         assert pkg.name == "requests"
         assert pkg.source == "local"
         assert pkg.summary is None
+        assert pkg.license_source is None
         assert pkg.dependencies == []
         assert pkg.vulnerabilities == []
 
@@ -42,6 +43,23 @@ class TestPackageInfo:
         assert pkg.classifiers == []
         assert pkg.keywords == []
         assert pkg.files is None
+
+    def test_preserves_positional_constructor_order(self) -> None:
+        pkg = PackageInfo(
+            "requests",
+            "2.31.0",
+            "local",
+            "summary",
+            "author",
+            "author@example.com",
+            "maintainer",
+            "Apache-2.0",
+            ">=3.8",
+            "https://example.com",
+        )
+        assert pkg.python_requires == ">=3.8"
+        assert pkg.homepage == "https://example.com"
+        assert pkg.license_source is None
 
 
 class TestDependencyNode:

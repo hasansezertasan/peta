@@ -27,6 +27,7 @@ def _package_dict(pkg: PackageInfo) -> dict[str, object]:
         "author_email": pkg.author_email,
         "maintainer": pkg.maintainer,
         "license": pkg.license,
+        "license_source": pkg.license_source,
         "python_requires": pkg.python_requires,
         "homepage": pkg.homepage,
         "project_urls": pkg.project_urls,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Required, TypedDict, cast
+from typing import Literal, Required, TypedDict, cast
 
 import httpx
 
@@ -39,6 +39,7 @@ class PyPIInfo(TypedDict, total=False):
     author_email: str | None
     maintainer: str | None
     license: str | None
+    license_expression: str | None
     requires_python: str | None
     home_page: str | None
     project_urls: dict[str, str] | None
@@ -143,6 +144,16 @@ def _parse_vulnerabilities(raw: list[PyPIVulnerability]) -> list[Vulnerability]:
     ]
 
 
+def _parse_license(
+    info: PyPIInfo,
+) -> tuple[str | None, Literal["expression", "legacy"] | None]:
+    expression = info.get("license_expression")
+    if expression:
+        return expression, "expression"
+    legacy = info.get("license")
+    return legacy, "legacy" if legacy else None
+
+
 def get_package(name: str, version: str | None = None) -> PackageInfo:
     """Get metadata for a package from PyPI.
 
@@ -156,6 +167,7 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
     """
     data = _fetch(name, version)
     info: PyPIInfo = data["info"]
+    license_value, license_source = _parse_license(info)
     return PackageInfo(
         name=info["name"],
         version=info["version"],
@@ -163,7 +175,8 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         author=info.get("author"),
         author_email=info.get("author_email"),
         maintainer=info.get("maintainer"),
-        license=info.get("license"),
+        license=license_value,
+        license_source=license_source,
         python_requires=info.get("requires_python"),
         homepage=info.get("home_page"),
         project_urls=info.get("project_urls") or {},

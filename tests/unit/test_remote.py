@@ -45,6 +45,18 @@ def test_returns_package_info(mock_httpx: MagicMock) -> None:
     assert len(result.dependencies) == 4
     assert result.files is None
     assert result.keywords == ["http", "requests"]
+    assert result.license == "Apache-2.0"
+    assert result.license_source == "legacy"
+
+
+@patch("peta.core.remote.httpx")
+def test_prefers_license_expression(mock_httpx: MagicMock) -> None:
+    info = {**_INFO, "license": None, "license_expression": "MIT"}
+    mock_httpx.get.return_value = _resp(200, {"info": info})
+
+    result = get_package("requests")
+    assert result.license == "MIT"
+    assert result.license_source == "expression"
 
 
 @patch("peta.core.remote.httpx")

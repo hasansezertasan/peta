@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
-from typing import cast
+from typing import Literal, cast
 
 from peta.core.models import PackageInfo
 
@@ -38,6 +38,16 @@ def _parse_keywords(meta: importlib_metadata.PackageMetadata) -> list[str]:
     return [k.strip() for k in raw.split(",") if k.strip()]
 
 
+def _parse_license(
+    meta: importlib_metadata.PackageMetadata,
+) -> tuple[str | None, Literal["expression", "legacy"] | None]:
+    expression = meta.get("License-Expression")
+    if expression:
+        return expression, "expression"
+    legacy = meta.get("License")
+    return legacy, "legacy" if legacy else None
+
+
 def get_package(name: str) -> PackageInfo:
     """Get metadata for a locally installed package.
 
@@ -57,6 +67,7 @@ def get_package(name: str) -> PackageInfo:
 
     meta = dist.metadata
     files = [str(f) for f in dist.files] if dist.files else None
+    license_value, license_source = _parse_license(meta)
     return PackageInfo(
         name=meta["Name"],
         version=meta["Version"],
@@ -64,7 +75,8 @@ def get_package(name: str) -> PackageInfo:
         author=meta.get("Author"),
         author_email=meta.get("Author-email"),
         maintainer=meta.get("Maintainer"),
-        license=meta.get("License"),
+        license=license_value,
+        license_source=license_source,
         python_requires=meta.get("Requires-Python"),
         homepage=meta.get("Home-page"),
         project_urls=_parse_project_urls(meta),

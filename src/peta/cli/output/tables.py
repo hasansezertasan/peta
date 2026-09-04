@@ -32,7 +32,10 @@ def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
         ("Summary", pkg.summary),
         ("Author", pkg.author),
         ("Maintainer", pkg.maintainer),
-        ("License", pkg.license),
+        (
+            "License (SPDX)" if pkg.license_source == "expression" else "License",
+            pkg.license,
+        ),
         ("Python", pkg.python_requires),
         ("Homepage", pkg.homepage),
     ):
@@ -155,6 +158,14 @@ def render_files(pkg: PackageInfo, *, color: bool) -> str:
     return "\n".join(lines)
 
 
+def _license_value(pkg: PackageInfo) -> str:
+    if not pkg.license:
+        return "-"
+    if pkg.license_source == "expression":
+        return f"{pkg.license} (SPDX)"
+    return pkg.license
+
+
 def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
     def count_or_dash(value: int | None) -> str:
         return "-" if value is None else f"{value:,}"
@@ -163,7 +174,7 @@ def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
         ("Version", a.version, b.version),
         ("Summary", a.summary or "-", b.summary or "-"),
         ("Author", a.author or "-", b.author or "-"),
-        ("License", a.license or "-", b.license or "-"),
+        ("License", _license_value(a), _license_value(b)),
         ("Python", a.python_requires or "-", b.python_requires or "-"),
         ("Dependencies", str(len(a.dependencies)), str(len(b.dependencies))),
         ("Downloads", count_or_dash(a.download_count), count_or_dash(b.download_count)),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
 
 __all__ = ["DependencyNode", "PackageInfo", "Vulnerability"]
 
@@ -41,6 +42,7 @@ class PackageInfo:
     vulnerabilities: list[Vulnerability] = field(default_factory=list)
     download_count: int | None = None
     dependent_count: int | None = None
+    license_source: Literal["expression", "legacy"] | None = None
 
 
 @dataclass
