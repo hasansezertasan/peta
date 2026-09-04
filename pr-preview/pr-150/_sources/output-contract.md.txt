@@ -49,10 +49,17 @@ retain the documented nonzero CLI exit code. When command-line validation fails
 before a command handler runs, `query.arguments.argv` preserves the unparsed
 argument vector in the same failed envelope.
 
-Dependency-tree lookups preserve unavailable or failed transitive resolutions
-on the affected node. The envelope is `partial`, its source record identifies
-the affected result path, and a `dependency_resolution_failed` warning explains
-the failure; the successfully resolved portion of the tree remains available.
+Dependency-tree lookups preserve empty or failed transitive resolutions on the
+affected node. The envelope is `partial`, its source record identifies the
+affected result path, and a `dependency_resolution_failed` warning explains the
+failure; the successfully resolved portion of the tree remains available. For
+`deps --why`, a failure on a branch that no returned path covers is still
+reported, with an empty `fields` array because no result path identifies it.
+
+Source names identify the provider, not the lookup strategy: packages read from
+the installed environment are `local` and packages read from PyPI are `pypi`,
+matching the names used by `versions` and by network failures. The legacy
+`remote` value survives only in `result.source`.
 
 ## Compatibility policy
 

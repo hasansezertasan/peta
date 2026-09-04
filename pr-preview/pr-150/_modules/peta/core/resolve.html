@@ -133,75 +133,87 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="15"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
 </span><span data-line="16">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span>
 </span><span data-line="17">
-</span><span data-line="18"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"parse_package_arg"</span><span class="p">,</span> <span class="s2">"resolve_package"</span><span class="p">]</span>
+</span><span data-line="18"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"not_found_source"</span><span class="p">,</span> <span class="s2">"parse_package_arg"</span><span class="p">,</span> <span class="s2">"resolve_package"</span><span class="p">]</span>
 </span><span data-line="19">
 </span><span data-line="20">
-<div class="viewcode-block" id="parse_package_arg">
-<a class="viewcode-back" href="../../../modules.html#peta.core.resolve.parse_package_arg">[docs]</a>
-</span><span data-line="21"><span class="k">def</span><span class="w"> </span><span class="nf">parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span data-line="22"><span class="w">    </span><span class="sd">"""Split a ``name`` or ``name==version`` argument.</span>
+<div class="viewcode-block" id="not_found_source">
+<a class="viewcode-back" href="../../../modules.html#peta.core.resolve.not_found_source">[docs]</a>
+</span><span data-line="21"><span class="k">def</span><span class="w"> </span><span class="nf">not_found_source</span><span class="p">(</span><span class="n">exc</span><span class="p">:</span> <span class="ne">BaseException</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="22"><span class="w">    </span><span class="sd">"""Name the provider that reported a package as missing.</span>
 </span><span data-line="23">
 </span><span data-line="24"><span class="sd">    Returns:</span>
-</span><span data-line="25"><span class="sd">        A ``(name, version)`` tuple; ``version`` is ``None`` when unspecified.</span>
-</span><span data-line="26">
-</span><span data-line="27"><span class="sd">    Raises:</span>
-</span><span data-line="28"><span class="sd">        typer.BadParameter: If the package name is empty, or the argument</span>
-</span><span data-line="29"><span class="sd">            contains ``==`` but the version text after it is empty.</span>
-</span><span data-line="30"><span class="sd">    """</span>
-</span><span data-line="31">    <span class="k">if</span> <span class="s2">"=="</span> <span class="ow">in</span> <span class="n">package</span><span class="p">:</span>
-</span><span data-line="32">        <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">package</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"=="</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-</span><span data-line="33">        <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-</span><span data-line="34">        <span class="k">if</span> <span class="ow">not</span> <span class="n">version</span><span class="p">:</span>
-</span><span data-line="35">            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Missing version after '==' in </span><span class="si">{</span><span class="n">package</span><span class="si">!r}</span><span class="s2">."</span>
-</span><span data-line="36">            <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="37">    <span class="k">else</span><span class="p">:</span>
-</span><span data-line="38">        <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">package</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="kc">None</span>
-</span><span data-line="39">    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
-</span><span data-line="40">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Missing package name in </span><span class="si">{</span><span class="n">package</span><span class="si">!r}</span><span class="s2">."</span>
-</span><span data-line="41">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="42">    <span class="k">return</span> <span class="n">name</span><span class="p">,</span> <span class="n">version</span></div>
+</span><span data-line="25"><span class="sd">        ``"local"`` for the installed environment, otherwise ``"pypi"``.</span>
+</span><span data-line="26"><span class="sd">    """</span>
+</span><span data-line="27">    <span class="k">return</span> <span class="s2">"local"</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">LocalNotFound</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"pypi"</span></div>
 
-</span><span data-line="43">
-</span><span data-line="44">
-</span><span data-line="45"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="46"><span class="w">    </span><span class="sd">"""Resolve a ``name==version`` specifier; always queries PyPI.</span>
-</span><span data-line="47">
-</span><span data-line="48"><span class="sd">    Returns:</span>
-</span><span data-line="49"><span class="sd">        The resolved package metadata.</span>
-</span><span data-line="50">
-</span><span data-line="51"><span class="sd">    Raises:</span>
-</span><span data-line="52"><span class="sd">        typer.BadParameter: If ``--local`` is combined with a version</span>
-</span><span data-line="53"><span class="sd">            specifier.</span>
-</span><span data-line="54"><span class="sd">    """</span>
-</span><span data-line="55">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
-</span><span data-line="56">        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"--local cannot be combined with a version specifier."</span>
-</span><span data-line="57">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="58">    <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+</span><span data-line="28">
+</span><span data-line="29">
+<div class="viewcode-block" id="parse_package_arg">
+<a class="viewcode-back" href="../../../modules.html#peta.core.resolve.parse_package_arg">[docs]</a>
+</span><span data-line="30"><span class="k">def</span><span class="w"> </span><span class="nf">parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="31"><span class="w">    </span><span class="sd">"""Split a ``name`` or ``name==version`` argument.</span>
+</span><span data-line="32">
+</span><span data-line="33"><span class="sd">    Returns:</span>
+</span><span data-line="34"><span class="sd">        A ``(name, version)`` tuple; ``version`` is ``None`` when unspecified.</span>
+</span><span data-line="35">
+</span><span data-line="36"><span class="sd">    Raises:</span>
+</span><span data-line="37"><span class="sd">        typer.BadParameter: If the package name is empty, or the argument</span>
+</span><span data-line="38"><span class="sd">            contains ``==`` but the version text after it is empty.</span>
+</span><span data-line="39"><span class="sd">    """</span>
+</span><span data-line="40">    <span class="k">if</span> <span class="s2">"=="</span> <span class="ow">in</span> <span class="n">package</span><span class="p">:</span>
+</span><span data-line="41">        <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">package</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"=="</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span><span data-line="42">        <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">version</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span><span data-line="43">        <span class="k">if</span> <span class="ow">not</span> <span class="n">version</span><span class="p">:</span>
+</span><span data-line="44">            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Missing version after '==' in </span><span class="si">{</span><span class="n">package</span><span class="si">!r}</span><span class="s2">."</span>
+</span><span data-line="45">            <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="46">    <span class="k">else</span><span class="p">:</span>
+</span><span data-line="47">        <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">package</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="kc">None</span>
+</span><span data-line="48">    <span class="k">if</span> <span class="ow">not</span> <span class="n">name</span><span class="p">:</span>
+</span><span data-line="49">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Missing package name in </span><span class="si">{</span><span class="n">package</span><span class="si">!r}</span><span class="s2">."</span>
+</span><span data-line="50">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="51">    <span class="k">return</span> <span class="n">name</span><span class="p">,</span> <span class="n">version</span></div>
+
+</span><span data-line="52">
+</span><span data-line="53">
+</span><span data-line="54"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="55"><span class="w">    </span><span class="sd">"""Resolve a ``name==version`` specifier; always queries PyPI.</span>
+</span><span data-line="56">
+</span><span data-line="57"><span class="sd">    Returns:</span>
+</span><span data-line="58"><span class="sd">        The resolved package metadata.</span>
 </span><span data-line="59">
-</span><span data-line="60">
+</span><span data-line="60"><span class="sd">    Raises:</span>
+</span><span data-line="61"><span class="sd">        typer.BadParameter: If ``--local`` is combined with a version</span>
+</span><span data-line="62"><span class="sd">            specifier.</span>
+</span><span data-line="63"><span class="sd">    """</span>
+</span><span data-line="64">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+</span><span data-line="65">        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"--local cannot be combined with a version specifier."</span>
+</span><span data-line="66">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="67">    <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+</span><span data-line="68">
+</span><span data-line="69">
 <div class="viewcode-block" id="resolve_package">
 <a class="viewcode-back" href="../../../modules.html#peta.core.resolve.resolve_package">[docs]</a>
-</span><span data-line="61"><span class="k">def</span><span class="w"> </span><span class="nf">resolve_package</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="62"><span class="w">    </span><span class="sd">"""Resolve a package argument to its metadata.</span>
-</span><span data-line="63">
-</span><span data-line="64"><span class="sd">    Checks the local environment first and falls back to PyPI, unless</span>
-</span><span data-line="65"><span class="sd">    ``--local``/``--remote`` force a source or a ``name==version`` specifier</span>
-</span><span data-line="66"><span class="sd">    is given (which always queries PyPI and rejects ``--local``).</span>
-</span><span data-line="67">
-</span><span data-line="68"><span class="sd">    Returns:</span>
-</span><span data-line="69"><span class="sd">        The resolved package metadata.</span>
-</span><span data-line="70"><span class="sd">    """</span>
-</span><span data-line="71">    <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
-</span><span data-line="72">    <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
-</span><span data-line="73">        <span class="k">return</span> <span class="n">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
-</span><span data-line="74">    <span class="k">if</span> <span class="n">remote</span><span class="p">:</span>
-</span><span data-line="75">        <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="76">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
-</span><span data-line="77">        <span class="k">return</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="78">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="79">        <span class="k">return</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="80">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
-</span><span data-line="81">        <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+</span><span data-line="70"><span class="k">def</span><span class="w"> </span><span class="nf">resolve_package</span><span class="p">(</span><span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="71"><span class="w">    </span><span class="sd">"""Resolve a package argument to its metadata.</span>
+</span><span data-line="72">
+</span><span data-line="73"><span class="sd">    Checks the local environment first and falls back to PyPI, unless</span>
+</span><span data-line="74"><span class="sd">    ``--local``/``--remote`` force a source or a ``name==version`` specifier</span>
+</span><span data-line="75"><span class="sd">    is given (which always queries PyPI and rejects ``--local``).</span>
+</span><span data-line="76">
+</span><span data-line="77"><span class="sd">    Returns:</span>
+</span><span data-line="78"><span class="sd">        The resolved package metadata.</span>
+</span><span data-line="79"><span class="sd">    """</span>
+</span><span data-line="80">    <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+</span><span data-line="81">    <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
+</span><span data-line="82">        <span class="k">return</span> <span class="n">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
+</span><span data-line="83">    <span class="k">if</span> <span class="n">remote</span><span class="p">:</span>
+</span><span data-line="84">        <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="85">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+</span><span data-line="86">        <span class="k">return</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="87">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="88">        <span class="k">return</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="89">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
+</span><span data-line="90">        <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

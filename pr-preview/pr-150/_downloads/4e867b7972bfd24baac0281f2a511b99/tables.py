@@ -120,6 +120,8 @@ def _node_label(node: DependencyNode) -> str:
     label = f"{node.name} {node.version_spec}".rstrip()
     if node.installed_version:
         label += f" (installed {node.installed_version})"
+    if node.resolution_failure:
+        label += f" (unresolved: {node.resolution_failure.reason})"
     return label
 
 

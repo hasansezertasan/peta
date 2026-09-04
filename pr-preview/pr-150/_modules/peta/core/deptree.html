@@ -149,222 +149,225 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="31">        <span class="k">return</span> <span class="n">DependencyResolutionFailure</span><span class="p">(</span>
 </span><span data-line="32">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">()</span>
 </span><span data-line="33">        <span class="p">)</span>
-</span><span data-line="34">    <span class="n">source</span> <span class="o">=</span> <span class="s2">"local"</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">LocalNotFound</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"pypi"</span>
-</span><span data-line="35">    <span class="k">return</span> <span class="n">DependencyResolutionFailure</span><span class="p">(</span>
-</span><span data-line="36">        <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s2">"unavailable"</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="37">    <span class="p">)</span>
-</span><span data-line="38">
-</span><span data-line="39">
-</span><span data-line="40"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_cached</span><span class="p">(</span>
-</span><span data-line="41">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="42">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">],</span>
-</span><span data-line="43">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="44">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="45">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="46"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">:</span>
-</span><span data-line="47"><span class="w">    </span><span class="sd">"""Resolve ``name`` via the cache, memoizing hits and failures alike.</span>
-</span><span data-line="48">
-</span><span data-line="49"><span class="sd">    Returns:</span>
-</span><span data-line="50"><span class="sd">        The resolved package or a structured lookup failure.</span>
-</span><span data-line="51"><span class="sd">    """</span>
-</span><span data-line="52">    <span class="n">canon</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="53">    <span class="k">if</span> <span class="n">canon</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
-</span><span data-line="54">        <span class="k">return</span> <span class="n">cache</span><span class="p">[</span><span class="n">canon</span><span class="p">]</span>
-</span><span data-line="55">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="56">        <span class="n">pkg</span> <span class="o">=</span> <span class="n">resolve_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
-</span><span data-line="57">    <span class="k">except</span> <span class="n">_UNRESOLVABLE</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="58">        <span class="n">result</span><span class="p">:</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span> <span class="o">=</span> <span class="n">_resolution_failure</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
-</span><span data-line="59">    <span class="k">else</span><span class="p">:</span>
-</span><span data-line="60">        <span class="n">result</span> <span class="o">=</span> <span class="n">pkg</span>
-</span><span data-line="61">    <span class="n">cache</span><span class="p">[</span><span class="n">canon</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
-</span><span data-line="62">    <span class="k">return</span> <span class="n">result</span>
-</span><span data-line="63">
-</span><span data-line="64">
-</span><span data-line="65"><span class="k">def</span><span class="w"> </span><span class="nf">_marker_satisfied</span><span class="p">(</span><span class="n">req</span><span class="p">:</span> <span class="n">Requirement</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="66"><span class="w">    </span><span class="sd">"""Whether a requirement's environment marker holds for a base install.</span>
+</span><span data-line="34">    <span class="c1"># A not-found response means the provider completed the lookup and holds no</span>
+</span><span data-line="35">    <span class="c1"># package data, which the output contract calls ``empty`` rather than</span>
+</span><span data-line="36">    <span class="c1"># ``unavailable`` (reserved for a source that could not be configured).</span>
+</span><span data-line="37">    <span class="n">source</span> <span class="o">=</span> <span class="s2">"local"</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="n">LocalNotFound</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"pypi"</span>
+</span><span data-line="38">    <span class="k">return</span> <span class="n">DependencyResolutionFailure</span><span class="p">(</span>
+</span><span data-line="39">        <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">state</span><span class="o">=</span><span class="s2">"empty"</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span> <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="40">    <span class="p">)</span>
+</span><span data-line="41">
+</span><span data-line="42">
+</span><span data-line="43"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_cached</span><span class="p">(</span>
+</span><span data-line="44">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="45">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">],</span>
+</span><span data-line="46">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="47">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="48">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="49"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">:</span>
+</span><span data-line="50"><span class="w">    </span><span class="sd">"""Resolve ``name`` via the cache, memoizing hits and failures alike.</span>
+</span><span data-line="51">
+</span><span data-line="52"><span class="sd">    Returns:</span>
+</span><span data-line="53"><span class="sd">        The resolved package or a structured lookup failure.</span>
+</span><span data-line="54"><span class="sd">    """</span>
+</span><span data-line="55">    <span class="n">canon</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="56">    <span class="k">if</span> <span class="n">canon</span> <span class="ow">in</span> <span class="n">cache</span><span class="p">:</span>
+</span><span data-line="57">        <span class="k">return</span> <span class="n">cache</span><span class="p">[</span><span class="n">canon</span><span class="p">]</span>
+</span><span data-line="58">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="59">        <span class="n">pkg</span> <span class="o">=</span> <span class="n">resolve_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
+</span><span data-line="60">    <span class="k">except</span> <span class="n">_UNRESOLVABLE</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="61">        <span class="n">result</span><span class="p">:</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span> <span class="o">=</span> <span class="n">_resolution_failure</span><span class="p">(</span><span class="n">exc</span><span class="p">)</span>
+</span><span data-line="62">    <span class="k">else</span><span class="p">:</span>
+</span><span data-line="63">        <span class="n">result</span> <span class="o">=</span> <span class="n">pkg</span>
+</span><span data-line="64">    <span class="n">cache</span><span class="p">[</span><span class="n">canon</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span>
+</span><span data-line="65">    <span class="k">return</span> <span class="n">result</span>
+</span><span data-line="66">
 </span><span data-line="67">
-</span><span data-line="68"><span class="sd">    Evaluates with ``extra=""`` so optional ``extra == "..."`` dependencies</span>
-</span><span data-line="69"><span class="sd">    resolve to unsatisfied (they are not part of the base install) rather than</span>
-</span><span data-line="70"><span class="sd">    raising ``UndefinedEnvironmentName``; any other undefined marker variable is</span>
-</span><span data-line="71"><span class="sd">    likewise treated as unsatisfied.</span>
-</span><span data-line="72">
-</span><span data-line="73"><span class="sd">    Returns:</span>
-</span><span data-line="74"><span class="sd">        ``True`` if there is no marker or the marker is satisfied.</span>
-</span><span data-line="75"><span class="sd">    """</span>
-</span><span data-line="76">    <span class="k">if</span> <span class="n">req</span><span class="o">.</span><span class="n">marker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="77">        <span class="k">return</span> <span class="kc">True</span>
-</span><span data-line="78">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="79">        <span class="c1"># bool(): packaging is unstubbed in the isolated prek mypy env, where</span>
-</span><span data-line="80">        <span class="c1"># Marker.evaluate is seen as returning Any.</span>
-</span><span data-line="81">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">marker</span><span class="o">.</span><span class="n">evaluate</span><span class="p">({</span><span class="s2">"extra"</span><span class="p">:</span> <span class="s2">""</span><span class="p">}))</span>
-</span><span data-line="82">    <span class="k">except</span> <span class="n">UndefinedEnvironmentName</span><span class="p">:</span>
-</span><span data-line="83">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="84">
-</span><span data-line="85">
-</span><span data-line="86"><span class="k">def</span><span class="w"> </span><span class="nf">_kept_requirements</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Requirement</span><span class="p">]:</span>
-</span><span data-line="87"><span class="w">    </span><span class="sd">"""Parse a package's ``requires_dist`` entries, dropping unmet markers.</span>
+</span><span data-line="68"><span class="k">def</span><span class="w"> </span><span class="nf">_marker_satisfied</span><span class="p">(</span><span class="n">req</span><span class="p">:</span> <span class="n">Requirement</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="69"><span class="w">    </span><span class="sd">"""Whether a requirement's environment marker holds for a base install.</span>
+</span><span data-line="70">
+</span><span data-line="71"><span class="sd">    Evaluates with ``extra=""`` so optional ``extra == "..."`` dependencies</span>
+</span><span data-line="72"><span class="sd">    resolve to unsatisfied (they are not part of the base install) rather than</span>
+</span><span data-line="73"><span class="sd">    raising ``UndefinedEnvironmentName``; any other undefined marker variable is</span>
+</span><span data-line="74"><span class="sd">    likewise treated as unsatisfied.</span>
+</span><span data-line="75">
+</span><span data-line="76"><span class="sd">    Returns:</span>
+</span><span data-line="77"><span class="sd">        ``True`` if there is no marker or the marker is satisfied.</span>
+</span><span data-line="78"><span class="sd">    """</span>
+</span><span data-line="79">    <span class="k">if</span> <span class="n">req</span><span class="o">.</span><span class="n">marker</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="80">        <span class="k">return</span> <span class="kc">True</span>
+</span><span data-line="81">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="82">        <span class="c1"># bool(): packaging is unstubbed in the isolated prek mypy env, where</span>
+</span><span data-line="83">        <span class="c1"># Marker.evaluate is seen as returning Any.</span>
+</span><span data-line="84">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">marker</span><span class="o">.</span><span class="n">evaluate</span><span class="p">({</span><span class="s2">"extra"</span><span class="p">:</span> <span class="s2">""</span><span class="p">}))</span>
+</span><span data-line="85">    <span class="k">except</span> <span class="n">UndefinedEnvironmentName</span><span class="p">:</span>
+</span><span data-line="86">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="87">
 </span><span data-line="88">
-</span><span data-line="89"><span class="sd">    Malformed entries (``InvalidRequirement``) are skipped so one bad transitive</span>
-</span><span data-line="90"><span class="sd">    ``requires_dist`` string cannot abort the whole tree — only the root</span>
-</span><span data-line="91"><span class="sd">    resolution is allowed to fail.</span>
-</span><span data-line="92">
-</span><span data-line="93"><span class="sd">    Returns:</span>
-</span><span data-line="94"><span class="sd">        The requirements whose environment marker (if any) is satisfied.</span>
-</span><span data-line="95"><span class="sd">    """</span>
-</span><span data-line="96">    <span class="n">kept</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Requirement</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="97">    <span class="k">for</span> <span class="n">raw</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
-</span><span data-line="98">        <span class="k">try</span><span class="p">:</span>
-</span><span data-line="99">            <span class="n">req</span> <span class="o">=</span> <span class="n">Requirement</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
-</span><span data-line="100">        <span class="k">except</span> <span class="n">InvalidRequirement</span><span class="p">:</span>
-</span><span data-line="101">            <span class="k">continue</span>
-</span><span data-line="102">        <span class="k">if</span> <span class="n">_marker_satisfied</span><span class="p">(</span><span class="n">req</span><span class="p">):</span>
-</span><span data-line="103">            <span class="n">kept</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
-</span><span data-line="104">    <span class="k">return</span> <span class="n">kept</span>
-</span><span data-line="105">
-</span><span data-line="106">
-</span><span data-line="107"><span class="k">def</span><span class="w"> </span><span class="nf">_child_node</span><span class="p">(</span>
-</span><span data-line="108">    <span class="n">req</span><span class="p">:</span> <span class="n">Requirement</span><span class="p">,</span>
-</span><span data-line="109">    <span class="n">path</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-</span><span data-line="110">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">],</span>
-</span><span data-line="111">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="112">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="113">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="114">    <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span data-line="115">    <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span data-line="116"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DependencyNode</span><span class="p">:</span>
-</span><span data-line="117"><span class="w">    </span><span class="sd">"""Build the child node for a single requirement, recursing if allowed.</span>
-</span><span data-line="118">
-</span><span data-line="119"><span class="sd">    Returns:</span>
-</span><span data-line="120"><span class="sd">        The child's dependency node (a leaf when circular, unresolvable, or</span>
-</span><span data-line="121"><span class="sd">        past ``max_depth``).</span>
-</span><span data-line="122"><span class="sd">    """</span>
-</span><span data-line="123">    <span class="n">version_spec</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">specifier</span><span class="p">)</span>
-</span><span data-line="124">    <span class="n">canon</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="125">    <span class="k">if</span> <span class="n">canon</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
-</span><span data-line="126">        <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span> <span class="n">circular</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="127">    <span class="n">resolved</span> <span class="o">=</span> <span class="n">_resolve_cached</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
-</span><span data-line="128">    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">resolved</span><span class="p">,</span> <span class="n">DependencyResolutionFailure</span><span class="p">):</span>
-</span><span data-line="129">        <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
-</span><span data-line="130">            <span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span> <span class="n">resolution_failure</span><span class="o">=</span><span class="n">resolved</span>
-</span><span data-line="131">        <span class="p">)</span>
-</span><span data-line="132">    <span class="n">child_pkg</span> <span class="o">=</span> <span class="n">resolved</span>
-</span><span data-line="133">    <span class="k">if</span> <span class="n">depth</span> <span class="o">&gt;=</span> <span class="n">max_depth</span><span class="p">:</span>
-</span><span data-line="134">        <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
-</span><span data-line="135">            <span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="136">            <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span>
-</span><span data-line="137">            <span class="n">installed_version</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
-</span><span data-line="138">            <span class="n">source</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="139">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
-</span><span data-line="140">        <span class="p">)</span>
-</span><span data-line="141">    <span class="n">children</span> <span class="o">=</span> <span class="n">_expand</span><span class="p">(</span>
-</span><span data-line="142">        <span class="n">child_pkg</span><span class="p">,</span>
-</span><span data-line="143">        <span class="n">path</span> <span class="o">|</span> <span class="p">{</span><span class="n">canon</span><span class="p">},</span>
-</span><span data-line="144">        <span class="n">cache</span><span class="p">,</span>
-</span><span data-line="145">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
-</span><span data-line="146">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
-</span><span data-line="147">        <span class="n">depth</span><span class="o">=</span><span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
-</span><span data-line="148">        <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
-</span><span data-line="149">    <span class="p">)</span>
-</span><span data-line="150">    <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
-</span><span data-line="151">        <span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="152">        <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span>
-</span><span data-line="153">        <span class="n">installed_version</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
-</span><span data-line="154">        <span class="n">children</span><span class="o">=</span><span class="n">children</span><span class="p">,</span>
-</span><span data-line="155">        <span class="n">source</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="156">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
-</span><span data-line="157">    <span class="p">)</span>
-</span><span data-line="158">
-</span><span data-line="159">
-</span><span data-line="160"><span class="k">def</span><span class="w"> </span><span class="nf">_expand</span><span class="p">(</span>
-</span><span data-line="161">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="162">    <span class="n">path</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
-</span><span data-line="163">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">],</span>
-</span><span data-line="164">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="165">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="166">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="167">    <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span data-line="168">    <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span data-line="169"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">DependencyNode</span><span class="p">]:</span>
-</span><span data-line="170"><span class="w">    </span><span class="sd">"""Build the dependency nodes for every kept requirement of ``pkg``.</span>
-</span><span data-line="171">
-</span><span data-line="172"><span class="sd">    Returns:</span>
-</span><span data-line="173"><span class="sd">        The child dependency nodes.</span>
-</span><span data-line="174"><span class="sd">    """</span>
-</span><span data-line="175">    <span class="k">return</span> <span class="p">[</span>
-</span><span data-line="176">        <span class="n">_child_node</span><span class="p">(</span>
-</span><span data-line="177">            <span class="n">req</span><span class="p">,</span>
-</span><span data-line="178">            <span class="n">path</span><span class="p">,</span>
-</span><span data-line="179">            <span class="n">cache</span><span class="p">,</span>
-</span><span data-line="180">            <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
-</span><span data-line="181">            <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
-</span><span data-line="182">            <span class="n">depth</span><span class="o">=</span><span class="n">depth</span><span class="p">,</span>
-</span><span data-line="183">            <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
-</span><span data-line="184">        <span class="p">)</span>
-</span><span data-line="185">        <span class="k">for</span> <span class="n">req</span> <span class="ow">in</span> <span class="n">_kept_requirements</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span>
-</span><span data-line="186">    <span class="p">]</span>
-</span><span data-line="187">
-</span><span data-line="188">
+</span><span data-line="89"><span class="k">def</span><span class="w"> </span><span class="nf">_kept_requirements</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Requirement</span><span class="p">]:</span>
+</span><span data-line="90"><span class="w">    </span><span class="sd">"""Parse a package's ``requires_dist`` entries, dropping unmet markers.</span>
+</span><span data-line="91">
+</span><span data-line="92"><span class="sd">    Malformed entries (``InvalidRequirement``) are skipped so one bad transitive</span>
+</span><span data-line="93"><span class="sd">    ``requires_dist`` string cannot abort the whole tree — only the root</span>
+</span><span data-line="94"><span class="sd">    resolution is allowed to fail.</span>
+</span><span data-line="95">
+</span><span data-line="96"><span class="sd">    Returns:</span>
+</span><span data-line="97"><span class="sd">        The requirements whose environment marker (if any) is satisfied.</span>
+</span><span data-line="98"><span class="sd">    """</span>
+</span><span data-line="99">    <span class="n">kept</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Requirement</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="100">    <span class="k">for</span> <span class="n">raw</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependencies</span><span class="p">:</span>
+</span><span data-line="101">        <span class="k">try</span><span class="p">:</span>
+</span><span data-line="102">            <span class="n">req</span> <span class="o">=</span> <span class="n">Requirement</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</span><span data-line="103">        <span class="k">except</span> <span class="n">InvalidRequirement</span><span class="p">:</span>
+</span><span data-line="104">            <span class="k">continue</span>
+</span><span data-line="105">        <span class="k">if</span> <span class="n">_marker_satisfied</span><span class="p">(</span><span class="n">req</span><span class="p">):</span>
+</span><span data-line="106">            <span class="n">kept</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">req</span><span class="p">)</span>
+</span><span data-line="107">    <span class="k">return</span> <span class="n">kept</span>
+</span><span data-line="108">
+</span><span data-line="109">
+</span><span data-line="110"><span class="k">def</span><span class="w"> </span><span class="nf">_child_node</span><span class="p">(</span>
+</span><span data-line="111">    <span class="n">req</span><span class="p">:</span> <span class="n">Requirement</span><span class="p">,</span>
+</span><span data-line="112">    <span class="n">path</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span data-line="113">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">],</span>
+</span><span data-line="114">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="115">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="116">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="117">    <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="118">    <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="119"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DependencyNode</span><span class="p">:</span>
+</span><span data-line="120"><span class="w">    </span><span class="sd">"""Build the child node for a single requirement, recursing if allowed.</span>
+</span><span data-line="121">
+</span><span data-line="122"><span class="sd">    Returns:</span>
+</span><span data-line="123"><span class="sd">        The child's dependency node (a leaf when circular, unresolvable, or</span>
+</span><span data-line="124"><span class="sd">        past ``max_depth``).</span>
+</span><span data-line="125"><span class="sd">    """</span>
+</span><span data-line="126">    <span class="n">version_spec</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">specifier</span><span class="p">)</span>
+</span><span data-line="127">    <span class="n">canon</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="128">    <span class="k">if</span> <span class="n">canon</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+</span><span data-line="129">        <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span> <span class="n">circular</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="130">    <span class="n">resolved</span> <span class="o">=</span> <span class="n">_resolve_cached</span><span class="p">(</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">cache</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
+</span><span data-line="131">    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">resolved</span><span class="p">,</span> <span class="n">DependencyResolutionFailure</span><span class="p">):</span>
+</span><span data-line="132">        <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
+</span><span data-line="133">            <span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span> <span class="n">resolution_failure</span><span class="o">=</span><span class="n">resolved</span>
+</span><span data-line="134">        <span class="p">)</span>
+</span><span data-line="135">    <span class="n">child_pkg</span> <span class="o">=</span> <span class="n">resolved</span>
+</span><span data-line="136">    <span class="k">if</span> <span class="n">depth</span> <span class="o">&gt;=</span> <span class="n">max_depth</span><span class="p">:</span>
+</span><span data-line="137">        <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
+</span><span data-line="138">            <span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="139">            <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span>
+</span><span data-line="140">            <span class="n">installed_version</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+</span><span data-line="141">            <span class="n">source</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="142">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
+</span><span data-line="143">        <span class="p">)</span>
+</span><span data-line="144">    <span class="n">children</span> <span class="o">=</span> <span class="n">_expand</span><span class="p">(</span>
+</span><span data-line="145">        <span class="n">child_pkg</span><span class="p">,</span>
+</span><span data-line="146">        <span class="n">path</span> <span class="o">|</span> <span class="p">{</span><span class="n">canon</span><span class="p">},</span>
+</span><span data-line="147">        <span class="n">cache</span><span class="p">,</span>
+</span><span data-line="148">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="149">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="150">        <span class="n">depth</span><span class="o">=</span><span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">,</span>
+</span><span data-line="151">        <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
+</span><span data-line="152">    <span class="p">)</span>
+</span><span data-line="153">    <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
+</span><span data-line="154">        <span class="n">name</span><span class="o">=</span><span class="n">req</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="155">        <span class="n">version_spec</span><span class="o">=</span><span class="n">version_spec</span><span class="p">,</span>
+</span><span data-line="156">        <span class="n">installed_version</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+</span><span data-line="157">        <span class="n">children</span><span class="o">=</span><span class="n">children</span><span class="p">,</span>
+</span><span data-line="158">        <span class="n">source</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="159">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">child_pkg</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
+</span><span data-line="160">    <span class="p">)</span>
+</span><span data-line="161">
+</span><span data-line="162">
+</span><span data-line="163"><span class="k">def</span><span class="w"> </span><span class="nf">_expand</span><span class="p">(</span>
+</span><span data-line="164">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="165">    <span class="n">path</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+</span><span data-line="166">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">],</span>
+</span><span data-line="167">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="168">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="169">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="170">    <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="171">    <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="172"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">DependencyNode</span><span class="p">]:</span>
+</span><span data-line="173"><span class="w">    </span><span class="sd">"""Build the dependency nodes for every kept requirement of ``pkg``.</span>
+</span><span data-line="174">
+</span><span data-line="175"><span class="sd">    Returns:</span>
+</span><span data-line="176"><span class="sd">        The child dependency nodes.</span>
+</span><span data-line="177"><span class="sd">    """</span>
+</span><span data-line="178">    <span class="k">return</span> <span class="p">[</span>
+</span><span data-line="179">        <span class="n">_child_node</span><span class="p">(</span>
+</span><span data-line="180">            <span class="n">req</span><span class="p">,</span>
+</span><span data-line="181">            <span class="n">path</span><span class="p">,</span>
+</span><span data-line="182">            <span class="n">cache</span><span class="p">,</span>
+</span><span data-line="183">            <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="184">            <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="185">            <span class="n">depth</span><span class="o">=</span><span class="n">depth</span><span class="p">,</span>
+</span><span data-line="186">            <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
+</span><span data-line="187">        <span class="p">)</span>
+</span><span data-line="188">        <span class="k">for</span> <span class="n">req</span> <span class="ow">in</span> <span class="n">_kept_requirements</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span>
+</span><span data-line="189">    <span class="p">]</span>
+</span><span data-line="190">
+</span><span data-line="191">
 <div class="viewcode-block" id="build_tree">
 <a class="viewcode-back" href="../../../modules.html#peta.core.deptree.build_tree">[docs]</a>
-</span><span data-line="189"><span class="k">def</span><span class="w"> </span><span class="nf">build_tree</span><span class="p">(</span>
-</span><span data-line="190">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
-</span><span data-line="191"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DependencyNode</span><span class="p">:</span>
-</span><span data-line="192"><span class="w">    </span><span class="sd">"""Recursively resolve ``name`` and its dependency tree.</span>
-</span><span data-line="193">
-</span><span data-line="194"><span class="sd">    Only the root resolution can raise (propagated from</span>
-</span><span data-line="195"><span class="sd">    :func:`peta.core.resolve.resolve_package`); unresolvable transitive</span>
-</span><span data-line="196"><span class="sd">    dependencies become leaf nodes with ``installed_version=None`` instead.</span>
-</span><span data-line="197">
-</span><span data-line="198"><span class="sd">    Returns:</span>
-</span><span data-line="199"><span class="sd">        The root :class:`DependencyNode`, with children expanded recursively.</span>
-</span><span data-line="200"><span class="sd">    """</span>
-</span><span data-line="201">    <span class="n">root_pkg</span> <span class="o">=</span> <span class="n">resolve_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
-</span><span data-line="202">    <span class="n">canon</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="203">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">canon</span><span class="p">:</span> <span class="n">root_pkg</span><span class="p">}</span>
-</span><span data-line="204">    <span class="n">children</span> <span class="o">=</span> <span class="n">_expand</span><span class="p">(</span>
-</span><span data-line="205">        <span class="n">root_pkg</span><span class="p">,</span>
-</span><span data-line="206">        <span class="nb">frozenset</span><span class="p">({</span><span class="n">canon</span><span class="p">}),</span>
-</span><span data-line="207">        <span class="n">cache</span><span class="p">,</span>
-</span><span data-line="208">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
-</span><span data-line="209">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
-</span><span data-line="210">        <span class="n">depth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-</span><span data-line="211">        <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
-</span><span data-line="212">    <span class="p">)</span>
-</span><span data-line="213">    <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
-</span><span data-line="214">        <span class="n">name</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="215">        <span class="n">version_spec</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span>
-</span><span data-line="216">        <span class="n">installed_version</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
-</span><span data-line="217">        <span class="n">children</span><span class="o">=</span><span class="n">children</span><span class="p">,</span>
-</span><span data-line="218">        <span class="n">source</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="219">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
-</span><span data-line="220">    <span class="p">)</span></div>
+</span><span data-line="192"><span class="k">def</span><span class="w"> </span><span class="nf">build_tree</span><span class="p">(</span>
+</span><span data-line="193">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">max_depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+</span><span data-line="194"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DependencyNode</span><span class="p">:</span>
+</span><span data-line="195"><span class="w">    </span><span class="sd">"""Recursively resolve ``name`` and its dependency tree.</span>
+</span><span data-line="196">
+</span><span data-line="197"><span class="sd">    Only the root resolution can raise (propagated from</span>
+</span><span data-line="198"><span class="sd">    :func:`peta.core.resolve.resolve_package`); unresolvable transitive</span>
+</span><span data-line="199"><span class="sd">    dependencies become leaf nodes with ``installed_version=None`` instead.</span>
+</span><span data-line="200">
+</span><span data-line="201"><span class="sd">    Returns:</span>
+</span><span data-line="202"><span class="sd">        The root :class:`DependencyNode`, with children expanded recursively.</span>
+</span><span data-line="203"><span class="sd">    """</span>
+</span><span data-line="204">    <span class="n">root_pkg</span> <span class="o">=</span> <span class="n">resolve_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">)</span>
+</span><span data-line="205">    <span class="n">canon</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="206">    <span class="n">cache</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="n">DependencyResolutionFailure</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">canon</span><span class="p">:</span> <span class="n">root_pkg</span><span class="p">}</span>
+</span><span data-line="207">    <span class="n">children</span> <span class="o">=</span> <span class="n">_expand</span><span class="p">(</span>
+</span><span data-line="208">        <span class="n">root_pkg</span><span class="p">,</span>
+</span><span data-line="209">        <span class="nb">frozenset</span><span class="p">({</span><span class="n">canon</span><span class="p">}),</span>
+</span><span data-line="210">        <span class="n">cache</span><span class="p">,</span>
+</span><span data-line="211">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="212">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="213">        <span class="n">depth</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span data-line="214">        <span class="n">max_depth</span><span class="o">=</span><span class="n">max_depth</span><span class="p">,</span>
+</span><span data-line="215">    <span class="p">)</span>
+</span><span data-line="216">    <span class="k">return</span> <span class="n">DependencyNode</span><span class="p">(</span>
+</span><span data-line="217">        <span class="n">name</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="218">        <span class="n">version_spec</span><span class="o">=</span><span class="s2">""</span><span class="p">,</span>
+</span><span data-line="219">        <span class="n">installed_version</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+</span><span data-line="220">        <span class="n">children</span><span class="o">=</span><span class="n">children</span><span class="p">,</span>
+</span><span data-line="221">        <span class="n">source</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="222">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">root_pkg</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
+</span><span data-line="223">    <span class="p">)</span></div>
 
-</span><span data-line="221">
-</span><span data-line="222">
-</span><span data-line="223"><span class="k">def</span><span class="w"> </span><span class="nf">_collect_why</span><span class="p">(</span>
-</span><span data-line="224">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">canon_target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">trail</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
-</span><span data-line="225"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="226">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
-</span><span data-line="227">        <span class="n">new_trail</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">trail</span><span class="p">,</span> <span class="n">child</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
-</span><span data-line="228">        <span class="k">if</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">child</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="n">canon_target</span><span class="p">:</span>
-</span><span data-line="229">            <span class="n">paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_trail</span><span class="p">)</span>
-</span><span data-line="230">        <span class="k">else</span><span class="p">:</span>
-</span><span data-line="231">            <span class="n">_collect_why</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">canon_target</span><span class="p">,</span> <span class="n">new_trail</span><span class="p">,</span> <span class="n">paths</span><span class="p">)</span>
-</span><span data-line="232">
-</span><span data-line="233">
+</span><span data-line="224">
+</span><span data-line="225">
+</span><span data-line="226"><span class="k">def</span><span class="w"> </span><span class="nf">_collect_why</span><span class="p">(</span>
+</span><span data-line="227">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">canon_target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">trail</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span>
+</span><span data-line="228"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="229">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+</span><span data-line="230">        <span class="n">new_trail</span> <span class="o">=</span> <span class="p">[</span><span class="o">*</span><span class="n">trail</span><span class="p">,</span> <span class="n">child</span><span class="o">.</span><span class="n">name</span><span class="p">]</span>
+</span><span data-line="231">        <span class="k">if</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">child</span><span class="o">.</span><span class="n">name</span><span class="p">)</span> <span class="o">==</span> <span class="n">canon_target</span><span class="p">:</span>
+</span><span data-line="232">            <span class="n">paths</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_trail</span><span class="p">)</span>
+</span><span data-line="233">        <span class="k">else</span><span class="p">:</span>
+</span><span data-line="234">            <span class="n">_collect_why</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">canon_target</span><span class="p">,</span> <span class="n">new_trail</span><span class="p">,</span> <span class="n">paths</span><span class="p">)</span>
+</span><span data-line="235">
+</span><span data-line="236">
 <div class="viewcode-block" id="find_why">
 <a class="viewcode-back" href="../../../modules.html#peta.core.deptree.find_why">[docs]</a>
-</span><span data-line="234"><span class="k">def</span><span class="w"> </span><span class="nf">find_why</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
-</span><span data-line="235"><span class="w">    </span><span class="sd">"""Find every root-to-``target`` path in the dependency tree.</span>
-</span><span data-line="236">
-</span><span data-line="237"><span class="sd">    Returns:</span>
-</span><span data-line="238"><span class="sd">        A list of name paths (each starting with ``root.name``); empty if</span>
-</span><span data-line="239"><span class="sd">        ``target`` is not present anywhere in the tree.</span>
-</span><span data-line="240"><span class="sd">    """</span>
-</span><span data-line="241">    <span class="n">canon_target</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-</span><span data-line="242">    <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="243">    <span class="n">_collect_why</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">canon_target</span><span class="p">,</span> <span class="p">[</span><span class="n">root</span><span class="o">.</span><span class="n">name</span><span class="p">],</span> <span class="n">paths</span><span class="p">)</span>
-</span><span data-line="244">    <span class="k">return</span> <span class="n">paths</span></div>
+</span><span data-line="237"><span class="k">def</span><span class="w"> </span><span class="nf">find_why</span><span class="p">(</span><span class="n">root</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+</span><span data-line="238"><span class="w">    </span><span class="sd">"""Find every root-to-``target`` path in the dependency tree.</span>
+</span><span data-line="239">
+</span><span data-line="240"><span class="sd">    Returns:</span>
+</span><span data-line="241"><span class="sd">        A list of name paths (each starting with ``root.name``); empty if</span>
+</span><span data-line="242"><span class="sd">        ``target`` is not present anywhere in the tree.</span>
+</span><span data-line="243"><span class="sd">    """</span>
+</span><span data-line="244">    <span class="n">canon_target</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="245">    <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="246">    <span class="n">_collect_why</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="n">canon_target</span><span class="p">,</span> <span class="p">[</span><span class="n">root</span><span class="o">.</span><span class="n">name</span><span class="p">],</span> <span class="n">paths</span><span class="p">)</span>
+</span><span data-line="247">    <span class="k">return</span> <span class="n">paths</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

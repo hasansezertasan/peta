@@ -358,10 +358,13 @@ including the <code class="docutils literal notranslate"><span class="pre">--no-
 <td><p>Success.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">1</span></code></p></td>
-<td><p>Package not found.</p></td>
+<td><p>Package not found, or <code class="docutils literal notranslate"><span class="pre">deps</span> <span class="pre">--why</span></code> found no path to the target.</p></td>
 </tr>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p></td>
-<td><p>Network or PyPI HTTP error.</p></td>
+<td><p>Network or PyPI HTTP error, or invalid arguments (an unparsable
+<code class="docutils literal notranslate"><span class="pre">name==version</span></code>, <code class="docutils literal notranslate"><span class="pre">--local</span></code> with a version specifier, <code class="docutils literal notranslate"><span class="pre">--json</span></code>
+combined with a non-JSON <code class="docutils literal notranslate"><span class="pre">--format</span></code>, or a parser rejection such as an
+unknown option or out-of-range <code class="docutils literal notranslate"><span class="pre">--depth</span></code>).</p></td>
 </tr>
 </tbody>
 </table>

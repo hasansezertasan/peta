@@ -92,9 +92,12 @@ Exit codes
    * - ``0``
      - Success.
    * - ``1``
-     - Package not found.
+     - Package not found, or ``deps --why`` found no path to the target.
    * - ``2``
-     - Network or PyPI HTTP error.
+     - Network or PyPI HTTP error, or invalid arguments (an unparsable
+       ``name==version``, ``--local`` with a version specifier, ``--json``
+       combined with a non-JSON ``--format``, or a parser rejection such as an
+       unknown option or out-of-range ``--depth``).
 
 Failures from optional OSV, pypistats, and Libraries.io enrichment sources are
 reported as warnings and retain exit code ``0``.

@@ -134,7 +134,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="16"><span class="p">)</span>
 </span><span data-line="17">
 </span><span data-line="18"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-</span><span data-line="19">    <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterator</span>
+</span><span data-line="19">    <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Container</span><span class="p">,</span> <span class="n">Iterator</span>
 </span><span data-line="20">
 </span><span data-line="21">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">PackageInfo</span>
 </span><span data-line="22">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.output</span><span class="w"> </span><span class="kn">import</span> <span class="n">CommandName</span><span class="p">,</span> <span class="n">MessageCode</span>
@@ -220,438 +220,469 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="102">    <span class="k">return</span> <span class="n">records</span>
 </span><span data-line="103">
 </span><span data-line="104">
-</span><span data-line="105"><span class="k">def</span><span class="w"> </span><span class="nf">_enrichment_fields</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">result_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"result"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="106">    <span class="n">suffix</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="107">        <span class="s2">"osv"</span><span class="p">:</span> <span class="s2">"vulnerabilities"</span><span class="p">,</span>
-</span><span data-line="108">        <span class="s2">"pypistats"</span><span class="p">:</span> <span class="s2">"download_count"</span><span class="p">,</span>
-</span><span data-line="109">        <span class="s2">"libraries.io"</span><span class="p">:</span> <span class="s2">"dependent_count"</span><span class="p">,</span>
-</span><span data-line="110">    <span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
-</span><span data-line="111">    <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result_path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="k">if</span> <span class="n">suffix</span> <span class="k">else</span> <span class="p">[]</span>
-</span><span data-line="112">
-</span><span data-line="113">
-</span><span data-line="114"><span class="k">def</span><span class="w"> </span><span class="nf">_at_result_path</span><span class="p">(</span><span class="n">record</span><span class="p">:</span> <span class="n">SourceRecord</span><span class="p">,</span> <span class="n">result_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SourceRecord</span><span class="p">:</span>
-</span><span data-line="115">    <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="116">        <span class="n">field</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"result"</span><span class="p">,</span> <span class="n">result_path</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-</span><span data-line="117">        <span class="k">if</span> <span class="n">field</span> <span class="o">==</span> <span class="s2">"result"</span> <span class="ow">or</span> <span class="n">field</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"result."</span><span class="p">)</span>
-</span><span data-line="118">        <span class="k">else</span> <span class="n">field</span>
-</span><span data-line="119">        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">record</span><span class="o">.</span><span class="n">fields</span>
-</span><span data-line="120">    <span class="p">]</span>
-</span><span data-line="121">    <span class="k">return</span> <span class="n">replace</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">)</span>
+</span><span data-line="105"><span class="n">_UNRESOLVED_STATES</span><span class="p">:</span> <span class="nb">frozenset</span><span class="p">[</span><span class="n">SourceState</span><span class="p">]</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+</span><span data-line="106">    <span class="s2">"empty"</span><span class="p">,</span>
+</span><span data-line="107">    <span class="s2">"failed"</span><span class="p">,</span>
+</span><span data-line="108">    <span class="s2">"unavailable"</span><span class="p">,</span>
+</span><span data-line="109"><span class="p">})</span>
+</span><span data-line="110">
+</span><span data-line="111">
+</span><span data-line="112"><span class="k">def</span><span class="w"> </span><span class="nf">_provider</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="113"><span class="w">    </span><span class="sd">"""Name the provider behind a ``PackageInfo.source`` value.</span>
+</span><span data-line="114">
+</span><span data-line="115"><span class="sd">    ``PackageInfo.source`` keeps its legacy ``"remote"`` value in ``result``,</span>
+</span><span data-line="116"><span class="sd">    but provenance names the same provider ``pypi`` everywhere.</span>
+</span><span data-line="117">
+</span><span data-line="118"><span class="sd">    Returns:</span>
+</span><span data-line="119"><span class="sd">        The provenance name for ``source``.</span>
+</span><span data-line="120"><span class="sd">    """</span>
+</span><span data-line="121">    <span class="k">return</span> <span class="s2">"local"</span> <span class="k">if</span> <span class="n">source</span> <span class="o">==</span> <span class="s2">"local"</span> <span class="k">else</span> <span class="s2">"pypi"</span>
 </span><span data-line="122">
 </span><span data-line="123">
-</span><span data-line="124"><span class="k">def</span><span class="w"> </span><span class="nf">_source_records</span><span class="p">(</span>
-</span><span data-line="125">    <span class="n">packages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">],</span>
-</span><span data-line="126">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="127">    <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="128">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="129">    <span class="n">include_enrichment</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="130">    <span class="n">result_paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="131"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
-</span><span data-line="132">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="133">    <span class="n">args</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
-</span><span data-line="134">    <span class="n">paths</span> <span class="o">=</span> <span class="n">result_paths</span> <span class="ow">or</span> <span class="p">[</span><span class="s2">"result"</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">packages</span><span class="p">)</span>
-</span><span data-line="135">    <span class="k">for</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">result_path</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-</span><span data-line="136">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-</span><span data-line="137">            <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="138">                <span class="n">name</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="139">                <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span><span class="p">,</span>
-</span><span data-line="140">                <span class="n">target</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="141">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="142">                <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="n">result_path</span><span class="p">],</span>
-</span><span data-line="143">            <span class="p">)</span>
-</span><span data-line="144">        <span class="p">)</span>
-</span><span data-line="145">        <span class="k">if</span> <span class="ow">not</span> <span class="n">include_enrichment</span><span class="p">:</span>
-</span><span data-line="146">            <span class="k">continue</span>
-</span><span data-line="147">        <span class="k">if</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">:</span>
-</span><span data-line="148">            <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="149">                <span class="n">_at_result_path</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
-</span><span data-line="150">                <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span>
-</span><span data-line="151">            <span class="p">)</span>
-</span><span data-line="152">            <span class="k">continue</span>
-</span><span data-line="153">        <span class="n">failures</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="154">            <span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">reason</span> <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span>
-</span><span data-line="155">        <span class="p">}</span>
-</span><span data-line="156">        <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="157">            <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="158">                <span class="n">name</span><span class="o">=</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="159">                <span class="n">state</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
-</span><span data-line="160">                <span class="n">target</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="161">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="162">                <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
-</span><span data-line="163">                <span class="n">fields</span><span class="o">=</span><span class="n">_enrichment_fields</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">result_path</span><span class="p">),</span>
-</span><span data-line="164">            <span class="p">)</span>
-</span><span data-line="165">            <span class="k">for</span> <span class="n">source</span><span class="p">,</span> <span class="n">reason</span> <span class="ow">in</span> <span class="n">failures</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-</span><span data-line="166">        <span class="p">)</span>
-</span><span data-line="167">        <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_enrichment_records</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">failures</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">result_path</span><span class="p">))</span>
-</span><span data-line="168">    <span class="k">return</span> <span class="n">records</span>
-</span><span data-line="169">
-</span><span data-line="170">
-</span><span data-line="171"><span class="k">def</span><span class="w"> </span><span class="nf">_warnings</span><span class="p">(</span><span class="n">packages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]:</span>
-</span><span data-line="172">    <span class="k">return</span> <span class="p">[</span>
-</span><span data-line="173">        <span class="n">OutputMessage</span><span class="p">(</span>
-</span><span data-line="174">            <span class="n">code</span><span class="o">=</span><span class="s2">"enrichment_failed"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span>
-</span><span data-line="175">        <span class="p">)</span>
-</span><span data-line="176">        <span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span> <span class="n">packages</span>
-</span><span data-line="177">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span>
-</span><span data-line="178">    <span class="p">]</span>
-</span><span data-line="179">
-</span><span data-line="180">
-</span><span data-line="181"><span class="k">def</span><span class="w"> </span><span class="nf">_dump</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="182">    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-</span><span data-line="183">
-</span><span data-line="184">
-</span><span data-line="185"><span class="k">def</span><span class="w"> </span><span class="nf">_package_envelope</span><span class="p">(</span>
-</span><span data-line="186">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
-</span><span data-line="187">    <span class="n">packages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">],</span>
-</span><span data-line="188">    <span class="n">result</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
-</span><span data-line="189">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="190">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="191">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="192">    <span class="n">empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="193">    <span class="n">include_enrichment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-</span><span data-line="194">    <span class="n">result_paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="195"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="196">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="197">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_warnings</span><span class="p">(</span><span class="n">packages</span><span class="p">)</span>
-</span><span data-line="198">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="199">        <span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"empty"</span> <span class="k">if</span> <span class="n">empty</span> <span class="k">else</span> <span class="s2">"success"</span><span class="p">)</span>
-</span><span data-line="200">    <span class="p">)</span>
-</span><span data-line="201">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="202">        <span class="n">command</span><span class="p">,</span>
-</span><span data-line="203">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="204">        <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
-</span><span data-line="205">        <span class="n">result</span><span class="o">=</span><span class="n">result</span><span class="p">,</span>
-</span><span data-line="206">        <span class="n">sources</span><span class="o">=</span><span class="n">_source_records</span><span class="p">(</span>
-</span><span data-line="207">            <span class="n">packages</span><span class="p">,</span>
-</span><span data-line="208">            <span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="209">            <span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="210">            <span class="n">include_enrichment</span><span class="o">=</span><span class="n">include_enrichment</span><span class="p">,</span>
-</span><span data-line="211">            <span class="n">result_paths</span><span class="o">=</span><span class="n">result_paths</span><span class="p">,</span>
-</span><span data-line="212">        <span class="p">),</span>
-</span><span data-line="213">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
-</span><span data-line="214">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="215">    <span class="p">)</span>
-</span><span data-line="216">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
-</span><span data-line="217">
-</span><span data-line="218">
+</span><span data-line="124"><span class="k">def</span><span class="w"> </span><span class="nf">_enrichment_fields</span><span class="p">(</span><span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">result_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"result"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="125">    <span class="n">suffix</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="126">        <span class="s2">"osv"</span><span class="p">:</span> <span class="s2">"vulnerabilities"</span><span class="p">,</span>
+</span><span data-line="127">        <span class="s2">"pypistats"</span><span class="p">:</span> <span class="s2">"download_count"</span><span class="p">,</span>
+</span><span data-line="128">        <span class="s2">"libraries.io"</span><span class="p">:</span> <span class="s2">"dependent_count"</span><span class="p">,</span>
+</span><span data-line="129">    <span class="p">}</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">source</span><span class="p">)</span>
+</span><span data-line="130">    <span class="k">return</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result_path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="k">if</span> <span class="n">suffix</span> <span class="k">else</span> <span class="p">[]</span>
+</span><span data-line="131">
+</span><span data-line="132">
+</span><span data-line="133"><span class="k">def</span><span class="w"> </span><span class="nf">_at_result_path</span><span class="p">(</span><span class="n">record</span><span class="p">:</span> <span class="n">SourceRecord</span><span class="p">,</span> <span class="n">result_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SourceRecord</span><span class="p">:</span>
+</span><span data-line="134">    <span class="n">fields</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="135">        <span class="n">field</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"result"</span><span class="p">,</span> <span class="n">result_path</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span><span data-line="136">        <span class="k">if</span> <span class="n">field</span> <span class="o">==</span> <span class="s2">"result"</span> <span class="ow">or</span> <span class="n">field</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"result."</span><span class="p">)</span>
+</span><span data-line="137">        <span class="k">else</span> <span class="n">field</span>
+</span><span data-line="138">        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">record</span><span class="o">.</span><span class="n">fields</span>
+</span><span data-line="139">    <span class="p">]</span>
+</span><span data-line="140">    <span class="k">return</span> <span class="n">replace</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="n">fields</span><span class="p">)</span>
+</span><span data-line="141">
+</span><span data-line="142">
+</span><span data-line="143"><span class="k">def</span><span class="w"> </span><span class="nf">_source_records</span><span class="p">(</span>
+</span><span data-line="144">    <span class="n">packages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">],</span>
+</span><span data-line="145">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="146">    <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="147">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="148">    <span class="n">include_enrichment</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="149">    <span class="n">result_paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="150"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="151">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="152">    <span class="n">args</span> <span class="o">=</span> <span class="n">arguments</span> <span class="ow">or</span> <span class="p">{}</span>
+</span><span data-line="153">    <span class="n">paths</span> <span class="o">=</span> <span class="n">result_paths</span> <span class="ow">or</span> <span class="p">[</span><span class="s2">"result"</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">packages</span><span class="p">)</span>
+</span><span data-line="154">    <span class="k">for</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">result_path</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+</span><span data-line="155">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span><span data-line="156">            <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="157">                <span class="n">name</span><span class="o">=</span><span class="n">_provider</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
+</span><span data-line="158">                <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span><span class="p">,</span>
+</span><span data-line="159">                <span class="n">target</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="160">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="161">                <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="n">result_path</span><span class="p">],</span>
+</span><span data-line="162">            <span class="p">)</span>
+</span><span data-line="163">        <span class="p">)</span>
+</span><span data-line="164">        <span class="k">if</span> <span class="ow">not</span> <span class="n">include_enrichment</span><span class="p">:</span>
+</span><span data-line="165">            <span class="k">continue</span>
+</span><span data-line="166">        <span class="k">if</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">:</span>
+</span><span data-line="167">            <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="168">                <span class="n">_at_result_path</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">result_path</span><span class="p">)</span>
+</span><span data-line="169">                <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span>
+</span><span data-line="170">            <span class="p">)</span>
+</span><span data-line="171">            <span class="k">continue</span>
+</span><span data-line="172">        <span class="n">failures</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="173">            <span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">reason</span> <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span>
+</span><span data-line="174">        <span class="p">}</span>
+</span><span data-line="175">        <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="176">            <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="177">                <span class="n">name</span><span class="o">=</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="178">                <span class="n">state</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
+</span><span data-line="179">                <span class="n">target</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="180">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="181">                <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span data-line="182">                <span class="n">fields</span><span class="o">=</span><span class="n">_enrichment_fields</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">result_path</span><span class="p">),</span>
+</span><span data-line="183">            <span class="p">)</span>
+</span><span data-line="184">            <span class="k">for</span> <span class="n">source</span><span class="p">,</span> <span class="n">reason</span> <span class="ow">in</span> <span class="n">failures</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+</span><span data-line="185">        <span class="p">)</span>
+</span><span data-line="186">        <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_enrichment_records</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">failures</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">result_path</span><span class="p">))</span>
+</span><span data-line="187">    <span class="k">return</span> <span class="n">records</span>
+</span><span data-line="188">
+</span><span data-line="189">
+</span><span data-line="190"><span class="k">def</span><span class="w"> </span><span class="nf">_warnings</span><span class="p">(</span><span class="n">packages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]:</span>
+</span><span data-line="191">    <span class="k">return</span> <span class="p">[</span>
+</span><span data-line="192">        <span class="n">OutputMessage</span><span class="p">(</span>
+</span><span data-line="193">            <span class="n">code</span><span class="o">=</span><span class="s2">"enrichment_failed"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span>
+</span><span data-line="194">        <span class="p">)</span>
+</span><span data-line="195">        <span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span> <span class="n">packages</span>
+</span><span data-line="196">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span>
+</span><span data-line="197">    <span class="p">]</span>
+</span><span data-line="198">
+</span><span data-line="199">
+</span><span data-line="200"><span class="k">def</span><span class="w"> </span><span class="nf">_dump</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="201">    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</span><span data-line="202">
+</span><span data-line="203">
+</span><span data-line="204"><span class="k">def</span><span class="w"> </span><span class="nf">_package_envelope</span><span class="p">(</span>
+</span><span data-line="205">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
+</span><span data-line="206">    <span class="n">packages</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">],</span>
+</span><span data-line="207">    <span class="n">result</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
+</span><span data-line="208">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="209">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="210">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="211">    <span class="n">empty</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="212">    <span class="n">include_enrichment</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+</span><span data-line="213">    <span class="n">result_paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="214"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="215">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="216">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_warnings</span><span class="p">(</span><span class="n">packages</span><span class="p">)</span>
+</span><span data-line="217">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="218">        <span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"empty"</span> <span class="k">if</span> <span class="n">empty</span> <span class="k">else</span> <span class="s2">"success"</span><span class="p">)</span>
+</span><span data-line="219">    <span class="p">)</span>
+</span><span data-line="220">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="221">        <span class="n">command</span><span class="p">,</span>
+</span><span data-line="222">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="223">        <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+</span><span data-line="224">        <span class="n">result</span><span class="o">=</span><span class="n">result</span><span class="p">,</span>
+</span><span data-line="225">        <span class="n">sources</span><span class="o">=</span><span class="n">_source_records</span><span class="p">(</span>
+</span><span data-line="226">            <span class="n">packages</span><span class="p">,</span>
+</span><span data-line="227">            <span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="228">            <span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="229">            <span class="n">include_enrichment</span><span class="o">=</span><span class="n">include_enrichment</span><span class="p">,</span>
+</span><span data-line="230">            <span class="n">result_paths</span><span class="o">=</span><span class="n">result_paths</span><span class="p">,</span>
+</span><span data-line="231">        <span class="p">),</span>
+</span><span data-line="232">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
+</span><span data-line="233">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="234">    <span class="p">)</span>
+</span><span data-line="235">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+</span><span data-line="236">
+</span><span data-line="237">
 <div class="viewcode-block" id="format_info">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_info">[docs]</a>
-</span><span data-line="219"><span class="k">def</span><span class="w"> </span><span class="nf">format_info</span><span class="p">(</span>
-</span><span data-line="220">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="221">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="222">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="223">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="224"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="225"><span class="w">    </span><span class="sd">"""Format package metadata in the versioned JSON envelope.</span>
-</span><span data-line="226">
-</span><span data-line="227"><span class="sd">    Returns:</span>
-</span><span data-line="228"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="229"><span class="sd">    """</span>
-</span><span data-line="230">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
-</span><span data-line="231">        <span class="s2">"info"</span><span class="p">,</span>
-</span><span data-line="232">        <span class="p">[</span><span class="n">pkg</span><span class="p">],</span>
-</span><span data-line="233">        <span class="n">_package_dict</span><span class="p">(</span><span class="n">pkg</span><span class="p">),</span>
-</span><span data-line="234">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="235">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
-</span><span data-line="236">    <span class="p">)</span></div>
+</span><span data-line="238"><span class="k">def</span><span class="w"> </span><span class="nf">format_info</span><span class="p">(</span>
+</span><span data-line="239">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="240">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="241">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="242">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="243"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="244"><span class="w">    </span><span class="sd">"""Format package metadata in the versioned JSON envelope.</span>
+</span><span data-line="245">
+</span><span data-line="246"><span class="sd">    Returns:</span>
+</span><span data-line="247"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="248"><span class="sd">    """</span>
+</span><span data-line="249">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
+</span><span data-line="250">        <span class="s2">"info"</span><span class="p">,</span>
+</span><span data-line="251">        <span class="p">[</span><span class="n">pkg</span><span class="p">],</span>
+</span><span data-line="252">        <span class="n">_package_dict</span><span class="p">(</span><span class="n">pkg</span><span class="p">),</span>
+</span><span data-line="253">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="254">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
+</span><span data-line="255">    <span class="p">)</span></div>
 
-</span><span data-line="237">
-</span><span data-line="238">
+</span><span data-line="256">
+</span><span data-line="257">
 <div class="viewcode-block" id="format_compare">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_compare">[docs]</a>
-</span><span data-line="239"><span class="k">def</span><span class="w"> </span><span class="nf">format_compare</span><span class="p">(</span>
-</span><span data-line="240">    <span class="n">a</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="241">    <span class="n">b</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="242">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="243">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="244">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="245"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="246"><span class="w">    </span><span class="sd">"""Format two packages in the versioned JSON envelope.</span>
-</span><span data-line="247">
-</span><span data-line="248"><span class="sd">    Returns:</span>
-</span><span data-line="249"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="250"><span class="sd">    """</span>
-</span><span data-line="251">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
-</span><span data-line="252">        <span class="s2">"compare"</span><span class="p">,</span>
-</span><span data-line="253">        <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">],</span>
-</span><span data-line="254">        <span class="p">{</span><span class="s2">"packages"</span><span class="p">:</span> <span class="p">[</span><span class="n">_package_dict</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">_package_dict</span><span class="p">(</span><span class="n">b</span><span class="p">)]},</span>
-</span><span data-line="255">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="256">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
-</span><span data-line="257">        <span class="n">result_paths</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.packages[0]"</span><span class="p">,</span> <span class="s2">"result.packages[1]"</span><span class="p">],</span>
-</span><span data-line="258">    <span class="p">)</span></div>
+</span><span data-line="258"><span class="k">def</span><span class="w"> </span><span class="nf">format_compare</span><span class="p">(</span>
+</span><span data-line="259">    <span class="n">a</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="260">    <span class="n">b</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="261">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="262">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="263">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="264"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="265"><span class="w">    </span><span class="sd">"""Format two packages in the versioned JSON envelope.</span>
+</span><span data-line="266">
+</span><span data-line="267"><span class="sd">    Returns:</span>
+</span><span data-line="268"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="269"><span class="sd">    """</span>
+</span><span data-line="270">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
+</span><span data-line="271">        <span class="s2">"compare"</span><span class="p">,</span>
+</span><span data-line="272">        <span class="p">[</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">],</span>
+</span><span data-line="273">        <span class="p">{</span><span class="s2">"packages"</span><span class="p">:</span> <span class="p">[</span><span class="n">_package_dict</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">_package_dict</span><span class="p">(</span><span class="n">b</span><span class="p">)]},</span>
+</span><span data-line="274">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="275">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
+</span><span data-line="276">        <span class="n">result_paths</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.packages[0]"</span><span class="p">,</span> <span class="s2">"result.packages[1]"</span><span class="p">],</span>
+</span><span data-line="277">    <span class="p">)</span></div>
 
-</span><span data-line="259">
-</span><span data-line="260">
-</span><span data-line="261"><span class="k">def</span><span class="w"> </span><span class="nf">_node_dict</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="262">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
-</span><span data-line="263">    <span class="k">return</span> <span class="p">{</span>
-</span><span data-line="264">        <span class="s2">"name"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="265">        <span class="s2">"version_spec"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">version_spec</span><span class="p">,</span>
-</span><span data-line="266">        <span class="s2">"installed_version"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">installed_version</span><span class="p">,</span>
-</span><span data-line="267">        <span class="s2">"circular"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">circular</span><span class="p">,</span>
-</span><span data-line="268">        <span class="s2">"source"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="269">        <span class="s2">"resolution"</span><span class="p">:</span> <span class="p">(</span>
-</span><span data-line="270">            <span class="p">{</span><span class="s2">"state"</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="s2">"source"</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="s2">"reason"</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">}</span>
-</span><span data-line="271">            <span class="k">if</span> <span class="n">failure</span>
-</span><span data-line="272">            <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="273">        <span class="p">),</span>
-</span><span data-line="274">        <span class="s2">"children"</span><span class="p">:</span> <span class="p">[</span><span class="n">_node_dict</span><span class="p">(</span><span class="n">child</span><span class="p">)</span> <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">],</span>
-</span><span data-line="275">    <span class="p">}</span>
-</span><span data-line="276">
-</span><span data-line="277">
-</span><span data-line="278"><span class="k">def</span><span class="w"> </span><span class="nf">_dependency_source</span><span class="p">(</span>
-</span><span data-line="279">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="280"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SourceRecord</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="278">
+</span><span data-line="279">
+</span><span data-line="280"><span class="k">def</span><span class="w"> </span><span class="nf">_node_dict</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
 </span><span data-line="281">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
-</span><span data-line="282">    <span class="k">if</span> <span class="n">failure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="283">        <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="284">            <span class="n">name</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="285">            <span class="n">state</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">state</span><span class="p">,</span>
-</span><span data-line="286">            <span class="n">target</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="287">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
-</span><span data-line="288">            <span class="n">reason</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
-</span><span data-line="289">            <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="n">field</span><span class="p">],</span>
-</span><span data-line="290">        <span class="p">)</span>
-</span><span data-line="291">    <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">source</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="292">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="293">    <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="294">        <span class="n">name</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="295">        <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span><span class="p">,</span>
-</span><span data-line="296">        <span class="n">target</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="297">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="298">        <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="n">field</span><span class="p">],</span>
-</span><span data-line="299">    <span class="p">)</span>
-</span><span data-line="300">
-</span><span data-line="301">
-</span><span data-line="302"><span class="k">def</span><span class="w"> </span><span class="nf">_dependency_sources</span><span class="p">(</span>
-</span><span data-line="303">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"result"</span>
-</span><span data-line="304"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
-</span><span data-line="305">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="306">    <span class="n">record</span> <span class="o">=</span> <span class="n">_dependency_source</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
-</span><span data-line="307">    <span class="k">if</span> <span class="n">record</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="308">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
-</span><span data-line="309">    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">child</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">):</span>
-</span><span data-line="310">        <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="311">            <span class="n">_dependency_sources</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2">.children[</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">]"</span><span class="p">)</span>
-</span><span data-line="312">        <span class="p">)</span>
-</span><span data-line="313">    <span class="k">return</span> <span class="n">records</span>
-</span><span data-line="314">
-</span><span data-line="315">
-</span><span data-line="316"><span class="k">def</span><span class="w"> </span><span class="nf">_dependency_warnings</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]:</span>
-</span><span data-line="317">    <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="318">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
-</span><span data-line="319">    <span class="k">if</span> <span class="n">failure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="320">        <span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-</span><span data-line="321">            <span class="n">OutputMessage</span><span class="p">(</span>
-</span><span data-line="322">                <span class="n">code</span><span class="o">=</span><span class="s2">"dependency_resolution_failed"</span><span class="p">,</span>
-</span><span data-line="323">                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-</span><span data-line="324">                <span class="n">source</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
-</span><span data-line="325">            <span class="p">)</span>
-</span><span data-line="326">        <span class="p">)</span>
-</span><span data-line="327">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
-</span><span data-line="328">        <span class="n">warnings</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">child</span><span class="p">))</span>
-</span><span data-line="329">    <span class="k">return</span> <span class="n">warnings</span>
-</span><span data-line="330">
-</span><span data-line="331">
-</span><span data-line="332"><span class="k">def</span><span class="w"> </span><span class="nf">_walk_path</span><span class="p">(</span><span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">DependencyNode</span><span class="p">]:</span>
-</span><span data-line="333"><span class="w">    </span><span class="sd">"""Yield the tree nodes named by ``path``, stopping at the first mismatch.</span>
+</span><span data-line="282">    <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="283">        <span class="s2">"name"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="284">        <span class="s2">"version_spec"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">version_spec</span><span class="p">,</span>
+</span><span data-line="285">        <span class="s2">"installed_version"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">installed_version</span><span class="p">,</span>
+</span><span data-line="286">        <span class="s2">"circular"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">circular</span><span class="p">,</span>
+</span><span data-line="287">        <span class="s2">"source"</span><span class="p">:</span> <span class="n">node</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="288">        <span class="s2">"resolution"</span><span class="p">:</span> <span class="p">(</span>
+</span><span data-line="289">            <span class="p">{</span><span class="s2">"state"</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="s2">"source"</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="s2">"reason"</span><span class="p">:</span> <span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">}</span>
+</span><span data-line="290">            <span class="k">if</span> <span class="n">failure</span>
+</span><span data-line="291">            <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="292">        <span class="p">),</span>
+</span><span data-line="293">        <span class="s2">"children"</span><span class="p">:</span> <span class="p">[</span><span class="n">_node_dict</span><span class="p">(</span><span class="n">child</span><span class="p">)</span> <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">],</span>
+</span><span data-line="294">    <span class="p">}</span>
+</span><span data-line="295">
+</span><span data-line="296">
+</span><span data-line="297"><span class="k">def</span><span class="w"> </span><span class="nf">_dependency_source</span><span class="p">(</span>
+</span><span data-line="298">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="299"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SourceRecord</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="300">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
+</span><span data-line="301">    <span class="k">if</span> <span class="n">failure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="302">        <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="303">            <span class="n">name</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="304">            <span class="n">state</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">state</span><span class="p">,</span>
+</span><span data-line="305">            <span class="n">target</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="306">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
+</span><span data-line="307">            <span class="n">reason</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
+</span><span data-line="308">            <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="n">field</span><span class="p">],</span>
+</span><span data-line="309">        <span class="p">)</span>
+</span><span data-line="310">    <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">source</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="311">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="312">    <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="313">        <span class="n">name</span><span class="o">=</span><span class="n">_provider</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
+</span><span data-line="314">        <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span><span class="p">,</span>
+</span><span data-line="315">        <span class="n">target</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="316">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="317">        <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="n">field</span><span class="p">],</span>
+</span><span data-line="318">    <span class="p">)</span>
+</span><span data-line="319">
+</span><span data-line="320">
+</span><span data-line="321"><span class="k">def</span><span class="w"> </span><span class="nf">_dependency_sources</span><span class="p">(</span>
+</span><span data-line="322">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"result"</span>
+</span><span data-line="323"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="324">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="325">    <span class="n">record</span> <span class="o">=</span> <span class="n">_dependency_source</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+</span><span data-line="326">    <span class="k">if</span> <span class="n">record</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="327">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">record</span><span class="p">)</span>
+</span><span data-line="328">    <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">child</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">):</span>
+</span><span data-line="329">        <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="330">            <span class="n">_dependency_sources</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2">.children[</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">]"</span><span class="p">)</span>
+</span><span data-line="331">        <span class="p">)</span>
+</span><span data-line="332">    <span class="k">return</span> <span class="n">records</span>
+</span><span data-line="333">
 </span><span data-line="334">
-</span><span data-line="335"><span class="sd">    Yields:</span>
-</span><span data-line="336"><span class="sd">        Each node matched, from the root down.</span>
-</span><span data-line="337"><span class="sd">    """</span>
-</span><span data-line="338">    <span class="n">node</span> <span class="o">=</span> <span class="n">tree</span>
-</span><span data-line="339">    <span class="k">for</span> <span class="n">depth</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
-</span><span data-line="340">        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="n">name</span><span class="p">:</span>
-</span><span data-line="341">            <span class="k">return</span>
-</span><span data-line="342">        <span class="k">yield</span> <span class="n">node</span>
-</span><span data-line="343">        <span class="n">remaining</span> <span class="o">=</span> <span class="n">path</span><span class="p">[</span><span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:]</span>
-</span><span data-line="344">        <span class="k">if</span> <span class="ow">not</span> <span class="n">remaining</span><span class="p">:</span>
-</span><span data-line="345">            <span class="k">return</span>
-</span><span data-line="346">        <span class="n">child</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">remaining</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="kc">None</span><span class="p">)</span>
-</span><span data-line="347">        <span class="k">if</span> <span class="n">child</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="348">            <span class="k">return</span>
-</span><span data-line="349">        <span class="n">node</span> <span class="o">=</span> <span class="n">child</span>
+</span><span data-line="335"><span class="k">def</span><span class="w"> </span><span class="nf">_dependency_warnings</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]:</span>
+</span><span data-line="336">    <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="337">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
+</span><span data-line="338">    <span class="k">if</span> <span class="n">failure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="339">        <span class="n">warnings</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span><span data-line="340">            <span class="n">OutputMessage</span><span class="p">(</span>
+</span><span data-line="341">                <span class="n">code</span><span class="o">=</span><span class="s2">"dependency_resolution_failed"</span><span class="p">,</span>
+</span><span data-line="342">                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span data-line="343">                <span class="n">source</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="344">            <span class="p">)</span>
+</span><span data-line="345">        <span class="p">)</span>
+</span><span data-line="346">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+</span><span data-line="347">        <span class="n">warnings</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">child</span><span class="p">))</span>
+</span><span data-line="348">    <span class="k">return</span> <span class="n">warnings</span>
+</span><span data-line="349">
 </span><span data-line="350">
-</span><span data-line="351">
-</span><span data-line="352"><span class="k">def</span><span class="w"> </span><span class="nf">_path_sources</span><span class="p">(</span>
-</span><span data-line="353">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">path_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="354"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
-</span><span data-line="355">    <span class="n">records</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="356">        <span class="n">_dependency_source</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"result.paths[</span><span class="si">{</span><span class="n">path_index</span><span class="si">}</span><span class="s2">][</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">]"</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
-</span><span data-line="357">        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_walk_path</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">path</span><span class="p">))</span>
-</span><span data-line="358">    <span class="p">)</span>
-</span><span data-line="359">    <span class="k">return</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span> <span class="k">if</span> <span class="n">record</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
-</span><span data-line="360">
-</span><span data-line="361">
-</span><span data-line="362"><span class="k">def</span><span class="w"> </span><span class="nf">_why_sources</span><span class="p">(</span>
-</span><span data-line="363">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="364"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
-</span><span data-line="365">    <span class="n">records</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="366">        <span class="n">record</span>
-</span><span data-line="367">        <span class="k">for</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
-</span><span data-line="368">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_path_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
-</span><span data-line="369">    <span class="p">]</span>
-</span><span data-line="370">    <span class="n">failures</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="371">        <span class="n">record</span>
-</span><span data-line="372">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_dependency_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="s2">"result.paths"</span><span class="p">)</span>
-</span><span data-line="373">        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">"failed"</span><span class="p">,</span> <span class="s2">"unavailable"</span><span class="p">}</span>
-</span><span data-line="374">    <span class="p">]</span>
-</span><span data-line="375">    <span class="n">seen</span> <span class="o">=</span> <span class="p">{(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span><span class="p">)</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">}</span>
-</span><span data-line="376">    <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="377">        <span class="n">record</span>
-</span><span data-line="378">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">failures</span>
-</span><span data-line="379">        <span class="k">if</span> <span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span>
-</span><span data-line="380">    <span class="p">)</span>
-</span><span data-line="381">    <span class="k">return</span> <span class="n">records</span>
-</span><span data-line="382">
-</span><span data-line="383">
+</span><span data-line="351"><span class="k">def</span><span class="w"> </span><span class="nf">_walk_path</span><span class="p">(</span><span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Iterator</span><span class="p">[</span><span class="n">DependencyNode</span><span class="p">]:</span>
+</span><span data-line="352"><span class="w">    </span><span class="sd">"""Yield the tree nodes named by ``path``, stopping at the first mismatch.</span>
+</span><span data-line="353">
+</span><span data-line="354"><span class="sd">    Yields:</span>
+</span><span data-line="355"><span class="sd">        Each node matched, from the root down.</span>
+</span><span data-line="356"><span class="sd">    """</span>
+</span><span data-line="357">    <span class="n">node</span> <span class="o">=</span> <span class="n">tree</span>
+</span><span data-line="358">    <span class="k">for</span> <span class="n">depth</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
+</span><span data-line="359">        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">name</span> <span class="o">!=</span> <span class="n">name</span><span class="p">:</span>
+</span><span data-line="360">            <span class="k">return</span>
+</span><span data-line="361">        <span class="k">yield</span> <span class="n">node</span>
+</span><span data-line="362">        <span class="n">remaining</span> <span class="o">=</span> <span class="n">path</span><span class="p">[</span><span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span> <span class="p">:]</span>
+</span><span data-line="363">        <span class="k">if</span> <span class="ow">not</span> <span class="n">remaining</span><span class="p">:</span>
+</span><span data-line="364">            <span class="k">return</span>
+</span><span data-line="365">        <span class="n">child</span> <span class="o">=</span> <span class="nb">next</span><span class="p">((</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">remaining</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="kc">None</span><span class="p">)</span>
+</span><span data-line="366">        <span class="k">if</span> <span class="n">child</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="367">            <span class="k">return</span>
+</span><span data-line="368">        <span class="n">node</span> <span class="o">=</span> <span class="n">child</span>
+</span><span data-line="369">
+</span><span data-line="370">
+</span><span data-line="371"><span class="k">def</span><span class="w"> </span><span class="nf">_path_sources</span><span class="p">(</span>
+</span><span data-line="372">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">path_index</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="373"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="374">    <span class="n">records</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="375">        <span class="n">_dependency_source</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"result.paths[</span><span class="si">{</span><span class="n">path_index</span><span class="si">}</span><span class="s2">][</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">]"</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+</span><span data-line="376">        <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">node</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">_walk_path</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">path</span><span class="p">))</span>
+</span><span data-line="377">    <span class="p">)</span>
+</span><span data-line="378">    <span class="k">return</span> <span class="p">[</span><span class="n">record</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span> <span class="k">if</span> <span class="n">record</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span>
+</span><span data-line="379">
+</span><span data-line="380">
+</span><span data-line="381"><span class="k">def</span><span class="w"> </span><span class="nf">_off_path_failures</span><span class="p">(</span>
+</span><span data-line="382">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span>
+</span><span data-line="383">    <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="384">    <span class="n">seen</span><span class="p">:</span> <span class="n">Container</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SourceState</span><span class="p">]],</span>
+</span><span data-line="385"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="386"><span class="w">    </span><span class="sd">"""Collect unresolved lookups on branches that no emitted path covers.</span>
+</span><span data-line="387">
+</span><span data-line="388"><span class="sd">    Their ``fields`` list is empty: the failure happened outside the returned</span>
+</span><span data-line="389"><span class="sd">    list-of-lists ``result.paths``, so no real result path identifies it.</span>
+</span><span data-line="390">
+</span><span data-line="391"><span class="sd">    Returns:</span>
+</span><span data-line="392"><span class="sd">        One field-less source record per unreported failed lookup.</span>
+</span><span data-line="393"><span class="sd">    """</span>
+</span><span data-line="394">    <span class="k">return</span> <span class="p">[</span>
+</span><span data-line="395">        <span class="n">replace</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[])</span>
+</span><span data-line="396">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_dependency_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="s2">"result.paths"</span><span class="p">)</span>
+</span><span data-line="397">        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="n">_UNRESOLVED_STATES</span>
+</span><span data-line="398">        <span class="ow">and</span> <span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span>
+</span><span data-line="399">    <span class="p">]</span>
+</span><span data-line="400">
+</span><span data-line="401">
+</span><span data-line="402"><span class="k">def</span><span class="w"> </span><span class="nf">_why_sources</span><span class="p">(</span>
+</span><span data-line="403">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="404"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="405">    <span class="n">records</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="406">        <span class="n">record</span>
+</span><span data-line="407">        <span class="k">for</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
+</span><span data-line="408">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_path_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+</span><span data-line="409">    <span class="p">]</span>
+</span><span data-line="410">    <span class="n">seen</span> <span class="o">=</span> <span class="p">{(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span><span class="p">)</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">}</span>
+</span><span data-line="411">    <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_off_path_failures</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">seen</span><span class="p">))</span>
+</span><span data-line="412">    <span class="k">return</span> <span class="n">records</span>
+</span><span data-line="413">
+</span><span data-line="414">
 <div class="viewcode-block" id="format_dep_tree">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_dep_tree">[docs]</a>
-</span><span data-line="384"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span>
-</span><span data-line="385">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span>
-</span><span data-line="386">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="387">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="388">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="389"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="390"><span class="w">    </span><span class="sd">"""Format a dependency tree in the versioned JSON envelope.</span>
-</span><span data-line="391">
-</span><span data-line="392"><span class="sd">    Returns:</span>
-</span><span data-line="393"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="394"><span class="sd">    """</span>
-</span><span data-line="395">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="396">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-</span><span data-line="397">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="398">        <span class="s2">"deps"</span><span class="p">,</span>
-</span><span data-line="399">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="400">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="s2">"success"</span><span class="p">,</span>
-</span><span data-line="401">        <span class="n">result</span><span class="o">=</span><span class="n">_node_dict</span><span class="p">(</span><span class="n">node</span><span class="p">),</span>
-</span><span data-line="402">        <span class="n">sources</span><span class="o">=</span><span class="n">_dependency_sources</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">),</span>
-</span><span data-line="403">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
-</span><span data-line="404">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="405">    <span class="p">)</span>
-</span><span data-line="406">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="415"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span>
+</span><span data-line="416">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span>
+</span><span data-line="417">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="418">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="419">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="420"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="421"><span class="w">    </span><span class="sd">"""Format a dependency tree in the versioned JSON envelope.</span>
+</span><span data-line="422">
+</span><span data-line="423"><span class="sd">    Returns:</span>
+</span><span data-line="424"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="425"><span class="sd">    """</span>
+</span><span data-line="426">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="427">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span><span data-line="428">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="429">        <span class="s2">"deps"</span><span class="p">,</span>
+</span><span data-line="430">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="431">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="s2">"success"</span><span class="p">,</span>
+</span><span data-line="432">        <span class="n">result</span><span class="o">=</span><span class="n">_node_dict</span><span class="p">(</span><span class="n">node</span><span class="p">),</span>
+</span><span data-line="433">        <span class="n">sources</span><span class="o">=</span><span class="n">_dependency_sources</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">),</span>
+</span><span data-line="434">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
+</span><span data-line="435">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="436">    <span class="p">)</span>
+</span><span data-line="437">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
-</span><span data-line="407">
-</span><span data-line="408">
+</span><span data-line="438">
+</span><span data-line="439">
 <div class="viewcode-block" id="format_why">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_why">[docs]</a>
-</span><span data-line="409"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span>
-</span><span data-line="410">    <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="411">    <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-</span><span data-line="412">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="413">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="414">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="415">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="416"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="417"><span class="w">    </span><span class="sd">"""Format dependency paths in the versioned JSON envelope.</span>
-</span><span data-line="418">
-</span><span data-line="419"><span class="sd">    Returns:</span>
-</span><span data-line="420"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="421"><span class="sd">    """</span>
-</span><span data-line="422">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="423">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[]</span>
-</span><span data-line="424">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="425">        <span class="s2">"deps"</span><span class="p">,</span>
-</span><span data-line="426">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="427">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">paths</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">),</span>
-</span><span data-line="428">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="n">target</span><span class="p">,</span> <span class="s2">"paths"</span><span class="p">:</span> <span class="n">paths</span><span class="p">},</span>
-</span><span data-line="429">        <span class="n">sources</span><span class="o">=</span><span class="n">_why_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[],</span>
-</span><span data-line="430">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
-</span><span data-line="431">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="432">    <span class="p">)</span>
-</span><span data-line="433">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="440"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span>
+</span><span data-line="441">    <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="442">    <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+</span><span data-line="443">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="444">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="445">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="446">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="447"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="448"><span class="w">    </span><span class="sd">"""Format dependency paths in the versioned JSON envelope.</span>
+</span><span data-line="449">
+</span><span data-line="450"><span class="sd">    Returns:</span>
+</span><span data-line="451"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="452"><span class="sd">    """</span>
+</span><span data-line="453">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="454">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[]</span>
+</span><span data-line="455">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="456">        <span class="s2">"deps"</span><span class="p">,</span>
+</span><span data-line="457">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="458">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">paths</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">),</span>
+</span><span data-line="459">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="n">target</span><span class="p">,</span> <span class="s2">"paths"</span><span class="p">:</span> <span class="n">paths</span><span class="p">},</span>
+</span><span data-line="460">        <span class="n">sources</span><span class="o">=</span><span class="n">_why_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[],</span>
+</span><span data-line="461">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
+</span><span data-line="462">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="463">    <span class="p">)</span>
+</span><span data-line="464">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
-</span><span data-line="434">
-</span><span data-line="435">
+</span><span data-line="465">
+</span><span data-line="466">
 <div class="viewcode-block" id="format_files">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_files">[docs]</a>
-</span><span data-line="436"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span>
-</span><span data-line="437">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="438">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="439">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="440">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="441"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="442"><span class="w">    </span><span class="sd">"""Format an installed file list in the versioned JSON envelope.</span>
-</span><span data-line="443">
-</span><span data-line="444"><span class="sd">    Returns:</span>
-</span><span data-line="445"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="446"><span class="sd">    """</span>
-</span><span data-line="447">    <span class="n">files</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[]</span>
-</span><span data-line="448">    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="s2">"files"</span><span class="p">:</span> <span class="n">files</span><span class="p">}</span>
-</span><span data-line="449">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
-</span><span data-line="450">        <span class="s2">"files"</span><span class="p">,</span>
-</span><span data-line="451">        <span class="p">[</span><span class="n">pkg</span><span class="p">],</span>
-</span><span data-line="452">        <span class="n">result</span><span class="p">,</span>
-</span><span data-line="453">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="454">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
-</span><span data-line="455">        <span class="n">empty</span><span class="o">=</span><span class="ow">not</span> <span class="n">files</span><span class="p">,</span>
-</span><span data-line="456">        <span class="n">include_enrichment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span data-line="457">    <span class="p">)</span></div>
+</span><span data-line="467"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span>
+</span><span data-line="468">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="469">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="470">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="471">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="472"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="473"><span class="w">    </span><span class="sd">"""Format an installed file list in the versioned JSON envelope.</span>
+</span><span data-line="474">
+</span><span data-line="475"><span class="sd">    Returns:</span>
+</span><span data-line="476"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="477"><span class="sd">    """</span>
+</span><span data-line="478">    <span class="n">files</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[]</span>
+</span><span data-line="479">    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="s2">"files"</span><span class="p">:</span> <span class="n">files</span><span class="p">}</span>
+</span><span data-line="480">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
+</span><span data-line="481">        <span class="s2">"files"</span><span class="p">,</span>
+</span><span data-line="482">        <span class="p">[</span><span class="n">pkg</span><span class="p">],</span>
+</span><span data-line="483">        <span class="n">result</span><span class="p">,</span>
+</span><span data-line="484">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="485">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
+</span><span data-line="486">        <span class="n">empty</span><span class="o">=</span><span class="ow">not</span> <span class="n">files</span><span class="p">,</span>
+</span><span data-line="487">        <span class="n">include_enrichment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span data-line="488">    <span class="p">)</span></div>
 
-</span><span data-line="458">
-</span><span data-line="459">
+</span><span data-line="489">
+</span><span data-line="490">
 <div class="viewcode-block" id="format_versions">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_versions">[docs]</a>
-</span><span data-line="460"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span>
-</span><span data-line="461">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="462">    <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
-</span><span data-line="463">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="464">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="465">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="466">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="467"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="468"><span class="w">    </span><span class="sd">"""Format published versions in the versioned JSON envelope.</span>
-</span><span data-line="469">
-</span><span data-line="470"><span class="sd">    Returns:</span>
-</span><span data-line="471"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="472"><span class="sd">    """</span>
-</span><span data-line="473">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="474">    <span class="n">retrieval_time</span> <span class="o">=</span> <span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span>
-</span><span data-line="475">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="476">        <span class="s2">"versions"</span><span class="p">,</span>
-</span><span data-line="477">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="478">        <span class="n">status</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
-</span><span data-line="479">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"versions"</span><span class="p">:</span> <span class="n">versions</span><span class="p">},</span>
-</span><span data-line="480">        <span class="n">sources</span><span class="o">=</span><span class="p">[</span>
-</span><span data-line="481">            <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="482">                <span class="n">name</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
-</span><span data-line="483">                <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
-</span><span data-line="484">                <span class="n">target</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="485">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieval_time</span><span class="p">,</span>
-</span><span data-line="486">                <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.versions"</span><span class="p">],</span>
-</span><span data-line="487">            <span class="p">)</span>
-</span><span data-line="488">        <span class="p">],</span>
-</span><span data-line="489">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="490">    <span class="p">)</span>
-</span><span data-line="491">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="491"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span>
+</span><span data-line="492">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="493">    <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
+</span><span data-line="494">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="495">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="496">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="497">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="498"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="499"><span class="w">    </span><span class="sd">"""Format published versions in the versioned JSON envelope.</span>
+</span><span data-line="500">
+</span><span data-line="501"><span class="sd">    Returns:</span>
+</span><span data-line="502"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="503"><span class="sd">    """</span>
+</span><span data-line="504">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="505">    <span class="n">retrieval_time</span> <span class="o">=</span> <span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span>
+</span><span data-line="506">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="507">        <span class="s2">"versions"</span><span class="p">,</span>
+</span><span data-line="508">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="509">        <span class="n">status</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
+</span><span data-line="510">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"versions"</span><span class="p">:</span> <span class="n">versions</span><span class="p">},</span>
+</span><span data-line="511">        <span class="n">sources</span><span class="o">=</span><span class="p">[</span>
+</span><span data-line="512">            <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="513">                <span class="n">name</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
+</span><span data-line="514">                <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
+</span><span data-line="515">                <span class="n">target</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="516">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieval_time</span><span class="p">,</span>
+</span><span data-line="517">                <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.versions"</span><span class="p">],</span>
+</span><span data-line="518">            <span class="p">)</span>
+</span><span data-line="519">        <span class="p">],</span>
+</span><span data-line="520">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="521">    <span class="p">)</span>
+</span><span data-line="522">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
-</span><span data-line="492">
-</span><span data-line="493">
+</span><span data-line="523">
+</span><span data-line="524">
 <div class="viewcode-block" id="format_error">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_error">[docs]</a>
-</span><span data-line="494"><span class="k">def</span><span class="w"> </span><span class="nf">format_error</span><span class="p">(</span>
-</span><span data-line="495">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
-</span><span data-line="496">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="497">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="498">    <span class="n">code</span><span class="p">:</span> <span class="n">MessageCode</span><span class="p">,</span>
-</span><span data-line="499">    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="500">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="501">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="502"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="503"><span class="w">    </span><span class="sd">"""Format a fatal command error in the versioned JSON envelope.</span>
-</span><span data-line="504">
-</span><span data-line="505"><span class="sd">    Returns:</span>
-</span><span data-line="506"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="507"><span class="sd">    """</span>
-</span><span data-line="508">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="509">        <span class="n">command</span><span class="p">,</span>
-</span><span data-line="510">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="511">        <span class="n">status</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
-</span><span data-line="512">        <span class="n">result</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span data-line="513">        <span class="n">errors</span><span class="o">=</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">)],</span>
-</span><span data-line="514">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
-</span><span data-line="515">    <span class="p">)</span>
-</span><span data-line="516">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="525"><span class="k">def</span><span class="w"> </span><span class="nf">format_error</span><span class="p">(</span>
+</span><span data-line="526">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
+</span><span data-line="527">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="528">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="529">    <span class="n">code</span><span class="p">:</span> <span class="n">MessageCode</span><span class="p">,</span>
+</span><span data-line="530">    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="531">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="532">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="533"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="534"><span class="w">    </span><span class="sd">"""Format a fatal command error in the versioned JSON envelope.</span>
+</span><span data-line="535">
+</span><span data-line="536"><span class="sd">    Returns:</span>
+</span><span data-line="537"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="538"><span class="sd">    """</span>
+</span><span data-line="539">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="540">        <span class="n">command</span><span class="p">,</span>
+</span><span data-line="541">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="542">        <span class="n">status</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
+</span><span data-line="543">        <span class="n">result</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span data-line="544">        <span class="n">errors</span><span class="o">=</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">)],</span>
+</span><span data-line="545">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
+</span><span data-line="546">    <span class="p">)</span>
+</span><span data-line="547">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

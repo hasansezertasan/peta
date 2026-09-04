@@ -129,7 +129,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.enrich</span><span class="w"> </span><span class="kn">import</span> <span class="n">enrich</span>
 </span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.local</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">LocalNotFound</span>
 </span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.remote</span><span class="w"> </span><span class="kn">import</span> <span class="n">NetworkError</span><span class="p">,</span> <span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">RemoteNotFound</span>
-</span><span data-line="14"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.resolve</span><span class="w"> </span><span class="kn">import</span> <span class="n">resolve_package</span>
+</span><span data-line="14"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.resolve</span><span class="w"> </span><span class="kn">import</span> <span class="n">not_found_source</span><span class="p">,</span> <span class="n">resolve_package</span>
 </span><span data-line="15">
 </span><span data-line="16"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
 </span><span data-line="17">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span>
@@ -155,7 +155,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="35">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
 </span><span data-line="36">    <span class="o">*</span><span class="p">,</span>
 </span><span data-line="37">    <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="38">    <span class="n">output_format</span><span class="p">:</span> <span class="n">OutputFormat</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
+</span><span data-line="38">    <span class="n">output_format</span><span class="p">:</span> <span class="n">OutputFormat</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span data-line="39">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 </span><span data-line="40">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 </span><span data-line="41">    <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
@@ -175,7 +175,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="55">        <span class="n">pkg</span> <span class="o">=</span> <span class="n">_resolve_and_enrich</span><span class="p">(</span>
 </span><span data-line="56">            <span class="n">package</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span> <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span> <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span>
 </span><span data-line="57">        <span class="p">)</span>
-</span><span data-line="58">    <span class="k">except</span> <span class="n">_NOT_FOUND</span><span class="p">:</span>
+</span><span data-line="58">    <span class="k">except</span> <span class="n">_NOT_FOUND</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
 </span><span data-line="59">        <span class="n">fail</span><span class="p">(</span>
 </span><span data-line="60">            <span class="s2">"info"</span><span class="p">,</span>
 </span><span data-line="61">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
@@ -183,28 +183,29 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="63">            <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">"Package '</span><span class="si">{</span><span class="n">package</span><span class="si">}</span><span class="s2">' not found."</span><span class="p">,</span>
 </span><span data-line="64">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
 </span><span data-line="65">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-</span><span data-line="66">        <span class="p">)</span>
-</span><span data-line="67">    <span class="k">except</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="68">        <span class="n">fail</span><span class="p">(</span>
-</span><span data-line="69">            <span class="s2">"info"</span><span class="p">,</span>
-</span><span data-line="70">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="71">            <span class="n">code</span><span class="o">=</span><span class="s2">"invalid_arguments"</span><span class="p">,</span>
-</span><span data-line="72">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
-</span><span data-line="73">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
-</span><span data-line="74">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span data-line="75">        <span class="p">)</span>
-</span><span data-line="76">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="77">        <span class="n">fail</span><span class="p">(</span>
-</span><span data-line="78">            <span class="s2">"info"</span><span class="p">,</span>
-</span><span data-line="79">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="80">            <span class="n">code</span><span class="o">=</span><span class="s2">"network_error"</span><span class="p">,</span>
-</span><span data-line="81">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
-</span><span data-line="82">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
-</span><span data-line="83">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span data-line="84">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
-</span><span data-line="85">        <span class="p">)</span>
-</span><span data-line="86">    <span class="n">rendered</span> <span class="o">=</span> <span class="n">render_info</span><span class="p">(</span><span class="n">selected</span><span class="p">,</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
-</span><span data-line="87">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span></div>
+</span><span data-line="66">            <span class="n">source</span><span class="o">=</span><span class="n">not_found_source</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+</span><span data-line="67">        <span class="p">)</span>
+</span><span data-line="68">    <span class="k">except</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="69">        <span class="n">fail</span><span class="p">(</span>
+</span><span data-line="70">            <span class="s2">"info"</span><span class="p">,</span>
+</span><span data-line="71">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="72">            <span class="n">code</span><span class="o">=</span><span class="s2">"invalid_arguments"</span><span class="p">,</span>
+</span><span data-line="73">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+</span><span data-line="74">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
+</span><span data-line="75">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span data-line="76">        <span class="p">)</span>
+</span><span data-line="77">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="78">        <span class="n">fail</span><span class="p">(</span>
+</span><span data-line="79">            <span class="s2">"info"</span><span class="p">,</span>
+</span><span data-line="80">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="81">            <span class="n">code</span><span class="o">=</span><span class="s2">"network_error"</span><span class="p">,</span>
+</span><span data-line="82">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+</span><span data-line="83">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
+</span><span data-line="84">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span data-line="85">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
+</span><span data-line="86">        <span class="p">)</span>
+</span><span data-line="87">    <span class="n">rendered</span> <span class="o">=</span> <span class="n">render_info</span><span class="p">(</span><span class="n">selected</span><span class="p">,</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span>
+</span><span data-line="88">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
