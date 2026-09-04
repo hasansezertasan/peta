@@ -163,6 +163,42 @@ def test_why_sources_reference_emitted_path_elements() -> None:
     ]
 
 
+def test_remote_packages_are_attributed_to_the_pypi_provider() -> None:
+    data = json.loads(format_info(_pkg(source="remote")))
+    # ``result.source`` keeps its legacy value; provenance names one provider.
+    assert data["result"]["source"] == "remote"
+    assert data["sources"][0]["name"] == "pypi"
+
+
+def test_why_off_path_failures_carry_no_result_field() -> None:
+    failure = DependencyResolutionFailure(
+        source="pypi",
+        state="failed",
+        reason="connection reset",
+        retrieved_at="2026-09-04T12:00:00Z",
+    )
+    target = DependencyNode(name="certifi", version_spec="", source="local")
+    broken = DependencyNode(
+        name="unreachable", version_spec=">=1", resolution_failure=failure
+    )
+    tree = DependencyNode(
+        name="flask", version_spec="", source="local", children=[target, broken]
+    )
+    data = json.loads(
+        format_why(
+            "certifi",
+            [["flask", "certifi"]],
+            tree=tree,
+            generated_at="2026-09-04T12:00:01Z",
+        )
+    )
+    off_path = next(s for s in data["sources"] if s["target"] == "unreachable")
+    # The failure is off the returned paths, so no result path can identify it.
+    assert off_path["fields"] == []
+    assert off_path["state"] == "failed"
+    assert data["status"] == "partial"
+
+
 def test_why_empty() -> None:
     data = json.loads(format_why("nope", []))["result"]
     assert data["paths"] == []

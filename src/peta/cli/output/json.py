@@ -16,7 +16,7 @@ from peta.core.output import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Container, Iterator
 
     from peta.core.models import DependencyNode, PackageInfo
     from peta.core.output import CommandName, MessageCode
@@ -102,6 +102,25 @@ def _enrichment_records(
     return records
 
 
+_UNRESOLVED_STATES: frozenset[SourceState] = frozenset({
+    "empty",
+    "failed",
+    "unavailable",
+})
+
+
+def _provider(source: str) -> str:
+    """Name the provider behind a ``PackageInfo.source`` value.
+
+    ``PackageInfo.source`` keeps its legacy ``"remote"`` value in ``result``,
+    but provenance names the same provider ``pypi`` everywhere.
+
+    Returns:
+        The provenance name for ``source``.
+    """
+    return "local" if source == "local" else "pypi"
+
+
 def _enrichment_fields(source: str, result_path: str = "result") -> list[str]:
     suffix = {
         "osv": "vulnerabilities",
@@ -135,7 +154,7 @@ def _source_records(
     for pkg, result_path in zip(packages, paths, strict=True):
         records.append(
             SourceRecord(
-                name=pkg.source,
+                name=_provider(pkg.source),
                 state="success",
                 target=pkg.name,
                 retrieved_at=pkg.retrieved_at or timestamp,
@@ -291,7 +310,7 @@ def _dependency_source(
     if node.source is None:
         return None
     return SourceRecord(
-        name=node.source,
+        name=_provider(node.source),
         state="success",
         target=node.name,
         retrieved_at=node.retrieved_at or timestamp,
@@ -359,6 +378,27 @@ def _path_sources(
     return [record for record in records if record is not None]
 
 
+def _off_path_failures(
+    tree: DependencyNode,
+    timestamp: str,
+    seen: Container[tuple[str, str | None, SourceState]],
+) -> list[SourceRecord]:
+    """Collect unresolved lookups on branches that no emitted path covers.
+
+    Their ``fields`` list is empty: the failure happened outside the returned
+    list-of-lists ``result.paths``, so no real result path identifies it.
+
+    Returns:
+        One field-less source record per unreported failed lookup.
+    """
+    return [
+        replace(record, fields=[])
+        for record in _dependency_sources(tree, timestamp, "result.paths")
+        if record.state in _UNRESOLVED_STATES
+        and (record.name, record.target, record.state) not in seen
+    ]
+
+
 def _why_sources(
     tree: DependencyNode, paths: list[list[str]], timestamp: str
 ) -> list[SourceRecord]:
@@ -367,17 +407,8 @@ def _why_sources(
         for path_index, path in enumerate(paths)
         for record in _path_sources(tree, path, path_index, timestamp)
     ]
-    failures = [
-        record
-        for record in _dependency_sources(tree, timestamp, "result.paths")
-        if record.state in {"failed", "unavailable"}
-    ]
     seen = {(record.name, record.target, record.state) for record in records}
-    records.extend(
-        record
-        for record in failures
-        if (record.name, record.target, record.state) not in seen
-    )
+    records.extend(_off_path_failures(tree, timestamp, seen))
     return records
 
 

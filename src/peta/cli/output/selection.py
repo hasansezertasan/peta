@@ -25,9 +25,13 @@ class OutputFormat(StrEnum):
 
 
 def resolve_output_format(
-    output_format: OutputFormat, *, use_json: bool
+    output_format: OutputFormat | None, *, use_json: bool
 ) -> OutputFormat:
     """Resolve the deprecated JSON flag against the unified format option.
+
+    ``output_format`` is ``None`` when ``--format`` was left at its default, so
+    ``--json`` alone selects JSON while any explicit non-JSON ``--format``
+    conflicts with it.
 
     Returns:
         The selected output format.
@@ -36,8 +40,8 @@ def resolve_output_format(
         BadParameter: If ``--json`` conflicts with an explicit non-JSON format.
     """
     if not use_json:
-        return output_format
-    if output_format not in {OutputFormat.RICH, OutputFormat.JSON}:
+        return output_format or OutputFormat.RICH
+    if output_format not in {None, OutputFormat.JSON}:
         msg = "--json cannot be combined with a non-JSON --format value"
         raise typer.BadParameter(msg)
     return OutputFormat.JSON
@@ -46,7 +50,7 @@ def resolve_output_format(
 def resolve_or_fail(
     command: CommandName,
     arguments: dict[str, object],
-    output_format: OutputFormat,
+    output_format: OutputFormat | None,
     *,
     use_json: bool,
 ) -> OutputFormat:
@@ -58,7 +62,9 @@ def resolve_or_fail(
     try:
         return resolve_output_format(output_format, use_json=use_json)
     except typer.BadParameter as exc:
-        selected = OutputFormat.JSON if use_json else output_format
+        selected = (
+            OutputFormat.JSON if use_json else (output_format or OutputFormat.RICH)
+        )
         fail(
             command,
             arguments=arguments,

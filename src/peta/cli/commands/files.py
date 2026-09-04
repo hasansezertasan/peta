@@ -18,7 +18,7 @@ def files(
     package: str,
     *,
     use_json: bool = False,
-    output_format: OutputFormat = OutputFormat.RICH,
+    output_format: OutputFormat | None = None,
     color: bool = False,
 ) -> None:
     """List files installed by a local package."""

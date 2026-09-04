@@ -59,6 +59,25 @@ def _version_callback(value: bool) -> None:
     raise typer.Exit
 
 
+def _explicit_format(
+    ctx: typer.Context, output_format: OutputFormat
+) -> OutputFormat | None:
+    """Return the format only when ``--format`` was actually supplied.
+
+    ``None`` marks the untouched default, letting ``--json`` act as the
+    documented alias without silently overriding an explicit ``--format``.
+
+    Returns:
+        The selected format, or ``None`` when left at its default.
+    """
+    # Compared by name: Typer vendors its own Click, so its ``ParameterSource``
+    # enum is not the one importable from the external ``click`` package.
+    source = ctx.get_parameter_source("output_format")
+    if source is None or source.name == "DEFAULT":
+        return None
+    return output_format
+
+
 def _color_from_ctx(ctx: typer.Context) -> bool:
     """Read the resolved color setting stashed on the root context.
 
@@ -119,7 +138,7 @@ def info(
     info_mod.info(
         package,
         use_json=use_json,
-        output_format=output_format,
+        output_format=_explicit_format(ctx, output_format),
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
@@ -155,7 +174,7 @@ def compare(
         a,
         b,
         use_json=use_json,
-        output_format=output_format,
+        output_format=_explicit_format(ctx, output_format),
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
@@ -189,7 +208,7 @@ def deps(
     deps_mod.deps(
         package,
         use_json=use_json,
-        output_format=output_format,
+        output_format=_explicit_format(ctx, output_format),
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
@@ -211,7 +230,7 @@ def files(
     files_mod.files(
         package,
         use_json=use_json,
-        output_format=output_format,
+        output_format=_explicit_format(ctx, output_format),
         color=_color_from_ctx(ctx),
     )
 
@@ -232,7 +251,7 @@ def versions(
     versions_mod.versions(
         package,
         use_json=use_json,
-        output_format=output_format,
+        output_format=_explicit_format(ctx, output_format),
         limit=limit,
         color=_color_from_ctx(ctx),
     )

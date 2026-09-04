@@ -41,7 +41,7 @@ class DependencyResolutionFailure:
     """A failed or unavailable transitive dependency lookup."""
 
     source: str
-    state: Literal["unavailable", "failed"]
+    state: Literal["empty", "unavailable", "failed"]
     reason: str
     retrieved_at: str
 

@@ -11,7 +11,7 @@ from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core.enrich import enrich
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
-from peta.core.resolve import resolve_package
+from peta.core.resolve import not_found_source, resolve_package
 
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
@@ -35,7 +35,7 @@ def info(
     package: str,
     *,
     use_json: bool = False,
-    output_format: OutputFormat = OutputFormat.RICH,
+    output_format: OutputFormat | None = None,
     local: bool = False,
     remote: bool = False,
     color: bool = False,
@@ -55,7 +55,7 @@ def info(
         pkg = _resolve_and_enrich(
             package, local=local, remote=remote, no_osv=no_osv, no_stats=no_stats
         )
-    except _NOT_FOUND:
+    except _NOT_FOUND as exc:
         fail(
             "info",
             arguments=arguments,
@@ -63,6 +63,7 @@ def info(
             message=f"Package '{package}' not found.",
             output_format=selected,
             exit_code=1,
+            source=not_found_source(exc),
         )
     except typer.BadParameter as exc:
         fail(

@@ -81,19 +81,6 @@ class TestInfo:
         assert r.output.startswith("Name: requests\nVersion: 2.31.0")
         assert "┏" not in r.output
 
-    def test_json_error_is_structured(self) -> None:
-        with (
-            patch("peta.core.resolve.local_get_package") as ml,
-            patch("peta.core.resolve.remote_get_package") as mr,
-        ):
-            ml.side_effect = LocalNotFound("missing")
-            mr.side_effect = RemoteNotFound("missing")
-            r = runner.invoke(app, ["info", "missing", "--format", "json"])
-        assert r.exit_code == 1
-        data = json.loads(r.output)
-        assert data["status"] == "failed"
-        assert data["errors"][0]["code"] == "package_not_found"
-
     @patch("peta.core.resolve.remote_get_package")
     def test_remote_flag(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(source="remote")
@@ -230,6 +217,56 @@ class TestInfo:
         data = json.loads(r.output)
         assert data["result"]["download_count"] == 100
         assert data["result"]["dependent_count"] == 5
+
+
+class TestNotFoundAttribution:
+    """A structured not-found error names the provider that reported it."""
+
+    def test_fallback_miss_is_attributed_to_pypi(self) -> None:
+        with (
+            patch("peta.core.resolve.local_get_package") as ml,
+            patch("peta.core.resolve.remote_get_package") as mr,
+        ):
+            ml.side_effect = LocalNotFound("missing")
+            mr.side_effect = RemoteNotFound("missing")
+            r = runner.invoke(app, ["info", "missing", "--format", "json"])
+        assert r.exit_code == 1
+        data = json.loads(r.output)
+        assert data["status"] == "failed"
+        assert data["errors"][0]["code"] == "package_not_found"
+        # The local-first path fell through to PyPI, which reported the miss.
+        assert data["errors"][0]["source"] == "pypi"
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_forced_local_miss_is_attributed_to_local(self, ml: MagicMock) -> None:
+        ml.side_effect = LocalNotFound("missing")
+        r = runner.invoke(app, ["info", "missing", "--local", "--format", "json"])
+        assert r.exit_code == 1
+        assert json.loads(r.output)["errors"][0]["source"] == "local"
+
+
+class TestJsonAlias:
+    """``--json`` is an alias for ``--format json``, not an override."""
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_alone_selects_json(self, ml: MagicMock) -> None:
+        ml.return_value = _pkg()
+        r = runner.invoke(app, ["info", "requests", "--json"])
+        assert r.exit_code == 0
+        assert json.loads(r.output)["result"]["name"] == "requests"
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_rejects_explicit_rich(self, ml: MagicMock) -> None:
+        ml.return_value = _pkg()
+        r = runner.invoke(app, ["info", "requests", "--json", "--format", "rich"])
+        assert r.exit_code == 2
+        assert "--json cannot be combined" in r.output
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_rejects_explicit_text(self, ml: MagicMock) -> None:
+        ml.return_value = _pkg()
+        r = runner.invoke(app, ["info", "requests", "--json", "--format", "text"])
+        assert r.exit_code == 2
 
 
 class TestOutputContract:

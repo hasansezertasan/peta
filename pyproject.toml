@@ -236,9 +236,11 @@ ignore_decorators = [
 # referenced only via pyproject scripts, ``model_config`` is consumed by
 # pydantic-settings, ``logger`` is imported only by optional components, the MCP
 # ``arguments`` parameter is mandated by the call_tool signature, and
-# ``pytestmark`` is consumed by pytest at collection time.
+# ``pytestmark`` and ``pytest_configure`` are consumed by pytest at collection
+# time.
 ignore_names = [
   "CONFIG_FILE_PATH",
+  "pytest_configure",
   "logger",
   "main",
   "model_config",

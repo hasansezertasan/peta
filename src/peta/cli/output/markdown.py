@@ -40,13 +40,34 @@ def _security_lines(pkg: PackageInfo) -> list[str]:
             fix_text = fixed or "no known fix"
             description = f"{_cell(vulnerability.summary)} (fix: {fix_text})"
             lines.append(f"- `{_cell(vulnerability.id)}`{severity}: {description}")
-    if pkg.enrichment_failures:
-        lines.extend(["", "## Enrichment warnings", ""])
-        lines.extend(
-            f"- **{_cell(failure.source)}:** {_cell(failure.reason)}"
-            for failure in pkg.enrichment_failures
-        )
+    lines.extend(_warning_lines(pkg))
     return lines
+
+
+def _warning_lines(*packages: PackageInfo) -> list[str]:
+    failures = [
+        (pkg.name, failure) for pkg in packages for failure in pkg.enrichment_failures
+    ]
+    if not failures:
+        return []
+    prefixed = len(packages) > 1
+
+    def item(name: str, source: str, reason: str) -> str:
+        owner = f"`{_cell(name)}` — " if prefixed else ""
+        return f"- {owner}**{_cell(source)}:** {_cell(reason)}"
+
+    return [
+        "",
+        "## Enrichment warnings",
+        "",
+        *(item(name, failure.source, failure.reason) for name, failure in failures),
+    ]
+
+
+def _vulnerability_count(pkg: PackageInfo) -> str:
+    if any(failure.source == "osv" for failure in pkg.enrichment_failures):
+        return "unknown"
+    return str(len(pkg.vulnerabilities))
 
 
 def format_info(pkg: PackageInfo) -> str:
@@ -83,6 +104,7 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
         ("License", a.license, b.license),
         ("Requires Python", a.python_requires, b.python_requires),
         ("Dependencies", a.dependencies, b.dependencies),
+        ("Vulnerabilities", _vulnerability_count(a), _vulnerability_count(b)),
     ]
     lines = [
         "# Package comparison",
@@ -94,13 +116,21 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
         f"| {field} | {_cell(a_value)} | {_cell(b_value)} |"
         for field, a_value, b_value in rows
     )
+    lines.extend(_warning_lines(a, b))
     return "\n".join(lines)
 
 
 def _tree_lines(node: DependencyNode, depth: int = 0) -> list[str]:
     suffix = f" {node.version_spec}" if node.version_spec else ""
     circular = " _(circular)_" if node.circular else ""
-    lines = [f"{'  ' * depth}- `{node.name}{suffix}`{circular}"]
+    installed = (
+        f" _(installed {_cell(node.installed_version)})_"
+        if node.installed_version
+        else ""
+    )
+    failure = node.resolution_failure
+    unresolved = f" _(unresolved: {_cell(failure.reason)})_" if failure else ""
+    lines = [f"{'  ' * depth}- `{node.name}{suffix}`{circular}{installed}{unresolved}"]
     for child in node.children:
         lines.extend(_tree_lines(child, depth + 1))
     return lines

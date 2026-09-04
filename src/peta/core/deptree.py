@@ -31,9 +31,12 @@ def _resolution_failure(
         return DependencyResolutionFailure(
             source="pypi", state="failed", reason=str(exc), retrieved_at=utc_now()
         )
+    # A not-found response means the provider completed the lookup and holds no
+    # package data, which the output contract calls ``empty`` rather than
+    # ``unavailable`` (reserved for a source that could not be configured).
     source = "local" if isinstance(exc, LocalNotFound) else "pypi"
     return DependencyResolutionFailure(
-        source=source, state="unavailable", reason=str(exc), retrieved_at=utc_now()
+        source=source, state="empty", reason=str(exc), retrieved_at=utc_now()
     )
 
 

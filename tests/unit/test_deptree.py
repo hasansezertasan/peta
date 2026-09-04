@@ -102,7 +102,8 @@ class TestBuildTree:
         assert leaf.installed_version is None
         assert leaf.children == []
         assert leaf.resolution_failure is not None
-        assert leaf.resolution_failure.state == "unavailable"
+        # A not-found lookup is a source that answered with no data.
+        assert leaf.resolution_failure.state == "empty"
         assert leaf.resolution_failure.source == "local"
 
     @patch("peta.core.deptree.resolve_package")

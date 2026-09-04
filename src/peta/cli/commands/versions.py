@@ -148,7 +148,7 @@ def versions(
     package: str,
     *,
     use_json: bool = False,
-    output_format: OutputFormat = OutputFormat.RICH,
+    output_format: OutputFormat | None = None,
     limit: int = 20,
     color: bool = False,
 ) -> None:
