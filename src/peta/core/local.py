@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
-from typing import cast
+from typing import Literal, cast
 
-from peta.core.models import LicenseSource, PackageInfo
+from peta.core.models import PackageInfo
 
 __all__ = ["PackageNotFoundError", "get_package"]
 
@@ -40,7 +40,7 @@ def _parse_keywords(meta: importlib_metadata.PackageMetadata) -> list[str]:
 
 def _parse_license(
     meta: importlib_metadata.PackageMetadata,
-) -> tuple[str | None, LicenseSource | None]:
+) -> tuple[str | None, Literal["expression", "legacy"] | None]:
     expression = meta.get("License-Expression")
     if expression:
         return expression, "expression"

@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Required, TypedDict, cast
+from typing import Literal, Required, TypedDict, cast
 
 import httpx
 
-from peta.core.models import LicenseSource, PackageInfo, Vulnerability
+from peta.core.models import PackageInfo, Vulnerability
 
 __all__ = [
     "NetworkError",
@@ -144,7 +144,9 @@ def _parse_vulnerabilities(raw: list[PyPIVulnerability]) -> list[Vulnerability]:
     ]
 
 
-def _parse_license(info: PyPIInfo) -> tuple[str | None, LicenseSource | None]:
+def _parse_license(
+    info: PyPIInfo,
+) -> tuple[str | None, Literal["expression", "legacy"] | None]:
     expression = info.get("license_expression")
     if expression:
         return expression, "expression"

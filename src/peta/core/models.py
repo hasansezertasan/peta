@@ -8,9 +8,6 @@ from typing import Literal
 __all__ = ["DependencyNode", "PackageInfo", "Vulnerability"]
 
 
-type LicenseSource = Literal["expression", "legacy"]
-
-
 @dataclass
 class Vulnerability:
     """A known security vulnerability for a package."""
@@ -45,7 +42,7 @@ class PackageInfo:
     vulnerabilities: list[Vulnerability] = field(default_factory=list)
     download_count: int | None = None
     dependent_count: int | None = None
-    license_source: LicenseSource | None = None
+    license_source: Literal["expression", "legacy"] | None = None
 
 
 @dataclass
