@@ -12,6 +12,7 @@ Human-friendly Python package metadata viewer
    configuration
    architecture
    modules
+   research-tooling-landscape
 
 Indices and tables
 ==================
