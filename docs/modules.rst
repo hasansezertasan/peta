@@ -13,6 +13,8 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.models
 
+.. automodule:: peta.core.output
+
 .. automodule:: peta.core.local
 
 .. automodule:: peta.core.remote
@@ -43,6 +45,16 @@ CLI (``peta.cli``)
 .. automodule:: peta.cli.output.tables
 
 .. automodule:: peta.cli.output.json
+
+.. automodule:: peta.cli.output.markdown
+
+.. automodule:: peta.cli.output.text
+
+.. automodule:: peta.cli.output.render
+
+.. automodule:: peta.cli.output.errors
+
+.. automodule:: peta.cli.output.selection
 
 .. automodule:: peta.cli.commands.info
 

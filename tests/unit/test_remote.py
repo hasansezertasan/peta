@@ -49,6 +49,7 @@ def test_returns_package_info(mock_httpx: MagicMock) -> None:
     assert result.keywords == ["http", "requests"]
     assert result.license == "Apache-2.0"
     assert result.license_source == "legacy"
+    assert result.retrieved_at is not None
 
 
 @patch("peta.core.remote.httpx")

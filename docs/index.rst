@@ -9,6 +9,7 @@ Human-friendly Python package metadata viewer
 
    installation
    usage
+   output-contract
    configuration
    architecture
    modules

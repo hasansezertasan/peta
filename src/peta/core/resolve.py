@@ -15,7 +15,16 @@ from peta.core.remote import get_package as remote_get_package
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
 
-__all__ = ["parse_package_arg", "resolve_package"]
+__all__ = ["not_found_source", "parse_package_arg", "resolve_package"]
+
+
+def not_found_source(exc: BaseException) -> str:
+    """Name the provider that reported a package as missing.
+
+    Returns:
+        ``"local"`` for the installed environment, otherwise ``"pypi"``.
+    """
+    return "local" if isinstance(exc, LocalNotFound) else "pypi"
 
 
 def parse_package_arg(package: str) -> tuple[str, str | None]:

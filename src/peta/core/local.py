@@ -6,6 +6,7 @@ import importlib.metadata as importlib_metadata
 from typing import Literal, cast
 
 from peta.core.models import PackageInfo
+from peta.core.output import utc_now
 
 __all__ = ["PackageNotFoundError", "get_package"]
 
@@ -86,4 +87,5 @@ def get_package(name: str) -> PackageInfo:
         files=files,
         vulnerabilities=[],
         source="local",
+        retrieved_at=utc_now(),
     )

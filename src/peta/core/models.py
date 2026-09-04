@@ -3,9 +3,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
-__all__ = ["DependencyNode", "EnrichmentFailure", "PackageInfo", "Vulnerability"]
+if TYPE_CHECKING:
+    from peta.core.output import SourceRecord
+
+__all__ = [
+    "DependencyNode",
+    "DependencyResolutionFailure",
+    "EnrichmentFailure",
+    "PackageInfo",
+    "Vulnerability",
+]
 
 
 @dataclass
@@ -25,6 +34,16 @@ class EnrichmentFailure:
 
     source: str
     reason: str
+
+
+@dataclass(frozen=True)
+class DependencyResolutionFailure:
+    """A failed or unavailable transitive dependency lookup."""
+
+    source: str
+    state: Literal["empty", "unavailable", "failed"]
+    reason: str
+    retrieved_at: str
 
 
 @dataclass
@@ -52,6 +71,8 @@ class PackageInfo:
     dependent_count: int | None = None
     license_source: Literal["expression", "legacy"] | None = None
     enrichment_failures: list[EnrichmentFailure] = field(default_factory=list)
+    retrieved_at: str | None = None
+    enrichment_sources: list[SourceRecord] = field(default_factory=list)
 
 
 @dataclass
@@ -63,3 +84,6 @@ class DependencyNode:
     installed_version: str | None = None
     children: list[DependencyNode] = field(default_factory=list)
     circular: bool = False
+    source: str | None = None
+    retrieved_at: str | None = None
+    resolution_failure: DependencyResolutionFailure | None = None

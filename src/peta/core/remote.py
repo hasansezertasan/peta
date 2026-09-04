@@ -7,6 +7,7 @@ from typing import Literal, Required, TypedDict, cast
 import httpx
 
 from peta.core.models import PackageInfo, Vulnerability
+from peta.core.output import utc_now
 from peta.core.validation import (
     ResponseValidationError,
     expect_list,
@@ -248,4 +249,5 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         files=None,
         vulnerabilities=_parse_vulnerabilities(data.get("vulnerabilities", [])),
         source="remote",
+        retrieved_at=utc_now(),
     )

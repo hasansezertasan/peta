@@ -236,9 +236,11 @@ ignore_decorators = [
 # referenced only via pyproject scripts, ``model_config`` is consumed by
 # pydantic-settings, ``logger`` is imported only by optional components, the MCP
 # ``arguments`` parameter is mandated by the call_tool signature, and
-# ``pytestmark`` is consumed by pytest at collection time.
+# ``pytestmark`` and ``pytest_configure`` are consumed by pytest at collection
+# time.
 ignore_names = [
   "CONFIG_FILE_PATH",
+  "pytest_configure",
   "logger",
   "main",
   "model_config",
@@ -343,8 +345,8 @@ max-complexity = 5
 # Typer command handlers accumulate one boolean flag per feature (--local,
 # --remote, --no-osv, --no-stats, ...); the default of 5 is too tight for
 # that pattern. `compare(ctx, a, b, use_json, local, remote, no_osv, no_stats)`
-# needs 8 (two package arguments instead of one).
-max-args = 8
+# needs 9 (two package arguments plus the legacy --json alias and --format).
+max-args = 9
 
 
 [tool.ruff.lint.pycodestyle]

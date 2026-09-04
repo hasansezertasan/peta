@@ -2,8 +2,9 @@ Usage
 =====
 
 ``peta`` reads package metadata from your local environment or from the
-PyPI JSON API and prints it with Rich formatting. Add ``--json`` to any
-command for machine-readable output.
+PyPI JSON API and prints it with Rich formatting. Use ``--format`` with
+``rich``, ``text``, ``json``, or ``markdown`` on any command. ``--json`` remains
+an alias for ``--format json``.
 
 Commands
 --------
@@ -19,7 +20,7 @@ Color
 
 ``peta`` colors Rich output when stdout is a terminal. Disable it with the
 root ``--no-color`` flag or the ``NO_COLOR`` environment variable; both take
-precedence over TTY detection. ``--json`` output is always plain. See
+precedence over TTY detection. Text, JSON, and Markdown output is always plain. See
 :doc:`configuration` for the ``NO_COLOR`` variable.
 
 Vulnerabilities
@@ -42,8 +43,8 @@ best-effort: a failure omits the corresponding field, adds a source-specific
 enrichment warning, and never changes the exit code. The dependent count
 additionally requires a ``LIBRARIES_IO_API_KEY`` (see :doc:`configuration`);
 without one it is omitted with no request made. Pass ``--no-stats`` to skip
-both lookups. JSON package objects expose these warnings as an
-``enrichment_failures`` array containing ``source`` and ``reason`` fields.
+both lookups. JSON envelopes expose these failures as structured ``warnings``
+and mark the overall result ``partial``. See :doc:`output-contract`.
 
 Dependency tree
 ---------------
@@ -91,9 +92,16 @@ Exit codes
    * - ``0``
      - Success.
    * - ``1``
-     - Package not found.
+     - Package not found, or ``deps --why`` found no path to the target.
    * - ``2``
-     - Network or PyPI HTTP error.
+     - Network or PyPI HTTP error, or invalid arguments (an unparsable
+       ``name==version``, ``--local`` with a version specifier, ``--json``
+       combined with a non-JSON ``--format``, or a parser rejection such as an
+       unknown option or out-of-range ``--depth``).
 
 Failures from optional OSV, pypistats, and Libraries.io enrichment sources are
 reported as warnings and retain exit code ``0``.
+
+With JSON output, fatal errors use the same versioned envelope as successful
+results and appear in the ``errors`` array. The exit codes above are unchanged,
+so scripts should inspect both the process status and the envelope.

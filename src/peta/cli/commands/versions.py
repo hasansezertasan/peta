@@ -9,8 +9,9 @@ import httpx
 import typer
 from packaging.version import InvalidVersion, Version
 
-from peta.cli.output.json import format_versions as json_format
-from peta.cli.output.tables import render_versions as rich_format
+from peta.cli.output.render import render_versions
+from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
+from peta.core.output import utc_now
 from peta.core.remote import DEFAULT_TIMEOUT, PYPI_BASE_URL, NetworkError
 from peta.core.validation import (
     ResponseValidationError,
@@ -144,24 +145,46 @@ remote_get_versions = get_versions
 
 
 def versions(
-    package: str, *, use_json: bool = False, limit: int = 20, color: bool = False
+    package: str,
+    *,
+    use_json: bool = False,
+    output_format: OutputFormat | None = None,
+    limit: int = 20,
+    color: bool = False,
 ) -> None:
-    """Show published versions of a package from PyPI.
-
-    Raises:
-        Exit: With code 2 on network failure, or code 1 if the package is absent.
-    """
+    """Show published versions of a package from PyPI."""
+    arguments: dict[str, object] = {"package": package, "limit": limit}
+    selected = resolve_or_fail("versions", arguments, output_format, use_json=use_json)
     try:
         vers = remote_get_versions(package)
+        retrieved_at = utc_now()
     except NetworkError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from None
+        fail(
+            "versions",
+            arguments=arguments,
+            code="network_error",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+            source="pypi",
+        )
     if not vers:
-        typer.echo(f"Package '{package}' not found on PyPI.", err=True)
-        raise typer.Exit(code=1) from None
+        fail(
+            "versions",
+            arguments=arguments,
+            code="package_not_found",
+            message=f"Package '{package}' not found on PyPI.",
+            output_format=selected,
+            exit_code=1,
+            source="pypi",
+        )
     shown = vers[:limit]
-    typer.echo(
-        json_format(package, shown)
-        if use_json
-        else rich_format(package, shown, color=color)
+    rendered = render_versions(
+        selected,
+        package,
+        shown,
+        arguments=arguments,
+        color=color,
+        retrieved_at=retrieved_at,
     )
+    typer.echo(rendered)

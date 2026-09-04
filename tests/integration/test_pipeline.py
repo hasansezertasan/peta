@@ -51,4 +51,4 @@ def test_remote_info_json(mock_httpx: MagicMock) -> None:
     resp.json.return_value = _PAYLOAD
     mock_httpx.get.return_value = resp
     result = runner.invoke(app, ["info", "flask", "--remote", "--json"])
-    assert json.loads(result.output)["name"] == "flask"
+    assert json.loads(result.output)["result"]["name"] == "flask"

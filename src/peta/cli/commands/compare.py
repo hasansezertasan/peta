@@ -6,12 +6,12 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from peta.cli.output.json import format_compare as json_format
-from peta.cli.output.tables import render_compare as rich_format
+from peta.cli.output.render import render_compare
+from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core.enrich import enrich
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
-from peta.core.resolve import resolve_package
+from peta.core.resolve import not_found_source, resolve_package
 
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
@@ -36,18 +36,23 @@ def compare(
     b: str,
     *,
     use_json: bool = False,
+    output_format: OutputFormat | None = None,
     local: bool = False,
     remote: bool = False,
     color: bool = False,
     no_osv: bool = False,
     no_stats: bool = False,
 ) -> None:
-    """Compare two packages' metadata side by side.
-
-    Raises:
-        Exit: With code 1 if either package is not found, or code 2 on network
-            failure.
-    """
+    """Compare two packages' metadata side by side."""
+    arguments: dict[str, object] = {
+        "a": a,
+        "b": b,
+        "local": local,
+        "remote": remote,
+        "no_osv": no_osv,
+        "no_stats": no_stats,
+    }
+    selected = resolve_or_fail("compare", arguments, output_format, use_json=use_json)
     try:
         a_pkg = _resolve_and_enrich(
             a, local=local, remote=remote, no_osv=no_osv, no_stats=no_stats
@@ -58,13 +63,33 @@ def compare(
     except _NOT_FOUND as exc:
         version = getattr(exc, "version", None)
         target = f"{exc.name}=={version}" if version else exc.name
-        typer.echo(f"Package '{target}' not found.", err=True)
-        raise typer.Exit(code=1) from None
+        fail(
+            "compare",
+            arguments=arguments,
+            code="package_not_found",
+            message=f"Package '{target}' not found.",
+            output_format=selected,
+            exit_code=1,
+            source=not_found_source(exc),
+        )
+    except typer.BadParameter as exc:
+        fail(
+            "compare",
+            arguments=arguments,
+            code="invalid_arguments",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+        )
     except NetworkError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from None
-    typer.echo(
-        json_format(a_pkg, b_pkg)
-        if use_json
-        else rich_format(a_pkg, b_pkg, color=color)
-    )
+        fail(
+            "compare",
+            arguments=arguments,
+            code="network_error",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+            source="pypi",
+        )
+    rendered = render_compare(selected, a_pkg, b_pkg, arguments=arguments, color=color)
+    typer.echo(rendered)

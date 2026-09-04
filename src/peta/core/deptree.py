@@ -9,7 +9,8 @@ from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
 from peta.core.local import PackageNotFoundError as LocalNotFound
-from peta.core.models import DependencyNode
+from peta.core.models import DependencyNode, DependencyResolutionFailure
+from peta.core.output import utc_now
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import resolve_package
 
@@ -18,29 +19,50 @@ if TYPE_CHECKING:
 
 __all__ = ["build_tree", "find_why"]
 
-
 # Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter
 # cannot strip the parentheses into Python-2-only ``except A, B`` syntax.
 _UNRESOLVABLE = (LocalNotFound, RemoteNotFound, NetworkError)
 
 
+def _resolution_failure(
+    exc: LocalNotFound | RemoteNotFound | NetworkError,
+) -> DependencyResolutionFailure:
+    if isinstance(exc, NetworkError):
+        return DependencyResolutionFailure(
+            source="pypi", state="failed", reason=str(exc), retrieved_at=utc_now()
+        )
+    # A not-found response means the provider completed the lookup and holds no
+    # package data, which the output contract calls ``empty`` rather than
+    # ``unavailable`` (reserved for a source that could not be configured).
+    source = "local" if isinstance(exc, LocalNotFound) else "pypi"
+    return DependencyResolutionFailure(
+        source=source, state="empty", reason=str(exc), retrieved_at=utc_now()
+    )
+
+
 def _resolve_cached(
-    name: str, cache: dict[str, PackageInfo | None], *, local: bool, remote: bool
-) -> PackageInfo | None:
+    name: str,
+    cache: dict[str, PackageInfo | DependencyResolutionFailure],
+    *,
+    local: bool,
+    remote: bool,
+) -> PackageInfo | DependencyResolutionFailure:
     """Resolve ``name`` via the cache, memoizing hits and failures alike.
 
     Returns:
-        The resolved package, or ``None`` if it could not be resolved.
+        The resolved package or a structured lookup failure.
     """
     canon = canonicalize_name(name)
     if canon in cache:
         return cache[canon]
     try:
         pkg = resolve_package(name, local=local, remote=remote)
-    except _UNRESOLVABLE:
-        pkg = None
-    cache[canon] = pkg
-    return pkg
+    except _UNRESOLVABLE as exc:
+        result: PackageInfo | DependencyResolutionFailure = _resolution_failure(exc)
+    else:
+        result = pkg
+    cache[canon] = result
+    return result
 
 
 def _marker_satisfied(req: Requirement) -> bool:
@@ -88,7 +110,7 @@ def _kept_requirements(pkg: PackageInfo) -> list[Requirement]:
 def _child_node(
     req: Requirement,
     path: frozenset[str],
-    cache: dict[str, PackageInfo | None],
+    cache: dict[str, PackageInfo | DependencyResolutionFailure],
     *,
     local: bool,
     remote: bool,
@@ -105,13 +127,19 @@ def _child_node(
     canon = canonicalize_name(req.name)
     if canon in path:
         return DependencyNode(name=req.name, version_spec=version_spec, circular=True)
-    child_pkg = _resolve_cached(req.name, cache, local=local, remote=remote)
-    installed_version = child_pkg.version if child_pkg is not None else None
-    if child_pkg is None or depth >= max_depth:
+    resolved = _resolve_cached(req.name, cache, local=local, remote=remote)
+    if isinstance(resolved, DependencyResolutionFailure):
+        return DependencyNode(
+            name=req.name, version_spec=version_spec, resolution_failure=resolved
+        )
+    child_pkg = resolved
+    if depth >= max_depth:
         return DependencyNode(
             name=req.name,
             version_spec=version_spec,
-            installed_version=installed_version,
+            installed_version=child_pkg.version,
+            source=child_pkg.source,
+            retrieved_at=child_pkg.retrieved_at,
         )
     children = _expand(
         child_pkg,
@@ -125,15 +153,17 @@ def _child_node(
     return DependencyNode(
         name=req.name,
         version_spec=version_spec,
-        installed_version=installed_version,
+        installed_version=child_pkg.version,
         children=children,
+        source=child_pkg.source,
+        retrieved_at=child_pkg.retrieved_at,
     )
 
 
 def _expand(
     pkg: PackageInfo,
     path: frozenset[str],
-    cache: dict[str, PackageInfo | None],
+    cache: dict[str, PackageInfo | DependencyResolutionFailure],
     *,
     local: bool,
     remote: bool,
@@ -173,7 +203,7 @@ def build_tree(
     """
     root_pkg = resolve_package(name, local=local, remote=remote)
     canon = canonicalize_name(root_pkg.name)
-    cache: dict[str, PackageInfo | None] = {canon: root_pkg}
+    cache: dict[str, PackageInfo | DependencyResolutionFailure] = {canon: root_pkg}
     children = _expand(
         root_pkg,
         frozenset({canon}),
@@ -188,6 +218,8 @@ def build_tree(
         version_spec="",
         installed_version=root_pkg.version,
         children=children,
+        source=root_pkg.source,
+        retrieved_at=root_pkg.retrieved_at,
     )
 
 

@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import typer
 
-from peta.cli.output.json import format_dep_tree, format_why
-from peta.cli.output.tables import render_dep_tree, render_why
+from peta.cli.output.render import render_dep_tree, render_why
+from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core.deptree import build_tree, find_why
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
+from peta.core.resolve import not_found_source
+
+if TYPE_CHECKING:
+    from peta.core.models import DependencyNode
 
 __all__ = ["deps"]
 
@@ -22,60 +28,105 @@ def _print_why(
     package: str,
     target: str,
     paths: list[list[str]],
+    tree: DependencyNode,
     *,
-    use_json: bool,
+    output_format: OutputFormat,
     color: bool,
     depth: int,
+    arguments: dict[str, object],
 ) -> None:
     if not paths:
         msg = (
             f"'{target}' was not found in the dependency tree of "
             f"'{package}' (depth {depth})."
         )
-        typer.echo(msg, err=True)
-        raise typer.Exit(code=1)
-    typer.echo(
-        format_why(target, paths)
-        if use_json
-        else render_why(target, paths, color=color)
+        fail(
+            "deps",
+            arguments=arguments,
+            code="dependency_not_found",
+            message=msg,
+            output_format=output_format,
+            exit_code=1,
+        )
+    rendered = render_why(
+        output_format, target, paths, tree, arguments=arguments, color=color
     )
+    typer.echo(rendered)
+
+
+def _print_tree(
+    tree: DependencyNode,
+    *,
+    output_format: OutputFormat,
+    arguments: dict[str, object],
+    color: bool,
+) -> None:
+    rendered = render_dep_tree(output_format, tree, arguments=arguments, color=color)
+    typer.echo(rendered)
 
 
 def deps(
     package: str,
     *,
     use_json: bool = False,
+    output_format: OutputFormat | None = None,
     local: bool = False,
     remote: bool = False,
     color: bool = False,
     why: str | None = None,
     depth: int = 10,
 ) -> None:
-    """Show a package's recursive dependency tree, or ``--why`` a target is pulled in.
-
-    Raises:
-        Exit: With code 1 if the package (or, with ``--why``, the target) is
-            not found, or code 2 on network failure.
-    """
+    """Show a package's recursive dependency tree, or why a target is pulled in."""
+    arguments: dict[str, object] = {
+        "package": package,
+        "local": local,
+        "remote": remote,
+        "why": why,
+        "depth": depth,
+    }
+    selected = resolve_or_fail("deps", arguments, output_format, use_json=use_json)
     try:
         tree = build_tree(package, local=local, remote=remote, max_depth=depth)
-    except _NOT_FOUND:
-        typer.echo(f"Package '{package}' not found.", err=True)
-        raise typer.Exit(code=1) from None
+    except _NOT_FOUND as exc:
+        fail(
+            "deps",
+            arguments=arguments,
+            code="package_not_found",
+            message=f"Package '{package}' not found.",
+            output_format=selected,
+            exit_code=1,
+            source=not_found_source(exc),
+        )
+    except typer.BadParameter as exc:
+        fail(
+            "deps",
+            arguments=arguments,
+            code="invalid_arguments",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+        )
     except NetworkError as exc:
-        typer.echo(str(exc), err=True)
-        raise typer.Exit(code=2) from None
+        fail(
+            "deps",
+            arguments=arguments,
+            code="network_error",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+            source="pypi",
+        )
 
     if why is not None:
         _print_why(
             package,
             why,
             find_why(tree, why),
-            use_json=use_json,
+            tree,
+            output_format=selected,
             color=color,
             depth=depth,
+            arguments=arguments,
         )
         return
-    typer.echo(
-        format_dep_tree(tree) if use_json else render_dep_tree(tree, color=color)
-    )
+    _print_tree(tree, output_format=selected, arguments=arguments, color=color)
