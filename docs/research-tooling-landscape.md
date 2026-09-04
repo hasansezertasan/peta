@@ -47,7 +47,7 @@ Two important limitations follow directly from the implementation:
 - “Local” means the Python environment running `peta`: `importlib.metadata.distribution(name)` is called without a selectable path or interpreter ([local reader](../src/peta/core/local.py)). This conflicts with the recommended isolated `uvx`, `uv tool`, and `pipx` installation workflow in the [README](https://github.com/hasansezertasan/peta#readme): an isolated tool cannot reliably see packages in the project environment the user probably intends to inspect.
 - The dependency tree is explicitly a metadata view, not a resolver: each child is expanded from its installed or latest PyPI metadata even when that selected version does not satisfy the parent specifier ([tree builder](../src/peta/core/deptree.py), [usage note](usage.rst)). This is useful for exploration, but `installed_version` is a misleading label for a remotely selected latest release.
 
-At the time of assessment there were also two visible consistency bugs. The project declared the modern SPDX-style `license = "MIT"` in [pyproject.toml](../pyproject.toml), but both readers consumed only the legacy `License`/`license` field; local and remote queries therefore rendered `license: null`. The architecture document also said there were four commands and omitted `compare`, while the architecture and module docs omitted newer core modules. Both findings were corrected in v0.1.1 ([local reader](../src/peta/core/local.py), [remote reader](../src/peta/core/remote.py), [architecture](architecture.rst), [module index](modules.rst)).
+At the time of assessment there were also two visible consistency bugs. The project declared the modern SPDX-style `license = "MIT"` in [pyproject.toml](../pyproject.toml), but both readers consumed only the legacy `License`/`license` field; local and remote queries therefore rendered `license: null`. The architecture document also said there were four commands and omitted `compare`, while the architecture and module docs omitted newer core modules. Both findings were corrected in the first correctness release ([local reader](../src/peta/core/local.py), [remote reader](../src/peta/core/remote.py), [architecture](architecture.rst), [module index](modules.rst)).
 
 The implementation also uses the project-level PyPI JSON `releases` mapping to list versions ([versions command](../src/peta/cli/commands/versions.py)). PyPI now marks that field deprecated and recommends the Index API for all distributions or versions ([PyPI JSON API](https://docs.pypi.org/api/json/)).
 
@@ -86,7 +86,7 @@ The implementation also uses the project-level PyPI JSON `releases` mapping to l
 | Side-by-side comparison | **Yes** | No | No | No | No | No | No |
 | Select environment/interpreter/path | No | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** | Workspace/toolchain |
 | Alternate/private index | No | **Yes** | **Yes** | **Yes** | **Yes** | N/A | **Yes** |
-| Versioned machine-readable contract | No | **Yes** (`inspect`) | No (JSON only) | No (JSON only) | No (JSON only) | No (JSON only) | No |
+| Versioned machine-readable contract | No | **Yes** (`inspect`) | No (JSON only) | No (JSON only) | Partial (CycloneDX) | No (JSON only) | No |
 | Graph/SBOM export | JSON tree only | No | Text tree | Mermaid/Graphviz/JSON | CycloneDX/JSON | No | Separate commands |
 
 Sources for the matrix are the linked first-party documents in the comparator sections and the local source links in “What `peta` is today.”
