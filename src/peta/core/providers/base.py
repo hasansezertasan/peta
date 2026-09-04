@@ -110,6 +110,10 @@ class EnrichmentProvider(Protocol):
     Implementations must not raise: every outcome, including failure and
     missing configuration, is reported as a :class:`ProviderResult` so one
     source can never abort another.
+
+    The member bodies below raise rather than using a bare ``...``: a protocol
+    body is never executed, and an explicit raise says so without leaving a
+    statement that has no effect.
     """
 
     @property
@@ -118,8 +122,11 @@ class EnrichmentProvider(Protocol):
 
         Returns:
             The provider's stable source name.
+
+        Raises:
+            NotImplementedError: Always; implementations supply the value.
         """
-        ...
+        raise NotImplementedError
 
     @property
     def capability(self) -> Capability:
@@ -127,8 +134,11 @@ class EnrichmentProvider(Protocol):
 
         Returns:
             The provider's capability.
+
+        Raises:
+            NotImplementedError: Always; implementations supply the value.
         """
-        ...
+        raise NotImplementedError
 
     @property
     def group(self) -> ProviderGroup:
@@ -136,13 +146,22 @@ class EnrichmentProvider(Protocol):
 
         Returns:
             The provider's group.
+
+        Raises:
+            NotImplementedError: Always; implementations supply the value.
         """
-        ...
+        raise NotImplementedError
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
         """Look up this provider's capability for ``pkg``.
 
+        Args:
+            pkg: The resolved package to look up.
+
         Returns:
             The outcome, whether evidence, an empty answer, or a failure.
+
+        Raises:
+            NotImplementedError: Always; implementations perform the lookup.
         """
-        ...
+        raise NotImplementedError
