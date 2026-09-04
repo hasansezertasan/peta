@@ -12,6 +12,12 @@ from packaging.version import InvalidVersion, Version
 from peta.cli.output.json import format_versions as json_format
 from peta.cli.output.tables import render_versions as rich_format
 from peta.core.remote import DEFAULT_TIMEOUT, PYPI_BASE_URL, NetworkError
+from peta.core.validation import (
+    ResponseValidationError,
+    expect_list,
+    expect_mapping,
+    optional_string,
+)
 
 if TYPE_CHECKING:
     from peta.core.remote import PyPIReleaseFile
@@ -45,37 +51,37 @@ def _extract_releases(body: object) -> dict[str, list[PyPIReleaseFile]]:
     """Validate and pull the ``releases`` mapping out of a decoded PyPI body.
 
     Returns:
-        The release mapping, with any non-list release values dropped.
+        The validated release mapping.
 
     Raises:
         NetworkError: If the body, or its ``releases`` field, is not a dict.
     """
-    if not isinstance(body, dict):
-        msg = "malformed response from PyPI"
-        raise NetworkError(msg)
-    mapping = cast("dict[str, object]", body)
-    releases = mapping.get("releases", {})
-    if not isinstance(releases, dict):
-        msg = "malformed response from PyPI"
-        raise NetworkError(msg)
-    releases_map = cast("dict[str, object]", releases)
-    return {
-        ver: cleaned
-        for ver, raw in releases_map.items()
-        if (cleaned := _clean_files(raw)) is not None
-    }
+    try:
+        mapping = expect_mapping(body, source="PyPI", path="$")
+        releases = expect_mapping(
+            mapping.get("releases"), source="PyPI", path="$.releases"
+        )
+        return {ver: _clean_files(raw, ver) for ver, raw in releases.items()}
+    except ResponseValidationError as exc:
+        msg = f"malformed response from PyPI: {exc}"
+        raise NetworkError(msg) from exc
 
 
-def _clean_files(raw: object) -> list[PyPIReleaseFile] | None:
-    """Coerce one release's file list, dropping non-dict members.
+def _clean_files(raw: object, version: str) -> list[PyPIReleaseFile]:
+    """Validate one release's file list.
 
     Returns:
-        The list of file dicts, or ``None`` if ``raw`` is not a list at all.
+        The validated list of release-file mappings.
     """
-    if not isinstance(raw, list):
-        return None
-    items = cast("list[object]", raw)
-    return cast("list[PyPIReleaseFile]", [f for f in items if isinstance(f, dict)])
+    path = f"$.releases.{version}"
+    items = expect_list(raw, source="PyPI", path=path)
+    files: list[dict[str, object]] = []
+    for index, item in enumerate(items):
+        file_path = f"{path}[{index}]"
+        release_file = expect_mapping(item, source="PyPI", path=file_path)
+        _ = optional_string(release_file, "upload_time", source="PyPI", path=file_path)
+        files.append(release_file)
+    return cast("list[PyPIReleaseFile]", cast("object", files))
 
 
 def _decode_body(response: httpx.Response) -> object:

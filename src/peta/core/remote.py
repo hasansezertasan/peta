@@ -7,6 +7,15 @@ from typing import Literal, Required, TypedDict, cast
 import httpx
 
 from peta.core.models import PackageInfo, Vulnerability
+from peta.core.validation import (
+    ResponseValidationError,
+    expect_list,
+    expect_mapping,
+    expect_string,
+    optional_string,
+    optional_string_list,
+    optional_string_mapping,
+)
 
 __all__ = [
     "NetworkError",
@@ -121,9 +130,62 @@ def _fetch(name: str, version: str | None) -> PyPIResponse:
         msg = f"PyPI returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    # Single typed boundary: the PyPI JSON API is untyped, so cast the decoded
-    # body into our TypedDict view of the fields we actually read.
-    return cast("PyPIResponse", response.json())
+    return _decode_response(response)
+
+
+def _decode_response(response: httpx.Response) -> PyPIResponse:
+    try:
+        body = cast("object", response.json())
+    except ValueError as exc:
+        msg = "PyPI returned invalid JSON"
+        raise NetworkError(msg) from exc
+    try:
+        return _validate_response(body)
+    except ResponseValidationError as exc:
+        msg = f"malformed response from PyPI: {exc}"
+        raise NetworkError(msg) from exc
+
+
+def _validate_vulnerability(value: object, index: int) -> None:
+    path = f"$.vulnerabilities[{index}]"
+    vuln = expect_mapping(value, source="PyPI", path=path)
+    _ = expect_string(vuln.get("id"), source="PyPI", path=f"{path}.id")
+    _ = optional_string(vuln, "summary", source="PyPI", path=path)
+    _ = optional_string_list(vuln, "aliases", source="PyPI", path=path)
+    _ = optional_string_list(vuln, "fixed_in", source="PyPI", path=path)
+
+
+def _validate_info(value: object) -> None:
+    info = expect_mapping(value, source="PyPI", path="$.info")
+    _ = expect_string(info.get("name"), source="PyPI", path="$.info.name")
+    _ = expect_string(info.get("version"), source="PyPI", path="$.info.version")
+    for key in (
+        "summary",
+        "author",
+        "author_email",
+        "maintainer",
+        "license",
+        "license_expression",
+        "requires_python",
+        "home_page",
+        "keywords",
+    ):
+        _ = optional_string(info, key, source="PyPI", path="$.info")
+    _ = optional_string_mapping(info, "project_urls", source="PyPI", path="$.info")
+    _ = optional_string_list(info, "requires_dist", source="PyPI", path="$.info")
+    _ = optional_string_list(info, "classifiers", source="PyPI", path="$.info")
+
+
+def _validate_response(body: object) -> PyPIResponse:
+    root = expect_mapping(body, source="PyPI", path="$")
+    _validate_info(root.get("info"))
+    raw_vulnerabilities = root.get("vulnerabilities", [])
+    vulnerabilities = expect_list(
+        raw_vulnerabilities, source="PyPI", path="$.vulnerabilities"
+    )
+    for index, vulnerability in enumerate(vulnerabilities):
+        _validate_vulnerability(vulnerability, index)
+    return cast("PyPIResponse", cast("object", root))
 
 
 def _parse_keywords(raw: str | None) -> list[str]:
@@ -136,9 +198,9 @@ def _parse_vulnerabilities(raw: list[PyPIVulnerability]) -> list[Vulnerability]:
     return [
         Vulnerability(
             id=v["id"],
-            aliases=v.get("aliases", []),
-            summary=v.get("summary", ""),
-            fixed_in=v.get("fixed_in", []),
+            aliases=v.get("aliases") or [],
+            summary=v.get("summary") or "",
+            fixed_in=v.get("fixed_in") or [],
         )
         for v in raw
     ]

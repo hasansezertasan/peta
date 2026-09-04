@@ -12,7 +12,12 @@ from peta.cli.output.tables import (
     render_versions,
     render_why,
 )
-from peta.core.models import DependencyNode, PackageInfo, Vulnerability
+from peta.core.models import (
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+    Vulnerability,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -73,6 +78,13 @@ def test_render_info_no_stats() -> None:
     assert "Dependents" not in out
 
 
+def test_render_info_warns_about_enrichment_failures() -> None:
+    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    out = render_info(_pkg(enrichment_failures=[failure]), color=False)
+    assert "Enrichment warnings" in out
+    assert "osv: HTTP 503" in out
+
+
 def test_render_compare() -> None:
     b = _pkg(name="httpx", version="0.27.0", dependencies=["httpcore"])
     out = render_compare(_pkg(), b, color=False)
@@ -124,6 +136,17 @@ def test_render_compare_counts() -> None:
     out = render_compare(a, b, color=False)
     assert "1,234,567" in out
     assert "42" in out
+
+
+def test_render_compare_does_not_claim_zero_when_osv_failed() -> None:
+    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    a = _pkg(enrichment_failures=[failure])
+    b = _pkg(name="httpx", version="0.27.0")
+    out = render_compare(a, b, color=False)
+    vulnerability_row = next(
+        line for line in out.splitlines() if "Vulnerabilities" in line
+    )
+    assert "unknown" in vulnerability_row
 
 
 def test_render_dep_tree() -> None:
