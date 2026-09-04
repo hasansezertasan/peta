@@ -132,170 +132,211 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="14"><span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">dataclass</span>
 </span><span data-line="15"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Protocol</span><span class="p">,</span> <span class="n">TypeAliasType</span>
 </span><span data-line="16">
-</span><span data-line="17"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-</span><span data-line="18">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">Vulnerability</span>
-</span><span data-line="19">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.output</span><span class="w"> </span><span class="kn">import</span> <span class="n">SourceState</span>
-</span><span data-line="20">
-</span><span data-line="21"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="22">    <span class="s2">"CAPABILITY_FIELDS"</span><span class="p">,</span>
-</span><span data-line="23">    <span class="s2">"Capability"</span><span class="p">,</span>
-</span><span data-line="24">    <span class="s2">"CountEvidence"</span><span class="p">,</span>
-</span><span data-line="25">    <span class="s2">"EnrichmentProvider"</span><span class="p">,</span>
-</span><span data-line="26">    <span class="s2">"Evidence"</span><span class="p">,</span>
-</span><span data-line="27">    <span class="s2">"ProviderGroup"</span><span class="p">,</span>
-</span><span data-line="28">    <span class="s2">"ProviderResult"</span><span class="p">,</span>
-</span><span data-line="29">    <span class="s2">"VulnerabilityEvidence"</span><span class="p">,</span>
-</span><span data-line="30"><span class="p">]</span>
-</span><span data-line="31">
-</span><span data-line="32">
-</span><span data-line="33"><span class="c1"># ``TypeAliasType`` (not a bare PEP 695 ``type`` statement) so the alias stays a</span>
-</span><span data-line="34"><span class="c1"># runtime object the docs build and CodeQL can both resolve, matching how</span>
-</span><span data-line="35"><span class="c1"># ``peta.core.output`` declares its contract aliases.</span>
-</span><span data-line="36"><span class="n">Capability</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
-</span><span data-line="37">    <span class="s2">"Capability"</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"vulnerabilities"</span><span class="p">,</span> <span class="s2">"download_count"</span><span class="p">,</span> <span class="s2">"dependent_count"</span><span class="p">]</span>
-</span><span data-line="38"><span class="p">)</span>
-</span><span data-line="39"><span class="sd">"""The single ``result`` field a provider contributes evidence for."""</span>
-</span><span data-line="40">
-</span><span data-line="41"><span class="n">ProviderGroup</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
-</span><span data-line="42">    <span class="s2">"ProviderGroup"</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"vulnerabilities"</span><span class="p">,</span> <span class="s2">"stats"</span><span class="p">]</span>
-</span><span data-line="43"><span class="p">)</span>
-</span><span data-line="44"><span class="sd">"""The ``--no-osv`` / ``--no-stats`` family a provider belongs to.</span>
-</span><span data-line="45">
-</span><span data-line="46"><span class="sd">Grouping lives on the provider so orchestration can honour the CLI's opt-out</span>
-</span><span data-line="47"><span class="sd">flags without naming individual sources.</span>
-</span><span data-line="48"><span class="sd">"""</span>
-</span><span data-line="49">
-</span><span data-line="50"><span class="n">CAPABILITY_FIELDS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Capability</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="51">    <span class="s2">"vulnerabilities"</span><span class="p">:</span> <span class="s2">"result.vulnerabilities"</span><span class="p">,</span>
-</span><span data-line="52">    <span class="s2">"download_count"</span><span class="p">:</span> <span class="s2">"result.download_count"</span><span class="p">,</span>
-</span><span data-line="53">    <span class="s2">"dependent_count"</span><span class="p">:</span> <span class="s2">"result.dependent_count"</span><span class="p">,</span>
-</span><span data-line="54"><span class="p">}</span>
-</span><span data-line="55"><span class="sd">"""The output-contract ``fields`` path each capability writes to."""</span>
-</span><span data-line="56">
-</span><span data-line="57">
+</span><span data-line="17"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">VULNERABILITY_FIELD</span>
+</span><span data-line="18">
+</span><span data-line="19"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
+</span><span data-line="20">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">Vulnerability</span>
+</span><span data-line="21">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.output</span><span class="w"> </span><span class="kn">import</span> <span class="n">SourceState</span>
+</span><span data-line="22">
+</span><span data-line="23"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="24">    <span class="s2">"CAPABILITY_FIELDS"</span><span class="p">,</span>
+</span><span data-line="25">    <span class="s2">"Capability"</span><span class="p">,</span>
+</span><span data-line="26">    <span class="s2">"CountEvidence"</span><span class="p">,</span>
+</span><span data-line="27">    <span class="s2">"EnrichmentProvider"</span><span class="p">,</span>
+</span><span data-line="28">    <span class="s2">"Evidence"</span><span class="p">,</span>
+</span><span data-line="29">    <span class="s2">"ProviderGroup"</span><span class="p">,</span>
+</span><span data-line="30">    <span class="s2">"ProviderResult"</span><span class="p">,</span>
+</span><span data-line="31">    <span class="s2">"VulnerabilityEvidence"</span><span class="p">,</span>
+</span><span data-line="32"><span class="p">]</span>
+</span><span data-line="33">
+</span><span data-line="34">
+</span><span data-line="35"><span class="c1"># ``TypeAliasType`` (not a bare PEP 695 ``type`` statement) so the alias stays a</span>
+</span><span data-line="36"><span class="c1"># runtime object the docs build and CodeQL can both resolve, matching how</span>
+</span><span data-line="37"><span class="c1"># ``peta.core.output`` declares its contract aliases.</span>
+</span><span data-line="38"><span class="n">Capability</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
+</span><span data-line="39">    <span class="s2">"Capability"</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"vulnerabilities"</span><span class="p">,</span> <span class="s2">"download_count"</span><span class="p">,</span> <span class="s2">"dependent_count"</span><span class="p">]</span>
+</span><span data-line="40"><span class="p">)</span>
+</span><span data-line="41"><span class="sd">"""The single ``result`` field a provider contributes evidence for."""</span>
+</span><span data-line="42">
+</span><span data-line="43"><span class="n">ProviderGroup</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
+</span><span data-line="44">    <span class="s2">"ProviderGroup"</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"vulnerabilities"</span><span class="p">,</span> <span class="s2">"stats"</span><span class="p">]</span>
+</span><span data-line="45"><span class="p">)</span>
+</span><span data-line="46"><span class="sd">"""The ``--no-osv`` / ``--no-stats`` family a provider belongs to.</span>
+</span><span data-line="47">
+</span><span data-line="48"><span class="sd">Grouping lives on the provider so orchestration can honour the CLI's opt-out</span>
+</span><span data-line="49"><span class="sd">flags without naming individual sources.</span>
+</span><span data-line="50"><span class="sd">"""</span>
+</span><span data-line="51">
+</span><span data-line="52"><span class="n">CAPABILITY_FIELDS</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Capability</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="53">    <span class="s2">"vulnerabilities"</span><span class="p">:</span> <span class="n">VULNERABILITY_FIELD</span><span class="p">,</span>
+</span><span data-line="54">    <span class="s2">"download_count"</span><span class="p">:</span> <span class="s2">"result.download_count"</span><span class="p">,</span>
+</span><span data-line="55">    <span class="s2">"dependent_count"</span><span class="p">:</span> <span class="s2">"result.dependent_count"</span><span class="p">,</span>
+</span><span data-line="56"><span class="p">}</span>
+</span><span data-line="57"><span class="sd">"""The output-contract ``fields`` path each capability writes to."""</span>
+</span><span data-line="58">
+</span><span data-line="59">
 <div class="viewcode-block" id="VulnerabilityEvidence">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.VulnerabilityEvidence">[docs]</a>
-</span><span data-line="58"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="59"><span class="k">class</span><span class="w"> </span><span class="nc">VulnerabilityEvidence</span><span class="p">:</span>
-</span><span data-line="60"><span class="w">    </span><span class="sd">"""Advisories a provider found for the subject."""</span>
-</span><span data-line="61">
-</span><span data-line="62">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span></div>
-
+</span><span data-line="60"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="61"><span class="k">class</span><span class="w"> </span><span class="nc">VulnerabilityEvidence</span><span class="p">:</span>
+</span><span data-line="62"><span class="w">    </span><span class="sd">"""Advisories a provider found for the subject."""</span>
 </span><span data-line="63">
-</span><span data-line="64">
+</span><span data-line="64">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span></div>
+
+</span><span data-line="65">
+</span><span data-line="66">
 <div class="viewcode-block" id="CountEvidence">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.CountEvidence">[docs]</a>
-</span><span data-line="65"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="66"><span class="k">class</span><span class="w"> </span><span class="nc">CountEvidence</span><span class="p">:</span>
-</span><span data-line="67"><span class="w">    </span><span class="sd">"""A single scalar count, such as downloads or dependents."""</span>
-</span><span data-line="68">
-</span><span data-line="69">    <span class="n">count</span><span class="p">:</span> <span class="nb">int</span></div>
-
+</span><span data-line="67"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="68"><span class="k">class</span><span class="w"> </span><span class="nc">CountEvidence</span><span class="p">:</span>
+</span><span data-line="69"><span class="w">    </span><span class="sd">"""A single scalar count, such as downloads or dependents."""</span>
 </span><span data-line="70">
-</span><span data-line="71">
-</span><span data-line="72"><span class="n">Evidence</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
-</span><span data-line="73">    <span class="s2">"Evidence"</span><span class="p">,</span> <span class="s2">"VulnerabilityEvidence | CountEvidence"</span>
-</span><span data-line="74"><span class="p">)</span>
-</span><span data-line="75"><span class="sd">"""Typed payload a provider returns, carried separately from its provenance."""</span>
-</span><span data-line="76">
-</span><span data-line="77">
+</span><span data-line="71">    <span class="n">count</span><span class="p">:</span> <span class="nb">int</span></div>
+
+</span><span data-line="72">
+</span><span data-line="73">
+</span><span data-line="74"><span class="n">Evidence</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
+</span><span data-line="75">    <span class="s2">"Evidence"</span><span class="p">,</span> <span class="s2">"VulnerabilityEvidence | CountEvidence"</span>
+</span><span data-line="76"><span class="p">)</span>
+</span><span data-line="77"><span class="sd">"""Typed payload a provider returns, carried separately from its provenance."""</span>
+</span><span data-line="78">
+</span><span data-line="79">
+</span><span data-line="80"><span class="n">_EVIDENCE_TYPES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Capability</span><span class="p">,</span> <span class="nb">type</span><span class="p">[</span><span class="n">VulnerabilityEvidence</span> <span class="o">|</span> <span class="n">CountEvidence</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="81">    <span class="s2">"vulnerabilities"</span><span class="p">:</span> <span class="n">VulnerabilityEvidence</span><span class="p">,</span>
+</span><span data-line="82">    <span class="s2">"download_count"</span><span class="p">:</span> <span class="n">CountEvidence</span><span class="p">,</span>
+</span><span data-line="83">    <span class="s2">"dependent_count"</span><span class="p">:</span> <span class="n">CountEvidence</span><span class="p">,</span>
+</span><span data-line="84"><span class="p">}</span>
+</span><span data-line="85"><span class="sd">"""The evidence variant each capability must carry."""</span>
+</span><span data-line="86">
+</span><span data-line="87"><span class="n">_EVIDENCE_FREE_STATES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">"failed"</span><span class="p">,</span> <span class="s2">"skipped"</span><span class="p">,</span> <span class="s2">"unavailable"</span><span class="p">})</span>
+</span><span data-line="88"><span class="sd">"""States that describe an absent answer, so cannot carry evidence."""</span>
+</span><span data-line="89">
+</span><span data-line="90">
 <div class="viewcode-block" id="ProviderResult">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.ProviderResult">[docs]</a>
-</span><span data-line="78"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="79"><span class="k">class</span><span class="w"> </span><span class="nc">ProviderResult</span><span class="p">:</span>
-</span><span data-line="80"><span class="w">    </span><span class="sd">"""One provider's answer for one package, evidence and provenance together.</span>
-</span><span data-line="81">
-</span><span data-line="82"><span class="sd">    ``state`` reuses the output contract's :data:`~peta.core.output.SourceState`</span>
-</span><span data-line="83"><span class="sd">    so a result maps onto a source record without a translation table.</span>
-</span><span data-line="84"><span class="sd">    """</span>
-</span><span data-line="85">
-</span><span data-line="86">    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="87">    <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span>
-</span><span data-line="88">    <span class="n">state</span><span class="p">:</span> <span class="n">SourceState</span>
-</span><span data-line="89">    <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="90">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="91">    <span class="n">evidence</span><span class="p">:</span> <span class="n">Evidence</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="92">    <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="93">
-</span><span data-line="94">    <span class="nd">@property</span>
-</span><span data-line="95">    <span class="k">def</span><span class="w"> </span><span class="nf">field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="96"><span class="w">        </span><span class="sd">"""Name the ``result`` path this provider contributes to.</span>
-</span><span data-line="97">
-</span><span data-line="98"><span class="sd">        Returns:</span>
-</span><span data-line="99"><span class="sd">            The output-contract field path for the provider's capability.</span>
-</span><span data-line="100"><span class="sd">        """</span>
-</span><span data-line="101">        <span class="k">return</span> <span class="n">CAPABILITY_FIELDS</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">]</span></div>
+</span><span data-line="91"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="92"><span class="k">class</span><span class="w"> </span><span class="nc">ProviderResult</span><span class="p">:</span>
+</span><span data-line="93"><span class="w">    </span><span class="sd">"""One provider's answer for one package, evidence and provenance together.</span>
+</span><span data-line="94">
+</span><span data-line="95"><span class="sd">    ``state`` reuses the output contract's :data:`~peta.core.output.SourceState`</span>
+</span><span data-line="96"><span class="sd">    so a result maps onto a source record without a translation table.</span>
+</span><span data-line="97"><span class="sd">    """</span>
+</span><span data-line="98">
+</span><span data-line="99">    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="100">    <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span>
+</span><span data-line="101">    <span class="n">state</span><span class="p">:</span> <span class="n">SourceState</span>
+</span><span data-line="102">    <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="103">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="104">    <span class="n">evidence</span><span class="p">:</span> <span class="n">Evidence</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="105">    <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="106">
+</span><span data-line="107">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="108"><span class="w">        </span><span class="sd">"""Reject result variants that orchestration could not merge coherently.</span>
+</span><span data-line="109">
+</span><span data-line="110"><span class="sd">        ``capability``, ``state``, and ``evidence`` are typed independently, so</span>
+</span><span data-line="111"><span class="sd">        nothing else stops an adapter from pairing ``CountEvidence`` with the</span>
+</span><span data-line="112"><span class="sd">        ``vulnerabilities`` capability, or attaching evidence to a failure. Both</span>
+</span><span data-line="113"><span class="sd">        would write one field while claiming provenance for another, so they are</span>
+</span><span data-line="114"><span class="sd">        rejected where they are constructed rather than merged silently.</span>
+</span><span data-line="115">
+</span><span data-line="116"><span class="sd">        Raises:</span>
+</span><span data-line="117"><span class="sd">            ValueError: If a state that cannot carry evidence carries some.</span>
+</span><span data-line="118"><span class="sd">            TypeError: If the evidence variant does not match the capability.</span>
+</span><span data-line="119"><span class="sd">        """</span>
+</span><span data-line="120">        <span class="n">evidence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span>
+</span><span data-line="121">        <span class="k">if</span> <span class="n">evidence</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="122">            <span class="k">return</span>
+</span><span data-line="123">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="n">_EVIDENCE_FREE_STATES</span><span class="p">:</span>
+</span><span data-line="124">            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"a </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="si">!r}</span><span class="s2"> result cannot carry evidence"</span>
+</span><span data-line="125">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="126">        <span class="c1"># Identity, not ``isinstance``: the evidence union covers both variants,</span>
+</span><span data-line="127">        <span class="c1"># so a subtype check narrows to "always true" and hides the mismatch.</span>
+</span><span data-line="128">        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">evidence</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_EVIDENCE_TYPES</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">]:</span>
+</span><span data-line="129">            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="130">                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">evidence</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> does not match capability "</span>
+</span><span data-line="131">                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="si">!r}</span><span class="s2">"</span>
+</span><span data-line="132">            <span class="p">)</span>
+</span><span data-line="133">            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="134">
+</span><span data-line="135">    <span class="nd">@property</span>
+</span><span data-line="136">    <span class="k">def</span><span class="w"> </span><span class="nf">field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="137"><span class="w">        </span><span class="sd">"""Name the ``result`` path this provider contributes to.</span>
+</span><span data-line="138">
+</span><span data-line="139"><span class="sd">        Returns:</span>
+</span><span data-line="140"><span class="sd">            The output-contract field path for the provider's capability.</span>
+</span><span data-line="141"><span class="sd">        """</span>
+</span><span data-line="142">        <span class="k">return</span> <span class="n">CAPABILITY_FIELDS</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">]</span></div>
 
-</span><span data-line="102">
-</span><span data-line="103">
+</span><span data-line="143">
+</span><span data-line="144">
 <div class="viewcode-block" id="EnrichmentProvider">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.EnrichmentProvider">[docs]</a>
-</span><span data-line="104"><span class="k">class</span><span class="w"> </span><span class="nc">EnrichmentProvider</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-</span><span data-line="105"><span class="w">    </span><span class="sd">"""An optional metadata source that enriches one package.</span>
-</span><span data-line="106">
-</span><span data-line="107"><span class="sd">    Implementations expose their identity as ``name``, the single result field</span>
-</span><span data-line="108"><span class="sd">    they contribute as ``capability``, and their opt-out family as ``group``.</span>
-</span><span data-line="109">
-</span><span data-line="110"><span class="sd">    Implementations must not raise: every outcome, including failure and</span>
-</span><span data-line="111"><span class="sd">    missing configuration, is reported as a :class:`ProviderResult` so one</span>
-</span><span data-line="112"><span class="sd">    source can never abort another.</span>
-</span><span data-line="113">
-</span><span data-line="114"><span class="sd">    The member bodies below raise rather than using a bare ``...``: a protocol</span>
-</span><span data-line="115"><span class="sd">    body is never executed, and an explicit raise says so without leaving a</span>
-</span><span data-line="116"><span class="sd">    statement that has no effect.</span>
-</span><span data-line="117"><span class="sd">    """</span>
-</span><span data-line="118">
-</span><span data-line="119">    <span class="nd">@property</span>
-</span><span data-line="120">    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="121"><span class="w">        </span><span class="sd">"""Identify the source in provenance and warnings.</span>
-</span><span data-line="122">
-</span><span data-line="123"><span class="sd">        Returns:</span>
-</span><span data-line="124"><span class="sd">            The provider's stable source name.</span>
-</span><span data-line="125">
-</span><span data-line="126"><span class="sd">        Raises:</span>
-</span><span data-line="127"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
-</span><span data-line="128"><span class="sd">        """</span>
-</span><span data-line="129">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-</span><span data-line="130">
-</span><span data-line="131">    <span class="nd">@property</span>
-</span><span data-line="132">    <span class="k">def</span><span class="w"> </span><span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Capability</span><span class="p">:</span>
-</span><span data-line="133"><span class="w">        </span><span class="sd">"""Name the single result field this provider contributes.</span>
-</span><span data-line="134">
-</span><span data-line="135"><span class="sd">        Returns:</span>
-</span><span data-line="136"><span class="sd">            The provider's capability.</span>
-</span><span data-line="137">
-</span><span data-line="138"><span class="sd">        Raises:</span>
-</span><span data-line="139"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
-</span><span data-line="140"><span class="sd">        """</span>
-</span><span data-line="141">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-</span><span data-line="142">
-</span><span data-line="143">    <span class="nd">@property</span>
-</span><span data-line="144">    <span class="k">def</span><span class="w"> </span><span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderGroup</span><span class="p">:</span>
-</span><span data-line="145"><span class="w">        </span><span class="sd">"""Name the opt-out family this provider belongs to.</span>
-</span><span data-line="146">
-</span><span data-line="147"><span class="sd">        Returns:</span>
-</span><span data-line="148"><span class="sd">            The provider's group.</span>
-</span><span data-line="149">
-</span><span data-line="150"><span class="sd">        Raises:</span>
-</span><span data-line="151"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
-</span><span data-line="152"><span class="sd">        """</span>
-</span><span data-line="153">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="145"><span class="k">class</span><span class="w"> </span><span class="nc">EnrichmentProvider</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+</span><span data-line="146"><span class="w">    </span><span class="sd">"""An optional metadata source that enriches one package.</span>
+</span><span data-line="147">
+</span><span data-line="148"><span class="sd">    Implementations expose their identity as ``name``, the single result field</span>
+</span><span data-line="149"><span class="sd">    they contribute as ``capability``, and their opt-out family as ``group``.</span>
+</span><span data-line="150">
+</span><span data-line="151"><span class="sd">    Implementations must not raise: every outcome, including failure and</span>
+</span><span data-line="152"><span class="sd">    missing configuration, is reported as a :class:`ProviderResult` so one</span>
+</span><span data-line="153"><span class="sd">    source can never abort another.</span>
 </span><span data-line="154">
+</span><span data-line="155"><span class="sd">    The member bodies below raise rather than using a bare ``...``: a protocol</span>
+</span><span data-line="156"><span class="sd">    body is never executed, and an explicit raise says so without leaving a</span>
+</span><span data-line="157"><span class="sd">    statement that has no effect.</span>
+</span><span data-line="158"><span class="sd">    """</span>
+</span><span data-line="159">
+</span><span data-line="160">    <span class="nd">@property</span>
+</span><span data-line="161">    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="162"><span class="w">        </span><span class="sd">"""Identify the source in provenance and warnings.</span>
+</span><span data-line="163">
+</span><span data-line="164"><span class="sd">        Returns:</span>
+</span><span data-line="165"><span class="sd">            The provider's stable source name.</span>
+</span><span data-line="166">
+</span><span data-line="167"><span class="sd">        Raises:</span>
+</span><span data-line="168"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="169"><span class="sd">        """</span>
+</span><span data-line="170">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="171">
+</span><span data-line="172">    <span class="nd">@property</span>
+</span><span data-line="173">    <span class="k">def</span><span class="w"> </span><span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Capability</span><span class="p">:</span>
+</span><span data-line="174"><span class="w">        </span><span class="sd">"""Name the single result field this provider contributes.</span>
+</span><span data-line="175">
+</span><span data-line="176"><span class="sd">        Returns:</span>
+</span><span data-line="177"><span class="sd">            The provider's capability.</span>
+</span><span data-line="178">
+</span><span data-line="179"><span class="sd">        Raises:</span>
+</span><span data-line="180"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="181"><span class="sd">        """</span>
+</span><span data-line="182">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="183">
+</span><span data-line="184">    <span class="nd">@property</span>
+</span><span data-line="185">    <span class="k">def</span><span class="w"> </span><span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderGroup</span><span class="p">:</span>
+</span><span data-line="186"><span class="w">        </span><span class="sd">"""Name the opt-out family this provider belongs to.</span>
+</span><span data-line="187">
+</span><span data-line="188"><span class="sd">        Returns:</span>
+</span><span data-line="189"><span class="sd">            The provider's group.</span>
+</span><span data-line="190">
+</span><span data-line="191"><span class="sd">        Raises:</span>
+</span><span data-line="192"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="193"><span class="sd">        """</span>
+</span><span data-line="194">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="195">
 <div class="viewcode-block" id="EnrichmentProvider.fetch">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.EnrichmentProvider.fetch">[docs]</a>
-</span><span data-line="155">    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
-</span><span data-line="156"><span class="w">        </span><span class="sd">"""Look up this provider's capability for ``pkg``.</span>
-</span><span data-line="157">
-</span><span data-line="158"><span class="sd">        Args:</span>
-</span><span data-line="159"><span class="sd">            pkg: The resolved package to look up.</span>
-</span><span data-line="160">
-</span><span data-line="161"><span class="sd">        Returns:</span>
-</span><span data-line="162"><span class="sd">            The outcome, whether evidence, an empty answer, or a failure.</span>
-</span><span data-line="163">
-</span><span data-line="164"><span class="sd">        Raises:</span>
-</span><span data-line="165"><span class="sd">            NotImplementedError: Always; implementations perform the lookup.</span>
-</span><span data-line="166"><span class="sd">        """</span>
-</span><span data-line="167">        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+</span><span data-line="196">    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
+</span><span data-line="197"><span class="w">        </span><span class="sd">"""Look up this provider's capability for ``pkg``.</span>
+</span><span data-line="198">
+</span><span data-line="199"><span class="sd">        Args:</span>
+</span><span data-line="200"><span class="sd">            pkg: The resolved package to look up.</span>
+</span><span data-line="201">
+</span><span data-line="202"><span class="sd">        Returns:</span>
+</span><span data-line="203"><span class="sd">            The outcome, whether evidence, an empty answer, or a failure.</span>
+</span><span data-line="204">
+</span><span data-line="205"><span class="sd">        Raises:</span>
+</span><span data-line="206"><span class="sd">            NotImplementedError: Always; implementations perform the lookup.</span>
+</span><span data-line="207"><span class="sd">        """</span>
+</span><span data-line="208">        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 </div>
 
 </span></pre></div>

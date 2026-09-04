@@ -189,7 +189,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="71">
 </span><span data-line="72">
 </span><span data-line="73"><span class="k">def</span><span class="w"> </span><span class="nf">_vulnerability_count</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="74">    <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span> <span class="o">==</span> <span class="s2">"osv"</span> <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span><span class="p">):</span>
+</span><span data-line="74">    <span class="k">if</span> <span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities_unknown</span><span class="p">:</span>
 </span><span data-line="75">        <span class="k">return</span> <span class="s2">"unknown"</span>
 </span><span data-line="76">    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities</span><span class="p">))</span>
 </span><span data-line="77">

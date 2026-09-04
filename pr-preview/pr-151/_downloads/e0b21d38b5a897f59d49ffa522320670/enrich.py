@@ -145,7 +145,9 @@ def _provenance(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageI
         for result in results
     ]
     failures = [
-        EnrichmentFailure(source=result.provider, reason=result.reason or "")
+        EnrichmentFailure(
+            source=result.provider, reason=result.reason or "", field=result.field
+        )
         for result in results
         if result.state == "failed"
     ]
