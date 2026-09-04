@@ -25,5 +25,13 @@
       "future_vulnerability_field": true
     }
   ],
+  "releases": {
+    "1.2.3": [
+      {
+        "upload_time": "2026-01-02T03:04:05Z",
+        "future_release_file_field": true
+      }
+    ]
+  },
   "future_top_level_field": true
 }

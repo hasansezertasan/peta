@@ -138,6 +138,17 @@ def test_render_compare_counts() -> None:
     assert "42" in out
 
 
+def test_render_compare_does_not_claim_zero_when_osv_failed() -> None:
+    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    a = _pkg(enrichment_failures=[failure])
+    b = _pkg(name="httpx", version="0.27.0")
+    out = render_compare(a, b, color=False)
+    vulnerability_row = next(
+        line for line in out.splitlines() if "Vulnerabilities" in line
+    )
+    assert "unknown" in vulnerability_row
+
+
 def test_render_dep_tree() -> None:
     child = DependencyNode(
         name="urllib3", version_spec=">=1.21.1", installed_version="2.0"

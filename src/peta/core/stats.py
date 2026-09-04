@@ -70,15 +70,17 @@ def _fetch_pypistats(name: str) -> int:
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         raise EnrichmentError(PYPISTATS_SOURCE, f"HTTP {response.status_code}")
     try:
-        root = expect_mapping(
-            _decode(response, PYPISTATS_SOURCE), source=PYPISTATS_SOURCE, path="$"
-        )
-        data = expect_mapping(root.get("data"), source=PYPISTATS_SOURCE, path="$.data")
-        return expect_int(
-            data.get("last_month"), source=PYPISTATS_SOURCE, path="$.data.last_month"
-        )
+        return _parse_pypistats(_decode(response, PYPISTATS_SOURCE))
     except ResponseValidationError as exc:
         raise EnrichmentError(PYPISTATS_SOURCE, f"malformed response: {exc}") from exc
+
+
+def _parse_pypistats(body: object) -> int:
+    root = expect_mapping(body, source=PYPISTATS_SOURCE, path="$")
+    data = expect_mapping(root.get("data"), source=PYPISTATS_SOURCE, path="$.data")
+    return expect_int(
+        data.get("last_month"), source=PYPISTATS_SOURCE, path="$.data.last_month"
+    )
 
 
 def get_download_count(name: str) -> int | None:
@@ -118,18 +120,20 @@ def _fetch_libraries_io(name: str, api_key: str) -> int:
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         raise EnrichmentError(LIBRARIES_IO_SOURCE, f"HTTP {response.status_code}")
     try:
-        root = expect_mapping(
-            _decode(response, LIBRARIES_IO_SOURCE), source=LIBRARIES_IO_SOURCE, path="$"
-        )
-        return expect_int(
-            root.get("dependents_count"),
-            source=LIBRARIES_IO_SOURCE,
-            path="$.dependents_count",
-        )
+        return _parse_libraries_io(_decode(response, LIBRARIES_IO_SOURCE))
     except ResponseValidationError as exc:
         raise EnrichmentError(
             LIBRARIES_IO_SOURCE, f"malformed response: {exc}"
         ) from exc
+
+
+def _parse_libraries_io(body: object) -> int:
+    root = expect_mapping(body, source=LIBRARIES_IO_SOURCE, path="$")
+    return expect_int(
+        root.get("dependents_count"),
+        source=LIBRARIES_IO_SOURCE,
+        path="$.dependents_count",
+    )
 
 
 def get_dependent_count(name: str, *, api_key: str | None) -> int | None:

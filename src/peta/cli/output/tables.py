@@ -184,6 +184,11 @@ def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
     def count_or_dash(value: int | None) -> str:
         return "-" if value is None else f"{value:,}"
 
+    def vulnerability_count(pkg: PackageInfo) -> str:
+        if any(failure.source == "osv" for failure in pkg.enrichment_failures):
+            return "unknown"
+        return str(len(pkg.vulnerabilities))
+
     fields: list[tuple[str, str, str]] = [
         ("Version", a.version, b.version),
         ("Summary", a.summary or "-", b.summary or "-"),
@@ -197,7 +202,7 @@ def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
             count_or_dash(a.dependent_count),
             count_or_dash(b.dependent_count),
         ),
-        ("Vulnerabilities", str(len(a.vulnerabilities)), str(len(b.vulnerabilities))),
+        ("Vulnerabilities", vulnerability_count(a), vulnerability_count(b)),
     ]
     return fields
 
