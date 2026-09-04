@@ -12,7 +12,12 @@ from peta.cli.output.tables import (
     render_versions,
     render_why,
 )
-from peta.core.models import DependencyNode, PackageInfo, Vulnerability
+from peta.core.models import (
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+    Vulnerability,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -71,6 +76,13 @@ def test_render_info_no_stats() -> None:
     out = render_info(_pkg(), color=False)
     assert "Downloads" not in out
     assert "Dependents" not in out
+
+
+def test_render_info_warns_about_enrichment_failures() -> None:
+    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    out = render_info(_pkg(enrichment_failures=[failure]), color=False)
+    assert "Enrichment warnings" in out
+    assert "osv: HTTP 503" in out
 
 
 def test_render_compare() -> None:

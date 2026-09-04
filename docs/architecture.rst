@@ -32,6 +32,7 @@ Core (``peta.core``)
 * ``peta.core.osv`` — queries the OSV vulnerability API.
 * ``peta.core.stats`` — queries download and dependent-count APIs.
 * ``peta.core.vulns`` — merges and deduplicates vulnerability records.
+* ``peta.core.validation`` — validates decoded external API response fields.
 
 Error model
 -----------

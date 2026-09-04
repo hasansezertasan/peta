@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from peta.core.enrich import enrich
-from peta.core.models import PackageInfo, Vulnerability
+from peta.core.models import EnrichmentFailure, PackageInfo, Vulnerability
+from peta.core.validation import EnrichmentError
 
 pytestmark = pytest.mark.unit
 
@@ -69,3 +70,26 @@ class TestEnrich:
         mdep.return_value = None
         pkg = enrich(_pkg(), no_osv=False, no_stats=False)
         assert pkg.name == "requests"
+
+    @patch("peta.core.enrich.stats.libraries_io_api_key", return_value="secret")
+    @patch("peta.core.enrich.stats.get_dependent_count")
+    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    def test_records_partial_failures(
+        self, mo: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
+    ) -> None:
+        mo.side_effect = EnrichmentError("osv", "invalid $.vulns")
+        mdl.side_effect = EnrichmentError("pypistats", "HTTP 503")
+        mdep.side_effect = EnrichmentError("libraries.io", "invalid JSON")
+
+        pkg = enrich(_pkg(), no_osv=False, no_stats=False)
+
+        assert pkg.enrichment_failures == [
+            EnrichmentFailure(source="osv", reason="invalid $.vulns"),
+            EnrichmentFailure(source="pypistats", reason="HTTP 503"),
+            EnrichmentFailure(source="libraries.io", reason="invalid JSON"),
+        ]
+        assert pkg.vulnerabilities == []
+        assert pkg.download_count is None
+        assert pkg.dependent_count is None
+        mkey.assert_called_once_with()

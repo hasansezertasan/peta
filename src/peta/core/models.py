@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-__all__ = ["DependencyNode", "PackageInfo", "Vulnerability"]
+__all__ = ["DependencyNode", "EnrichmentFailure", "PackageInfo", "Vulnerability"]
 
 
 @dataclass
@@ -17,6 +17,14 @@ class Vulnerability:
     summary: str
     fixed_in: list[str]
     severity: str | None = None
+
+
+@dataclass
+class EnrichmentFailure:
+    """A non-fatal failure from an optional metadata source."""
+
+    source: str
+    reason: str
 
 
 @dataclass
@@ -43,6 +51,7 @@ class PackageInfo:
     download_count: int | None = None
     dependent_count: int | None = None
     license_source: Literal["expression", "legacy"] | None = None
+    enrichment_failures: list[EnrichmentFailure] = field(default_factory=list)
 
 
 @dataclass

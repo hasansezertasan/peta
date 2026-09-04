@@ -1,5 +1,6 @@
 """Unit tests for the OSV vulnerability enrichment client (httpx mocked)."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -7,6 +8,8 @@ import pytest
 
 from peta.core.models import Vulnerability
 from peta.core.osv import get_vulnerabilities
+from peta.core.validation import EnrichmentError
+from tests.contract_fixtures import load_contract
 
 pytestmark = pytest.mark.unit
 
@@ -46,6 +49,17 @@ def test_maps_fields(mock_httpx: MagicMock) -> None:
     assert v.summary == "A bad thing."
     assert v.fixed_in == ["1.2.3", "1.3.0"]
     assert v.severity == "AV:N/AC:L"
+
+
+@patch("peta.core.osv.httpx")
+def test_accepts_recorded_contract_and_unknown_fields(mock_httpx: MagicMock) -> None:
+    response = MagicMock(status_code=200)
+    response.json.return_value = load_contract("osv.json")
+    mock_httpx.post.return_value = response
+
+    result = get_vulnerabilities("example-package", "1.2.3")
+
+    assert result[0].id == "GHSA-synthetic"
 
 
 @patch("peta.core.osv.httpx")
@@ -94,24 +108,27 @@ def test_version_included_when_given(mock_httpx: MagicMock) -> None:
 
 
 @patch("peta.core.osv.httpx")
-def test_network_error_returns_empty(mock_httpx: MagicMock) -> None:
+def test_network_error_identifies_source(mock_httpx: MagicMock) -> None:
     mock_httpx.RequestError = httpx.RequestError
     mock_httpx.post.side_effect = httpx.ConnectError("refused")
-    assert get_vulnerabilities("pkg") == []
+    with pytest.raises(EnrichmentError, match="osv: refused"):
+        get_vulnerabilities("pkg")
 
 
 @patch("peta.core.osv.httpx")
-def test_non_200_returns_empty(mock_httpx: MagicMock) -> None:
+def test_non_200_identifies_source(mock_httpx: MagicMock) -> None:
     mock_httpx.RequestError = httpx.RequestError
     mock_httpx.post.return_value = _resp(500, {})
-    assert get_vulnerabilities("pkg") == []
+    with pytest.raises(EnrichmentError, match="osv: HTTP 500"):
+        get_vulnerabilities("pkg")
 
 
 @patch("peta.core.osv.httpx")
-def test_malformed_body_returns_empty(mock_httpx: MagicMock) -> None:
+def test_malformed_body_identifies_source(mock_httpx: MagicMock) -> None:
     mock_httpx.RequestError = httpx.RequestError
     mock_httpx.post.return_value = _resp(200, {"vulns": [{"no_id": True}]})
-    assert get_vulnerabilities("pkg") == []
+    with pytest.raises(EnrichmentError, match=r"osv: malformed response.*id"):
+        get_vulnerabilities("pkg")
 
 
 @patch("peta.core.osv.httpx")
@@ -122,10 +139,30 @@ def test_missing_vulns_key_returns_empty(mock_httpx: MagicMock) -> None:
 
 
 @patch("peta.core.osv.httpx")
-def test_non_dict_json_root_returns_empty(mock_httpx: MagicMock) -> None:
+def test_non_dict_json_root_identifies_source(mock_httpx: MagicMock) -> None:
     mock_httpx.RequestError = httpx.RequestError
     r = MagicMock()
     r.status_code = 200
     r.json.return_value = []
     mock_httpx.post.return_value = r
-    assert get_vulnerabilities("pkg") == []
+    with pytest.raises(EnrichmentError, match="osv: malformed response"):
+        get_vulnerabilities("pkg")
+
+
+@patch("peta.core.osv.httpx")
+def test_invalid_json_identifies_source(mock_httpx: MagicMock) -> None:
+    response = _resp(200)
+    response.json.side_effect = json.JSONDecodeError("bad", "", 0)
+    mock_httpx.post.return_value = response
+
+    with pytest.raises(EnrichmentError, match="osv: invalid JSON"):
+        get_vulnerabilities("pkg")
+
+
+@patch("peta.core.osv.httpx")
+def test_wrong_nested_type_identifies_path(mock_httpx: MagicMock) -> None:
+    payload = {"vulns": [{"id": "GHSA-1", "affected": [{"ranges": "bad"}]}]}
+    mock_httpx.post.return_value = _resp(200, payload)
+
+    with pytest.raises(EnrichmentError, match=r"affected\[0\].ranges"):
+        get_vulnerabilities("pkg")

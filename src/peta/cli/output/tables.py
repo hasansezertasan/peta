@@ -85,6 +85,20 @@ def _vuln_block(pkg: PackageInfo) -> str:
     return "\n\n" + "\n".join(lines)
 
 
+def _enrichment_block(*packages: PackageInfo) -> str:
+    failures = [
+        (pkg.name, failure) for pkg in packages for failure in pkg.enrichment_failures
+    ]
+    if not failures:
+        return ""
+    lines = ["⚠ Enrichment warnings:"]
+    show_package = len(packages) > 1
+    for package, failure in failures:
+        prefix = f"{package}: " if show_package else ""
+        lines.append(f"  {prefix}{failure.source}: {failure.reason}")
+    return "\n\n" + "\n".join(lines)
+
+
 def render_info(pkg: PackageInfo, *, color: bool) -> str:
     """Render :class:`PackageInfo` as a Rich panel string.
 
@@ -97,7 +111,7 @@ def render_info(pkg: PackageInfo, *, color: bool) -> str:
         title=f"{pkg.name} {pkg.version}",
         subtitle=f"source: {source_label}",
     )
-    return _to_string(panel, color=color) + _vuln_block(pkg)
+    return _to_string(panel, color=color) + _vuln_block(pkg) + _enrichment_block(pkg)
 
 
 def _node_label(node: DependencyNode) -> str:
@@ -200,7 +214,7 @@ def render_compare(a: PackageInfo, b: PackageInfo, *, color: bool) -> str:
     table.add_column(b.name)
     for label, a_value, b_value in _compare_rows(a, b):
         table.add_row(label, a_value, b_value)
-    return _to_string(table, color=color)
+    return _to_string(table, color=color) + _enrichment_block(a, b)
 
 
 def render_versions(name: str, versions: list[dict[str, str]], *, color: bool) -> str:

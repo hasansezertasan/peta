@@ -1,0 +1,29 @@
+{
+  "info": {
+    "name": "example-package",
+    "version": "1.2.3",
+    "summary": "Synthetic package metadata.",
+    "author": null,
+    "author_email": null,
+    "maintainer": null,
+    "license": null,
+    "license_expression": "MIT",
+    "requires_python": ">=3.10",
+    "home_page": null,
+    "project_urls": {"Source": "https://example.invalid/source"},
+    "requires_dist": ["dependency>=1"],
+    "classifiers": ["Programming Language :: Python :: 3"],
+    "keywords": "example,synthetic",
+    "future_info_field": {"allowed": true}
+  },
+  "vulnerabilities": [
+    {
+      "id": "PYSEC-SYNTHETIC-1",
+      "aliases": ["CVE-0000-0000"],
+      "summary": "Synthetic advisory.",
+      "fixed_in": ["1.2.4"],
+      "future_vulnerability_field": true
+    }
+  ],
+  "future_top_level_field": true
+}

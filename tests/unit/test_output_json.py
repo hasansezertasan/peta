@@ -13,7 +13,12 @@ from peta.cli.output.json import (
     format_versions,
     format_why,
 )
-from peta.core.models import DependencyNode, PackageInfo, Vulnerability
+from peta.core.models import (
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+    Vulnerability,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -62,6 +67,12 @@ def test_info_stats_default_none() -> None:
     data = json.loads(format_info(_pkg()))
     assert data["download_count"] is None
     assert data["dependent_count"] is None
+
+
+def test_info_exposes_enrichment_failures() -> None:
+    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    data = json.loads(format_info(_pkg(enrichment_failures=[failure])))
+    assert data["enrichment_failures"] == [{"source": "osv", "reason": "HTTP 503"}]
 
 
 def test_compare() -> None:

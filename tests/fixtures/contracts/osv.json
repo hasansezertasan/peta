@@ -1,0 +1,15 @@
+{
+  "vulns": [
+    {
+      "id": "GHSA-synthetic",
+      "aliases": ["CVE-0000-0000"],
+      "summary": "Synthetic advisory.",
+      "affected": [
+        {"ranges": [{"events": [{"introduced": "0"}, {"fixed": "1.2.4"}]}]}
+      ],
+      "severity": [{"type": "CVSS_V3", "score": "AV:N/AC:L"}],
+      "future_field": true
+    }
+  ],
+  "future_top_level_field": true
+}

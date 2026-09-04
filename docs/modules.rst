@@ -29,6 +29,8 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.vulns
 
+.. automodule:: peta.core.validation
+
 CLI (``peta.cli``)
 ----------------------------
 

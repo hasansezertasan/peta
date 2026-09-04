@@ -6,6 +6,8 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 from peta.core import osv, stats
+from peta.core.models import EnrichmentFailure
+from peta.core.validation import EnrichmentError
 from peta.core.vulns import merge_vulnerabilities
 
 if TYPE_CHECKING:
@@ -15,20 +17,38 @@ __all__ = ["enrich"]
 
 
 def _enrich_with_osv(pkg: PackageInfo) -> PackageInfo:
-    osv_vulns = osv.get_vulnerabilities(pkg.name, pkg.version)
+    try:
+        osv_vulns = osv.get_vulnerabilities(pkg.name, pkg.version)
+    except EnrichmentError as exc:
+        return _with_failure(pkg, exc)
     return dataclasses.replace(
         pkg, vulnerabilities=merge_vulnerabilities(pkg.vulnerabilities, osv_vulns)
     )
 
 
-def _enrich_with_stats(pkg: PackageInfo) -> PackageInfo:
+def _with_failure(pkg: PackageInfo, exc: EnrichmentError) -> PackageInfo:
+    failure = EnrichmentFailure(source=exc.source, reason=exc.reason)
     return dataclasses.replace(
-        pkg,
-        download_count=stats.get_download_count(pkg.name),
-        dependent_count=stats.get_dependent_count(
-            pkg.name, api_key=stats.libraries_io_api_key()
-        ),
+        pkg, enrichment_failures=[*pkg.enrichment_failures, failure]
     )
+
+
+def _enrich_with_stats(pkg: PackageInfo) -> PackageInfo:
+    try:
+        pkg = dataclasses.replace(
+            pkg, download_count=stats.get_download_count(pkg.name)
+        )
+    except EnrichmentError as exc:
+        pkg = _with_failure(pkg, exc)
+    try:
+        return dataclasses.replace(
+            pkg,
+            dependent_count=stats.get_dependent_count(
+                pkg.name, api_key=stats.libraries_io_api_key()
+            ),
+        )
+    except EnrichmentError as exc:
+        return _with_failure(pkg, exc)
 
 
 def enrich(pkg: PackageInfo, *, no_osv: bool, no_stats: bool) -> PackageInfo:

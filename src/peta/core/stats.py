@@ -8,6 +8,12 @@ from typing import Required, TypedDict, cast
 import httpx
 
 from peta.core.remote import DEFAULT_TIMEOUT
+from peta.core.validation import (
+    EnrichmentError,
+    ResponseValidationError,
+    expect_int,
+    expect_mapping,
+)
 
 __all__ = [
     "LIBRARIES_IO_URL",
@@ -23,17 +29,8 @@ __all__ = [
 
 PYPISTATS_URL = "https://pypistats.org/api/packages"
 LIBRARIES_IO_URL = "https://libraries.io/api/pypi"
-
-# Best-effort errors swallowed to ``None``/``0`` (network, or a
-# malformed/partial body). Kept as a named tuple so ``ruff format`` cannot
-# rewrite a parenthesized ``except (...)`` into invalid ``except A, B:`` syntax.
-_BEST_EFFORT_ERRORS = (
-    httpx.RequestError,
-    AttributeError,
-    KeyError,
-    TypeError,
-    ValueError,
-)
+PYPISTATS_SOURCE = "pypistats"
+LIBRARIES_IO_SOURCE = "libraries.io"
 
 
 # Both pypistats.org and libraries.io are untyped from Python's perspective
@@ -58,45 +55,46 @@ class LibrariesIoResponse(TypedDict, total=False):
     dependents_count: Required[int]
 
 
-def _as_int(value: object) -> int | None:
-    """Validate a decoded count value.
-
-    ``bool`` is rejected even though it is a ``int`` subclass, since a JSON
-    ``true``/``false`` is not a meaningful count.
-
-    Returns:
-        ``value`` if it is a genuine ``int``, else ``None``.
-    """
-    if isinstance(value, int) and not isinstance(value, bool):
-        return value
-    return None
+def _decode(response: httpx.Response, source: str) -> object:
+    try:
+        return cast("object", response.json())
+    except ValueError as exc:
+        raise EnrichmentError(source, "invalid JSON") from exc
 
 
-def _fetch_pypistats(name: str) -> PypiStatsResponse:
-    response = httpx.get(f"{PYPISTATS_URL}/{name}/recent", timeout=DEFAULT_TIMEOUT)
+def _fetch_pypistats(name: str) -> int:
+    try:
+        response = httpx.get(f"{PYPISTATS_URL}/{name}/recent", timeout=DEFAULT_TIMEOUT)
+    except httpx.RequestError as exc:
+        raise EnrichmentError(PYPISTATS_SOURCE, str(exc)) from exc
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
-        msg = f"pypistats returned HTTP {response.status_code}"
-        raise ValueError(msg)
-    return cast("PypiStatsResponse", response.json())
+        raise EnrichmentError(PYPISTATS_SOURCE, f"HTTP {response.status_code}")
+    try:
+        root = expect_mapping(
+            _decode(response, PYPISTATS_SOURCE), source=PYPISTATS_SOURCE, path="$"
+        )
+        data = expect_mapping(root.get("data"), source=PYPISTATS_SOURCE, path="$.data")
+        return expect_int(
+            data.get("last_month"), source=PYPISTATS_SOURCE, path="$.data.last_month"
+        )
+    except ResponseValidationError as exc:
+        raise EnrichmentError(PYPISTATS_SOURCE, f"malformed response: {exc}") from exc
 
 
 def get_download_count(name: str) -> int | None:
     """Look up a package's last-month download count on pypistats.org.
 
-    This is best-effort enrichment: any network failure, non-200 response,
-    or malformed body results in ``None`` rather than raising.
+    The enrichment coordinator catches source-specific failures so they remain
+    non-fatal while still being visible to users.
 
     Args:
         name: Package name to query (assumed to be a PyPI package).
 
     Returns:
-        The last-month download count, or ``None`` on any failure.
+        The last-month download count.
+
     """
-    try:
-        data = _fetch_pypistats(name)
-        return _as_int(data["data"]["last_month"])
-    except _BEST_EFFORT_ERRORS:
-        return None
+    return _fetch_pypistats(name)
 
 
 def libraries_io_api_key() -> str | None:
@@ -108,36 +106,47 @@ def libraries_io_api_key() -> str | None:
     return os.environ.get("LIBRARIES_IO_API_KEY") or None
 
 
-def _fetch_libraries_io(name: str, api_key: str) -> LibrariesIoResponse:
-    response = httpx.get(
-        f"{LIBRARIES_IO_URL}/{name}",
-        params={"api_key": api_key},
-        timeout=DEFAULT_TIMEOUT,
-    )
+def _fetch_libraries_io(name: str, api_key: str) -> int:
+    try:
+        response = httpx.get(
+            f"{LIBRARIES_IO_URL}/{name}",
+            params={"api_key": api_key},
+            timeout=DEFAULT_TIMEOUT,
+        )
+    except httpx.RequestError as exc:
+        raise EnrichmentError(LIBRARIES_IO_SOURCE, str(exc)) from exc
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
-        msg = f"libraries.io returned HTTP {response.status_code}"
-        raise ValueError(msg)
-    return cast("LibrariesIoResponse", response.json())
+        raise EnrichmentError(LIBRARIES_IO_SOURCE, f"HTTP {response.status_code}")
+    try:
+        root = expect_mapping(
+            _decode(response, LIBRARIES_IO_SOURCE), source=LIBRARIES_IO_SOURCE, path="$"
+        )
+        return expect_int(
+            root.get("dependents_count"),
+            source=LIBRARIES_IO_SOURCE,
+            path="$.dependents_count",
+        )
+    except ResponseValidationError as exc:
+        raise EnrichmentError(
+            LIBRARIES_IO_SOURCE, f"malformed response: {exc}"
+        ) from exc
 
 
 def get_dependent_count(name: str, *, api_key: str | None) -> int | None:
     """Look up a package's dependent count on libraries.io.
 
-    This is best-effort enrichment: any network failure, non-200 response,
-    or malformed body results in ``None`` rather than raising. No request is
-    made at all when no API key is available.
+    The enrichment coordinator catches source-specific failures so they remain
+    non-fatal while still being visible to users. No request is made at all
+    when no API key is available.
 
     Args:
         name: Package name to query (assumed to be a PyPI package).
         api_key: The libraries.io API key, or ``None`` to skip the lookup.
 
     Returns:
-        The dependent count, or ``None`` on any failure or missing key.
+        The dependent count, or ``None`` when no API key is configured.
+
     """
     if not api_key:
         return None
-    try:
-        data = _fetch_libraries_io(name, api_key)
-        return _as_int(data["dependents_count"])
-    except _BEST_EFFORT_ERRORS:
-        return None
+    return _fetch_libraries_io(name, api_key)

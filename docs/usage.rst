@@ -28,8 +28,9 @@ Vulnerabilities
 ``peta info`` enriches its vulnerability list from `OSV.dev
 <https://api.osv.dev/>`_ by default, merging OSV results with any PyPI
 advisories and deduping entries that share an id or alias. This lookup is
-best-effort: network failures leave the PyPI-only results in place and never
-change the exit code. Pass ``--no-osv`` to skip it entirely.
+best-effort: failures leave the PyPI-only results in place, add a source-specific
+enrichment warning, and never change the exit code. Pass ``--no-osv`` to skip it
+entirely.
 
 Download and dependent counts
 ------------------------------
@@ -37,10 +38,12 @@ Download and dependent counts
 ``peta info`` also shows a package's last-month download count from
 `pypistats.org <https://pypistats.org/>`_ and its dependent count from
 `libraries.io <https://libraries.io/>`_ by default. Both lookups are
-best-effort: a network failure simply omits the corresponding field and
-never changes the exit code. The dependent count additionally requires a
-``LIBRARIES_IO_API_KEY`` (see :doc:`configuration`); without one it is
-omitted with no request made. Pass ``--no-stats`` to skip both lookups.
+best-effort: a failure omits the corresponding field, adds a source-specific
+enrichment warning, and never changes the exit code. The dependent count
+additionally requires a ``LIBRARIES_IO_API_KEY`` (see :doc:`configuration`);
+without one it is omitted with no request made. Pass ``--no-stats`` to skip
+both lookups. JSON package objects expose these warnings as an
+``enrichment_failures`` array containing ``source`` and ``reason`` fields.
 
 Dependency tree
 ---------------
@@ -91,3 +94,6 @@ Exit codes
      - Package not found.
    * - ``2``
      - Network or PyPI HTTP error.
+
+Failures from optional OSV, pypistats, and Libraries.io enrichment sources are
+reported as warnings and retain exit code ``0``.

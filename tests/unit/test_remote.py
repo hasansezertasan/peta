@@ -1,5 +1,6 @@
 """Unit tests for the PyPI remote fetcher (httpx mocked)."""
 
+import json
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -7,6 +8,7 @@ import pytest
 
 from peta.core.models import PackageInfo
 from peta.core.remote import NetworkError, PackageNotFoundError, get_package
+from tests.contract_fixtures import load_contract
 
 pytestmark = pytest.mark.unit
 
@@ -47,6 +49,18 @@ def test_returns_package_info(mock_httpx: MagicMock) -> None:
     assert result.keywords == ["http", "requests"]
     assert result.license == "Apache-2.0"
     assert result.license_source == "legacy"
+
+
+@patch("peta.core.remote.httpx")
+def test_accepts_recorded_contract_and_unknown_fields(mock_httpx: MagicMock) -> None:
+    response = MagicMock(status_code=200)
+    response.json.return_value = load_contract("pypi-package.json")
+    mock_httpx.get.return_value = response
+
+    result = get_package("example-package")
+
+    assert result.name == "example-package"
+    assert result.vulnerabilities[0].id == "PYSEC-SYNTHETIC-1"
 
 
 @patch("peta.core.remote.httpx")
@@ -125,3 +139,35 @@ def test_http_status_error(mock_httpx: MagicMock) -> None:
     mock_httpx.get.return_value = resp
     with pytest.raises(NetworkError):
         get_package("requests")
+
+
+@patch("peta.core.remote.httpx")
+def test_invalid_json_raises_network_error(mock_httpx: MagicMock) -> None:
+    response = _resp(200)
+    response.json.side_effect = json.JSONDecodeError("bad", "", 0)
+    mock_httpx.get.return_value = response
+
+    with pytest.raises(NetworkError, match=r"PyPI.*invalid JSON"):
+        get_package("requests")
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {},
+        {"info": {}},
+        {"info": {"name": None, "version": "1.0"}},
+        {"info": {"name": "pkg", "version": 1}},
+        {"info": {"name": "pkg", "version": "1.0", "requires_dist": [None]}},
+    ],
+)
+@patch("peta.core.remote.httpx")
+def test_malformed_metadata_raises_network_error(
+    mock_httpx: MagicMock, payload: object
+) -> None:
+    response = MagicMock(status_code=200)
+    response.json.return_value = payload
+    mock_httpx.get.return_value = response
+
+    with pytest.raises(NetworkError, match="malformed response from PyPI"):
+        get_package("pkg")

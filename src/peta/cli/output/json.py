@@ -46,6 +46,10 @@ def _package_dict(pkg: PackageInfo) -> dict[str, object]:
         ],
         "download_count": pkg.download_count,
         "dependent_count": pkg.dependent_count,
+        "enrichment_failures": [
+            {"source": failure.source, "reason": failure.reason}
+            for failure in pkg.enrichment_failures
+        ],
         "source": pkg.source,
     }
 
