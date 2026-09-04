@@ -4,7 +4,7 @@ _Research date: 2026-09-03. Local assessment: the repository state checked out o
 
 ## Progress update — 2026-09-04
 
-Peta v0.1.1 shipped the first correctness work identified by this report:
+The first correctness release shipped the initial work identified by this report:
 
 - modern `License-Expression` support and synchronized command/module documentation;
 - runtime validation for PyPI, OSV, pypistats, and Libraries.io responses; and
@@ -86,7 +86,7 @@ The implementation also uses the project-level PyPI JSON `releases` mapping to l
 | Side-by-side comparison | **Yes** | No | No | No | No | No | No |
 | Select environment/interpreter/path | No | **Yes** | **Yes** | **Yes** | **Yes** | **Yes** | Workspace/toolchain |
 | Alternate/private index | No | **Yes** | **Yes** | **Yes** | **Yes** | N/A | **Yes** |
-| Versioned machine-readable contract | No | **Yes** (`inspect`) | JSON on selected commands | **Yes** | **Yes** | **Yes** | No |
+| Versioned machine-readable contract | No | **Yes** (`inspect`) | No (JSON only) | No (JSON only) | No (JSON only) | No (JSON only) | No |
 | Graph/SBOM export | JSON tree only | No | Text tree | Mermaid/Graphviz/JSON | CycloneDX/JSON | No | Separate commands |
 
 Sources for the matrix are the linked first-party documents in the comparator sections and the local source links in “What `peta` is today.”
@@ -202,7 +202,7 @@ These are **inferences** from the overlap analysis:
 
 ## Suggested sequence
 
-1. **v0.1.1 — completed:** modern license parsing, documentation synchronization, response validation, and structured enrichment failures.
+1. **Completed correctness release:** modern license parsing, documentation synchronization, response validation, and structured enrichment failures.
 2. **v0.2 — architectural foundation:** versioned output/error contract; provider interfaces; shared HTTP, cache, concurrency, and offline behavior; Index API client and migrated `versions`.
 3. **v0.3 — local inspection:** explicit environment targeting; installed origin/integrity; environment-wide dossier.
 4. **v0.4 — package trust:** modern Core Metadata; artifact/provenance preflight; installed-versus-registry drift; reproducible snapshots.
