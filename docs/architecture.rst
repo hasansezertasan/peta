@@ -13,8 +13,13 @@ Each command in ``peta.cli.commands`` orchestrates a fetch and a render.
 
 Rendering lives under this same layer, in ``peta.cli.output``:
 
-* ``peta.cli.output.tables`` — Rich renderers returning strings.
-* ``peta.cli.output.json`` — JSON string formatters.
+* ``peta.cli.output.tables`` — Rich table and tree renderers returning strings.
+* ``peta.cli.output.json`` — versioned JSON envelope formatters.
+* ``peta.cli.output.markdown`` — Markdown string formatters.
+* ``peta.cli.output.text`` — plain-text string formatters.
+* ``peta.cli.output.render`` — central format dispatch for command results.
+* ``peta.cli.output.errors`` — structured parser-validation error rendering.
+* ``peta.cli.output.selection`` — format selection and handler failure rendering.
 * ``peta.cli.output.console`` — shared console/color helpers.
 
 These renderers are typer-free (plain string builders); ``peta.cli``
@@ -24,6 +29,7 @@ Core (``peta.core``)
 --------------------
 
 * ``peta.core.models`` — package, vulnerability, and dependency-tree models.
+* ``peta.core.output`` — typed output-envelope, query, source, and message models.
 * ``peta.core.local`` — reads installed metadata via ``importlib.metadata``.
 * ``peta.core.remote`` — fetches from the PyPI JSON API with ``httpx``.
 * ``peta.core.resolve`` — chooses local or remote package metadata.
@@ -38,4 +44,5 @@ Error model
 -----------
 
 ``PackageNotFoundError`` (exit 1) and ``NetworkError`` (exit 2) are raised
-by the core layer and mapped to exit codes by the command handlers.
+by the core layer and mapped to exit codes by the command handlers. JSON output
+also renders these failures as structured, versioned envelopes.

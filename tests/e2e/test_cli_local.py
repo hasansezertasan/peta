@@ -25,7 +25,7 @@ def test_files_local_pkg() -> None:
 
 def test_info_local_json() -> None:
     result = runner.invoke(app, ["info", "typer", "--local", "--json"])
-    assert json.loads(result.output)["source"] == "local"
+    assert json.loads(result.output)["result"]["source"] == "local"
 
 
 def test_deps_local_pkg() -> None:

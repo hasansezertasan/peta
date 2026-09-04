@@ -32,6 +32,7 @@ class TestEnrich:
         pkg = enrich(_pkg(), no_osv=True, no_stats=True)
         mo.assert_not_called()
         assert pkg.vulnerabilities == []
+        assert pkg.enrichment_sources[0].state == "skipped"
 
     @patch("peta.core.enrich.stats.libraries_io_api_key")
     @patch("peta.core.enrich.stats.get_dependent_count")
@@ -46,6 +47,11 @@ class TestEnrich:
         assert pkg.download_count == 100
         assert pkg.dependent_count == 5
         mdep.assert_called_once_with("requests", api_key="secret")
+        assert [source.state for source in pkg.enrichment_sources] == [
+            "skipped",
+            "success",
+            "success",
+        ]
 
     @patch("peta.core.enrich.stats.get_dependent_count")
     @patch("peta.core.enrich.stats.get_download_count")
@@ -55,6 +61,11 @@ class TestEnrich:
         mdep.assert_not_called()
         assert pkg.download_count is None
         assert pkg.dependent_count is None
+        assert [source.state for source in pkg.enrichment_sources] == [
+            "skipped",
+            "skipped",
+            "skipped",
+        ]
 
     @patch("peta.core.enrich.stats.get_dependent_count")
     @patch("peta.core.enrich.stats.get_download_count")
@@ -70,6 +81,7 @@ class TestEnrich:
         mdep.return_value = None
         pkg = enrich(_pkg(), no_osv=False, no_stats=False)
         assert pkg.name == "requests"
+        assert pkg.enrichment_sources[-1].state == "unavailable"
 
     @patch("peta.core.enrich.stats.libraries_io_api_key", return_value="secret")
     @patch("peta.core.enrich.stats.get_dependent_count")
@@ -93,3 +105,16 @@ class TestEnrich:
         assert pkg.download_count is None
         assert pkg.dependent_count is None
         mkey.assert_called_once_with()
+        assert [source.state for source in pkg.enrichment_sources] == [
+            "failed",
+            "failed",
+            "failed",
+        ]
+
+    def test_records_confirmed_empty_osv_result(self) -> None:
+        with patch("peta.core.enrich.osv.get_vulnerabilities", return_value=[]):
+            pkg = enrich(_pkg(), no_osv=False, no_stats=True)
+        osv_source = pkg.enrichment_sources[0]
+        assert osv_source.state == "empty"
+        assert osv_source.retrieved_at is not None
+        assert osv_source.fields == ["result.vulnerabilities"]

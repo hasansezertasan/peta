@@ -112,6 +112,8 @@ def _child_node(
             name=req.name,
             version_spec=version_spec,
             installed_version=installed_version,
+            source=child_pkg.source if child_pkg is not None else None,
+            retrieved_at=child_pkg.retrieved_at if child_pkg is not None else None,
         )
     children = _expand(
         child_pkg,
@@ -127,6 +129,8 @@ def _child_node(
         version_spec=version_spec,
         installed_version=installed_version,
         children=children,
+        source=child_pkg.source,
+        retrieved_at=child_pkg.retrieved_at,
     )
 
 
@@ -188,6 +192,8 @@ def build_tree(
         version_spec="",
         installed_version=root_pkg.version,
         children=children,
+        source=root_pkg.source,
+        retrieved_at=root_pkg.retrieved_at,
     )
 
 

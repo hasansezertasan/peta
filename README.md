@@ -30,7 +30,7 @@ or from PyPI — with clean, Rich-formatted terminal output.
 - **Dependency listing** — see a package's declared dependencies
 - **File listing** — list files installed by a local package
 - **Version listing** — browse published versions from PyPI
-- **JSON output** — `--json` on every command for scripting
+- **Structured output** — Rich, plain text, versioned JSON, or Markdown
 
 ## Installation
 
@@ -71,14 +71,16 @@ peta deps flask --why certifi # why is certifi pulled in?
 peta files rich               # files installed locally
 peta versions httpx           # published versions on PyPI
 peta compare requests httpx   # side-by-side metadata comparison
-peta requests --json          # machine-readable output
+peta requests --format json   # versioned machine-readable output
+peta requests --json          # compatibility alias for --format json
 ```
 
 ### Flags
 
 | Flag | Applies to | Meaning |
 | ------ | ----------- | --------- |
-| `--json` | all | JSON output |
+| `--format <format>` | all | `rich`, `text`, `json`, or `markdown` (default `rich`) |
+| `--json` | all | compatibility alias for `--format json` |
 | `--local` / `-l` | info, compare, deps | force local lookup |
 | `--remote` / `-r` | info, compare, deps | force PyPI lookup |
 | `--limit` / `-n` | versions | max versions to show (default 20) |

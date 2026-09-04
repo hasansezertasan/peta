@@ -17,6 +17,8 @@ from peta.cli.commands import (
     versions as versions_mod,
 )
 from peta.cli.output.console import resolve_color
+from peta.cli.output.errors import StructuredErrorGroup
+from peta.cli.output.selection import OutputFormat
 from peta.cli.state import CliState
 
 __all__ = ["compare", "deps", "files", "info", "main", "run", "versions"]
@@ -34,8 +36,11 @@ _SUBCOMMANDS = {
     "-V",
 }
 
+_FORMAT_HELP = "Output format: rich, text, json, or markdown."
+
 app = typer.Typer(
     name="peta",
+    cls=StructuredErrorGroup,
     help="Human-friendly Python package metadata viewer.",
     no_args_is_help=True,
     context_settings={"help_option_names": ["-h", "--help"]},
@@ -94,6 +99,9 @@ def info(
         str, typer.Argument(help="Package name (optionally name==version).")
     ],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
+    ] = OutputFormat.RICH,
     local: Annotated[
         bool, typer.Option("--local", "-l", help="Force local lookup.")
     ] = False,
@@ -111,6 +119,7 @@ def info(
     info_mod.info(
         package,
         use_json=use_json,
+        output_format=output_format,
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
@@ -125,6 +134,9 @@ def compare(
     a: Annotated[str, typer.Argument(help="First package name.")],
     b: Annotated[str, typer.Argument(help="Second package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
+    ] = OutputFormat.RICH,
     local: Annotated[
         bool, typer.Option("--local", "-l", help="Force local lookup.")
     ] = False,
@@ -143,6 +155,7 @@ def compare(
         a,
         b,
         use_json=use_json,
+        output_format=output_format,
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
@@ -156,6 +169,9 @@ def deps(
     ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
+    ] = OutputFormat.RICH,
     local: Annotated[
         bool, typer.Option("--local", "-l", help="Force local lookup.")
     ] = False,
@@ -173,6 +189,7 @@ def deps(
     deps_mod.deps(
         package,
         use_json=use_json,
+        output_format=output_format,
         local=local,
         remote=remote,
         color=_color_from_ctx(ctx),
@@ -186,9 +203,17 @@ def files(
     ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
+    ] = OutputFormat.RICH,
 ) -> None:
     """List files installed by a local package."""
-    files_mod.files(package, use_json=use_json, color=_color_from_ctx(ctx))
+    files_mod.files(
+        package,
+        use_json=use_json,
+        output_format=output_format,
+        color=_color_from_ctx(ctx),
+    )
 
 
 @app.command()
@@ -196,13 +221,20 @@ def versions(
     ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
+    ] = OutputFormat.RICH,
     limit: Annotated[
         int, typer.Option("--limit", "-n", min=1, help="Max versions to show.")
     ] = 20,
 ) -> None:
     """Show published versions of a package from PyPI."""
     versions_mod.versions(
-        package, use_json=use_json, limit=limit, color=_color_from_ctx(ctx)
+        package,
+        use_json=use_json,
+        output_format=output_format,
+        limit=limit,
+        color=_color_from_ctx(ctx),
     )
 
 
