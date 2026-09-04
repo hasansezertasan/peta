@@ -16,6 +16,7 @@ from peta.core.models import (
     DependencyNode,
     EnrichmentFailure,
     PackageInfo,
+    ProviderConflict,
     Vulnerability,
 )
 
@@ -83,6 +84,16 @@ def test_render_info_warns_about_enrichment_failures() -> None:
     out = render_info(_pkg(enrichment_failures=[failure]), color=False)
     assert "Enrichment warnings" in out
     assert "osv: HTTP 503" in out
+
+
+def test_render_info_warns_about_provider_conflicts() -> None:
+    conflict = ProviderConflict(
+        field="result.download_count", kept="pypistats", discarded="deps.dev"
+    )
+    out = render_info(_pkg(enrichment_conflicts=[conflict]), color=False)
+    assert "Enrichment warnings" in out
+    assert "result.download_count: kept pypistats" in out
+    assert "deps.dev" in out
 
 
 def test_render_compare() -> None:

@@ -121,7 +121,7 @@ class TestInfo:
         mr.side_effect = NetworkError("down")
         assert runner.invoke(app, ["info", "x", "-r"]).exit_code == 2
 
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
     @patch("peta.core.resolve.local_get_package")
     def test_osv_enriches_output(self, ml: MagicMock, mo: MagicMock) -> None:
         ml.return_value = _pkg()
@@ -133,7 +133,7 @@ class TestInfo:
         assert "GHSA-osv" in r.output
         mo.assert_called_once_with("requests", "2.31.0")
 
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
     @patch("peta.core.resolve.local_get_package")
     def test_osv_deduped_against_pypi_vuln_by_alias(
         self, ml: MagicMock, mo: MagicMock
@@ -159,7 +159,7 @@ class TestInfo:
         assert "GHSA-2" not in r.output
         assert "[HIGH]" in r.output
 
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
     @patch("peta.core.resolve.local_get_package")
     def test_no_osv_skips_lookup(self, ml: MagicMock, mo: MagicMock) -> None:
         ml.return_value = _pkg()
@@ -171,9 +171,9 @@ class TestInfo:
         mo.assert_not_called()
         assert "GHSA-osv" not in r.output
 
-    @patch("peta.core.enrich.stats.libraries_io_api_key")
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.providers.builtin.stats.libraries_io_api_key")
+    @patch("peta.core.providers.builtin.stats.get_dependent_count")
+    @patch("peta.core.providers.builtin.stats.get_download_count")
     @patch("peta.core.resolve.local_get_package")
     def test_stats_enrich_output(
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
@@ -188,8 +188,8 @@ class TestInfo:
         assert "42" in r.output
         mdep.assert_called_once_with("requests", api_key="secret")
 
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.providers.builtin.stats.get_dependent_count")
+    @patch("peta.core.providers.builtin.stats.get_download_count")
     @patch("peta.core.resolve.local_get_package")
     def test_no_stats_skips_lookup(
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock
@@ -202,9 +202,9 @@ class TestInfo:
         assert "Downloads" not in r.output
         assert "Dependents" not in r.output
 
-    @patch("peta.core.enrich.stats.libraries_io_api_key")
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.providers.builtin.stats.libraries_io_api_key")
+    @patch("peta.core.providers.builtin.stats.get_dependent_count")
+    @patch("peta.core.providers.builtin.stats.get_download_count")
     @patch("peta.core.resolve.local_get_package")
     def test_stats_in_json(
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
@@ -374,7 +374,7 @@ class TestCompare:
         r = runner.invoke(app, ["compare", "a", "b", "-r"])
         assert r.exit_code == 2
 
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
     @patch("peta.core.resolve.remote_get_package")
     @patch("peta.core.resolve.local_get_package")
     def test_compare_no_osv_skips_lookup(
@@ -386,8 +386,8 @@ class TestCompare:
         assert r.exit_code == 0
         mo.assert_not_called()
 
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
+    @patch("peta.core.providers.builtin.stats.get_dependent_count")
+    @patch("peta.core.providers.builtin.stats.get_download_count")
     @patch("peta.core.resolve.remote_get_package")
     @patch("peta.core.resolve.local_get_package")
     def test_compare_no_stats_skips_lookup(

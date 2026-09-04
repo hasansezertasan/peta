@@ -35,6 +35,7 @@ Core (``peta.core``)
 * ``peta.core.resolve`` — chooses local or remote package metadata.
 * ``peta.core.deptree`` — builds recursive declared-metadata dependency trees.
 * ``peta.core.enrich`` — coordinates optional vulnerability and statistics data.
+* ``peta.core.providers`` — the provider seam and built-in source adapters.
 * ``peta.core.osv`` — queries the OSV vulnerability API.
 * ``peta.core.stats`` — queries download and dependent-count APIs.
 * ``peta.core.vulns`` — merges and deduplicates vulnerability records.

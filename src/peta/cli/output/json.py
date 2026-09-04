@@ -188,13 +188,26 @@ def _source_records(
 
 
 def _warnings(packages: list[PackageInfo]) -> list[OutputMessage]:
-    return [
+    failures = [
         OutputMessage(
             code="enrichment_failed", message=failure.reason, source=failure.source
         )
         for pkg in packages
         for failure in pkg.enrichment_failures
     ]
+    conflicts = [
+        OutputMessage(
+            code="provider_conflict",
+            message=(
+                f"{conflict.field}: kept {conflict.kept}, "
+                f"discarded conflicting {conflict.discarded}"
+            ),
+            source=conflict.kept,
+        )
+        for pkg in packages
+        for conflict in pkg.enrichment_conflicts
+    ]
+    return failures + conflicts
 
 
 def _dump(data: dict[str, object]) -> str:

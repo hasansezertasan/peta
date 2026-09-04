@@ -43,7 +43,10 @@ Successful retrievals include the time captured when the source returned in
 records may also include a query `target` or failure `reason`.
 
 Warnings and errors contain stable `code` and `message` fields, plus `source`
-when a specific provider is responsible. Optional enrichment failures produce a
+when a specific provider is responsible. When two providers answer the same
+result field with different values, the first one consulted wins and the
+disagreement is reported as a `provider_conflict` warning naming both; every
+consulted provider still appears in `sources`, so neither side is lost. Optional enrichment failures produce a
 `partial` envelope and exit code 0. Fatal errors produce a `failed` envelope and
 retain the documented nonzero CLI exit code. When command-line validation fails
 before a command handler runs, `query.arguments.argv` preserves the unparsed

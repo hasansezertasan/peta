@@ -46,6 +46,7 @@ MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
         "invalid_arguments",
         "network_error",
         "package_not_found",
+        "provider_conflict",
     ],
 )
 SourceState = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]

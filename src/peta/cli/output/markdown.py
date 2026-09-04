@@ -45,23 +45,29 @@ def _security_lines(pkg: PackageInfo) -> list[str]:
 
 
 def _warning_lines(*packages: PackageInfo) -> list[str]:
-    failures = [
-        (pkg.name, failure) for pkg in packages for failure in pkg.enrichment_failures
-    ]
-    if not failures:
-        return []
     prefixed = len(packages) > 1
 
     def item(name: str, source: str, reason: str) -> str:
         owner = f"`{_cell(name)}` — " if prefixed else ""
         return f"- {owner}**{_cell(source)}:** {_cell(reason)}"
 
-    return [
-        "",
-        "## Enrichment warnings",
-        "",
-        *(item(name, failure.source, failure.reason) for name, failure in failures),
+    warnings = [
+        item(pkg.name, failure.source, failure.reason)
+        for pkg in packages
+        for failure in pkg.enrichment_failures
     ]
+    warnings.extend(
+        item(
+            pkg.name,
+            conflict.field,
+            f"kept {conflict.kept}, discarded conflicting {conflict.discarded}",
+        )
+        for pkg in packages
+        for conflict in pkg.enrichment_conflicts
+    )
+    if not warnings:
+        return []
+    return ["", "## Enrichment warnings", "", *warnings]
 
 
 def _vulnerability_count(pkg: PackageInfo) -> str:

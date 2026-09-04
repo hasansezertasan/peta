@@ -11,7 +11,7 @@ from rich.tree import Tree
 from peta.cli.output.console import render as _render
 
 if TYPE_CHECKING:
-    from peta.core.models import DependencyNode, PackageInfo
+    from peta.core.models import DependencyNode, PackageInfo, ProviderConflict
 
 __all__ = [
     "render_compare",
@@ -85,18 +85,29 @@ def _vuln_block(pkg: PackageInfo) -> str:
     return "\n\n" + "\n".join(lines)
 
 
+def _conflict_reason(conflict: ProviderConflict) -> str:
+    return f"kept {conflict.kept}, discarded conflicting {conflict.discarded}"
+
+
 def _enrichment_block(*packages: PackageInfo) -> str:
-    failures = [
-        (pkg.name, failure) for pkg in packages for failure in pkg.enrichment_failures
-    ]
-    if not failures:
-        return ""
-    lines = ["⚠ Enrichment warnings:"]
     show_package = len(packages) > 1
-    for package, failure in failures:
-        prefix = f"{package}: " if show_package else ""
-        lines.append(f"  {prefix}{failure.source}: {failure.reason}")
-    return "\n\n" + "\n".join(lines)
+
+    def prefix(name: str) -> str:
+        return f"{name}: " if show_package else ""
+
+    warnings = [
+        f"  {prefix(pkg.name)}{failure.source}: {failure.reason}"
+        for pkg in packages
+        for failure in pkg.enrichment_failures
+    ]
+    warnings.extend(
+        f"  {prefix(pkg.name)}{conflict.field}: {_conflict_reason(conflict)}"
+        for pkg in packages
+        for conflict in pkg.enrichment_conflicts
+    )
+    if not warnings:
+        return ""
+    return "\n\n" + "\n".join(["⚠ Enrichment warnings:", *warnings])
 
 
 def render_info(pkg: PackageInfo, *, color: bool) -> str:

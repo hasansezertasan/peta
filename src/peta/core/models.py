@@ -13,6 +13,7 @@ __all__ = [
     "DependencyResolutionFailure",
     "EnrichmentFailure",
     "PackageInfo",
+    "ProviderConflict",
     "Vulnerability",
 ]
 
@@ -34,6 +35,19 @@ class EnrichmentFailure:
 
     source: str
     reason: str
+
+
+@dataclass(frozen=True)
+class ProviderConflict:
+    """Two providers offered different evidence for the same field.
+
+    Both sources are named so the disagreement stays visible; ``kept`` records
+    which one the deterministic merge order selected.
+    """
+
+    field: str
+    kept: str
+    discarded: str
 
 
 @dataclass(frozen=True)
@@ -71,6 +85,7 @@ class PackageInfo:
     dependent_count: int | None = None
     license_source: Literal["expression", "legacy"] | None = None
     enrichment_failures: list[EnrichmentFailure] = field(default_factory=list)
+    enrichment_conflicts: list[ProviderConflict] = field(default_factory=list)
     retrieved_at: str | None = None
     enrichment_sources: list[SourceRecord] = field(default_factory=list)
 

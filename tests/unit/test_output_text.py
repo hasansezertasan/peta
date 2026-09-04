@@ -19,6 +19,7 @@ from peta.core.models import (
     DependencyResolutionFailure,
     EnrichmentFailure,
     PackageInfo,
+    ProviderConflict,
     Vulnerability,
 )
 
@@ -134,3 +135,22 @@ def test_versions() -> None:
         "requests", [{"version": "2.31.0", "upload_time": "2023-05-22"}]
     )
     assert output == "Versions for requests\nVersion\tUploaded\n2.31.0\t2023-05-22"
+
+
+def test_info_reports_provider_conflicts_as_warnings() -> None:
+    output = format_info(
+        _pkg(
+            enrichment_conflicts=[
+                ProviderConflict(
+                    field="result.download_count",
+                    kept="pypistats",
+                    discarded="deps.dev",
+                )
+            ]
+        )
+    )
+    assert "Enrichment warnings:" in output
+    assert (
+        "- result.download_count: kept pypistats, discarded conflicting deps.dev"
+        in output
+    )

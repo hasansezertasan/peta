@@ -18,6 +18,7 @@ from peta.core.models import (
     DependencyResolutionFailure,
     EnrichmentFailure,
     PackageInfo,
+    ProviderConflict,
     Vulnerability,
 )
 
@@ -218,3 +219,25 @@ def test_versions() -> None:
     )["result"]
     assert data["name"] == "requests"
     assert len(data["versions"]) == 1
+
+
+def test_provider_conflict_is_reported_as_a_warning() -> None:
+    data = json.loads(
+        format_info(
+            _pkg(
+                enrichment_conflicts=[
+                    ProviderConflict(
+                        field="result.download_count",
+                        kept="pypistats",
+                        discarded="deps.dev",
+                    )
+                ]
+            )
+        )
+    )
+    assert data["status"] == "partial"
+    warning = data["warnings"][0]
+    assert warning["code"] == "provider_conflict"
+    assert warning["source"] == "pypistats"
+    # Both sides of the disagreement stay named in the message.
+    assert "deps.dev" in warning["message"]
