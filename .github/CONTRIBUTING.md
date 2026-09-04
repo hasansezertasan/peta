@@ -167,7 +167,19 @@ hook gate is `uv run --locked tox run -e prek`.
 
 ### Improving The Documentation
 
-<!-- TODO @hasansezertasan: Updating, improving and correcting the documentation -->
+The command and option reference in `docs/usage.rst` is generated from the
+Typer application by the local `cli_reference` Sphinx extension; do not
+maintain a second command list there. When adding or removing a command:
+
+- update `src/peta/cli/app.py`, which is the command reference's source of truth;
+- update the short examples and flag summary in `README.md` when user-facing
+  behavior changes;
+- update `docs/architecture.rst` and `docs/modules.rst` when modules or layer
+  responsibilities change; and
+- run `uv run --locked tox run -e docs-build` before opening the pull request.
+
+Keep conceptual explanations and task-oriented examples hand-written in the
+documentation; only the mechanical command and option inventory is generated.
 
 ## Styleguides
 

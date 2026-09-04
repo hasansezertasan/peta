@@ -5,7 +5,12 @@ See https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 from __future__ import annotations
 
+import sys
 from datetime import UTC, datetime
+from pathlib import Path
+
+# Make documentation-only adapters importable by Sphinx extensions.
+sys.path.insert(0, str(Path(__file__).resolve().parent / "_ext"))
 
 # -- Project information -----------------------------------------------------
 project = "peta"
@@ -14,6 +19,7 @@ copyright = f"{datetime.now(tz=UTC):%Y}, Hasan Sezer Tasan"  # ruff: ignore[buil
 
 # -- General configuration ---------------------------------------------------
 extensions = [
+    "cli_reference",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",

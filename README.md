@@ -79,11 +79,13 @@ peta requests --json          # machine-readable output
 | Flag | Applies to | Meaning |
 | ------ | ----------- | --------- |
 | `--json` | all | JSON output |
-| `--local` / `-l` | info, deps | force local lookup |
-| `--remote` / `-r` | info, deps | force PyPI lookup |
+| `--local` / `-l` | info, compare, deps | force local lookup |
+| `--remote` / `-r` | info, compare, deps | force PyPI lookup |
 | `--limit` / `-n` | versions | max versions to show (default 20) |
 | `--why <target>` | deps | show why `<target>` is a dependency |
 | `--depth <n>` | deps | max recursion depth (default 10) |
+| `--no-osv` | info, compare | skip OSV vulnerability lookup |
+| `--no-stats` | info, compare | skip download/dependent count lookups |
 | `--no-color` | (root) | disable colored output (also via `NO_COLOR`) |
 | `--version` / `-V` | (root) | print version and exit |
 

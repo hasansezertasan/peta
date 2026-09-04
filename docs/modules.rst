@@ -17,16 +17,34 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.remote
 
+.. automodule:: peta.core.resolve
+
+.. automodule:: peta.core.deptree
+
+.. automodule:: peta.core.enrich
+
+.. automodule:: peta.core.osv
+
+.. automodule:: peta.core.stats
+
+.. automodule:: peta.core.vulns
+
 CLI (``peta.cli``)
 ----------------------------
 
 .. automodule:: peta.cli.app
+
+.. automodule:: peta.cli.state
+
+.. automodule:: peta.cli.output.console
 
 .. automodule:: peta.cli.output.tables
 
 .. automodule:: peta.cli.output.json
 
 .. automodule:: peta.cli.commands.info
+
+.. automodule:: peta.cli.commands.compare
 
 .. automodule:: peta.cli.commands.deps
 

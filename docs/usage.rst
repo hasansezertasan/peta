@@ -8,23 +8,11 @@ command for machine-readable output.
 Commands
 --------
 
-.. list-table::
-   :header-rows: 1
+The command and option reference is generated from the Typer application, so it
+always reflects the installed version of ``peta``. A bare ``peta <package>`` is
+shorthand for ``peta info <package>``.
 
-   * - Command
-     - Description
-   * - ``peta <package>``
-     - Shorthand for ``peta info <package>``.
-   * - ``peta info <package>``
-     - Detailed metadata (local first, PyPI fallback).
-   * - ``peta deps <package>``
-     - Recursive dependency tree of a package.
-   * - ``peta files <package>``
-     - Files installed by a local package.
-   * - ``peta versions <package>``
-     - Published versions from PyPI.
-   * - ``peta compare <a> <b>``
-     - Side-by-side metadata comparison of two packages.
+.. peta-cli::
 
 Color
 -----
