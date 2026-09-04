@@ -118,11 +118,11 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="2">
 </span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 </span><span data-line="4">
-</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Required</span><span class="p">,</span> <span class="n">TypedDict</span><span class="p">,</span> <span class="n">cast</span>
+</span><span data-line="5"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Required</span><span class="p">,</span> <span class="n">TypedDict</span><span class="p">,</span> <span class="n">cast</span>
 </span><span data-line="6">
 </span><span data-line="7"><span class="kn">import</span><span class="w"> </span><span class="nn">httpx</span>
 </span><span data-line="8">
-</span><span data-line="9"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">LicenseSource</span><span class="p">,</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">Vulnerability</span>
+</span><span data-line="9"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">Vulnerability</span>
 </span><span data-line="10">
 </span><span data-line="11"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
 </span><span data-line="12">    <span class="s2">"NetworkError"</span><span class="p">,</span>
@@ -278,49 +278,51 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="144">    <span class="p">]</span>
 </span><span data-line="145">
 </span><span data-line="146">
-</span><span data-line="147"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_license</span><span class="p">(</span><span class="n">info</span><span class="p">:</span> <span class="n">PyPIInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">LicenseSource</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span data-line="148">    <span class="n">expression</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license_expression"</span><span class="p">)</span>
-</span><span data-line="149">    <span class="k">if</span> <span class="n">expression</span><span class="p">:</span>
-</span><span data-line="150">        <span class="k">return</span> <span class="n">expression</span><span class="p">,</span> <span class="s2">"expression"</span>
-</span><span data-line="151">    <span class="n">legacy</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license"</span><span class="p">)</span>
-</span><span data-line="152">    <span class="k">return</span> <span class="n">legacy</span><span class="p">,</span> <span class="s2">"legacy"</span> <span class="k">if</span> <span class="n">legacy</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="153">
-</span><span data-line="154">
+</span><span data-line="147"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_license</span><span class="p">(</span>
+</span><span data-line="148">    <span class="n">info</span><span class="p">:</span> <span class="n">PyPIInfo</span><span class="p">,</span>
+</span><span data-line="149"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"expression"</span><span class="p">,</span> <span class="s2">"legacy"</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="150">    <span class="n">expression</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license_expression"</span><span class="p">)</span>
+</span><span data-line="151">    <span class="k">if</span> <span class="n">expression</span><span class="p">:</span>
+</span><span data-line="152">        <span class="k">return</span> <span class="n">expression</span><span class="p">,</span> <span class="s2">"expression"</span>
+</span><span data-line="153">    <span class="n">legacy</span> <span class="o">=</span> <span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"license"</span><span class="p">)</span>
+</span><span data-line="154">    <span class="k">return</span> <span class="n">legacy</span><span class="p">,</span> <span class="s2">"legacy"</span> <span class="k">if</span> <span class="n">legacy</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="155">
+</span><span data-line="156">
 <div class="viewcode-block" id="get_package">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.get_package">[docs]</a>
-</span><span data-line="155"><span class="k">def</span><span class="w"> </span><span class="nf">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="156"><span class="w">    </span><span class="sd">"""Get metadata for a package from PyPI.</span>
-</span><span data-line="157">
-</span><span data-line="158"><span class="sd">    Args:</span>
-</span><span data-line="159"><span class="sd">        name: Package name to look up.</span>
-</span><span data-line="160"><span class="sd">        version: Optional specific version; if ``None`` the latest is fetched.</span>
-</span><span data-line="161">
-</span><span data-line="162"><span class="sd">    Returns:</span>
-</span><span data-line="163"><span class="sd">        A :class:`PackageInfo` with ``source="remote"``. Not-found and network</span>
-</span><span data-line="164"><span class="sd">        failures propagate from :func:`_fetch`.</span>
-</span><span data-line="165"><span class="sd">    """</span>
-</span><span data-line="166">    <span class="n">data</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-</span><span data-line="167">    <span class="n">info</span><span class="p">:</span> <span class="n">PyPIInfo</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">"info"</span><span class="p">]</span>
-</span><span data-line="168">    <span class="n">license_value</span><span class="p">,</span> <span class="n">license_source</span> <span class="o">=</span> <span class="n">_parse_license</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
-</span><span data-line="169">    <span class="k">return</span> <span class="n">PackageInfo</span><span class="p">(</span>
-</span><span data-line="170">        <span class="n">name</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span>
-</span><span data-line="171">        <span class="n">version</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">"version"</span><span class="p">],</span>
-</span><span data-line="172">        <span class="n">summary</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"summary"</span><span class="p">),</span>
-</span><span data-line="173">        <span class="n">author</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"author"</span><span class="p">),</span>
-</span><span data-line="174">        <span class="n">author_email</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"author_email"</span><span class="p">),</span>
-</span><span data-line="175">        <span class="n">maintainer</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"maintainer"</span><span class="p">),</span>
-</span><span data-line="176">        <span class="n">license</span><span class="o">=</span><span class="n">license_value</span><span class="p">,</span>
-</span><span data-line="177">        <span class="n">license_source</span><span class="o">=</span><span class="n">license_source</span><span class="p">,</span>
-</span><span data-line="178">        <span class="n">python_requires</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requires_python"</span><span class="p">),</span>
-</span><span data-line="179">        <span class="n">homepage</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"home_page"</span><span class="p">),</span>
-</span><span data-line="180">        <span class="n">project_urls</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"project_urls"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{},</span>
-</span><span data-line="181">        <span class="n">dependencies</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requires_dist"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="182">        <span class="n">classifiers</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"classifiers"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="183">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"keywords"</span><span class="p">)),</span>
-</span><span data-line="184">        <span class="n">files</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span data-line="185">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="n">_parse_vulnerabilities</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"vulnerabilities"</span><span class="p">,</span> <span class="p">[])),</span>
-</span><span data-line="186">        <span class="n">source</span><span class="o">=</span><span class="s2">"remote"</span><span class="p">,</span>
-</span><span data-line="187">    <span class="p">)</span></div>
+</span><span data-line="157"><span class="k">def</span><span class="w"> </span><span class="nf">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="158"><span class="w">    </span><span class="sd">"""Get metadata for a package from PyPI.</span>
+</span><span data-line="159">
+</span><span data-line="160"><span class="sd">    Args:</span>
+</span><span data-line="161"><span class="sd">        name: Package name to look up.</span>
+</span><span data-line="162"><span class="sd">        version: Optional specific version; if ``None`` the latest is fetched.</span>
+</span><span data-line="163">
+</span><span data-line="164"><span class="sd">    Returns:</span>
+</span><span data-line="165"><span class="sd">        A :class:`PackageInfo` with ``source="remote"``. Not-found and network</span>
+</span><span data-line="166"><span class="sd">        failures propagate from :func:`_fetch`.</span>
+</span><span data-line="167"><span class="sd">    """</span>
+</span><span data-line="168">    <span class="n">data</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+</span><span data-line="169">    <span class="n">info</span><span class="p">:</span> <span class="n">PyPIInfo</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">"info"</span><span class="p">]</span>
+</span><span data-line="170">    <span class="n">license_value</span><span class="p">,</span> <span class="n">license_source</span> <span class="o">=</span> <span class="n">_parse_license</span><span class="p">(</span><span class="n">info</span><span class="p">)</span>
+</span><span data-line="171">    <span class="k">return</span> <span class="n">PackageInfo</span><span class="p">(</span>
+</span><span data-line="172">        <span class="n">name</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span>
+</span><span data-line="173">        <span class="n">version</span><span class="o">=</span><span class="n">info</span><span class="p">[</span><span class="s2">"version"</span><span class="p">],</span>
+</span><span data-line="174">        <span class="n">summary</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"summary"</span><span class="p">),</span>
+</span><span data-line="175">        <span class="n">author</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"author"</span><span class="p">),</span>
+</span><span data-line="176">        <span class="n">author_email</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"author_email"</span><span class="p">),</span>
+</span><span data-line="177">        <span class="n">maintainer</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"maintainer"</span><span class="p">),</span>
+</span><span data-line="178">        <span class="n">license</span><span class="o">=</span><span class="n">license_value</span><span class="p">,</span>
+</span><span data-line="179">        <span class="n">license_source</span><span class="o">=</span><span class="n">license_source</span><span class="p">,</span>
+</span><span data-line="180">        <span class="n">python_requires</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requires_python"</span><span class="p">),</span>
+</span><span data-line="181">        <span class="n">homepage</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"home_page"</span><span class="p">),</span>
+</span><span data-line="182">        <span class="n">project_urls</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"project_urls"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{},</span>
+</span><span data-line="183">        <span class="n">dependencies</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"requires_dist"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="184">        <span class="n">classifiers</span><span class="o">=</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"classifiers"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="185">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">info</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"keywords"</span><span class="p">)),</span>
+</span><span data-line="186">        <span class="n">files</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span data-line="187">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="n">_parse_vulnerabilities</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"vulnerabilities"</span><span class="p">,</span> <span class="p">[])),</span>
+</span><span data-line="188">        <span class="n">source</span><span class="o">=</span><span class="s2">"remote"</span><span class="p">,</span>
+</span><span data-line="189">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

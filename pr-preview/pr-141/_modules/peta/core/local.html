@@ -119,9 +119,9 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="3"><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
 </span><span data-line="4">
 </span><span data-line="5"><span class="kn">import</span><span class="w"> </span><span class="nn">importlib.metadata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">importlib_metadata</span>
-</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">cast</span>
+</span><span data-line="6"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">cast</span>
 </span><span data-line="7">
-</span><span data-line="8"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">LicenseSource</span><span class="p">,</span> <span class="n">PackageInfo</span>
+</span><span data-line="8"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">PackageInfo</span>
 </span><span data-line="9">
 </span><span data-line="10"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"PackageNotFoundError"</span><span class="p">,</span> <span class="s2">"get_package"</span><span class="p">]</span>
 </span><span data-line="11">
@@ -159,7 +159,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="40">
 </span><span data-line="41"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_license</span><span class="p">(</span>
 </span><span data-line="42">    <span class="n">meta</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageMetadata</span><span class="p">,</span>
-</span><span data-line="43"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">LicenseSource</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="43"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"expression"</span><span class="p">,</span> <span class="s2">"legacy"</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
 </span><span data-line="44">    <span class="n">expression</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"License-Expression"</span><span class="p">)</span>
 </span><span data-line="45">    <span class="k">if</span> <span class="n">expression</span><span class="p">:</span>
 </span><span data-line="46">        <span class="k">return</span> <span class="n">expression</span><span class="p">,</span> <span class="s2">"expression"</span>
