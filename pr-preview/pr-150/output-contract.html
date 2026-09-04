@@ -162,6 +162,10 @@ when a specific provider is responsible. Optional enrichment failures produce a
 retain the documented nonzero CLI exit code. When command-line validation fails
 before a command handler runs, <code class="docutils literal notranslate"><span class="pre">query.arguments.argv</span></code> preserves the unparsed
 argument vector in the same failed envelope.</p>
+<p>Dependency-tree lookups preserve unavailable or failed transitive resolutions
+on the affected node. The envelope is <code class="docutils literal notranslate"><span class="pre">partial</span></code>, its source record identifies
+the affected result path, and a <code class="docutils literal notranslate"><span class="pre">dependency_resolution_failed</span></code> warning explains
+the failure; the successfully resolved portion of the tree remains available.</p>
 </section>
 <section id="compatibility-policy">
 <h2>Compatibility policy<a class="headerlink" href="#compatibility-policy" title="Link to this heading">#</a></h2>

@@ -16,6 +16,8 @@ from peta.core.output import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from peta.core.models import DependencyNode, PackageInfo
     from peta.core.output import CommandName, MessageCode
 
@@ -136,7 +138,7 @@ def _source_records(
                 name=pkg.source,
                 state="success",
                 target=pkg.name,
-                retrieved_at=pkg.retrieved_at,
+                retrieved_at=pkg.retrieved_at or timestamp,
                 fields=[result_path],
             )
         )
@@ -257,32 +259,125 @@ def format_compare(
 
 
 def _node_dict(node: DependencyNode) -> dict[str, object]:
+    failure = node.resolution_failure
     return {
         "name": node.name,
         "version_spec": node.version_spec,
         "installed_version": node.installed_version,
         "circular": node.circular,
         "source": node.source,
+        "resolution": (
+            {"state": failure.state, "source": failure.source, "reason": failure.reason}
+            if failure
+            else None
+        ),
         "children": [_node_dict(child) for child in node.children],
     }
 
 
+def _dependency_source(
+    node: DependencyNode, field: str, timestamp: str
+) -> SourceRecord | None:
+    failure = node.resolution_failure
+    if failure is not None:
+        return SourceRecord(
+            name=failure.source,
+            state=failure.state,
+            target=node.name,
+            retrieved_at=failure.retrieved_at,
+            reason=failure.reason,
+            fields=[field],
+        )
+    if node.source is None:
+        return None
+    return SourceRecord(
+        name=node.source,
+        state="success",
+        target=node.name,
+        retrieved_at=node.retrieved_at or timestamp,
+        fields=[field],
+    )
+
+
 def _dependency_sources(
-    node: DependencyNode, field: str = "result"
+    node: DependencyNode, timestamp: str, field: str = "result"
 ) -> list[SourceRecord]:
     records: list[SourceRecord] = []
-    if node.source is not None:
-        records.append(
-            SourceRecord(
-                name=node.source,
-                state="success",
-                target=node.name,
-                retrieved_at=node.retrieved_at,
-                fields=[field],
+    record = _dependency_source(node, field, timestamp)
+    if record is not None:
+        records.append(record)
+    for index, child in enumerate(node.children):
+        records.extend(
+            _dependency_sources(child, timestamp, f"{field}.children[{index}]")
+        )
+    return records
+
+
+def _dependency_warnings(node: DependencyNode) -> list[OutputMessage]:
+    warnings: list[OutputMessage] = []
+    failure = node.resolution_failure
+    if failure is not None:
+        warnings.append(
+            OutputMessage(
+                code="dependency_resolution_failed",
+                message=f"{node.name}: {failure.reason}",
+                source=failure.source,
             )
         )
-    for index, child in enumerate(node.children):
-        records.extend(_dependency_sources(child, f"{field}.children[{index}]"))
+    for child in node.children:
+        warnings.extend(_dependency_warnings(child))
+    return warnings
+
+
+def _walk_path(tree: DependencyNode, path: list[str]) -> Iterator[DependencyNode]:
+    """Yield the tree nodes named by ``path``, stopping at the first mismatch.
+
+    Yields:
+        Each node matched, from the root down.
+    """
+    node = tree
+    for depth, name in enumerate(path):
+        if node.name != name:
+            return
+        yield node
+        remaining = path[depth + 1 :]
+        if not remaining:
+            return
+        child = next((c for c in node.children if c.name == remaining[0]), None)
+        if child is None:
+            return
+        node = child
+
+
+def _path_sources(
+    tree: DependencyNode, path: list[str], path_index: int, timestamp: str
+) -> list[SourceRecord]:
+    records = (
+        _dependency_source(node, f"result.paths[{path_index}][{index}]", timestamp)
+        for index, node in enumerate(_walk_path(tree, path))
+    )
+    return [record for record in records if record is not None]
+
+
+def _why_sources(
+    tree: DependencyNode, paths: list[list[str]], timestamp: str
+) -> list[SourceRecord]:
+    records = [
+        record
+        for path_index, path in enumerate(paths)
+        for record in _path_sources(tree, path, path_index, timestamp)
+    ]
+    failures = [
+        record
+        for record in _dependency_sources(tree, timestamp, "result.paths")
+        if record.state in {"failed", "unavailable"}
+    ]
+    seen = {(record.name, record.target, record.state) for record in records}
+    records.extend(
+        record
+        for record in failures
+        if (record.name, record.target, record.state) not in seen
+    )
     return records
 
 
@@ -297,13 +392,16 @@ def format_dep_tree(
     Returns:
         An indented JSON string.
     """
+    timestamp = generated_at or utc_now()
+    warnings = _dependency_warnings(node)
     envelope = make_envelope(
         "deps",
         arguments=arguments,
-        status="success",
+        status="partial" if warnings else "success",
         result=_node_dict(node),
-        sources=_dependency_sources(node),
-        generated_at=generated_at,
+        sources=_dependency_sources(node, timestamp),
+        warnings=warnings,
+        generated_at=timestamp,
     )
     return _dump(envelope.to_dict())
 
@@ -321,13 +419,16 @@ def format_why(
     Returns:
         An indented JSON string.
     """
+    timestamp = generated_at or utc_now()
+    warnings = _dependency_warnings(tree) if tree else []
     envelope = make_envelope(
         "deps",
         arguments=arguments,
-        status="success" if paths else "empty",
+        status="partial" if warnings else ("success" if paths else "empty"),
         result={"target": target, "paths": paths},
-        sources=_dependency_sources(tree, "result.paths") if tree else [],
-        generated_at=generated_at,
+        sources=_why_sources(tree, paths, timestamp) if tree else [],
+        warnings=warnings,
+        generated_at=timestamp,
     )
     return _dump(envelope.to_dict())
 
