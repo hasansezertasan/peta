@@ -287,7 +287,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="159">
 </span><span data-line="160">
 </span><span data-line="161"><span class="k">def</span><span class="w"> </span><span class="nf">_license_value</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="162">    <span class="k">if</span> <span class="n">pkg</span><span class="o">.</span><span class="n">license</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="162">    <span class="k">if</span> <span class="ow">not</span> <span class="n">pkg</span><span class="o">.</span><span class="n">license</span><span class="p">:</span>
 </span><span data-line="163">        <span class="k">return</span> <span class="s2">"-"</span>
 </span><span data-line="164">    <span class="k">if</span> <span class="n">pkg</span><span class="o">.</span><span class="n">license_source</span> <span class="o">==</span> <span class="s2">"expression"</span><span class="p">:</span>
 </span><span data-line="165">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">license</span><span class="si">}</span><span class="s2"> (SPDX)"</span>
