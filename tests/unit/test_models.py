@@ -32,6 +32,7 @@ class TestPackageInfo:
         assert pkg.name == "requests"
         assert pkg.source == "local"
         assert pkg.summary is None
+        assert pkg.license_source is None
         assert pkg.dependencies == []
         assert pkg.vulnerabilities == []
 

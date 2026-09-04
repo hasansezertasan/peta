@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Literal
 
-__all__ = ["DependencyNode", "PackageInfo", "Vulnerability"]
+__all__ = ["DependencyNode", "LicenseSource", "PackageInfo", "Vulnerability"]
+
+
+type LicenseSource = Literal["expression", "legacy"]
 
 
 @dataclass
@@ -31,6 +35,7 @@ class PackageInfo:
     author_email: str | None = None
     maintainer: str | None = None
     license: str | None = None
+    license_source: LicenseSource | None = None
     python_requires: str | None = None
     homepage: str | None = None
     project_urls: dict[str, str] = field(default_factory=dict)

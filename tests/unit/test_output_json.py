@@ -40,6 +40,12 @@ def test_info_basic() -> None:
         assert key in data
 
 
+def test_info_identifies_license_expression() -> None:
+    data = json.loads(format_info(_pkg(license="MIT", license_source="expression")))
+    assert data["license"] == "MIT"
+    assert data["license_source"] == "expression"
+
+
 def test_info_vulns() -> None:
     v = Vulnerability(id="PYSEC-1", aliases=[], summary="s", fixed_in=["1.1"])
     data = json.loads(format_info(_pkg(vulnerabilities=[v])))

@@ -248,6 +248,7 @@ ignore_names = [
   "side_effect",
   "author_email",
   "home_page",
+  "license_expression",
   "requires_dist",
   "requires_python",
   # OSV-schema TypedDict fields read via string keys in core/osv.py

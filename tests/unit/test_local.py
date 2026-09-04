@@ -36,7 +36,13 @@ def test_minimal_missing_optionals(mock_meta: MagicMock) -> None:
 
 @patch("peta.core.local.importlib_metadata")
 def test_parses_urls_keywords_deps_files(mock_meta: MagicMock) -> None:
-    md = _msg(Name="rich", Version="13.0.0", Summary="pretty", Keywords="cli, tui")
+    md = _msg(
+        Name="rich",
+        Version="13.0.0",
+        Summary="pretty",
+        Keywords="cli, tui",
+        License="BSD-3-Clause",
+    )
     md["Project-URL"] = "Source, https://github.com/Textualize/rich"
     md["Classifier"] = "Programming Language :: Python :: 3"
     dist = MagicMock()
@@ -51,6 +57,26 @@ def test_parses_urls_keywords_deps_files(mock_meta: MagicMock) -> None:
     assert result.dependencies == ["pygments>=2.6"]
     assert result.files == ["rich/__init__.py", "rich/console.py"]
     assert result.classifiers == ["Programming Language :: Python :: 3"]
+    assert result.license == "BSD-3-Clause"
+    assert result.license_source == "legacy"
+
+
+@patch("peta.core.local.importlib_metadata")
+def test_prefers_license_expression(mock_meta: MagicMock) -> None:
+    dist = MagicMock()
+    dist.metadata = _msg(
+        Name="modern-license",
+        Version="1.0.0",
+        Metadata_Version="2.4",
+        License_Expression="MIT",
+    )
+    dist.requires = None
+    dist.files = None
+    mock_meta.distribution.return_value = dist
+
+    result = get_package("modern-license")
+    assert result.license == "MIT"
+    assert result.license_source == "expression"
 
 
 @patch("peta.core.local.importlib_metadata")
