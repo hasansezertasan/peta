@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-__all__ = ["DependencyNode", "LicenseSource", "PackageInfo", "Vulnerability"]
+__all__ = ["DependencyNode", "PackageInfo", "Vulnerability"]
 
 
 type LicenseSource = Literal["expression", "legacy"]
