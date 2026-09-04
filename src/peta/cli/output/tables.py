@@ -159,7 +159,7 @@ def render_files(pkg: PackageInfo, *, color: bool) -> str:
 
 
 def _license_value(pkg: PackageInfo) -> str:
-    if pkg.license is None:
+    if not pkg.license:
         return "-"
     if pkg.license_source == "expression":
         return f"{pkg.license} (SPDX)"

@@ -35,7 +35,6 @@ class PackageInfo:
     author_email: str | None = None
     maintainer: str | None = None
     license: str | None = None
-    license_source: LicenseSource | None = None
     python_requires: str | None = None
     homepage: str | None = None
     project_urls: dict[str, str] = field(default_factory=dict)
@@ -46,6 +45,7 @@ class PackageInfo:
     vulnerabilities: list[Vulnerability] = field(default_factory=list)
     download_count: int | None = None
     dependent_count: int | None = None
+    license_source: LicenseSource | None = None
 
 
 @dataclass

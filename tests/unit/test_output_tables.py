@@ -104,6 +104,14 @@ def test_render_compare_missing_values_show_dash() -> None:
     assert "-" in out
 
 
+def test_render_compare_empty_license_shows_dash() -> None:
+    a = _pkg(license="", license_source="legacy")
+    b = _pkg(name="httpx", license="", license_source="expression")
+    out = render_compare(a, b, color=False)
+    license_row = next(line for line in out.splitlines() if "License" in line)
+    assert license_row.count("-") == 2
+
+
 def test_render_compare_counts() -> None:
     v = Vulnerability(id="PYSEC-1", aliases=[], summary="bad", fixed_in=["1.0"])
     a = _pkg(
