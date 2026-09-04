@@ -32,6 +32,7 @@ def test_minimal_missing_optionals(mock_meta: MagicMock) -> None:
     assert result.author is None
     assert result.dependencies == []
     assert result.files is None
+    assert result.retrieved_at is not None
 
 
 @patch("peta.core.local.importlib_metadata")

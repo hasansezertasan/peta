@@ -101,6 +101,7 @@ def test_each_command_envelope_snapshot() -> None:
                     "name": "local",
                     "state": "success",
                     "target": "requests",
+                    "retrieved_at": "<retrieved-at>",
                     "fields": ["result"],
                 }
             ],
@@ -142,6 +143,7 @@ def test_each_command_envelope_snapshot() -> None:
                     "name": "local",
                     "state": "success",
                     "target": "requests",
+                    "retrieved_at": "<retrieved-at>",
                     "fields": ["result.packages[0]"],
                 },
                 {
@@ -155,6 +157,7 @@ def test_each_command_envelope_snapshot() -> None:
                     "name": "local",
                     "state": "success",
                     "target": "requests",
+                    "retrieved_at": "<retrieved-at>",
                     "fields": ["result.packages[1]"],
                 },
             ],
@@ -224,6 +227,7 @@ def test_each_command_envelope_snapshot() -> None:
                 "installed_version": "2.31.0",
                 "circular": False,
                 "source": None,
+                "resolution": None,
                 "children": [
                     {
                         "name": "urllib3",
@@ -231,6 +235,7 @@ def test_each_command_envelope_snapshot() -> None:
                         "installed_version": None,
                         "circular": False,
                         "source": None,
+                        "resolution": None,
                         "children": [],
                     }
                 ],
@@ -266,6 +271,7 @@ def test_each_command_envelope_snapshot() -> None:
                     "name": "local",
                     "state": "success",
                     "target": "requests",
+                    "retrieved_at": "<retrieved-at>",
                     "fields": ["result"],
                 }
             ],
@@ -330,6 +336,7 @@ def test_partial_failure_envelope_snapshot() -> None:
                 "name": "local",
                 "state": "success",
                 "target": "requests",
+                "retrieved_at": "<retrieved-at>",
                 "fields": ["result"],
             },
             {

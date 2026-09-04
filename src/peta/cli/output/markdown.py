@@ -26,6 +26,29 @@ def _cell(value: object) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
+def _security_lines(pkg: PackageInfo) -> list[str]:
+    lines: list[str] = []
+    if pkg.vulnerabilities:
+        lines.extend(["", "## Vulnerabilities", ""])
+        for vulnerability in pkg.vulnerabilities:
+            severity = (
+                f" ({_cell(vulnerability.severity)})" if vulnerability.severity else ""
+            )
+            fixed = ", ".join(
+                f"`{_cell(version)}`" for version in vulnerability.fixed_in
+            )
+            fix_text = fixed or "no known fix"
+            description = f"{_cell(vulnerability.summary)} (fix: {fix_text})"
+            lines.append(f"- `{_cell(vulnerability.id)}`{severity}: {description}")
+    if pkg.enrichment_failures:
+        lines.extend(["", "## Enrichment warnings", ""])
+        lines.extend(
+            f"- **{_cell(failure.source)}:** {_cell(failure.reason)}"
+            for failure in pkg.enrichment_failures
+        )
+    return lines
+
+
 def format_info(pkg: PackageInfo) -> str:
     """Format package metadata as Markdown.
 
@@ -44,6 +67,7 @@ def format_info(pkg: PackageInfo) -> str:
     ]
     lines = [f"# {pkg.name} {pkg.version}", "", "| Field | Value |", "| --- | --- |"]
     lines.extend(f"| {name} | {_cell(value)} |" for name, value in rows)
+    lines.extend(_security_lines(pkg))
     return "\n".join(lines)
 
 

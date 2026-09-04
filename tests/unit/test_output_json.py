@@ -15,6 +15,7 @@ from peta.cli.output.json import (
 )
 from peta.core.models import (
     DependencyNode,
+    DependencyResolutionFailure,
     EnrichmentFailure,
     PackageInfo,
     Vulnerability,
@@ -110,12 +111,56 @@ def test_dep_tree_circular() -> None:
     assert data["children"] == []
 
 
+def test_dep_tree_reports_transitive_resolution_failure_as_partial() -> None:
+    leaf = DependencyNode(
+        name="unreachable",
+        version_spec=">=1",
+        resolution_failure=DependencyResolutionFailure(
+            source="pypi",
+            state="failed",
+            reason="connection reset",
+            retrieved_at="2026-09-04T12:00:00Z",
+        ),
+    )
+    root = DependencyNode(
+        name="requests", version_spec="", source="local", children=[leaf]
+    )
+    data = json.loads(format_dep_tree(root, generated_at="2026-09-04T12:00:01Z"))
+    assert data["status"] == "partial"
+    assert data["result"]["children"][0]["resolution"]["state"] == "failed"
+    assert data["warnings"][0]["code"] == "dependency_resolution_failed"
+    assert data["sources"][1]["fields"] == ["result.children[0]"]
+
+
 def test_why() -> None:
     data = json.loads(format_why("certifi", [["flask", "requests", "certifi"]]))[
         "result"
     ]
     assert data["target"] == "certifi"
     assert data["paths"] == [["flask", "requests", "certifi"]]
+
+
+def test_why_sources_reference_emitted_path_elements() -> None:
+    certifi = DependencyNode(name="certifi", version_spec="", source="remote")
+    requests = DependencyNode(
+        name="requests", version_spec="", source="local", children=[certifi]
+    )
+    tree = DependencyNode(
+        name="flask", version_spec="", source="local", children=[requests]
+    )
+    data = json.loads(
+        format_why(
+            "certifi",
+            [["flask", "requests", "certifi"]],
+            tree=tree,
+            generated_at="2026-09-04T12:00:00Z",
+        )
+    )
+    assert [source["fields"] for source in data["sources"]] == [
+        ["result.paths[0][0]"],
+        ["result.paths[0][1]"],
+        ["result.paths[0][2]"],
+    ]
 
 
 def test_why_empty() -> None:

@@ -14,7 +14,12 @@ from peta.cli.output.markdown import (
     format_versions,
     format_why,
 )
-from peta.core.models import DependencyNode, PackageInfo
+from peta.core.models import (
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+    Vulnerability,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -37,6 +42,26 @@ def test_info() -> None:
     assert "HTTP \\| client for humans" in output
     assert "urllib3" in output
     assert "| License | — |" in output
+
+
+def test_info_preserves_security_findings_and_warnings() -> None:
+    output = format_info(
+        _pkg(
+            vulnerabilities=[
+                Vulnerability(
+                    id="GHSA-test",
+                    aliases=[],
+                    summary="unsafe | release",
+                    fixed_in=["2.32.0"],
+                    severity="HIGH",
+                )
+            ],
+            enrichment_failures=[EnrichmentFailure(source="osv", reason="HTTP 503")],
+        )
+    )
+    assert "## Vulnerabilities" in output
+    assert "`GHSA-test` (HIGH): unsafe \\| release" in output
+    assert "## Enrichment warnings\n\n- **osv:** HTTP 503" in output
 
 
 def test_compare() -> None:

@@ -41,6 +41,7 @@ MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
     "MessageCode",
     Literal[
         "dependency_not_found",
+        "dependency_resolution_failed",
         "enrichment_failed",
         "invalid_arguments",
         "network_error",

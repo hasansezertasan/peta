@@ -26,6 +26,24 @@ def _value(value: object) -> str:
     return str(value).replace("\n", " ")
 
 
+def _security_lines(pkg: PackageInfo) -> list[str]:
+    lines: list[str] = []
+    if pkg.vulnerabilities:
+        lines.extend(["", "Vulnerabilities:"])
+        for vulnerability in pkg.vulnerabilities:
+            severity = f" [{vulnerability.severity}]" if vulnerability.severity else ""
+            fixed = ", ".join(vulnerability.fixed_in) or "no known fix"
+            description = f"{vulnerability.summary} (fix: {fixed})"
+            lines.append(f"- {vulnerability.id}{severity}: {description}")
+    if pkg.enrichment_failures:
+        lines.extend(["", "Enrichment warnings:"])
+        lines.extend(
+            f"- {failure.source}: {failure.reason}"
+            for failure in pkg.enrichment_failures
+        )
+    return lines
+
+
 def format_info(pkg: PackageInfo) -> str:
     """Format package metadata as plain text.
 
@@ -44,7 +62,9 @@ def format_info(pkg: PackageInfo) -> str:
         ("Downloads", pkg.download_count),
         ("Dependents", pkg.dependent_count),
     ]
-    return "\n".join(f"{label}: {_value(value)}" for label, value in rows)
+    lines = [f"{label}: {_value(value)}" for label, value in rows]
+    lines.extend(_security_lines(pkg))
+    return "\n".join(lines)
 
 
 def format_compare(a: PackageInfo, b: PackageInfo) -> str:

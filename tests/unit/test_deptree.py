@@ -7,6 +7,7 @@ import pytest
 from peta.core.deptree import build_tree, find_why
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import DependencyNode, PackageInfo
+from peta.core.remote import NetworkError
 
 pytestmark = pytest.mark.unit
 
@@ -100,6 +101,24 @@ class TestBuildTree:
         assert leaf.name == "missing"
         assert leaf.installed_version is None
         assert leaf.children == []
+        assert leaf.resolution_failure is not None
+        assert leaf.resolution_failure.state == "unavailable"
+        assert leaf.resolution_failure.source == "local"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_network_failure_is_preserved_on_leaf(self, m: MagicMock) -> None:
+        def resolver(name: str, **_kw: object) -> PackageInfo:
+            if name == "a":
+                return _pkg("a", ["unreachable"])
+            msg = "connection reset"
+            raise NetworkError(msg)
+
+        m.side_effect = resolver
+        leaf = build_tree("a", local=False, remote=False).children[0]
+        assert leaf.resolution_failure is not None
+        assert leaf.resolution_failure.state == "failed"
+        assert leaf.resolution_failure.source == "pypi"
+        assert leaf.resolution_failure.reason == "Network error: connection reset"
 
     @patch("peta.core.deptree.resolve_package")
     def test_root_not_found_raises(self, m: MagicMock) -> None:

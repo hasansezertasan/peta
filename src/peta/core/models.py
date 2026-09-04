@@ -8,7 +8,13 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     from peta.core.output import SourceRecord
 
-__all__ = ["DependencyNode", "EnrichmentFailure", "PackageInfo", "Vulnerability"]
+__all__ = [
+    "DependencyNode",
+    "DependencyResolutionFailure",
+    "EnrichmentFailure",
+    "PackageInfo",
+    "Vulnerability",
+]
 
 
 @dataclass
@@ -28,6 +34,16 @@ class EnrichmentFailure:
 
     source: str
     reason: str
+
+
+@dataclass(frozen=True)
+class DependencyResolutionFailure:
+    """A failed or unavailable transitive dependency lookup."""
+
+    source: str
+    state: Literal["unavailable", "failed"]
+    reason: str
+    retrieved_at: str
 
 
 @dataclass
@@ -70,3 +86,4 @@ class DependencyNode:
     circular: bool = False
     source: str | None = None
     retrieved_at: str | None = None
+    resolution_failure: DependencyResolutionFailure | None = None

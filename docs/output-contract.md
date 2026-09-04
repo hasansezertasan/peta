@@ -49,6 +49,11 @@ retain the documented nonzero CLI exit code. When command-line validation fails
 before a command handler runs, `query.arguments.argv` preserves the unparsed
 argument vector in the same failed envelope.
 
+Dependency-tree lookups preserve unavailable or failed transitive resolutions
+on the affected node. The envelope is `partial`, its source record identifies
+the affected result path, and a `dependency_resolution_failed` warning explains
+the failure; the successfully resolved portion of the tree remains available.
+
 ## Compatibility policy
 
 Schema version `1` replaces the original unversioned command-specific JSON.
