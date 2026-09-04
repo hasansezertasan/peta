@@ -6,7 +6,7 @@ import platform
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, TypeAliasType
 
 from peta._version import __version__
 
@@ -29,16 +29,27 @@ __all__ = [
 ]
 
 SCHEMA_VERSION = "1"
-type CommandName = Literal["info", "compare", "deps", "files", "versions"]
-type EnvelopeStatus = Literal["success", "partial", "empty", "failed"]
-type MessageCode = Literal[
-    "dependency_not_found",
-    "enrichment_failed",
-    "invalid_arguments",
-    "network_error",
-    "package_not_found",
-]
-type SourceState = Literal["success", "empty", "skipped", "unavailable", "failed"]
+# CodeQL does not yet recognize PEP 695 ``type`` statements as definitions when
+# checking ``__all__``. Keep these runtime-visible assignments until it does.
+CommandName = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+    "CommandName", Literal["info", "compare", "deps", "files", "versions"]
+)
+EnvelopeStatus = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+    "EnvelopeStatus", Literal["success", "partial", "empty", "failed"]
+)
+MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+    "MessageCode",
+    Literal[
+        "dependency_not_found",
+        "enrichment_failed",
+        "invalid_arguments",
+        "network_error",
+        "package_not_found",
+    ],
+)
+SourceState = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+    "SourceState", Literal["success", "empty", "skipped", "unavailable", "failed"]
+)
 
 
 @dataclass(frozen=True)
