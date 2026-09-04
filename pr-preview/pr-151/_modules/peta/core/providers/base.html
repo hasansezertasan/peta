@@ -239,44 +239,63 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="110"><span class="sd">    Implementations must not raise: every outcome, including failure and</span>
 </span><span data-line="111"><span class="sd">    missing configuration, is reported as a :class:`ProviderResult` so one</span>
 </span><span data-line="112"><span class="sd">    source can never abort another.</span>
-</span><span data-line="113"><span class="sd">    """</span>
-</span><span data-line="114">
-</span><span data-line="115">    <span class="nd">@property</span>
-</span><span data-line="116">    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="117"><span class="w">        </span><span class="sd">"""Identify the source in provenance and warnings.</span>
+</span><span data-line="113">
+</span><span data-line="114"><span class="sd">    The member bodies below raise rather than using a bare ``...``: a protocol</span>
+</span><span data-line="115"><span class="sd">    body is never executed, and an explicit raise says so without leaving a</span>
+</span><span data-line="116"><span class="sd">    statement that has no effect.</span>
+</span><span data-line="117"><span class="sd">    """</span>
 </span><span data-line="118">
-</span><span data-line="119"><span class="sd">        Returns:</span>
-</span><span data-line="120"><span class="sd">            The provider's stable source name.</span>
-</span><span data-line="121"><span class="sd">        """</span>
-</span><span data-line="122">        <span class="o">...</span>
-</span><span data-line="123">
-</span><span data-line="124">    <span class="nd">@property</span>
-</span><span data-line="125">    <span class="k">def</span><span class="w"> </span><span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Capability</span><span class="p">:</span>
-</span><span data-line="126"><span class="w">        </span><span class="sd">"""Name the single result field this provider contributes.</span>
-</span><span data-line="127">
-</span><span data-line="128"><span class="sd">        Returns:</span>
-</span><span data-line="129"><span class="sd">            The provider's capability.</span>
-</span><span data-line="130"><span class="sd">        """</span>
-</span><span data-line="131">        <span class="o">...</span>
-</span><span data-line="132">
-</span><span data-line="133">    <span class="nd">@property</span>
-</span><span data-line="134">    <span class="k">def</span><span class="w"> </span><span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderGroup</span><span class="p">:</span>
-</span><span data-line="135"><span class="w">        </span><span class="sd">"""Name the opt-out family this provider belongs to.</span>
-</span><span data-line="136">
-</span><span data-line="137"><span class="sd">        Returns:</span>
-</span><span data-line="138"><span class="sd">            The provider's group.</span>
-</span><span data-line="139"><span class="sd">        """</span>
-</span><span data-line="140">        <span class="o">...</span>
-</span><span data-line="141">
+</span><span data-line="119">    <span class="nd">@property</span>
+</span><span data-line="120">    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="121"><span class="w">        </span><span class="sd">"""Identify the source in provenance and warnings.</span>
+</span><span data-line="122">
+</span><span data-line="123"><span class="sd">        Returns:</span>
+</span><span data-line="124"><span class="sd">            The provider's stable source name.</span>
+</span><span data-line="125">
+</span><span data-line="126"><span class="sd">        Raises:</span>
+</span><span data-line="127"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="128"><span class="sd">        """</span>
+</span><span data-line="129">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="130">
+</span><span data-line="131">    <span class="nd">@property</span>
+</span><span data-line="132">    <span class="k">def</span><span class="w"> </span><span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Capability</span><span class="p">:</span>
+</span><span data-line="133"><span class="w">        </span><span class="sd">"""Name the single result field this provider contributes.</span>
+</span><span data-line="134">
+</span><span data-line="135"><span class="sd">        Returns:</span>
+</span><span data-line="136"><span class="sd">            The provider's capability.</span>
+</span><span data-line="137">
+</span><span data-line="138"><span class="sd">        Raises:</span>
+</span><span data-line="139"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="140"><span class="sd">        """</span>
+</span><span data-line="141">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="142">
+</span><span data-line="143">    <span class="nd">@property</span>
+</span><span data-line="144">    <span class="k">def</span><span class="w"> </span><span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderGroup</span><span class="p">:</span>
+</span><span data-line="145"><span class="w">        </span><span class="sd">"""Name the opt-out family this provider belongs to.</span>
+</span><span data-line="146">
+</span><span data-line="147"><span class="sd">        Returns:</span>
+</span><span data-line="148"><span class="sd">            The provider's group.</span>
+</span><span data-line="149">
+</span><span data-line="150"><span class="sd">        Raises:</span>
+</span><span data-line="151"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="152"><span class="sd">        """</span>
+</span><span data-line="153">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="154">
 <div class="viewcode-block" id="EnrichmentProvider.fetch">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.EnrichmentProvider.fetch">[docs]</a>
-</span><span data-line="142">    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
-</span><span data-line="143"><span class="w">        </span><span class="sd">"""Look up this provider's capability for ``pkg``.</span>
-</span><span data-line="144">
-</span><span data-line="145"><span class="sd">        Returns:</span>
-</span><span data-line="146"><span class="sd">            The outcome, whether evidence, an empty answer, or a failure.</span>
-</span><span data-line="147"><span class="sd">        """</span>
-</span><span data-line="148">        <span class="o">...</span></div>
+</span><span data-line="155">    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
+</span><span data-line="156"><span class="w">        </span><span class="sd">"""Look up this provider's capability for ``pkg``.</span>
+</span><span data-line="157">
+</span><span data-line="158"><span class="sd">        Args:</span>
+</span><span data-line="159"><span class="sd">            pkg: The resolved package to look up.</span>
+</span><span data-line="160">
+</span><span data-line="161"><span class="sd">        Returns:</span>
+</span><span data-line="162"><span class="sd">            The outcome, whether evidence, an empty answer, or a failure.</span>
+</span><span data-line="163">
+</span><span data-line="164"><span class="sd">        Raises:</span>
+</span><span data-line="165"><span class="sd">            NotImplementedError: Always; implementations perform the lookup.</span>
+</span><span data-line="166"><span class="sd">        """</span>
+</span><span data-line="167">        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 </div>
 
 </span></pre></div>
