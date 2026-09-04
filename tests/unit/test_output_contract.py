@@ -17,7 +17,12 @@ from peta.cli.output.json import (
     format_versions,
     format_why,
 )
-from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
+from peta.core.models import (
+    VULNERABILITY_FIELD,
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+)
 from peta.core.output import SCHEMA_VERSION, SourceRecord
 
 pytestmark = pytest.mark.unit
@@ -44,7 +49,13 @@ def _assert_envelope(raw: str, command: str) -> dict[str, object]:
 
 
 def test_info_envelope_and_partial_failure() -> None:
-    pkg = _pkg(enrichment_failures=[EnrichmentFailure(source="osv", reason="HTTP 503")])
+    pkg = _pkg(
+        enrichment_failures=[
+            EnrichmentFailure(
+                source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD
+            )
+        ]
+    )
     data = _assert_envelope(
         format_info(
             pkg,

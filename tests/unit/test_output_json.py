@@ -14,6 +14,7 @@ from peta.cli.output.json import (
     format_why,
 )
 from peta.core.models import (
+    VULNERABILITY_FIELD,
     DependencyNode,
     DependencyResolutionFailure,
     EnrichmentFailure,
@@ -76,7 +77,9 @@ def test_info_stats_default_none() -> None:
 
 
 def test_info_exposes_enrichment_failures() -> None:
-    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    failure = EnrichmentFailure(
+        source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD
+    )
     data = json.loads(format_info(_pkg(enrichment_failures=[failure])))
     assert data["warnings"] == [
         {"code": "enrichment_failed", "message": "HTTP 503", "source": "osv"}
@@ -241,3 +244,19 @@ def test_provider_conflict_is_reported_as_a_warning() -> None:
     assert warning["source"] == "pypistats"
     # Both sides of the disagreement stay named in the message.
     assert "deps.dev" in warning["message"]
+
+
+def test_compare_conflict_warnings_name_the_real_result_path() -> None:
+    conflict = ProviderConflict(
+        field="result.download_count", kept="pypistats", discarded="deps.dev"
+    )
+    data = json.loads(
+        format_compare(
+            _pkg(),
+            _pkg(name="httpx", version="0.27.0", enrichment_conflicts=[conflict]),
+        )
+    )
+    warning = next(w for w in data["warnings"] if w["code"] == "provider_conflict")
+    # Rebased onto the second package's path, so it points at a field that
+    # exists and says which package it is about.
+    assert warning["message"].startswith("result.packages[1].download_count:")

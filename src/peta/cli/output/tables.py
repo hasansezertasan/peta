@@ -198,7 +198,7 @@ def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
         return "-" if value is None else f"{value:,}"
 
     def vulnerability_count(pkg: PackageInfo) -> str:
-        if any(failure.source == "osv" for failure in pkg.enrichment_failures):
+        if pkg.vulnerabilities_unknown:
             return "unknown"
         return str(len(pkg.vulnerabilities))
 

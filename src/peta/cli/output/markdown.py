@@ -71,7 +71,7 @@ def _warning_lines(*packages: PackageInfo) -> list[str]:
 
 
 def _vulnerability_count(pkg: PackageInfo) -> str:
-    if any(failure.source == "osv" for failure in pkg.enrichment_failures):
+    if pkg.vulnerabilities_unknown:
         return "unknown"
     return str(len(pkg.vulnerabilities))
 

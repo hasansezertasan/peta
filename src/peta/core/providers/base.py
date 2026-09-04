@@ -14,6 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType
 
+from peta.core.models import VULNERABILITY_FIELD
+
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo, Vulnerability
     from peta.core.output import SourceState
@@ -48,7 +50,7 @@ flags without naming individual sources.
 """
 
 CAPABILITY_FIELDS: dict[Capability, str] = {
-    "vulnerabilities": "result.vulnerabilities",
+    "vulnerabilities": VULNERABILITY_FIELD,
     "download_count": "result.download_count",
     "dependent_count": "result.dependent_count",
 }
@@ -75,6 +77,17 @@ Evidence = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
 """Typed payload a provider returns, carried separately from its provenance."""
 
 
+_EVIDENCE_TYPES: dict[Capability, type[VulnerabilityEvidence | CountEvidence]] = {
+    "vulnerabilities": VulnerabilityEvidence,
+    "download_count": CountEvidence,
+    "dependent_count": CountEvidence,
+}
+"""The evidence variant each capability must carry."""
+
+_EVIDENCE_FREE_STATES = frozenset({"failed", "skipped", "unavailable"})
+"""States that describe an absent answer, so cannot carry evidence."""
+
+
 @dataclass(frozen=True)
 class ProviderResult:
     """One provider's answer for one package, evidence and provenance together.
@@ -90,6 +103,34 @@ class ProviderResult:
     retrieved_at: str | None = None
     evidence: Evidence | None = None
     reason: str | None = None
+
+    def __post_init__(self) -> None:
+        """Reject result variants that orchestration could not merge coherently.
+
+        ``capability``, ``state``, and ``evidence`` are typed independently, so
+        nothing else stops an adapter from pairing ``CountEvidence`` with the
+        ``vulnerabilities`` capability, or attaching evidence to a failure. Both
+        would write one field while claiming provenance for another, so they are
+        rejected where they are constructed rather than merged silently.
+
+        Raises:
+            ValueError: If a state that cannot carry evidence carries some.
+            TypeError: If the evidence variant does not match the capability.
+        """
+        evidence = self.evidence
+        if evidence is None:
+            return
+        if self.state in _EVIDENCE_FREE_STATES:
+            msg = f"a {self.state!r} result cannot carry evidence"
+            raise ValueError(msg)
+        # Identity, not ``isinstance``: the evidence union covers both variants,
+        # so a subtype check narrows to "always true" and hides the mismatch.
+        if type(evidence) is not _EVIDENCE_TYPES[self.capability]:
+            msg = (
+                f"{type(evidence).__name__} does not match capability "
+                f"{self.capability!r}"
+            )
+            raise TypeError(msg)
 
     @property
     def field(self) -> str:

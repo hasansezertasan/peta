@@ -13,6 +13,7 @@ import pytest
 
 from peta.core.enrich import enrich
 from peta.core.models import (
+    VULNERABILITY_FIELD,
     EnrichmentFailure,
     PackageInfo,
     ProviderConflict,
@@ -180,9 +181,17 @@ class TestEnrich:
             ],
         )
         assert pkg.enrichment_failures == [
-            EnrichmentFailure(source="osv", reason="invalid $.vulns"),
-            EnrichmentFailure(source="pypistats", reason="HTTP 503"),
-            EnrichmentFailure(source="libraries.io", reason="invalid JSON"),
+            EnrichmentFailure(
+                source="osv", reason="invalid $.vulns", field=VULNERABILITY_FIELD
+            ),
+            EnrichmentFailure(
+                source="pypistats", reason="HTTP 503", field="result.download_count"
+            ),
+            EnrichmentFailure(
+                source="libraries.io",
+                reason="invalid JSON",
+                field="result.dependent_count",
+            ),
         ]
         assert pkg.vulnerabilities == []
         assert pkg.download_count is None
@@ -205,6 +214,20 @@ class TestEnrich:
             "osv",
             "libraries.io",
         ]
+
+    def test_failures_record_the_field_the_source_would_have_written(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=True,
+            providers=[
+                _osv(name="ghsa", state="failed", evidence=None, reason="HTTP 503")
+            ],
+        )
+        # Recorded by field, so an alternate advisory source is still
+        # recognisable as "the vulnerability lookup failed".
+        assert pkg.enrichment_failures[0].field == "result.vulnerabilities"
+        assert pkg.vulnerabilities_unknown
 
     def test_unavailable_provider_is_not_a_failure(self) -> None:
         pkg = enrich(

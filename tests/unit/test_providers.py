@@ -8,6 +8,7 @@ module boundary, never at the HTTP layer.
 from __future__ import annotations
 
 from dataclasses import replace
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,10 +19,14 @@ from peta.core.providers import (
     CountEvidence,
     LibrariesIoProvider,
     OsvProvider,
+    ProviderResult,
     PypiStatsProvider,
     VulnerabilityEvidence,
 )
 from peta.core.validation import EnrichmentError
+
+if TYPE_CHECKING:
+    from peta.core.output import SourceState
 
 pytestmark = pytest.mark.unit
 
@@ -144,3 +149,42 @@ def test_default_registry_groups_match_the_cli_opt_out_flags() -> None:
         "pypistats": "stats",
         "libraries.io": "stats",
     }
+
+
+class TestResultVariantValidation:
+    """A result whose parts disagree is rejected where it is built."""
+
+    def test_evidence_must_match_its_capability(self) -> None:
+        # Would otherwise write dependent_count while claiming
+        # result.vulnerabilities in provenance.
+        with pytest.raises(TypeError, match="does not match capability"):
+            ProviderResult(
+                provider="bad",
+                capability="vulnerabilities",
+                state="success",
+                subject="requests",
+                evidence=CountEvidence(1),
+            )
+
+    @pytest.mark.parametrize("state", ["failed", "skipped", "unavailable"])
+    def test_absent_answer_states_cannot_carry_evidence(
+        self, state: SourceState
+    ) -> None:
+        with pytest.raises(ValueError, match="cannot carry evidence"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state=state,
+                subject="requests",
+                evidence=CountEvidence(1),
+            )
+
+    def test_empty_may_carry_empty_evidence(self) -> None:
+        result = ProviderResult(
+            provider="osv",
+            capability="vulnerabilities",
+            state="empty",
+            subject="requests",
+            evidence=VulnerabilityEvidence([]),
+        )
+        assert result.evidence == VulnerabilityEvidence([])

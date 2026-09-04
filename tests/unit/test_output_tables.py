@@ -13,6 +13,7 @@ from peta.cli.output.tables import (
     render_why,
 )
 from peta.core.models import (
+    VULNERABILITY_FIELD,
     DependencyNode,
     EnrichmentFailure,
     PackageInfo,
@@ -80,7 +81,9 @@ def test_render_info_no_stats() -> None:
 
 
 def test_render_info_warns_about_enrichment_failures() -> None:
-    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    failure = EnrichmentFailure(
+        source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD
+    )
     out = render_info(_pkg(enrichment_failures=[failure]), color=False)
     assert "Enrichment warnings" in out
     assert "osv: HTTP 503" in out
@@ -150,7 +153,9 @@ def test_render_compare_counts() -> None:
 
 
 def test_render_compare_does_not_claim_zero_when_osv_failed() -> None:
-    failure = EnrichmentFailure(source="osv", reason="HTTP 503")
+    failure = EnrichmentFailure(
+        source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD
+    )
     a = _pkg(enrichment_failures=[failure])
     b = _pkg(name="httpx", version="0.27.0")
     out = render_compare(a, b, color=False)

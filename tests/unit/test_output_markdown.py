@@ -15,6 +15,7 @@ from peta.cli.output.markdown import (
     format_why,
 )
 from peta.core.models import (
+    VULNERABILITY_FIELD,
     DependencyNode,
     DependencyResolutionFailure,
     EnrichmentFailure,
@@ -58,7 +59,11 @@ def test_info_preserves_security_findings_and_warnings() -> None:
                     severity="HIGH",
                 )
             ],
-            enrichment_failures=[EnrichmentFailure(source="osv", reason="HTTP 503")],
+            enrichment_failures=[
+                EnrichmentFailure(
+                    source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD
+                )
+            ],
         )
     )
     assert "## Vulnerabilities" in output
@@ -83,7 +88,11 @@ def test_compare_reports_security_state_for_both_packages() -> None:
     b = _pkg(
         name="httpx",
         version="0.27.0",
-        enrichment_failures=[EnrichmentFailure(source="osv", reason="HTTP 503")],
+        enrichment_failures=[
+            EnrichmentFailure(
+                source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD
+            )
+        ],
     )
     output = format_compare(a, b)
     # An OSV failure must read as "unknown", never as a clean zero.
