@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/hasansezertasan/peta/compare/v0.1.1...v0.2.0) (2026-09-05)
+
+
+### 🚀 Features
+
+* **output:** add versioned output contract ([#150](https://github.com/hasansezertasan/peta/issues/150)) ([c7ce7c2](https://github.com/hasansezertasan/peta/commit/c7ce7c231d35c281af75e74d539d503ef37397bf))
+
+
+### 📝 Documentation
+
+* address tooling landscape review ([#149](https://github.com/hasansezertasan/peta/issues/149)) ([205096d](https://github.com/hasansezertasan/peta/commit/205096d14ddceaed7bf9591a6c6e22782171735a))
+* publish tooling landscape research ([#145](https://github.com/hasansezertasan/peta/issues/145)) ([63a03f9](https://github.com/hasansezertasan/peta/commit/63a03f9a9e36b1a8ce61bf6883b4f98888a15f20))
+
 ## [0.1.1](https://github.com/hasansezertasan/peta/compare/v0.1.0...v0.1.1) (2026-09-04)
 
 
