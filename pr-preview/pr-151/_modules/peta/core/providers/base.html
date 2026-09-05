@@ -181,162 +181,207 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="61"><span class="k">class</span><span class="w"> </span><span class="nc">VulnerabilityEvidence</span><span class="p">:</span>
 </span><span data-line="62"><span class="w">    </span><span class="sd">"""Advisories a provider found for the subject."""</span>
 </span><span data-line="63">
-</span><span data-line="64">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span></div>
-
+</span><span data-line="64">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span>
 </span><span data-line="65">
-</span><span data-line="66">
+</span><span data-line="66">    <span class="nd">@property</span>
+</span><span data-line="67">    <span class="k">def</span><span class="w"> </span><span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="68"><span class="w">        </span><span class="sd">"""Whether the source confirmed it has no advisories.</span>
+</span><span data-line="69">
+</span><span data-line="70"><span class="sd">        Returns:</span>
+</span><span data-line="71"><span class="sd">            ``True`` when no advisories were returned.</span>
+</span><span data-line="72"><span class="sd">        """</span>
+</span><span data-line="73">        <span class="k">return</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">vulnerabilities</span></div>
+
+</span><span data-line="74">
+</span><span data-line="75">
 <div class="viewcode-block" id="CountEvidence">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.CountEvidence">[docs]</a>
-</span><span data-line="67"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="68"><span class="k">class</span><span class="w"> </span><span class="nc">CountEvidence</span><span class="p">:</span>
-</span><span data-line="69"><span class="w">    </span><span class="sd">"""A single scalar count, such as downloads or dependents."""</span>
-</span><span data-line="70">
-</span><span data-line="71">    <span class="n">count</span><span class="p">:</span> <span class="nb">int</span></div>
-
-</span><span data-line="72">
-</span><span data-line="73">
-</span><span data-line="74"><span class="n">Evidence</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
-</span><span data-line="75">    <span class="s2">"Evidence"</span><span class="p">,</span> <span class="s2">"VulnerabilityEvidence | CountEvidence"</span>
-</span><span data-line="76"><span class="p">)</span>
-</span><span data-line="77"><span class="sd">"""Typed payload a provider returns, carried separately from its provenance."""</span>
-</span><span data-line="78">
+</span><span data-line="76"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="77"><span class="k">class</span><span class="w"> </span><span class="nc">CountEvidence</span><span class="p">:</span>
+</span><span data-line="78"><span class="w">    </span><span class="sd">"""A single scalar count, such as downloads or dependents."""</span>
 </span><span data-line="79">
-</span><span data-line="80"><span class="n">_EVIDENCE_TYPES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Capability</span><span class="p">,</span> <span class="nb">type</span><span class="p">[</span><span class="n">VulnerabilityEvidence</span> <span class="o">|</span> <span class="n">CountEvidence</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="81">    <span class="s2">"vulnerabilities"</span><span class="p">:</span> <span class="n">VulnerabilityEvidence</span><span class="p">,</span>
-</span><span data-line="82">    <span class="s2">"download_count"</span><span class="p">:</span> <span class="n">CountEvidence</span><span class="p">,</span>
-</span><span data-line="83">    <span class="s2">"dependent_count"</span><span class="p">:</span> <span class="n">CountEvidence</span><span class="p">,</span>
-</span><span data-line="84"><span class="p">}</span>
-</span><span data-line="85"><span class="sd">"""The evidence variant each capability must carry."""</span>
-</span><span data-line="86">
-</span><span data-line="87"><span class="n">_EVIDENCE_FREE_STATES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">"failed"</span><span class="p">,</span> <span class="s2">"skipped"</span><span class="p">,</span> <span class="s2">"unavailable"</span><span class="p">})</span>
-</span><span data-line="88"><span class="sd">"""States that describe an absent answer, so cannot carry evidence."""</span>
-</span><span data-line="89">
-</span><span data-line="90">
+</span><span data-line="80">    <span class="n">count</span><span class="p">:</span> <span class="nb">int</span>
+</span><span data-line="81">
+</span><span data-line="82">    <span class="nd">@property</span>
+</span><span data-line="83">    <span class="k">def</span><span class="w"> </span><span class="nf">is_empty</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="84"><span class="w">        </span><span class="sd">"""Whether this counts as no answer.</span>
+</span><span data-line="85">
+</span><span data-line="86"><span class="sd">        Always ``False``: a count of zero is a real value, and a source with</span>
+</span><span data-line="87"><span class="sd">        no count to give returns no evidence at all.</span>
+</span><span data-line="88">
+</span><span data-line="89"><span class="sd">        Returns:</span>
+</span><span data-line="90"><span class="sd">            ``False``.</span>
+</span><span data-line="91"><span class="sd">        """</span>
+</span><span data-line="92">        <span class="k">return</span> <span class="kc">False</span></div>
+
+</span><span data-line="93">
+</span><span data-line="94">
+</span><span data-line="95"><span class="n">Evidence</span> <span class="o">=</span> <span class="n">TypeAliasType</span><span class="p">(</span>  <span class="c1"># ruff: ignore[non-pep695-type-alias]</span>
+</span><span data-line="96">    <span class="s2">"Evidence"</span><span class="p">,</span> <span class="s2">"VulnerabilityEvidence | CountEvidence"</span>
+</span><span data-line="97"><span class="p">)</span>
+</span><span data-line="98"><span class="sd">"""Typed payload a provider returns, carried separately from its provenance."""</span>
+</span><span data-line="99">
+</span><span data-line="100">
+</span><span data-line="101"><span class="n">_EVIDENCE_TYPES</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Capability</span><span class="p">,</span> <span class="nb">type</span><span class="p">[</span><span class="n">VulnerabilityEvidence</span> <span class="o">|</span> <span class="n">CountEvidence</span><span class="p">]]</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="102">    <span class="s2">"vulnerabilities"</span><span class="p">:</span> <span class="n">VulnerabilityEvidence</span><span class="p">,</span>
+</span><span data-line="103">    <span class="s2">"download_count"</span><span class="p">:</span> <span class="n">CountEvidence</span><span class="p">,</span>
+</span><span data-line="104">    <span class="s2">"dependent_count"</span><span class="p">:</span> <span class="n">CountEvidence</span><span class="p">,</span>
+</span><span data-line="105"><span class="p">}</span>
+</span><span data-line="106"><span class="sd">"""The evidence variant each capability must carry."""</span>
+</span><span data-line="107">
+</span><span data-line="108"><span class="n">_EVIDENCE_FREE_STATES</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">"failed"</span><span class="p">,</span> <span class="s2">"skipped"</span><span class="p">,</span> <span class="s2">"unavailable"</span><span class="p">})</span>
+</span><span data-line="109"><span class="sd">"""States that describe an absent answer, so cannot carry evidence."""</span>
+</span><span data-line="110">
+</span><span data-line="111">
+</span><span data-line="112"><span class="k">def</span><span class="w"> </span><span class="nf">_validate_state</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">SourceState</span><span class="p">,</span> <span class="n">evidence</span><span class="p">:</span> <span class="n">Evidence</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="113"><span class="w">    </span><span class="sd">"""Require the state and the evidence to describe the same outcome.</span>
+</span><span data-line="114">
+</span><span data-line="115"><span class="sd">    Exactly one state means "here is an answer". Every other state describes an</span>
+</span><span data-line="116"><span class="sd">    absent one, so carrying a real answer under it contradicts the provenance</span>
+</span><span data-line="117"><span class="sd">    the record will produce.</span>
+</span><span data-line="118">
+</span><span data-line="119"><span class="sd">    Raises:</span>
+</span><span data-line="120"><span class="sd">        ValueError: If the state and the evidence disagree.</span>
+</span><span data-line="121"><span class="sd">    """</span>
+</span><span data-line="122">    <span class="n">answered</span> <span class="o">=</span> <span class="n">evidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">evidence</span><span class="o">.</span><span class="n">is_empty</span>
+</span><span data-line="123">    <span class="k">if</span> <span class="n">answered</span> <span class="o">!=</span> <span class="p">(</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"success"</span><span class="p">):</span>
+</span><span data-line="124">        <span class="n">detail</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="125">            <span class="sa">f</span><span class="s2">"state </span><span class="si">{</span><span class="n">state</span><span class="si">!r}</span><span class="s2"> cannot carry an answer"</span>
+</span><span data-line="126">            <span class="k">if</span> <span class="n">answered</span>
+</span><span data-line="127">            <span class="k">else</span> <span class="s2">"state 'success' must carry a non-empty answer"</span>
+</span><span data-line="128">        <span class="p">)</span>
+</span><span data-line="129">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">detail</span><span class="p">)</span>
+</span><span data-line="130">    <span class="k">if</span> <span class="n">evidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">state</span> <span class="ow">in</span> <span class="n">_EVIDENCE_FREE_STATES</span><span class="p">:</span>
+</span><span data-line="131">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"state </span><span class="si">{</span><span class="n">state</span><span class="si">!r}</span><span class="s2"> cannot carry evidence"</span>
+</span><span data-line="132">        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="133">
+</span><span data-line="134">
+</span><span data-line="135"><span class="k">def</span><span class="w"> </span><span class="nf">_validate_capability</span><span class="p">(</span><span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">evidence</span><span class="p">:</span> <span class="n">Evidence</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="136"><span class="w">    </span><span class="sd">"""Require the evidence variant to match the capability it answers.</span>
+</span><span data-line="137">
+</span><span data-line="138"><span class="sd">    Raises:</span>
+</span><span data-line="139"><span class="sd">        TypeError: If the evidence variant does not match the capability.</span>
+</span><span data-line="140"><span class="sd">    """</span>
+</span><span data-line="141">    <span class="c1"># Identity, not ``isinstance``: the evidence union covers both variants, so</span>
+</span><span data-line="142">    <span class="c1"># a subtype check narrows to "always true" and hides the mismatch.</span>
+</span><span data-line="143">    <span class="k">if</span> <span class="n">evidence</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">type</span><span class="p">(</span><span class="n">evidence</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_EVIDENCE_TYPES</span><span class="p">[</span><span class="n">capability</span><span class="p">]:</span>
+</span><span data-line="144">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">evidence</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> does not match capability </span><span class="si">{</span><span class="n">capability</span><span class="si">!r}</span><span class="s2">"</span>
+</span><span data-line="145">        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="146">
+</span><span data-line="147">
 <div class="viewcode-block" id="ProviderResult">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.ProviderResult">[docs]</a>
-</span><span data-line="91"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="92"><span class="k">class</span><span class="w"> </span><span class="nc">ProviderResult</span><span class="p">:</span>
-</span><span data-line="93"><span class="w">    </span><span class="sd">"""One provider's answer for one package, evidence and provenance together.</span>
-</span><span data-line="94">
-</span><span data-line="95"><span class="sd">    ``state`` reuses the output contract's :data:`~peta.core.output.SourceState`</span>
-</span><span data-line="96"><span class="sd">    so a result maps onto a source record without a translation table.</span>
-</span><span data-line="97"><span class="sd">    """</span>
-</span><span data-line="98">
-</span><span data-line="99">    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="100">    <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span>
-</span><span data-line="101">    <span class="n">state</span><span class="p">:</span> <span class="n">SourceState</span>
-</span><span data-line="102">    <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="103">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="104">    <span class="n">evidence</span><span class="p">:</span> <span class="n">Evidence</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="105">    <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="106">
-</span><span data-line="107">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="108"><span class="w">        </span><span class="sd">"""Reject result variants that orchestration could not merge coherently.</span>
-</span><span data-line="109">
-</span><span data-line="110"><span class="sd">        ``capability``, ``state``, and ``evidence`` are typed independently, so</span>
-</span><span data-line="111"><span class="sd">        nothing else stops an adapter from pairing ``CountEvidence`` with the</span>
-</span><span data-line="112"><span class="sd">        ``vulnerabilities`` capability, or attaching evidence to a failure. Both</span>
-</span><span data-line="113"><span class="sd">        would write one field while claiming provenance for another, so they are</span>
-</span><span data-line="114"><span class="sd">        rejected where they are constructed rather than merged silently.</span>
-</span><span data-line="115">
-</span><span data-line="116"><span class="sd">        Raises:</span>
-</span><span data-line="117"><span class="sd">            ValueError: If a state that cannot carry evidence carries some.</span>
-</span><span data-line="118"><span class="sd">            TypeError: If the evidence variant does not match the capability.</span>
-</span><span data-line="119"><span class="sd">        """</span>
-</span><span data-line="120">        <span class="n">evidence</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span>
-</span><span data-line="121">        <span class="k">if</span> <span class="n">evidence</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="122">            <span class="k">return</span>
-</span><span data-line="123">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="n">_EVIDENCE_FREE_STATES</span><span class="p">:</span>
-</span><span data-line="124">            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"a </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="si">!r}</span><span class="s2"> result cannot carry evidence"</span>
-</span><span data-line="125">            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="126">        <span class="c1"># Identity, not ``isinstance``: the evidence union covers both variants,</span>
-</span><span data-line="127">        <span class="c1"># so a subtype check narrows to "always true" and hides the mismatch.</span>
-</span><span data-line="128">        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">evidence</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">_EVIDENCE_TYPES</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">]:</span>
-</span><span data-line="129">            <span class="n">msg</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="130">                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">evidence</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2"> does not match capability "</span>
-</span><span data-line="131">                <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="si">!r}</span><span class="s2">"</span>
-</span><span data-line="132">            <span class="p">)</span>
-</span><span data-line="133">            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="134">
-</span><span data-line="135">    <span class="nd">@property</span>
-</span><span data-line="136">    <span class="k">def</span><span class="w"> </span><span class="nf">field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="137"><span class="w">        </span><span class="sd">"""Name the ``result`` path this provider contributes to.</span>
-</span><span data-line="138">
-</span><span data-line="139"><span class="sd">        Returns:</span>
-</span><span data-line="140"><span class="sd">            The output-contract field path for the provider's capability.</span>
-</span><span data-line="141"><span class="sd">        """</span>
-</span><span data-line="142">        <span class="k">return</span> <span class="n">CAPABILITY_FIELDS</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">]</span></div>
+</span><span data-line="148"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="149"><span class="k">class</span><span class="w"> </span><span class="nc">ProviderResult</span><span class="p">:</span>
+</span><span data-line="150"><span class="w">    </span><span class="sd">"""One provider's answer for one package, evidence and provenance together.</span>
+</span><span data-line="151">
+</span><span data-line="152"><span class="sd">    ``state`` reuses the output contract's :data:`~peta.core.output.SourceState`</span>
+</span><span data-line="153"><span class="sd">    so a result maps onto a source record without a translation table.</span>
+</span><span data-line="154"><span class="sd">    """</span>
+</span><span data-line="155">
+</span><span data-line="156">    <span class="n">provider</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="157">    <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span>
+</span><span data-line="158">    <span class="n">state</span><span class="p">:</span> <span class="n">SourceState</span>
+</span><span data-line="159">    <span class="n">subject</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="160">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="161">    <span class="n">evidence</span><span class="p">:</span> <span class="n">Evidence</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="162">    <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="163">
+</span><span data-line="164">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="165"><span class="w">        </span><span class="sd">"""Reject result variants that orchestration could not merge coherently.</span>
+</span><span data-line="166">
+</span><span data-line="167"><span class="sd">        ``capability``, ``state``, and ``evidence`` are typed independently, so</span>
+</span><span data-line="168"><span class="sd">        nothing else stops an adapter from pairing ``CountEvidence`` with the</span>
+</span><span data-line="169"><span class="sd">        ``vulnerabilities`` capability, attaching evidence to a failure, or</span>
+</span><span data-line="170"><span class="sd">        claiming a source returned nothing while carrying an answer. Each would</span>
+</span><span data-line="171"><span class="sd">        write one thing while claiming another in provenance, so they are</span>
+</span><span data-line="172"><span class="sd">        rejected where they are constructed rather than merged silently.</span>
+</span><span data-line="173">
+</span><span data-line="174"><span class="sd">        The checks live in :func:`_validate_state` and</span>
+</span><span data-line="175"><span class="sd">        :func:`_validate_capability`, which raise on a contradiction.</span>
+</span><span data-line="176"><span class="sd">        """</span>
+</span><span data-line="177">        <span class="n">_validate_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span><span class="p">)</span>
+</span><span data-line="178">        <span class="n">_validate_capability</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">evidence</span><span class="p">)</span>
+</span><span data-line="179">
+</span><span data-line="180">    <span class="nd">@property</span>
+</span><span data-line="181">    <span class="k">def</span><span class="w"> </span><span class="nf">field</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="182"><span class="w">        </span><span class="sd">"""Name the ``result`` path this provider contributes to.</span>
+</span><span data-line="183">
+</span><span data-line="184"><span class="sd">        Returns:</span>
+</span><span data-line="185"><span class="sd">            The output-contract field path for the provider's capability.</span>
+</span><span data-line="186"><span class="sd">        """</span>
+</span><span data-line="187">        <span class="k">return</span> <span class="n">CAPABILITY_FIELDS</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">capability</span><span class="p">]</span></div>
 
-</span><span data-line="143">
-</span><span data-line="144">
+</span><span data-line="188">
+</span><span data-line="189">
 <div class="viewcode-block" id="EnrichmentProvider">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.EnrichmentProvider">[docs]</a>
-</span><span data-line="145"><span class="k">class</span><span class="w"> </span><span class="nc">EnrichmentProvider</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-</span><span data-line="146"><span class="w">    </span><span class="sd">"""An optional metadata source that enriches one package.</span>
-</span><span data-line="147">
-</span><span data-line="148"><span class="sd">    Implementations expose their identity as ``name``, the single result field</span>
-</span><span data-line="149"><span class="sd">    they contribute as ``capability``, and their opt-out family as ``group``.</span>
-</span><span data-line="150">
-</span><span data-line="151"><span class="sd">    Implementations must not raise: every outcome, including failure and</span>
-</span><span data-line="152"><span class="sd">    missing configuration, is reported as a :class:`ProviderResult` so one</span>
-</span><span data-line="153"><span class="sd">    source can never abort another.</span>
-</span><span data-line="154">
-</span><span data-line="155"><span class="sd">    The member bodies below raise rather than using a bare ``...``: a protocol</span>
-</span><span data-line="156"><span class="sd">    body is never executed, and an explicit raise says so without leaving a</span>
-</span><span data-line="157"><span class="sd">    statement that has no effect.</span>
-</span><span data-line="158"><span class="sd">    """</span>
-</span><span data-line="159">
-</span><span data-line="160">    <span class="nd">@property</span>
-</span><span data-line="161">    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="162"><span class="w">        </span><span class="sd">"""Identify the source in provenance and warnings.</span>
-</span><span data-line="163">
-</span><span data-line="164"><span class="sd">        Returns:</span>
-</span><span data-line="165"><span class="sd">            The provider's stable source name.</span>
-</span><span data-line="166">
-</span><span data-line="167"><span class="sd">        Raises:</span>
-</span><span data-line="168"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
-</span><span data-line="169"><span class="sd">        """</span>
-</span><span data-line="170">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-</span><span data-line="171">
-</span><span data-line="172">    <span class="nd">@property</span>
-</span><span data-line="173">    <span class="k">def</span><span class="w"> </span><span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Capability</span><span class="p">:</span>
-</span><span data-line="174"><span class="w">        </span><span class="sd">"""Name the single result field this provider contributes.</span>
-</span><span data-line="175">
-</span><span data-line="176"><span class="sd">        Returns:</span>
-</span><span data-line="177"><span class="sd">            The provider's capability.</span>
-</span><span data-line="178">
-</span><span data-line="179"><span class="sd">        Raises:</span>
-</span><span data-line="180"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
-</span><span data-line="181"><span class="sd">        """</span>
-</span><span data-line="182">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
-</span><span data-line="183">
-</span><span data-line="184">    <span class="nd">@property</span>
-</span><span data-line="185">    <span class="k">def</span><span class="w"> </span><span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderGroup</span><span class="p">:</span>
-</span><span data-line="186"><span class="w">        </span><span class="sd">"""Name the opt-out family this provider belongs to.</span>
-</span><span data-line="187">
-</span><span data-line="188"><span class="sd">        Returns:</span>
-</span><span data-line="189"><span class="sd">            The provider's group.</span>
-</span><span data-line="190">
-</span><span data-line="191"><span class="sd">        Raises:</span>
-</span><span data-line="192"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
-</span><span data-line="193"><span class="sd">        """</span>
-</span><span data-line="194">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="190"><span class="k">class</span><span class="w"> </span><span class="nc">EnrichmentProvider</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
+</span><span data-line="191"><span class="w">    </span><span class="sd">"""An optional metadata source that enriches one package.</span>
+</span><span data-line="192">
+</span><span data-line="193"><span class="sd">    Implementations expose their identity as ``name``, the single result field</span>
+</span><span data-line="194"><span class="sd">    they contribute as ``capability``, and their opt-out family as ``group``.</span>
 </span><span data-line="195">
+</span><span data-line="196"><span class="sd">    Implementations must not raise: every outcome, including failure and</span>
+</span><span data-line="197"><span class="sd">    missing configuration, is reported as a :class:`ProviderResult` so one</span>
+</span><span data-line="198"><span class="sd">    source can never abort another.</span>
+</span><span data-line="199">
+</span><span data-line="200"><span class="sd">    The member bodies below raise rather than using a bare ``...``: a protocol</span>
+</span><span data-line="201"><span class="sd">    body is never executed, and an explicit raise says so without leaving a</span>
+</span><span data-line="202"><span class="sd">    statement that has no effect.</span>
+</span><span data-line="203"><span class="sd">    """</span>
+</span><span data-line="204">
+</span><span data-line="205">    <span class="nd">@property</span>
+</span><span data-line="206">    <span class="k">def</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="207"><span class="w">        </span><span class="sd">"""Identify the source in provenance and warnings.</span>
+</span><span data-line="208">
+</span><span data-line="209"><span class="sd">        Returns:</span>
+</span><span data-line="210"><span class="sd">            The provider's stable source name.</span>
+</span><span data-line="211">
+</span><span data-line="212"><span class="sd">        Raises:</span>
+</span><span data-line="213"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="214"><span class="sd">        """</span>
+</span><span data-line="215">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="216">
+</span><span data-line="217">    <span class="nd">@property</span>
+</span><span data-line="218">    <span class="k">def</span><span class="w"> </span><span class="nf">capability</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Capability</span><span class="p">:</span>
+</span><span data-line="219"><span class="w">        </span><span class="sd">"""Name the single result field this provider contributes.</span>
+</span><span data-line="220">
+</span><span data-line="221"><span class="sd">        Returns:</span>
+</span><span data-line="222"><span class="sd">            The provider's capability.</span>
+</span><span data-line="223">
+</span><span data-line="224"><span class="sd">        Raises:</span>
+</span><span data-line="225"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="226"><span class="sd">        """</span>
+</span><span data-line="227">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="228">
+</span><span data-line="229">    <span class="nd">@property</span>
+</span><span data-line="230">    <span class="k">def</span><span class="w"> </span><span class="nf">group</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderGroup</span><span class="p">:</span>
+</span><span data-line="231"><span class="w">        </span><span class="sd">"""Name the opt-out family this provider belongs to.</span>
+</span><span data-line="232">
+</span><span data-line="233"><span class="sd">        Returns:</span>
+</span><span data-line="234"><span class="sd">            The provider's group.</span>
+</span><span data-line="235">
+</span><span data-line="236"><span class="sd">        Raises:</span>
+</span><span data-line="237"><span class="sd">            NotImplementedError: Always; implementations supply the value.</span>
+</span><span data-line="238"><span class="sd">        """</span>
+</span><span data-line="239">        <span class="k">raise</span> <span class="ne">NotImplementedError</span>
+</span><span data-line="240">
 <div class="viewcode-block" id="EnrichmentProvider.fetch">
 <a class="viewcode-back" href="../../../../modules.html#peta.core.providers.base.EnrichmentProvider.fetch">[docs]</a>
-</span><span data-line="196">    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
-</span><span data-line="197"><span class="w">        </span><span class="sd">"""Look up this provider's capability for ``pkg``.</span>
-</span><span data-line="198">
-</span><span data-line="199"><span class="sd">        Args:</span>
-</span><span data-line="200"><span class="sd">            pkg: The resolved package to look up.</span>
-</span><span data-line="201">
-</span><span data-line="202"><span class="sd">        Returns:</span>
-</span><span data-line="203"><span class="sd">            The outcome, whether evidence, an empty answer, or a failure.</span>
-</span><span data-line="204">
-</span><span data-line="205"><span class="sd">        Raises:</span>
-</span><span data-line="206"><span class="sd">            NotImplementedError: Always; implementations perform the lookup.</span>
-</span><span data-line="207"><span class="sd">        """</span>
-</span><span data-line="208">        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+</span><span data-line="241">    <span class="k">def</span><span class="w"> </span><span class="nf">fetch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
+</span><span data-line="242"><span class="w">        </span><span class="sd">"""Look up this provider's capability for ``pkg``.</span>
+</span><span data-line="243">
+</span><span data-line="244"><span class="sd">        Args:</span>
+</span><span data-line="245"><span class="sd">            pkg: The resolved package to look up.</span>
+</span><span data-line="246">
+</span><span data-line="247"><span class="sd">        Returns:</span>
+</span><span data-line="248"><span class="sd">            The outcome, whether evidence, an empty answer, or a failure.</span>
+</span><span data-line="249">
+</span><span data-line="250"><span class="sd">        Raises:</span>
+</span><span data-line="251"><span class="sd">            NotImplementedError: Always; implementations perform the lookup.</span>
+</span><span data-line="252"><span class="sd">        """</span>
+</span><span data-line="253">        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 </div>
 
 </span></pre></div>
