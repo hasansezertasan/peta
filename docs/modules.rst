@@ -25,6 +25,10 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.enrich
 
+.. automodule:: peta.core.providers.base
+
+.. automodule:: peta.core.providers.builtin
+
 .. automodule:: peta.core.osv
 
 .. automodule:: peta.core.stats

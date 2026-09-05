@@ -121,23 +121,21 @@ def _provider(source: str) -> str:
     return "local" if source == "local" else "pypi"
 
 
-def _enrichment_fields(source: str, result_path: str = "result") -> list[str]:
-    suffix = {
-        "osv": "vulnerabilities",
-        "pypistats": "download_count",
-        "libraries.io": "dependent_count",
-    }.get(source)
-    return [f"{result_path}.{suffix}"] if suffix else []
-
-
 def _at_result_path(record: SourceRecord, result_path: str) -> SourceRecord:
-    fields = [
-        field.replace("result", result_path, 1)
-        if field == "result" or field.startswith("result.")
-        else field
-        for field in record.fields
-    ]
-    return replace(record, fields=fields)
+    return replace(
+        record, fields=[_remap_field(field, result_path) for field in record.fields]
+    )
+
+
+def _remap_field(field: str, result_path: str) -> str:
+    """Rebase a generic ``result``-rooted path onto a command's real path.
+
+    Returns:
+        The field rooted at ``result_path``, or unchanged if not ``result``-rooted.
+    """
+    if field == "result" or field.startswith("result."):
+        return field.replace("result", result_path, 1)
+    return field
 
 
 def _source_records(
@@ -174,27 +172,53 @@ def _source_records(
         }
         records.extend(
             SourceRecord(
-                name=source,
+                name=failure.source,
                 state="failed",
                 target=pkg.name,
                 retrieved_at=timestamp,
-                reason=reason,
-                fields=_enrichment_fields(source, result_path),
+                reason=failure.reason,
+                fields=[_remap_field(failure.field, result_path)],
             )
-            for source, reason in failures.items()
+            for failure in pkg.enrichment_failures
         )
         records.extend(_enrichment_records(pkg, args, failures, timestamp, result_path))
     return records
 
 
-def _warnings(packages: list[PackageInfo]) -> list[OutputMessage]:
-    return [
+def _warnings(
+    packages: list[PackageInfo], result_paths: list[str] | None = None
+) -> list[OutputMessage]:
+    """Report enrichment failures and provider conflicts as warnings.
+
+    Conflict messages name the field the disagreement is about, rebased onto
+    the command's real result path so it identifies which package in a
+    multi-package result the warning describes.
+
+    Returns:
+        One warning per failure, then one per conflict.
+    """
+    paths = result_paths or ["result"] * len(packages)
+    pairs = list(zip(packages, paths, strict=True))
+    failures = [
         OutputMessage(
             code="enrichment_failed", message=failure.reason, source=failure.source
         )
-        for pkg in packages
+        for pkg, _ in pairs
         for failure in pkg.enrichment_failures
     ]
+    conflicts = [
+        OutputMessage(
+            code="provider_conflict",
+            message=(
+                f"{_remap_field(conflict.field, path)}: kept {conflict.kept}, "
+                f"discarded conflicting {conflict.discarded}"
+            ),
+            source=conflict.kept,
+        )
+        for pkg, path in pairs
+        for conflict in pkg.enrichment_conflicts
+    ]
+    return failures + conflicts
 
 
 def _dump(data: dict[str, object]) -> str:
@@ -213,7 +237,7 @@ def _package_envelope(
     result_paths: list[str] | None = None,
 ) -> str:
     timestamp = generated_at or utc_now()
-    warnings = _warnings(packages)
+    warnings = _warnings(packages, result_paths)
     status: EnvelopeStatus = (
         "partial" if warnings else ("empty" if empty else "success")
     )

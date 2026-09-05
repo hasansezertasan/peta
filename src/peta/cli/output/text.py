@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from peta.core.models import DependencyNode, PackageInfo
+    from peta.core.models import DependencyNode, PackageInfo, ProviderConflict
 
 __all__ = [
     "format_compare",
@@ -39,21 +39,29 @@ def _security_lines(pkg: PackageInfo) -> list[str]:
     return lines
 
 
+def _conflict_reason(conflict: ProviderConflict) -> str:
+    return f"kept {conflict.kept}, discarded conflicting {conflict.discarded}"
+
+
 def _warning_lines(*packages: PackageInfo) -> list[str]:
-    failures = [
-        (pkg.name, failure) for pkg in packages for failure in pkg.enrichment_failures
-    ]
-    if not failures:
-        return []
     prefixed = len(packages) > 1
-    return [
-        "",
-        "Enrichment warnings:",
-        *(
-            f"- {f'{name}: ' if prefixed else ''}{failure.source}: {failure.reason}"
-            for name, failure in failures
-        ),
+
+    def owner(name: str) -> str:
+        return f"{name}: " if prefixed else ""
+
+    warnings = [
+        f"- {owner(pkg.name)}{failure.source}: {failure.reason}"
+        for pkg in packages
+        for failure in pkg.enrichment_failures
     ]
+    warnings.extend(
+        f"- {owner(pkg.name)}{conflict.field}: {_conflict_reason(conflict)}"
+        for pkg in packages
+        for conflict in pkg.enrichment_conflicts
+    )
+    if not warnings:
+        return []
+    return ["", "Enrichment warnings:", *warnings]
 
 
 def format_info(pkg: PackageInfo) -> str:
@@ -80,7 +88,7 @@ def format_info(pkg: PackageInfo) -> str:
 
 
 def _vulnerability_count(pkg: PackageInfo) -> str:
-    if any(failure.source == "osv" for failure in pkg.enrichment_failures):
+    if pkg.vulnerabilities_unknown:
         return "unknown"
     return str(len(pkg.vulnerabilities))
 

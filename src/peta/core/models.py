@@ -9,12 +9,22 @@ if TYPE_CHECKING:
     from peta.core.output import SourceRecord
 
 __all__ = [
+    "VULNERABILITY_FIELD",
     "DependencyNode",
     "DependencyResolutionFailure",
     "EnrichmentFailure",
     "PackageInfo",
+    "ProviderConflict",
     "Vulnerability",
 ]
+
+
+VULNERABILITY_FIELD = "result.vulnerabilities"
+"""The ``result`` path advisory evidence is written to.
+
+Declared here rather than in :mod:`peta.core.providers` so a package can be
+asked whether its advisory lookup failed without importing the provider layer.
+"""
 
 
 @dataclass
@@ -34,6 +44,25 @@ class EnrichmentFailure:
 
     source: str
     reason: str
+    field: str
+    """The ``result`` path the failed source would have written to.
+
+    Required, so a failure always says *what* is missing and consumers never
+    have to match on a specific provider name to find out.
+    """
+
+
+@dataclass(frozen=True)
+class ProviderConflict:
+    """Two providers offered different evidence for the same field.
+
+    Both sources are named so the disagreement stays visible; ``kept`` records
+    which one the deterministic merge order selected.
+    """
+
+    field: str
+    kept: str
+    discarded: str
 
 
 @dataclass(frozen=True)
@@ -71,8 +100,23 @@ class PackageInfo:
     dependent_count: int | None = None
     license_source: Literal["expression", "legacy"] | None = None
     enrichment_failures: list[EnrichmentFailure] = field(default_factory=list)
+    enrichment_conflicts: list[ProviderConflict] = field(default_factory=list)
     retrieved_at: str | None = None
     enrichment_sources: list[SourceRecord] = field(default_factory=list)
+
+    @property
+    def vulnerabilities_unknown(self) -> bool:
+        """Whether the advisory lookup failed, leaving the count unknown.
+
+        Derived from the failed field rather than a provider name, so an
+        alternate advisory source is never reported as a clean zero.
+
+        Returns:
+            ``True`` when a source that supplies advisories failed.
+        """
+        return any(
+            failure.field == VULNERABILITY_FIELD for failure in self.enrichment_failures
+        )
 
 
 @dataclass

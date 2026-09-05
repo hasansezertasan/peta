@@ -1,13 +1,35 @@
-"""Unit tests for shared OSV + stats enrichment (core layer mocked)."""
+"""Unit tests for enrichment orchestration over in-memory fake providers.
 
-from dataclasses import replace
-from unittest.mock import MagicMock, patch
+These exercise orchestration only: no HTTP module is patched, so a provider's
+transport is irrelevant here and covered by its own client tests.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING
 
 import pytest
 
 from peta.core.enrich import enrich
-from peta.core.models import EnrichmentFailure, PackageInfo, Vulnerability
-from peta.core.validation import EnrichmentError
+from peta.core.models import (
+    VULNERABILITY_FIELD,
+    EnrichmentFailure,
+    PackageInfo,
+    ProviderConflict,
+    Vulnerability,
+)
+from peta.core.providers import (
+    Capability,
+    CountEvidence,
+    Evidence,
+    ProviderGroup,
+    ProviderResult,
+    VulnerabilityEvidence,
+)
+
+if TYPE_CHECKING:
+    from peta.core.output import SourceState
 
 pytestmark = pytest.mark.unit
 
@@ -17,104 +39,293 @@ def _pkg(**over: object) -> PackageInfo:
     return replace(base, **over)
 
 
+@dataclass
+class FakeProvider:
+    """An in-memory provider returning a canned result and recording calls."""
+
+    name: str
+    capability: Capability
+    group: ProviderGroup
+    state: SourceState = "success"
+    evidence: Evidence | None = None
+    reason: str | None = None
+    calls: list[str] = field(default_factory=list)
+
+    def fetch(self, pkg: PackageInfo) -> ProviderResult:
+        """Record the call and return the canned result.
+
+        Returns:
+            The configured provider result.
+        """
+        self.calls.append(pkg.name)
+        return ProviderResult(
+            provider=self.name,
+            capability=self.capability,
+            state=self.state,
+            subject=pkg.name,
+            retrieved_at="2026-09-04T12:00:00Z",
+            evidence=self.evidence,
+            reason=self.reason,
+        )
+
+
+def _vuln(identifier: str) -> Vulnerability:
+    return Vulnerability(id=identifier, aliases=[], summary="s", fixed_in=["1.1"])
+
+
+def _osv(**over: object) -> FakeProvider:
+    base = FakeProvider(
+        name="osv",
+        capability="vulnerabilities",
+        group="vulnerabilities",
+        evidence=VulnerabilityEvidence([_vuln("GHSA-1")]),
+    )
+    return replace(base, **over)
+
+
+def _downloads(count: int = 100, **over: object) -> FakeProvider:
+    base = FakeProvider(
+        name="pypistats",
+        capability="download_count",
+        group="stats",
+        evidence=CountEvidence(count),
+    )
+    return replace(base, **over)
+
+
+def _dependents(count: int = 5, **over: object) -> FakeProvider:
+    base = FakeProvider(
+        name="libraries.io",
+        capability="dependent_count",
+        group="stats",
+        evidence=CountEvidence(count),
+    )
+    return replace(base, **over)
+
+
 class TestEnrich:
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
-    def test_merges_osv_vulnerabilities(self, mo: MagicMock) -> None:
-        mo.return_value = [
-            Vulnerability(id="GHSA-1", aliases=[], summary="s", fixed_in=["1.1"])
-        ]
-        pkg = enrich(_pkg(), no_osv=False, no_stats=True)
-        assert pkg.vulnerabilities[0].id == "GHSA-1"
-        mo.assert_called_once_with("requests", "2.31.0")
-
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
-    def test_no_osv_skips_lookup(self, mo: MagicMock) -> None:
-        pkg = enrich(_pkg(), no_osv=True, no_stats=True)
-        mo.assert_not_called()
-        assert pkg.vulnerabilities == []
-        assert pkg.enrichment_sources[0].state == "skipped"
-
-    @patch("peta.core.enrich.stats.libraries_io_api_key")
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
-    def test_sets_stats_counts(
-        self, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
-    ) -> None:
-        mdl.return_value = 100
-        mdep.return_value = 5
-        mkey.return_value = "secret"
-        pkg = enrich(_pkg(), no_osv=True, no_stats=False)
+    def test_merges_provider_evidence(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=False,
+            providers=[_osv(), _downloads(), _dependents()],
+        )
+        assert [v.id for v in pkg.vulnerabilities] == ["GHSA-1"]
         assert pkg.download_count == 100
         assert pkg.dependent_count == 5
-        mdep.assert_called_once_with("requests", api_key="secret")
         assert [source.state for source in pkg.enrichment_sources] == [
-            "skipped",
+            "success",
             "success",
             "success",
         ]
 
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
-    def test_no_stats_skips_lookup(self, mdl: MagicMock, mdep: MagicMock) -> None:
-        pkg = enrich(_pkg(), no_osv=True, no_stats=True)
-        mdl.assert_not_called()
-        mdep.assert_not_called()
+    def test_source_records_carry_capability_fields(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=False,
+            providers=[_osv(), _downloads(), _dependents()],
+        )
+        assert [source.fields for source in pkg.enrichment_sources] == [
+            ["result.vulnerabilities"],
+            ["result.download_count"],
+            ["result.dependent_count"],
+        ]
+
+    def test_no_osv_skips_only_the_vulnerability_group(self) -> None:
+        osv, downloads = _osv(), _downloads()
+        pkg = enrich(_pkg(), no_osv=True, no_stats=False, providers=[osv, downloads])
+        assert osv.calls == []
+        assert downloads.calls == ["requests"]
+        assert pkg.vulnerabilities == []
+        assert pkg.download_count == 100
+        assert pkg.enrichment_sources[0].state == "skipped"
+
+    def test_no_stats_skips_only_the_stats_group(self) -> None:
+        osv, downloads, dependents = _osv(), _downloads(), _dependents()
+        pkg = enrich(
+            _pkg(), no_osv=False, no_stats=True, providers=[osv, downloads, dependents]
+        )
+        assert osv.calls == ["requests"]
+        assert downloads.calls == []
+        assert dependents.calls == []
         assert pkg.download_count is None
-        assert pkg.dependent_count is None
         assert [source.state for source in pkg.enrichment_sources] == [
-            "skipped",
+            "success",
             "skipped",
             "skipped",
         ]
 
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
-    def test_best_effort_never_raises(
-        self, mo: MagicMock, mdl: MagicMock, mdep: MagicMock
-    ) -> None:
-        # osv/stats modules already swallow network errors internally and
-        # return empty/None results; enrich itself adds no additional error
-        # handling and must not raise.
-        mo.return_value = []
-        mdl.return_value = None
-        mdep.return_value = None
-        pkg = enrich(_pkg(), no_osv=False, no_stats=False)
-        assert pkg.name == "requests"
-        assert pkg.enrichment_sources[-1].state == "unavailable"
+    def test_records_confirmed_empty_result(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=True,
+            providers=[_osv(state="empty", evidence=VulnerabilityEvidence([]))],
+        )
+        source = pkg.enrichment_sources[0]
+        assert source.state == "empty"
+        assert source.retrieved_at is not None
+        assert source.fields == ["result.vulnerabilities"]
 
-    @patch("peta.core.enrich.stats.libraries_io_api_key", return_value="secret")
-    @patch("peta.core.enrich.stats.get_dependent_count")
-    @patch("peta.core.enrich.stats.get_download_count")
-    @patch("peta.core.enrich.osv.get_vulnerabilities")
-    def test_records_partial_failures(
-        self, mo: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
-    ) -> None:
-        mo.side_effect = EnrichmentError("osv", "invalid $.vulns")
-        mdl.side_effect = EnrichmentError("pypistats", "HTTP 503")
-        mdep.side_effect = EnrichmentError("libraries.io", "invalid JSON")
-
-        pkg = enrich(_pkg(), no_osv=False, no_stats=False)
-
+    def test_records_partial_failures(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=False,
+            providers=[
+                _osv(state="failed", evidence=None, reason="invalid $.vulns"),
+                _downloads(state="failed", evidence=None, reason="HTTP 503"),
+                _dependents(state="failed", evidence=None, reason="invalid JSON"),
+            ],
+        )
         assert pkg.enrichment_failures == [
-            EnrichmentFailure(source="osv", reason="invalid $.vulns"),
-            EnrichmentFailure(source="pypistats", reason="HTTP 503"),
-            EnrichmentFailure(source="libraries.io", reason="invalid JSON"),
+            EnrichmentFailure(
+                source="osv", reason="invalid $.vulns", field=VULNERABILITY_FIELD
+            ),
+            EnrichmentFailure(
+                source="pypistats", reason="HTTP 503", field="result.download_count"
+            ),
+            EnrichmentFailure(
+                source="libraries.io",
+                reason="invalid JSON",
+                field="result.dependent_count",
+            ),
         ]
         assert pkg.vulnerabilities == []
         assert pkg.download_count is None
         assert pkg.dependent_count is None
-        mkey.assert_called_once_with()
-        assert [source.state for source in pkg.enrichment_sources] == [
-            "failed",
-            "failed",
-            "failed",
+
+    def test_one_provider_failure_keeps_another_provider_evidence(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=False,
+            providers=[
+                _osv(state="failed", evidence=None, reason="HTTP 500"),
+                _downloads(),
+                _dependents(state="failed", evidence=None, reason="HTTP 503"),
+            ],
+        )
+        # The surviving provider's evidence must not be erased by its neighbours.
+        assert pkg.download_count == 100
+        assert [failure.source for failure in pkg.enrichment_failures] == [
+            "osv",
+            "libraries.io",
         ]
 
-    def test_records_confirmed_empty_osv_result(self) -> None:
-        with patch("peta.core.enrich.osv.get_vulnerabilities", return_value=[]):
-            pkg = enrich(_pkg(), no_osv=False, no_stats=True)
-        osv_source = pkg.enrichment_sources[0]
-        assert osv_source.state == "empty"
-        assert osv_source.retrieved_at is not None
-        assert osv_source.fields == ["result.vulnerabilities"]
+    def test_failures_record_the_field_the_source_would_have_written(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=True,
+            providers=[
+                _osv(name="ghsa", state="failed", evidence=None, reason="HTTP 503")
+            ],
+        )
+        # Recorded by field, so an alternate advisory source is still
+        # recognisable as "the vulnerability lookup failed".
+        assert pkg.enrichment_failures[0].field == "result.vulnerabilities"
+        assert pkg.vulnerabilities_unknown
+
+    def test_a_raising_provider_is_contained(self) -> None:
+        class Exploding:
+            name = "boom"
+            capability: Capability = "dependent_count"
+            group: ProviderGroup = "stats"
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                msg = f"kaboom on {pkg.name}"
+                raise RuntimeError(msg)
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[Exploding(), downloads]
+        )
+        # enrich promises never to raise, and a bad provider must not stop
+        # the providers queued behind it.
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "boom"
+        assert failure.field == "result.dependent_count"
+        assert "RuntimeError: kaboom on requests" in failure.reason
+        assert pkg.enrichment_sources[0].state == "failed"
+
+    def test_unavailable_provider_is_not_a_failure(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _dependents(state="unavailable", evidence=None, reason="no API key")
+            ],
+        )
+        assert pkg.enrichment_failures == []
+        assert pkg.enrichment_sources[0].state == "unavailable"
+        assert pkg.enrichment_sources[0].reason == "no API key"
+
+
+class TestMergeConflicts:
+    """Two providers answering one field must disagree explicitly."""
+
+    def test_first_provider_wins_and_conflict_is_recorded(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _downloads(100, name="pypistats"),
+                _downloads(999, name="deps.dev"),
+            ],
+        )
+        # Deterministic by provider order, not by whichever finished last.
+        assert pkg.download_count == 100
+        assert pkg.enrichment_conflicts == [
+            ProviderConflict(
+                field="result.download_count", kept="pypistats", discarded="deps.dev"
+            )
+        ]
+
+    def test_agreeing_providers_produce_no_conflict(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _downloads(100, name="pypistats"),
+                _downloads(100, name="deps.dev"),
+            ],
+        )
+        assert pkg.download_count == 100
+        assert pkg.enrichment_conflicts == []
+
+    def test_both_sources_keep_their_provenance(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _downloads(100, name="pypistats"),
+                _downloads(999, name="deps.dev"),
+            ],
+        )
+        # The losing provider is still reported as a consulted source.
+        assert [source.name for source in pkg.enrichment_sources] == [
+            "pypistats",
+            "deps.dev",
+        ]
+
+    def test_vulnerabilities_union_instead_of_conflicting(self) -> None:
+        pkg = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=True,
+            providers=[
+                _osv(name="osv", evidence=VulnerabilityEvidence([_vuln("GHSA-1")])),
+                _osv(name="ghsa", evidence=VulnerabilityEvidence([_vuln("GHSA-2")])),
+            ],
+        )
+        assert sorted(v.id for v in pkg.vulnerabilities) == ["GHSA-1", "GHSA-2"]
+        assert pkg.enrichment_conflicts == []
