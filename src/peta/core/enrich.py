@@ -11,7 +11,7 @@ import dataclasses
 from typing import TYPE_CHECKING
 
 from peta.core.models import EnrichmentFailure, ProviderConflict
-from peta.core.output import SourceRecord
+from peta.core.output import SourceRecord, utc_now
 from peta.core.providers import (
     DEFAULT_PROVIDERS,
     CountEvidence,
@@ -56,9 +56,33 @@ def _collect(
             subject=pkg.name,
         )
         if provider.group in disabled
-        else provider.fetch(pkg)
+        else _fetch(provider, pkg)
         for provider in providers
     ]
+
+
+def _fetch(provider: EnrichmentProvider, pkg: PackageInfo) -> ProviderResult:
+    """Fetch one provider's evidence, containing anything it raises.
+
+    Providers are contracted not to raise, but the sequence is injectable, so a
+    misbehaving one must not abort its neighbours or break ``enrich``'s promise
+    never to raise.
+
+    Returns:
+        The provider's result, or a failed result describing what it raised.
+    """
+    try:
+        return provider.fetch(pkg)
+    # A misbehaving provider is contained here, never propagated to the caller.
+    except Exception as exc:  # ruff: ignore[blind-except]
+        return ProviderResult(
+            provider=provider.name,
+            capability=provider.capability,
+            state="failed",
+            subject=pkg.name,
+            retrieved_at=utc_now(),
+            reason=f"provider raised {type(exc).__name__}: {exc}",
+        )
 
 
 def _with_count(pkg: PackageInfo, capability: Capability, count: int) -> PackageInfo:

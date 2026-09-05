@@ -229,6 +229,30 @@ class TestEnrich:
         assert pkg.enrichment_failures[0].field == "result.vulnerabilities"
         assert pkg.vulnerabilities_unknown
 
+    def test_a_raising_provider_is_contained(self) -> None:
+        class Exploding:
+            name = "boom"
+            capability: Capability = "dependent_count"
+            group: ProviderGroup = "stats"
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                msg = f"kaboom on {pkg.name}"
+                raise RuntimeError(msg)
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[Exploding(), downloads]
+        )
+        # enrich promises never to raise, and a bad provider must not stop
+        # the providers queued behind it.
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "boom"
+        assert failure.field == "result.dependent_count"
+        assert "RuntimeError: kaboom on requests" in failure.reason
+        assert pkg.enrichment_sources[0].state == "failed"
+
     def test_unavailable_provider_is_not_a_failure(self) -> None:
         pkg = enrich(
             _pkg(),

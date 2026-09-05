@@ -167,16 +167,60 @@ class TestResultVariantValidation:
             )
 
     @pytest.mark.parametrize("state", ["failed", "skipped", "unavailable"])
-    def test_absent_answer_states_cannot_carry_evidence(
+    def test_absent_answer_states_cannot_carry_an_answer(
         self, state: SourceState
     ) -> None:
-        with pytest.raises(ValueError, match="cannot carry evidence"):
+        with pytest.raises(ValueError, match="cannot carry an answer"):
             ProviderResult(
                 provider="bad",
                 capability="download_count",
                 state=state,
                 subject="requests",
                 evidence=CountEvidence(1),
+            )
+
+    @pytest.mark.parametrize("state", ["failed", "skipped", "unavailable"])
+    def test_absent_answer_states_cannot_carry_empty_evidence_either(
+        self, state: SourceState
+    ) -> None:
+        with pytest.raises(ValueError, match="cannot carry evidence"):
+            ProviderResult(
+                provider="bad",
+                capability="vulnerabilities",
+                state=state,
+                subject="requests",
+                evidence=VulnerabilityEvidence([]),
+            )
+
+    def test_success_must_carry_an_answer(self) -> None:
+        with pytest.raises(ValueError, match="must carry a non-empty answer"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state="success",
+                subject="requests",
+            )
+
+    def test_success_cannot_claim_an_empty_answer(self) -> None:
+        # Would report "found advisories" while merging none.
+        with pytest.raises(ValueError, match="must carry a non-empty answer"):
+            ProviderResult(
+                provider="bad",
+                capability="vulnerabilities",
+                state="success",
+                subject="requests",
+                evidence=VulnerabilityEvidence([]),
+            )
+
+    def test_empty_cannot_carry_a_real_answer(self) -> None:
+        # Would merge a count while provenance claims the source had none.
+        with pytest.raises(ValueError, match="cannot carry an answer"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state="empty",
+                subject="requests",
+                evidence=CountEvidence(5),
             )
 
     def test_empty_may_carry_empty_evidence(self) -> None:

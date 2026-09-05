@@ -260,3 +260,28 @@ def test_compare_conflict_warnings_name_the_real_result_path() -> None:
     # Rebased onto the second package's path, so it points at a field that
     # exists and says which package it is about.
     assert warning["message"].startswith("result.packages[1].download_count:")
+
+
+def test_fallback_provenance_uses_the_recorded_failure_field() -> None:
+    # A PackageInfo carrying failures but no source records: provenance must
+    # come from the failure itself, not a hard-coded provider-name map.
+    failure = EnrichmentFailure(
+        source="ghsa", reason="HTTP 503", field=VULNERABILITY_FIELD
+    )
+    data = json.loads(format_info(_pkg(enrichment_failures=[failure])))
+    record = next(s for s in data["sources"] if s["name"] == "ghsa")
+    assert record["state"] == "failed"
+    assert record["fields"] == ["result.vulnerabilities"]
+
+
+def test_fallback_provenance_rebases_the_failure_field_for_compare() -> None:
+    failure = EnrichmentFailure(
+        source="ghsa", reason="HTTP 503", field=VULNERABILITY_FIELD
+    )
+    data = json.loads(
+        format_compare(
+            _pkg(), _pkg(name="httpx", version="0.27.0", enrichment_failures=[failure])
+        )
+    )
+    record = next(s for s in data["sources"] if s["name"] == "ghsa")
+    assert record["fields"] == ["result.packages[1].vulnerabilities"]

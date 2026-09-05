@@ -121,15 +121,6 @@ def _provider(source: str) -> str:
     return "local" if source == "local" else "pypi"
 
 
-def _enrichment_fields(source: str, result_path: str = "result") -> list[str]:
-    suffix = {
-        "osv": "vulnerabilities",
-        "pypistats": "download_count",
-        "libraries.io": "dependent_count",
-    }.get(source)
-    return [f"{result_path}.{suffix}"] if suffix else []
-
-
 def _at_result_path(record: SourceRecord, result_path: str) -> SourceRecord:
     return replace(
         record, fields=[_remap_field(field, result_path) for field in record.fields]
@@ -181,14 +172,14 @@ def _source_records(
         }
         records.extend(
             SourceRecord(
-                name=source,
+                name=failure.source,
                 state="failed",
                 target=pkg.name,
                 retrieved_at=timestamp,
-                reason=reason,
-                fields=_enrichment_fields(source, result_path),
+                reason=failure.reason,
+                fields=[_remap_field(failure.field, result_path)],
             )
-            for source, reason in failures.items()
+            for failure in pkg.enrichment_failures
         )
         records.extend(_enrichment_records(pkg, args, failures, timestamp, result_path))
     return records

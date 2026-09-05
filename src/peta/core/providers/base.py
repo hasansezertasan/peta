@@ -63,12 +63,33 @@ class VulnerabilityEvidence:
 
     vulnerabilities: list[Vulnerability]
 
+    @property
+    def is_empty(self) -> bool:
+        """Whether the source confirmed it has no advisories.
+
+        Returns:
+            ``True`` when no advisories were returned.
+        """
+        return not self.vulnerabilities
+
 
 @dataclass(frozen=True)
 class CountEvidence:
     """A single scalar count, such as downloads or dependents."""
 
     count: int
+
+    @property
+    def is_empty(self) -> bool:
+        """Whether this counts as no answer.
+
+        Always ``False``: a count of zero is a real value, and a source with
+        no count to give returns no evidence at all.
+
+        Returns:
+            ``False``.
+        """
+        return False
 
 
 Evidence = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
@@ -86,6 +107,42 @@ _EVIDENCE_TYPES: dict[Capability, type[VulnerabilityEvidence | CountEvidence]] =
 
 _EVIDENCE_FREE_STATES = frozenset({"failed", "skipped", "unavailable"})
 """States that describe an absent answer, so cannot carry evidence."""
+
+
+def _validate_state(state: SourceState, evidence: Evidence | None) -> None:
+    """Require the state and the evidence to describe the same outcome.
+
+    Exactly one state means "here is an answer". Every other state describes an
+    absent one, so carrying a real answer under it contradicts the provenance
+    the record will produce.
+
+    Raises:
+        ValueError: If the state and the evidence disagree.
+    """
+    answered = evidence is not None and not evidence.is_empty
+    if answered != (state == "success"):
+        detail = (
+            f"state {state!r} cannot carry an answer"
+            if answered
+            else "state 'success' must carry a non-empty answer"
+        )
+        raise ValueError(detail)
+    if evidence is not None and state in _EVIDENCE_FREE_STATES:
+        msg = f"state {state!r} cannot carry evidence"
+        raise ValueError(msg)
+
+
+def _validate_capability(capability: Capability, evidence: Evidence | None) -> None:
+    """Require the evidence variant to match the capability it answers.
+
+    Raises:
+        TypeError: If the evidence variant does not match the capability.
+    """
+    # Identity, not ``isinstance``: the evidence union covers both variants, so
+    # a subtype check narrows to "always true" and hides the mismatch.
+    if evidence is not None and type(evidence) is not _EVIDENCE_TYPES[capability]:
+        msg = f"{type(evidence).__name__} does not match capability {capability!r}"
+        raise TypeError(msg)
 
 
 @dataclass(frozen=True)
@@ -109,28 +166,16 @@ class ProviderResult:
 
         ``capability``, ``state``, and ``evidence`` are typed independently, so
         nothing else stops an adapter from pairing ``CountEvidence`` with the
-        ``vulnerabilities`` capability, or attaching evidence to a failure. Both
-        would write one field while claiming provenance for another, so they are
+        ``vulnerabilities`` capability, attaching evidence to a failure, or
+        claiming a source returned nothing while carrying an answer. Each would
+        write one thing while claiming another in provenance, so they are
         rejected where they are constructed rather than merged silently.
 
-        Raises:
-            ValueError: If a state that cannot carry evidence carries some.
-            TypeError: If the evidence variant does not match the capability.
+        The checks live in :func:`_validate_state` and
+        :func:`_validate_capability`, which raise on a contradiction.
         """
-        evidence = self.evidence
-        if evidence is None:
-            return
-        if self.state in _EVIDENCE_FREE_STATES:
-            msg = f"a {self.state!r} result cannot carry evidence"
-            raise ValueError(msg)
-        # Identity, not ``isinstance``: the evidence union covers both variants,
-        # so a subtype check narrows to "always true" and hides the mismatch.
-        if type(evidence) is not _EVIDENCE_TYPES[self.capability]:
-            msg = (
-                f"{type(evidence).__name__} does not match capability "
-                f"{self.capability!r}"
-            )
-            raise TypeError(msg)
+        _validate_state(self.state, self.evidence)
+        _validate_capability(self.capability, self.evidence)
 
     @property
     def field(self) -> str:
