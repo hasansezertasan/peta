@@ -28,6 +28,12 @@ if TYPE_CHECKING:
 
 __all__ = ["enrich"]
 
+_UNATTRIBUTED = "an earlier pass"
+"""Named owner for a count already present without a source record."""
+
+_COMPLETED_STATES = frozenset({"success", "empty"})
+"""States describing a lookup that ran, so must report when it returned."""
+
 
 def _disabled_groups(*, no_osv: bool, no_stats: bool) -> frozenset[ProviderGroup]:
     groups: set[ProviderGroup] = set()
@@ -61,28 +67,72 @@ def _collect(
     ]
 
 
-def _fetch(provider: EnrichmentProvider, pkg: PackageInfo) -> ProviderResult:
-    """Fetch one provider's evidence, containing anything it raises.
-
-    Providers are contracted not to raise, but the sequence is injectable, so a
-    misbehaving one must not abort its neighbours or break ``enrich``'s promise
-    never to raise.
+def _rejected(
+    provider: EnrichmentProvider, pkg: PackageInfo, reason: str
+) -> ProviderResult:
+    """Describe a provider that misbehaved, in that provider's own terms.
 
     Returns:
-        The provider's result, or a failed result describing what it raised.
+        A failed result attributed to the consulted provider.
+    """
+    return ProviderResult(
+        provider=provider.name,
+        capability=provider.capability,
+        state="failed",
+        subject=pkg.name,
+        retrieved_at=utc_now(),
+        reason=reason,
+    )
+
+
+def _mismatch(provider: EnrichmentProvider, result: ProviderResult) -> str | None:
+    """Report how a result disagrees with the provider that returned it.
+
+    ``ProviderResult`` validates that its own parts agree, but nothing ties a
+    self-consistent result back to the provider actually consulted. Without
+    this a provider in the vulnerability group could return a
+    ``download_count`` result and populate statistics under ``--no-stats``.
+
+    ``subject`` is deliberately not checked: a provider may legitimately answer
+    about a normalized form of the requested name.
+
+    Returns:
+        A description of the disagreement, or ``None`` when they agree.
+    """
+    if result.provider != provider.name:
+        return f"provider returned a result attributed to {result.provider!r}"
+    if result.capability != provider.capability:
+        return (
+            f"provider declares capability {provider.capability!r} but returned "
+            f"{result.capability!r}"
+        )
+    return None
+
+
+def _fetch(provider: EnrichmentProvider, pkg: PackageInfo) -> ProviderResult:
+    """Fetch one provider's evidence, containing any way it misbehaves.
+
+    Providers are contracted not to raise and to answer for what they declare,
+    but the sequence is injectable, so a misbehaving one must not abort its
+    neighbours, break ``enrich``'s promise never to raise, or write a field it
+    was not consulted for.
+
+    Returns:
+        The provider's result, or a failed result describing what went wrong.
     """
     try:
-        return provider.fetch(pkg)
+        result = provider.fetch(pkg)
     # A misbehaving provider is contained here, never propagated to the caller.
     except Exception as exc:  # ruff: ignore[blind-except]
-        return ProviderResult(
-            provider=provider.name,
-            capability=provider.capability,
-            state="failed",
-            subject=pkg.name,
-            retrieved_at=utc_now(),
-            reason=f"provider raised {type(exc).__name__}: {exc}",
-        )
+        return _rejected(provider, pkg, f"provider raised {type(exc).__name__}: {exc}")
+    mismatch = _mismatch(provider, result)
+    if mismatch is not None:
+        return _rejected(provider, pkg, mismatch)
+    if result.state in _COMPLETED_STATES and result.retrieved_at is None:
+        # The contract promises a retrieval time for every completed lookup, so
+        # stamp it here rather than discarding otherwise-good evidence.
+        return dataclasses.replace(result, retrieved_at=utc_now())
+    return result
 
 
 def _with_count(pkg: PackageInfo, capability: Capability, count: int) -> PackageInfo:
@@ -123,6 +173,32 @@ def _merge_count(
     return pkg, conflict
 
 
+def _existing_claims(pkg: PackageInfo) -> dict[str, tuple[str, int]]:
+    """Recover the scalar claims an earlier enrichment pass already made.
+
+    ``enrich`` can be composed in stages. Without this, a second pass starts
+    with no claims, so its first provider silently overwrites a value the first
+    pass established while provenance keeps both sources.
+
+    Returns:
+        The claimed field paths mapped to their owning source and value.
+    """
+    owners = {
+        record.fields[0]: record.name
+        for record in pkg.enrichment_sources
+        if record.state == "success" and record.fields
+    }
+    counts = {
+        "result.download_count": pkg.download_count,
+        "result.dependent_count": pkg.dependent_count,
+    }
+    return {
+        field: (owners.get(field, _UNATTRIBUTED), value)
+        for field, value in counts.items()
+        if value is not None
+    }
+
+
 def _merge(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
     """Fold provider evidence into the package in consultation order.
 
@@ -134,7 +210,7 @@ def _merge(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
         The package carrying every provider's evidence.
     """
     conflicts: list[ProviderConflict] = []
-    claims: dict[str, tuple[str, int]] = {}
+    claims = _existing_claims(pkg)
     for result in results:
         evidence = result.evidence
         if isinstance(evidence, VulnerabilityEvidence):
@@ -148,7 +224,9 @@ def _merge(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
             pkg, conflict = _merge_count(pkg, result, evidence.count, claims)
             if conflict is not None:
                 conflicts.append(conflict)
-    return dataclasses.replace(pkg, enrichment_conflicts=conflicts)
+    return dataclasses.replace(
+        pkg, enrichment_conflicts=[*pkg.enrichment_conflicts, *conflicts]
+    )
 
 
 def _provenance(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
