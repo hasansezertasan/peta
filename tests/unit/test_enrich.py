@@ -49,6 +49,7 @@ class FakeProvider:
     state: SourceState = "success"
     evidence: Evidence | None = None
     reason: str | None = None
+    retrieved_at: str | None = "2026-09-04T12:00:00Z"
     calls: list[str] = field(default_factory=list)
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
@@ -63,9 +64,56 @@ class FakeProvider:
             capability=self.capability,
             state=self.state,
             subject=pkg.name,
-            retrieved_at="2026-09-04T12:00:00Z",
+            retrieved_at=self.retrieved_at,
             evidence=self.evidence,
             reason=self.reason,
+        )
+
+
+class _Impostor:
+    """Returns a result attributed to a provider other than itself."""
+
+    name = "honest"
+    capability: Capability = "download_count"
+    group: ProviderGroup = "stats"
+
+    def fetch(self, pkg: PackageInfo) -> ProviderResult:
+        """Return a result claiming to come from somewhere else.
+
+        Returns:
+            A result whose ``provider`` does not match this provider.
+        """
+        return ProviderResult(
+            provider="somewhere-else",
+            capability="download_count",
+            state="success",
+            subject=pkg.name,
+            retrieved_at="2026-09-04T12:00:00Z",
+            evidence=CountEvidence(999),
+        )
+
+
+class _CapabilityForger:
+    """Declares one capability and answers with another."""
+
+    name = "forger"
+    capability: Capability = "vulnerabilities"
+    group: ProviderGroup = "vulnerabilities"
+
+    def fetch(self, pkg: PackageInfo) -> ProviderResult:
+        """Return a count result from a declared vulnerability provider.
+
+        Returns:
+            A self-consistent result for a capability this provider does not
+            declare.
+        """
+        return ProviderResult(
+            provider="forger",
+            capability="download_count",
+            state="success",
+            subject=pkg.name,
+            retrieved_at="2026-09-04T12:00:00Z",
+            evidence=CountEvidence(999),
         )
 
 
@@ -253,6 +301,40 @@ class TestEnrich:
         assert "RuntimeError: kaboom on requests" in failure.reason
         assert pkg.enrichment_sources[0].state == "failed"
 
+    def test_a_result_for_another_capability_is_rejected(self) -> None:
+        # A provider filed under the vulnerability group must not populate
+        # statistics, or --no-stats is bypassable by declaring the other group.
+        pkg = enrich(
+            _pkg(), no_osv=False, no_stats=True, providers=[_CapabilityForger()]
+        )
+        assert pkg.download_count is None
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "forger"
+        assert "capability" in failure.reason
+        # Attributed to what the provider declared, not what it returned.
+        assert failure.field == "result.vulnerabilities"
+
+    def test_a_result_attributed_to_another_provider_is_rejected(self) -> None:
+        pkg = enrich(_pkg(), no_osv=True, no_stats=False, providers=[_Impostor()])
+        assert pkg.download_count is None
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "honest"
+        assert "attributed to" in failure.reason
+
+    def test_a_completed_lookup_without_a_timestamp_is_stamped(self) -> None:
+        # The contract promises a retrieval time; good evidence must not be
+        # discarded just because the provider forgot to stamp it.
+        pkg = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(retrieved_at=None)],
+        )
+        assert pkg.download_count == 100
+        source = pkg.enrichment_sources[0]
+        assert source.state == "success"
+        assert source.retrieved_at is not None
+
     def test_unavailable_provider_is_not_a_failure(self) -> None:
         pkg = enrich(
             _pkg(),
@@ -329,3 +411,59 @@ class TestMergeConflicts:
         )
         assert sorted(v.id for v in pkg.vulnerabilities) == ["GHSA-1", "GHSA-2"]
         assert pkg.enrichment_conflicts == []
+
+
+class TestComposedPasses:
+    """Enriching an already-enriched package must not forget the first pass."""
+
+    def test_a_later_pass_cannot_silently_overwrite_a_scalar(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(100, name="pypistats")],
+        )
+        second = enrich(
+            first,
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(999, name="deps.dev")],
+        )
+        # First-writer-wins holds across passes, not just within one.
+        assert second.download_count == 100
+        assert second.enrichment_conflicts == [
+            ProviderConflict(
+                field="result.download_count", kept="pypistats", discarded="deps.dev"
+            )
+        ]
+
+    def test_a_later_pass_keeps_earlier_conflicts(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _downloads(100, name="pypistats"),
+                _downloads(999, name="deps.dev"),
+            ],
+        )
+        assert len(first.enrichment_conflicts) == 1
+        second = enrich(first, no_osv=False, no_stats=True, providers=[_osv()])
+        # The earlier disagreement must survive a later pass that has none.
+        assert second.enrichment_conflicts == first.enrichment_conflicts
+
+    def test_an_agreeing_later_pass_produces_no_conflict(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(100, name="pypistats")],
+        )
+        second = enrich(
+            first,
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(100, name="deps.dev")],
+        )
+        assert second.download_count == 100
+        assert second.enrichment_conflicts == []
