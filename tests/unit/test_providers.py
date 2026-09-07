@@ -28,11 +28,21 @@ from peta.core.providers import (
 from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
-    from peta.core.models import ProviderWarning
     from peta.core.output import SourceState
     from peta.core.providers import Capability
 
 pytestmark = pytest.mark.unit
+
+
+def _bare_result() -> ProviderResult:
+    """Build a minimal valid result to mutate into an invalid one.
+
+    Returns:
+        A result carrying no evidence and no warnings.
+    """
+    return ProviderResult(
+        provider="bad", capability="download_count", state="empty", subject="requests"
+    )
 
 
 def _pkg(**over: object) -> PackageInfo:
@@ -360,24 +370,15 @@ class TestResultVariantValidation:
         assert CountEvidence(0).count == 0
 
     def test_warnings_rejects_none(self) -> None:
+        # Built with ``replace`` rather than a cast, for the same reason as
+        # the freshness check: it re-runs __post_init__, so the guard is
+        # exercised without a string cast that hides the type from analysis.
         with pytest.raises(TypeError, match="warnings must be a list"):
-            ProviderResult(
-                provider="bad",
-                capability="download_count",
-                state="empty",
-                subject="requests",
-                warnings=cast("list[ProviderWarning]", None),
-            )
+            _ = replace(_bare_result(), warnings=None)
 
     def test_warnings_rejects_a_malformed_item(self) -> None:
         with pytest.raises(TypeError, match="ProviderWarning instances"):
-            ProviderResult(
-                provider="bad",
-                capability="download_count",
-                state="empty",
-                subject="requests",
-                warnings=cast("list[ProviderWarning]", [{"source": "x"}]),
-            )
+            _ = replace(_bare_result(), warnings=[{"source": "x"}])
 
 
 class TestFreshnessValidation:
