@@ -617,58 +617,66 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="463">
 </span><span data-line="464">
 </span><span data-line="465"><span class="k">def</span><span class="w"> </span><span class="nf">_write</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="466"><span class="w">    </span><span class="sd">"""Store one entry, ignoring an unwritable cache.</span>
+</span><span data-line="466"><span class="w">    </span><span class="sd">"""Store one entry, unless the cache is off or cannot be written.</span>
 </span><span data-line="467">
-</span><span data-line="468"><span class="sd">    A read-only home directory, a full disk, or a missing permission is not a</span>
-</span><span data-line="469"><span class="sd">    reason to fail a command that already has its answer; the next run simply</span>
-</span><span data-line="470"><span class="sd">    fetches again.</span>
-</span><span data-line="471"><span class="sd">    """</span>
-</span><span data-line="472">    <span class="n">directory</span> <span class="o">=</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">directory</span>
-</span><span data-line="473">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="474">        <span class="n">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
-</span><span data-line="475">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-</span><span data-line="476">        <span class="k">return</span>
-</span><span data-line="477">    <span class="n">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">now</span><span class="p">())</span>
-</span><span data-line="478">
-</span><span data-line="479">
+</span><span data-line="468"><span class="sd">    The ``enabled`` check belongs here rather than only in :func:`load`: the</span>
+</span><span data-line="469"><span class="sd">    setting says whether the cache is used *at all*, so honouring it on the</span>
+</span><span data-line="470"><span class="sd">    read side alone would still leave files on disk for a caller that asked</span>
+</span><span data-line="471"><span class="sd">    for none. This is the single funnel for both :func:`store` and</span>
+</span><span data-line="472"><span class="sd">    :func:`touch`, so one guard covers every write.</span>
+</span><span data-line="473">
+</span><span data-line="474"><span class="sd">    A read-only home directory, a full disk, or a missing permission is not a</span>
+</span><span data-line="475"><span class="sd">    reason to fail a command that already has its answer; the next run simply</span>
+</span><span data-line="476"><span class="sd">    fetches again.</span>
+</span><span data-line="477"><span class="sd">    """</span>
+</span><span data-line="478">    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+</span><span data-line="479">        <span class="k">return</span>
+</span><span data-line="480">    <span class="n">directory</span> <span class="o">=</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">directory</span>
+</span><span data-line="481">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="482">        <span class="n">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+</span><span data-line="483">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+</span><span data-line="484">        <span class="k">return</span>
+</span><span data-line="485">    <span class="n">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">now</span><span class="p">())</span>
+</span><span data-line="486">
+</span><span data-line="487">
 <div class="viewcode-block" id="store">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.store">[docs]</a>
-</span><span data-line="480"><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span>
-</span><span data-line="481">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
-</span><span data-line="482"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="483"><span class="w">    </span><span class="sd">"""Store one successful response.</span>
-</span><span data-line="484">
-</span><span data-line="485"><span class="sd">    Args:</span>
-</span><span data-line="486"><span class="sd">        key: The cache key.</span>
-</span><span data-line="487"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
-</span><span data-line="488"><span class="sd">        status: The response status.</span>
-</span><span data-line="489"><span class="sd">        body: The decoded response body.</span>
-</span><span data-line="490"><span class="sd">        headers: Response headers; only an allowlist is kept.</span>
-</span><span data-line="491"><span class="sd">    """</span>
-</span><span data-line="492">    <span class="n">_write</span><span class="p">(</span>
-</span><span data-line="493">        <span class="n">key</span><span class="p">,</span>
-</span><span data-line="494">        <span class="p">{</span>
-</span><span data-line="495">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">_redacted</span><span class="p">(</span><span class="n">url</span><span class="p">),</span>
-</span><span data-line="496">            <span class="s2">"status"</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
-</span><span data-line="497">            <span class="s2">"body"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
-</span><span data-line="498">            <span class="s2">"headers"</span><span class="p">:</span> <span class="n">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span>
-</span><span data-line="499">            <span class="s2">"at"</span><span class="p">:</span> <span class="n">now</span><span class="p">(),</span>
-</span><span data-line="500">        <span class="p">},</span>
-</span><span data-line="501">    <span class="p">)</span></div>
+</span><span data-line="488"><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span>
+</span><span data-line="489">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</span><span data-line="490"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="491"><span class="w">    </span><span class="sd">"""Store one successful response.</span>
+</span><span data-line="492">
+</span><span data-line="493"><span class="sd">    Args:</span>
+</span><span data-line="494"><span class="sd">        key: The cache key.</span>
+</span><span data-line="495"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
+</span><span data-line="496"><span class="sd">        status: The response status.</span>
+</span><span data-line="497"><span class="sd">        body: The decoded response body.</span>
+</span><span data-line="498"><span class="sd">        headers: Response headers; only an allowlist is kept.</span>
+</span><span data-line="499"><span class="sd">    """</span>
+</span><span data-line="500">    <span class="n">_write</span><span class="p">(</span>
+</span><span data-line="501">        <span class="n">key</span><span class="p">,</span>
+</span><span data-line="502">        <span class="p">{</span>
+</span><span data-line="503">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">_redacted</span><span class="p">(</span><span class="n">url</span><span class="p">),</span>
+</span><span data-line="504">            <span class="s2">"status"</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+</span><span data-line="505">            <span class="s2">"body"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
+</span><span data-line="506">            <span class="s2">"headers"</span><span class="p">:</span> <span class="n">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span>
+</span><span data-line="507">            <span class="s2">"at"</span><span class="p">:</span> <span class="n">now</span><span class="p">(),</span>
+</span><span data-line="508">        <span class="p">},</span>
+</span><span data-line="509">    <span class="p">)</span></div>
 
-</span><span data-line="502">
-</span><span data-line="503">
+</span><span data-line="510">
+</span><span data-line="511">
 <div class="viewcode-block" id="touch">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.touch">[docs]</a>
-</span><span data-line="504"><span class="k">def</span><span class="w"> </span><span class="nf">touch</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="505"><span class="w">    </span><span class="sd">"""Restamp an entry the source confirmed is still current.</span>
-</span><span data-line="506">
-</span><span data-line="507"><span class="sd">    Args:</span>
-</span><span data-line="508"><span class="sd">        key: The cache key.</span>
-</span><span data-line="509"><span class="sd">        entry: The entry that was revalidated.</span>
-</span><span data-line="510"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
-</span><span data-line="511"><span class="sd">    """</span>
-</span><span data-line="512">    <span class="n">store</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">body</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span></div>
+</span><span data-line="512"><span class="k">def</span><span class="w"> </span><span class="nf">touch</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="513"><span class="w">    </span><span class="sd">"""Restamp an entry the source confirmed is still current.</span>
+</span><span data-line="514">
+</span><span data-line="515"><span class="sd">    Args:</span>
+</span><span data-line="516"><span class="sd">        key: The cache key.</span>
+</span><span data-line="517"><span class="sd">        entry: The entry that was revalidated.</span>
+</span><span data-line="518"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
+</span><span data-line="519"><span class="sd">    """</span>
+</span><span data-line="520">    <span class="n">store</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">url</span><span class="o">=</span><span class="n">url</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">body</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">body</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
