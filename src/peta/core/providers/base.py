@@ -14,11 +14,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType
 
-from peta.core.models import VULNERABILITY_FIELD
+from peta.core.models import VULNERABILITY_FIELD, Vulnerability
 from peta.core.output import SOURCE_STATES
 
 if TYPE_CHECKING:
-    from peta.core.models import PackageInfo, Vulnerability
+    from peta.core.models import PackageInfo
     from peta.core.output import SourceState
 
 __all__ = [
@@ -67,11 +67,42 @@ CAPABILITY_FIELDS: dict[Capability, str] = {
 """The output-contract ``fields`` path each capability writes to."""
 
 
+def _is_vulnerability(item: object) -> bool:
+    """Check an untrusted list item against the payload's declared element type.
+
+    Takes ``object`` rather than ``Vulnerability`` so the check is a real
+    narrowing for the type checkers, not a statically-redundant one: an
+    injected provider can pass anything at runtime regardless of what the
+    caller's list is annotated to hold.
+
+    Returns:
+        ``True`` if ``item`` is a genuine :class:`Vulnerability`.
+    """
+    return isinstance(item, Vulnerability)
+
+
 @dataclass(frozen=True)
 class VulnerabilityEvidence:
     """Advisories a provider found for the subject."""
 
     vulnerabilities: list[Vulnerability]
+
+    def __post_init__(self) -> None:
+        """Reject a payload ``_merge`` could not read ``.id``/``.aliases`` off.
+
+        The list annotation is only a static promise: an injected provider can
+        satisfy it at the type-checker level while filling it with anything at
+        runtime. Left unchecked, a malformed item surfaces as an
+        ``AttributeError`` from :func:`peta.core.vulns.merge_vulnerabilities`,
+        outside the guard that contains a normal provider failure.
+
+        Raises:
+            TypeError: If any item is not a
+                :class:`~peta.core.models.Vulnerability`.
+        """
+        if not all(_is_vulnerability(item) for item in self.vulnerabilities):
+            msg = "vulnerabilities must contain only Vulnerability instances"
+            raise TypeError(msg)
 
     @property
     def is_empty(self) -> bool:
@@ -83,11 +114,44 @@ class VulnerabilityEvidence:
         return not self.vulnerabilities
 
 
+def _is_count(value: object) -> bool:
+    """Check an untrusted scalar against the payload's declared element type.
+
+    Takes ``object`` rather than ``int`` for the same reason as
+    :func:`_is_vulnerability`: an injected provider can pass anything at
+    runtime regardless of the field's annotation. ``bool`` is rejected too,
+    matching :func:`peta.core.validation.expect_int`, since ``isinstance(True,
+    int)`` is ``True`` but a JSON boolean is not a genuine count.
+
+    Returns:
+        ``True`` if ``value`` is a genuine, non-boolean ``int``.
+    """
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
 @dataclass(frozen=True)
 class CountEvidence:
     """A single scalar count, such as downloads or dependents."""
 
     count: int
+
+    def __post_init__(self) -> None:
+        """Reject a count that would corrupt ``PackageInfo`` and its output.
+
+        The ``int`` annotation is only a static promise: an injected provider
+        can satisfy it at the type-checker level while returning anything at
+        runtime. Left unchecked, a malformed count flows straight onto
+        :attr:`~peta.core.models.PackageInfo.download_count` or
+        ``dependent_count`` and only fails later, such as at ``f"{count:,}"``
+        formatting in the table renderer, well outside the guard that
+        contains a normal provider failure.
+
+        Raises:
+            TypeError: If ``count`` is not a genuine, non-boolean ``int``.
+        """
+        if not _is_count(self.count):
+            msg = "count must be a non-boolean int"
+            raise TypeError(msg)
 
     @property
     def is_empty(self) -> bool:
@@ -103,7 +167,7 @@ class CountEvidence:
 
 
 Evidence = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "Evidence", "VulnerabilityEvidence | CountEvidence"
+    "Evidence", VulnerabilityEvidence | CountEvidence
 )
 """Typed payload a provider returns, carried separately from its provenance."""
 

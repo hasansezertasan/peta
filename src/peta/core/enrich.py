@@ -121,17 +121,41 @@ def _dispatch(
     return _accepted(name, capability, pkg, provider.fetch(pkg))
 
 
+def _safe_capability(capability: Capability) -> Capability:
+    """Normalize a capability to one safe to store on a result.
+
+    A provider can return anything at runtime despite the annotation,
+    including something unhashable such as a list. ``capability in
+    CAPABILITY_GROUPS`` itself raises ``TypeError`` for such a value, and an
+    unhashable or unknown capability stored on a result would blow up later
+    when :attr:`ProviderResult.field` looks it up outside any guard.
+
+    Returns:
+        The given capability if it is a hashable, known one; otherwise
+        :data:`_UNKNOWN_CAPABILITY`.
+    """
+    try:
+        known = capability in CAPABILITY_GROUPS
+    except TypeError:
+        return _UNKNOWN_CAPABILITY
+    return capability if known else _UNKNOWN_CAPABILITY
+
+
 def _rejected(
     name: str, capability: Capability, pkg: PackageInfo, reason: str
 ) -> ProviderResult:
     """Describe a provider that misbehaved, in that provider's own terms.
+
+    ``reason`` already carries the offending capability via ``!r`` where
+    relevant, so normalizing the stored capability here loses no diagnostic
+    detail.
 
     Returns:
         A failed result attributed to the consulted provider.
     """
     return ProviderResult(
         provider=name,
-        capability=capability,
+        capability=_safe_capability(capability),
         state="failed",
         subject=pkg.name,
         retrieved_at=utc_now(),
@@ -284,8 +308,35 @@ def _merge(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
     )
 
 
+def _resolved_this_pass(
+    results: Sequence[ProviderResult],
+) -> set[tuple[str, str | None]]:
+    """Name the ``(source, field)`` pairs a completed lookup now answers.
+
+    ``empty`` counts as resolved alongside ``success``: a source that was
+    queried and confirmed it holds nothing has answered the question just as
+    definitively, so an earlier failure for it is equally stale. ``skipped``
+    and ``unavailable`` do not, since no lookup happened.
+
+    Returns:
+        One pair per completed result, so a stale failure for the same source
+        and field can be told apart from an unrelated one.
+    """
+    return {
+        (result.provider, result.field)
+        for result in results
+        if result.state in _COMPLETED_STATES
+    }
+
+
 def _provenance(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
     """Record a source per provider, and a failure per failed provider.
+
+    A failure recorded in an earlier pass is dropped once this pass reports a
+    success for the same source and field, so a provider that fails once and
+    then recovers does not leave a permanently stale failure behind. Matching
+    on both source and field means a provider succeeding at one field never
+    clears an unrelated, still-failing one.
 
     Returns:
         The package carrying provenance for every consulted provider.
@@ -310,10 +361,16 @@ def _provenance(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageI
         for result in results
         if result.state == "failed"
     ]
+    resolved = _resolved_this_pass(results)
+    prior_failures = [
+        failure
+        for failure in pkg.enrichment_failures
+        if (failure.source, failure.field) not in resolved
+    ]
     return dataclasses.replace(
         pkg,
         enrichment_sources=[*pkg.enrichment_sources, *sources],
-        enrichment_failures=[*pkg.enrichment_failures, *failures],
+        enrichment_failures=[*prior_failures, *failures],
     )
 
 

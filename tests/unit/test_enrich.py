@@ -450,6 +450,33 @@ class TestEnrich:
         assert pkg.download_count == 100
         assert pkg.enrichment_failures[0].source == "malformed"
 
+    def test_a_provider_returning_an_unhashable_capability_is_contained(self) -> None:
+        class Shapeshifter:
+            name = "shapeshifter"
+            capability = cast("Capability", ["not", "a", "capability"])
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                """Never reached: the declaration is rejected first.
+
+                Raises:
+                    AssertionError: Always, to prove it was not consulted.
+                """
+                msg = f"should not be consulted for {pkg.name}"
+                raise AssertionError(msg)
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[Shapeshifter(), downloads]
+        )
+        # An unhashable capability must not escape containment a second time
+        # when provenance later looks up its field.
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "shapeshifter"
+        assert "unhashable" in failure.reason
+        assert failure.field is None
+
     def test_unavailable_provider_is_not_a_failure(self) -> None:
         pkg = enrich(
             _pkg(),
@@ -627,6 +654,69 @@ class TestComposedPasses:
         conflict = second.enrichment_conflicts[-1]
         assert conflict.kept == "pypistats"
         assert conflict.discarded == "deps.dev"
+
+    def test_a_successful_retry_clears_the_stale_failure(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=True,
+            providers=[_osv(state="failed", evidence=None, reason="HTTP 500")],
+        )
+        assert first.vulnerabilities_unknown
+        second = enrich(first, no_osv=False, no_stats=True, providers=[_osv()])
+        # The obsolete failure must not linger once the retry succeeds.
+        assert second.enrichment_failures == []
+        assert second.vulnerabilities_unknown is False
+        assert [v.id for v in second.vulnerabilities] == ["GHSA-1"]
+
+    def test_a_confirmed_empty_retry_also_clears_the_stale_failure(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=True,
+            providers=[_osv(state="failed", evidence=None, reason="HTTP 500")],
+        )
+        assert first.vulnerabilities_unknown
+        second = enrich(
+            first,
+            no_osv=False,
+            no_stats=True,
+            providers=[_osv(state="empty", evidence=VulnerabilityEvidence([]))],
+        )
+        # "Queried, and there are none" answers the question as definitively
+        # as a hit, so the count must read 0 rather than "unknown".
+        assert second.enrichment_failures == []
+        assert second.vulnerabilities_unknown is False
+        assert second.vulnerabilities == []
+
+    def test_a_skipped_retry_leaves_the_stale_failure_in_place(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=True,
+            providers=[_osv(state="failed", evidence=None, reason="HTTP 500")],
+        )
+        second = enrich(first, no_osv=True, no_stats=True, providers=[_osv()])
+        # Nothing was looked up, so nothing is resolved.
+        assert [failure.source for failure in second.enrichment_failures] == ["osv"]
+        assert second.vulnerabilities_unknown
+
+    def test_a_success_does_not_clear_an_unrelated_failing_field(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=False,
+            no_stats=False,
+            providers=[
+                _osv(state="failed", evidence=None, reason="HTTP 500"),
+                _downloads(state="failed", evidence=None, reason="HTTP 503"),
+            ],
+        )
+        assert len(first.enrichment_failures) == 2
+        # Only the download source recovers; the vulnerability failure must
+        # remain since it is a different (source, field) pair.
+        second = enrich(first, no_osv=False, no_stats=False, providers=[_downloads()])
+        assert [failure.source for failure in second.enrichment_failures] == ["osv"]
+        assert second.vulnerabilities_unknown
 
     def test_the_owning_provider_may_refresh_its_own_count(self) -> None:
         first = enrich(

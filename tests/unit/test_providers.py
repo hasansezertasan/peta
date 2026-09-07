@@ -29,9 +29,6 @@ from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
     from peta.core.output import SourceState
-
-if TYPE_CHECKING:
-    from peta.core.output import SourceState
     from peta.core.providers import Capability
 
 pytestmark = pytest.mark.unit
@@ -293,3 +290,31 @@ class TestResultVariantValidation:
             evidence=VulnerabilityEvidence([]),
         )
         assert result.evidence == VulnerabilityEvidence([])
+
+    @pytest.mark.parametrize("item", [None, {"id": "GHSA-1"}])
+    def test_vulnerability_evidence_rejects_a_malformed_item(
+        self, item: object
+    ) -> None:
+        # `_merge` reads `.id`/`.aliases` off every item; an item that is not a
+        # `Vulnerability` would otherwise reach it as an unguarded
+        # `AttributeError`, discarding the whole package.
+        with pytest.raises(TypeError, match="Vulnerability instances"):
+            VulnerabilityEvidence(cast("list[Vulnerability]", [item]))
+
+    def test_vulnerability_evidence_accepts_genuine_vulnerabilities(self) -> None:
+        vuln = Vulnerability(id="GHSA-1", aliases=[], summary="s", fixed_in=[])
+        evidence = VulnerabilityEvidence([vuln])
+        assert evidence.vulnerabilities == [vuln]
+
+    def test_vulnerability_evidence_accepts_an_empty_list(self) -> None:
+        assert VulnerabilityEvidence([]).vulnerabilities == []
+
+    @pytest.mark.parametrize("count", [None, "5", 1.0, True, False])
+    def test_count_evidence_rejects_a_non_integer(self, count: object) -> None:
+        # A malformed count would otherwise reach `PackageInfo.download_count`
+        # and only fail later, e.g. at table-rendering time.
+        with pytest.raises(TypeError, match="non-boolean int"):
+            CountEvidence(cast("int", count))
+
+    def test_count_evidence_accepts_a_genuine_int(self) -> None:
+        assert CountEvidence(0).count == 0
