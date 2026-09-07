@@ -149,6 +149,7 @@ def _child_node(
             installed_version=child_pkg.version,
             source=child_pkg.source,
             retrieved_at=child_pkg.retrieved_at,
+            freshness=child_pkg.freshness,
         )
     children = _expand(
         child_pkg,
@@ -166,6 +167,7 @@ def _child_node(
         children=children,
         source=child_pkg.source,
         retrieved_at=child_pkg.retrieved_at,
+        freshness=child_pkg.freshness,
     )
 
 
@@ -229,6 +231,7 @@ def build_tree(
         children=children,
         source=root_pkg.source,
         retrieved_at=root_pkg.retrieved_at,
+        freshness=root_pkg.freshness,
     )
 
 

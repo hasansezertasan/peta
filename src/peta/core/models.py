@@ -158,4 +158,11 @@ class DependencyNode:
     circular: bool = False
     source: str | None = None
     retrieved_at: str | None = None
+    freshness: Freshness | None = None
+    """Where this node's metadata came from: the source, or peta's cache.
+
+    Carried per node because a tree can be assembled from a mix — some
+    dependencies served from cache, others fetched — so one figure for the
+    whole command would be a fiction.
+    """
     resolution_failure: DependencyResolutionFailure | None = None

@@ -1,5 +1,6 @@
 """Unit tests for the recursive dependency tree builder."""
 
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -189,3 +190,27 @@ class TestFindWhy:
     def test_case_insensitive(self) -> None:
         paths = find_why(self._tree(), "Certifi")
         assert paths == [["flask", "requests", "certifi"]]
+
+
+class TestFreshness:
+    @patch("peta.core.deptree.resolve_package")
+    def test_each_node_reports_where_its_metadata_came_from(self, m: MagicMock) -> None:
+        # A tree can be assembled from a mix, so freshness is per node rather
+        # than one figure for the whole command.
+        served = replace(_pkg("b", []), freshness="cached")
+        fetched = replace(_pkg("a", ["b"]), freshness="live")
+        m.side_effect = lambda name, **_kw: fetched if name == "a" else served
+
+        tree = build_tree("a", local=False, remote=False)
+
+        assert tree.freshness == "live"
+        assert tree.children[0].freshness == "cached"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_truncated_node_still_reports_its_origin(self, m: MagicMock) -> None:
+        served = replace(_pkg("b", ["c"]), freshness="cached")
+        m.side_effect = lambda name, **_kw: _pkg("a", ["b"]) if name == "a" else served
+
+        tree = build_tree("a", local=False, remote=False, max_depth=1)
+
+        assert tree.children[0].freshness == "cached"

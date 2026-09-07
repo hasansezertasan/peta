@@ -357,6 +357,7 @@ def _dependency_source(
         state="success",
         target=node.name,
         retrieved_at=node.retrieved_at or timestamp,
+        freshness=node.freshness,
         fields=[field],
     )
 
