@@ -44,11 +44,12 @@ class EnrichmentFailure:
 
     source: str
     reason: str
-    field: str
+    field: str | None
     """The ``result`` path the failed source would have written to.
 
-    Required, so a failure always says *what* is missing and consumers never
-    have to match on a specific provider name to find out.
+    Required but nullable, so a failure always states *what* is missing —
+    including stating explicitly that it cannot be attributed to a result
+    field, rather than leaving that to a forgotten default.
     """
 
 

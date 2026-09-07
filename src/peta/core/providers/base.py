@@ -147,9 +147,12 @@ def _validate_capability(capability: Capability, evidence: Evidence | None) -> N
     Raises:
         TypeError: If the evidence variant does not match the capability.
     """
+    if evidence is None:
+        return
+    expected = _EVIDENCE_TYPES.get(capability)
     # Identity, not ``isinstance``: the evidence union covers both variants, so
     # a subtype check narrows to "always true" and hides the mismatch.
-    if evidence is not None and type(evidence) is not _EVIDENCE_TYPES[capability]:
+    if expected is None or type(evidence) is not expected:
         msg = f"{type(evidence).__name__} does not match capability {capability!r}"
         raise TypeError(msg)
 
@@ -187,22 +190,17 @@ class ProviderResult:
         _validate_capability(self.capability, self.evidence)
 
     @property
-    def group(self) -> ProviderGroup:
-        """Name the opt-out family this result's capability falls under.
-
-        Returns:
-            The group for the result's capability.
-        """
-        return CAPABILITY_GROUPS[self.capability]
-
-    @property
-    def field(self) -> str:
+    def field(self) -> str | None:
         """Name the ``result`` path this provider contributes to.
 
+        ``None`` when the capability is not one peta knows, which an injected
+        provider can declare at runtime despite the annotation. Such a result
+        has no attributable field rather than an invented one.
+
         Returns:
-            The output-contract field path for the provider's capability.
+            The output-contract field path, or ``None`` if unattributable.
         """
-        return CAPABILITY_FIELDS[self.capability]
+        return CAPABILITY_FIELDS.get(self.capability)
 
 
 class EnrichmentProvider(Protocol):

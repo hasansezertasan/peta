@@ -18,7 +18,7 @@ from peta.core.output import (
 if TYPE_CHECKING:
     from collections.abc import Container, Iterator
 
-    from peta.core.models import DependencyNode, PackageInfo
+    from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
     from peta.core.output import CommandName, MessageCode
 
 __all__ = [
@@ -127,6 +127,17 @@ def _at_result_path(record: SourceRecord, result_path: str) -> SourceRecord:
     )
 
 
+def _failure_fields(failure: EnrichmentFailure, result_path: str) -> list[str]:
+    """Name the result path a failed source would have written to.
+
+    Returns:
+        The single rebased field, or nothing when the failure names none.
+    """
+    if failure.field is None:
+        return []
+    return [_remap_field(failure.field, result_path)]
+
+
 def _remap_field(field: str, result_path: str) -> str:
     """Rebase a generic ``result``-rooted path onto a command's real path.
 
@@ -177,7 +188,7 @@ def _source_records(
                 target=pkg.name,
                 retrieved_at=timestamp,
                 reason=failure.reason,
-                fields=[_remap_field(failure.field, result_path)],
+                fields=_failure_fields(failure, result_path),
             )
             for failure in pkg.enrichment_failures
         )

@@ -55,17 +55,45 @@ def _collect(
     Returns:
         One result per provider, in the order they were consulted.
     """
-    return [
-        ProviderResult(
-            provider=provider.name,
-            capability=provider.capability,
-            state="skipped",
-            subject=pkg.name,
-        )
-        if CAPABILITY_GROUPS[provider.capability] in disabled
-        else _fetch(provider, pkg)
-        for provider in providers
-    ]
+    return [_consult(provider, pkg, disabled) for provider in providers]
+
+
+def _consult(
+    provider: EnrichmentProvider, pkg: PackageInfo, disabled: frozenset[ProviderGroup]
+) -> ProviderResult:
+    """Resolve one provider's outcome, containing every way it can misbehave.
+
+    The whole step is contained, not just ``fetch``: reading the declared
+    capability and resolving its opt-out group can both fail on a provider
+    whose declaration does not match its annotation.
+
+    Returns:
+        The provider's result, or a failed result describing what went wrong.
+    """
+    try:
+        group = CAPABILITY_GROUPS[provider.capability]
+        if group in disabled:
+            return ProviderResult(
+                provider=provider.name,
+                capability=provider.capability,
+                state="skipped",
+                subject=pkg.name,
+            )
+        return _accepted(provider, pkg, provider.fetch(pkg))
+    # A misbehaving provider is contained here, never propagated to the caller.
+    except Exception as exc:  # ruff: ignore[blind-except]
+        return _rejected(provider, pkg, _misbehaviour(exc))
+
+
+def _misbehaviour(exc: Exception) -> str:
+    """Describe a provider fault in terms a consumer can act on.
+
+    Returns:
+        A safe diagnostic for the fault.
+    """
+    if isinstance(exc, KeyError):
+        return f"provider declares unknown capability {exc.args[0]!r}"
+    return f"provider raised {type(exc).__name__}: {exc}"
 
 
 def _rejected(
@@ -110,27 +138,6 @@ def _mismatch(provider: EnrichmentProvider, result: ProviderResult) -> str | Non
     return None
 
 
-def _fetch(provider: EnrichmentProvider, pkg: PackageInfo) -> ProviderResult:
-    """Fetch one provider's evidence, containing any way it misbehaves.
-
-    Providers are contracted not to raise and to answer for what they declare,
-    but the sequence is injectable, so a misbehaving one must not abort its
-    neighbours, break ``enrich``'s promise never to raise, or write a field it
-    was not consulted for.
-
-    Returns:
-        The provider's result, or a failed result describing what went wrong.
-    """
-    try:
-        # Inspection happens inside the containment too: a provider that
-        # returns something that is not a result at all must be reported the
-        # same way as one that raises, not crash on the first attribute read.
-        return _accepted(provider, pkg, provider.fetch(pkg))
-    # A misbehaving provider is contained here, never propagated to the caller.
-    except Exception as exc:  # ruff: ignore[blind-except]
-        return _rejected(provider, pkg, f"provider raised {type(exc).__name__}: {exc}")
-
-
 def _accepted(
     provider: EnrichmentProvider, pkg: PackageInfo, result: ProviderResult
 ) -> ProviderResult:
@@ -164,6 +171,7 @@ def _with_count(pkg: PackageInfo, capability: Capability, count: int) -> Package
 def _merge_count(
     pkg: PackageInfo,
     result: ProviderResult,
+    field: str,
     count: int,
     claims: dict[str, tuple[str, int]],
 ) -> tuple[PackageInfo, ProviderConflict | None]:
@@ -175,16 +183,14 @@ def _merge_count(
     Returns:
         The updated package, and a conflict when a later provider disagreed.
     """
-    prior = claims.get(result.field)
+    prior = claims.get(field)
     if prior is None:
-        claims[result.field] = (result.provider, count)
+        claims[field] = (result.provider, count)
         return _with_count(pkg, result.capability, count), None
     holder, held = prior
     if held == count:
         return pkg, None
-    conflict = ProviderConflict(
-        field=result.field, kept=holder, discarded=result.provider
-    )
+    conflict = ProviderConflict(field=field, kept=holder, discarded=result.provider)
     return pkg, conflict
 
 
@@ -238,8 +244,11 @@ def _merge(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
                     pkg.vulnerabilities, evidence.vulnerabilities
                 ),
             )
-        elif isinstance(evidence, CountEvidence):
-            pkg, conflict = _merge_count(pkg, result, evidence.count, claims)
+        elif isinstance(evidence, CountEvidence) and result.field is not None:
+            # A result with no attributable field has nothing to merge into.
+            pkg, conflict = _merge_count(
+                pkg, result, result.field, evidence.count, claims
+            )
             if conflict is not None:
                 conflicts.append(conflict)
     return dataclasses.replace(
@@ -260,7 +269,9 @@ def _provenance(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageI
             target=result.subject,
             retrieved_at=result.retrieved_at,
             reason=result.reason,
-            fields=[result.field],
+            # An unattributable result claims no field rather than an
+            # invented one.
+            fields=[] if result.field is None else [result.field],
         )
         for result in results
     ]

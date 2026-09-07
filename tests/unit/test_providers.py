@@ -8,7 +8,7 @@ module boundary, never at the HTTP layer.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,6 +18,7 @@ from peta.core.providers import (
     CAPABILITY_FIELDS,
     CAPABILITY_GROUPS,
     DEFAULT_PROVIDERS,
+    Capability,
     CountEvidence,
     LibrariesIoProvider,
     OsvProvider,
@@ -165,14 +166,22 @@ def test_every_capability_maps_to_an_opt_out_group() -> None:
 def test_group_follows_the_capability_not_the_provider() -> None:
     # A provider cannot declare a group, so it cannot file a count under the
     # vulnerability family to dodge --no-stats.
+    assert CAPABILITY_GROUPS["download_count"] == "stats"
+    assert CAPABILITY_GROUPS["dependent_count"] == "stats"
+    assert CAPABILITY_GROUPS["vulnerabilities"] == "vulnerabilities"
+
+
+def test_an_unknown_capability_has_no_attributable_field() -> None:
+    # An injected provider can declare a capability outside the Literal at
+    # runtime; the result must not invent a field for it.
     result = ProviderResult(
-        provider="forger",
-        capability="download_count",
-        state="empty",
+        provider="stranger",
+        capability=cast("Capability", "made_up"),
+        state="failed",
         subject="requests",
-        retrieved_at="2026-09-07T12:00:00Z",
+        reason="provider declares unknown capability 'made_up'",
     )
-    assert result.group == "stats"
+    assert result.field is None
 
 
 class TestResultVariantValidation:

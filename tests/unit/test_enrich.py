@@ -324,6 +324,35 @@ class TestEnrich:
         assert source.state == "success"
         assert source.retrieved_at is not None
 
+    def test_a_provider_declaring_an_unknown_capability_is_contained(self) -> None:
+        class Stranger:
+            name = "stranger"
+            capability = cast("Capability", "made_up")
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                """Never reached: the declaration is rejected first.
+
+                Raises:
+                    AssertionError: Always, to prove it was not consulted.
+                """
+                msg = f"should not be consulted for {pkg.name}"
+                raise AssertionError(msg)
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[Stranger(), downloads]
+        )
+        # No opt-out flag can gate an unknown capability, so the provider is
+        # rejected before it is consulted rather than run ungated.
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "stranger"
+        assert failure.reason == "provider declares unknown capability 'made_up'"
+        # Unattributable, so it claims no result field.
+        assert failure.field is None
+        assert pkg.enrichment_sources[0].fields == []
+
     def test_a_provider_returning_a_non_result_is_contained(self) -> None:
         class Malformed:
             name = "malformed"
