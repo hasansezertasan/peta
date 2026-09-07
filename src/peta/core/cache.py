@@ -44,6 +44,7 @@ __all__ = [
     "key_for",
     "load",
     "now",
+    "redacted",
     "reset",
     "settings",
     "store",
@@ -239,8 +240,15 @@ def reset() -> None:
     _SETTINGS.clear()
 
 
-def _redacted(url: str) -> str:
+def redacted(url: str) -> str:
     """Rewrite a URL with credential-bearing query parameters removed.
+
+    Public because the cache is not the only place a request URL is retained:
+    an error that names the URL it could not answer would otherwise carry the
+    credential into a message, a log, or a traceback.
+
+    Args:
+        url: A request URL, possibly carrying a credential.
 
     Returns:
         The URL with any parameter named in :data:`_CREDENTIAL_PARAMS` dropped.
@@ -267,7 +275,7 @@ def key_for(method: str, url: str) -> str:
     Returns:
         A hex digest usable as a file name.
     """
-    material = f"{method.upper()}\n{_redacted(url)}"
+    material = f"{method.upper()}\n{redacted(url)}"
     return hashlib.sha256(material.encode()).hexdigest()
 
 
@@ -500,7 +508,7 @@ def store(
     _write(
         key,
         {
-            "url": _redacted(url),
+            "url": redacted(url),
             "status": status,
             "body": body,
             "headers": _kept_headers(headers),

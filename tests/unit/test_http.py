@@ -7,8 +7,9 @@ from typing import TYPE_CHECKING
 import httpx
 import pytest
 
-from peta.core import cache, http
+from peta.core import cache, http, stats
 from peta.core.output import utc_from
+from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -489,3 +490,35 @@ class TestNoClientForCacheHits:
 
         with pytest.raises(http.OfflineError):
             _ = http.get(_URL, ttl=60)
+
+
+class TestOfflineErrorRedaction:
+    def test_a_credential_never_reaches_the_message(self) -> None:
+        # Libraries.io takes its key in the query string, and this message is
+        # surfaced to users: as the offline_unavailable error for a fatal
+        # lookup, and as the __cause__ of a source failure for an optional
+        # one, where a traceback would print it.
+        error = http.OfflineError(
+            "https://libraries.io/api/pypi/requests?api_key=super-secret"
+        )
+
+        assert "super-secret" not in str(error)
+        assert "super-secret" not in error.url
+        assert error.url == "https://libraries.io/api/pypi/requests"
+
+    def test_an_ordinary_url_is_reported_intact(self) -> None:
+        error = http.OfflineError("https://pypi.org/pypi/requests/2.31.0/json")
+        assert error.url == "https://pypi.org/pypi/requests/2.31.0/json"
+
+    def test_a_credentialed_offline_miss_does_not_leak_through_the_source(
+        self, cache_dir: Path
+    ) -> None:
+        # End to end: the enrichment source converts the offline miss into its
+        # own error and chains the original, so the chain must be clean too.
+        cache.configure(directory=cache_dir, offline=True)
+
+        with pytest.raises(EnrichmentError) as caught:
+            _ = stats.get_dependent_count("requests", api_key="super-secret")
+
+        assert "super-secret" not in str(caught.value)
+        assert "super-secret" not in str(caught.value.__cause__)

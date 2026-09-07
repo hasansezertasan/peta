@@ -129,9 +129,17 @@ class OfflineError(Exception):
     """
 
     def __init__(self, url: str) -> None:
-        """Name the request that could not be served offline."""
-        self.url: str = url
-        super().__init__(f"offline and no cached response for {url}")
+        """Name the request that could not be served offline.
+
+        The URL is redacted here rather than at each raise site, so no future
+        caller can leak a credential by forgetting to. Libraries.io takes its
+        API key in the query string, and this message is surfaced to users:
+        for a fatal lookup it becomes the ``offline_unavailable`` error in the
+        envelope, and for an optional one it survives as the ``__cause__`` of
+        the source failure, where any traceback would print it.
+        """
+        self.url: str = cache.redacted(url)
+        super().__init__(f"offline and no cached response for {self.url}")
 
 
 def _bind(url: str) -> httpx.Request:
