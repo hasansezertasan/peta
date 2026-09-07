@@ -248,6 +248,21 @@ def _validate_capability(capability: Capability, evidence: Evidence | None) -> N
         raise TypeError(msg)
 
 
+def _validate_warnings(warnings: list[ProviderWarning]) -> None:
+    """Require warnings to be a list of well-formed ``ProviderWarning`` items.
+
+    Raises:
+        TypeError: If ``warnings`` is not iterable or contains a non-warning.
+    """
+    if not isinstance(cast("object", warnings), list):
+        msg = f"warnings must be a list, got {type(warnings).__name__}"
+        raise TypeError(msg)
+    for item in warnings:
+        if not isinstance(cast("object", item), ProviderWarning):
+            msg = "warnings must contain only ProviderWarning instances"
+            raise TypeError(msg)
+
+
 @dataclass(frozen=True)
 class ProviderResult:
     """One provider's answer for one package, evidence and provenance together.
@@ -283,6 +298,7 @@ class ProviderResult:
         _validate_state(self.state, self.evidence)
         _validate_reason(self.state, self.reason)
         _validate_capability(self.capability, self.evidence)
+        _validate_warnings(self.warnings)
 
     @property
     def field(self) -> str | None:

@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from peta.core.models import PackageInfo, Vulnerability
+from peta.core.models import PackageInfo, ProviderWarning, Vulnerability
 from peta.core.providers import (
     CAPABILITY_FIELDS,
     CAPABILITY_GROUPS,
@@ -348,3 +348,23 @@ class TestResultVariantValidation:
 
     def test_count_evidence_accepts_a_genuine_int(self) -> None:
         assert CountEvidence(0).count == 0
+
+    def test_warnings_rejects_none(self) -> None:
+        with pytest.raises(TypeError, match="warnings must be a list"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state="empty",
+                subject="requests",
+                warnings=cast("list[ProviderWarning]", None),
+            )
+
+    def test_warnings_rejects_a_malformed_item(self) -> None:
+        with pytest.raises(TypeError, match="ProviderWarning instances"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state="empty",
+                subject="requests",
+                warnings=cast("list[ProviderWarning]", [{"source": "x"}]),
+            )

@@ -291,6 +291,7 @@ def _merge(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
         The package carrying every provider's evidence.
     """
     conflicts: list[ProviderConflict] = []
+    reconciled: set[tuple[str, str]] = set()
     claims = _existing_claims(pkg)
     for result in results:
         evidence = result.evidence
@@ -302,15 +303,17 @@ def _merge(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageInfo:
                 ),
             )
         elif isinstance(evidence, CountEvidence) and result.field is not None:
-            # A result with no attributable field has nothing to merge into.
             pkg, conflict = _merge_count(
                 pkg, result, result.field, evidence.count, claims
             )
             if conflict is not None:
                 conflicts.append(conflict)
-    return dataclasses.replace(
-        pkg, enrichment_conflicts=[*pkg.enrichment_conflicts, *conflicts]
-    )
+            else:
+                reconciled.add((result.field, result.provider))
+    prior = [
+        c for c in pkg.enrichment_conflicts if (c.field, c.discarded) not in reconciled
+    ]
+    return dataclasses.replace(pkg, enrichment_conflicts=[*prior, *conflicts])
 
 
 def _resolved_this_pass(

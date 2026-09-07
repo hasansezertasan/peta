@@ -669,6 +669,25 @@ class TestComposedPasses:
         assert conflict.kept == "pypistats"
         assert conflict.discarded == "deps.dev"
 
+    def test_a_reconsulted_source_that_now_agrees_clears_the_conflict(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _downloads(100, name="pypistats"),
+                _downloads(999, name="deps.dev"),
+            ],
+        )
+        assert len(first.enrichment_conflicts) == 1
+        second = enrich(
+            first,
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(100, name="deps.dev")],
+        )
+        assert second.enrichment_conflicts == []
+
     def test_a_successful_retry_clears_the_stale_failure(self) -> None:
         first = enrich(
             _pkg(),
