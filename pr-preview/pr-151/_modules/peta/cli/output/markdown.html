@@ -175,151 +175,152 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="57">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span>
 </span><span data-line="58">    <span class="p">]</span>
 </span><span data-line="59">    <span class="n">warnings</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="60">        <span class="n">item</span><span class="p">(</span>
-</span><span data-line="61">            <span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="62">            <span class="n">conflict</span><span class="o">.</span><span class="n">field</span><span class="p">,</span>
-</span><span data-line="63">            <span class="sa">f</span><span class="s2">"kept </span><span class="si">{</span><span class="n">conflict</span><span class="o">.</span><span class="n">kept</span><span class="si">}</span><span class="s2">, discarded conflicting </span><span class="si">{</span><span class="n">conflict</span><span class="o">.</span><span class="n">discarded</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-</span><span data-line="64">        <span class="p">)</span>
-</span><span data-line="65">        <span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span> <span class="n">packages</span>
-</span><span data-line="66">        <span class="k">for</span> <span class="n">conflict</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_conflicts</span>
-</span><span data-line="67">    <span class="p">)</span>
-</span><span data-line="68">    <span class="k">if</span> <span class="ow">not</span> <span class="n">warnings</span><span class="p">:</span>
-</span><span data-line="69">        <span class="k">return</span> <span class="p">[]</span>
-</span><span data-line="70">    <span class="k">return</span> <span class="p">[</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"## Enrichment warnings"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">warnings</span><span class="p">]</span>
-</span><span data-line="71">
+</span><span data-line="60">        <span class="n">item</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">conflict</span><span class="o">.</span><span class="n">field</span><span class="p">,</span> <span class="n">conflict</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+</span><span data-line="61">        <span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span> <span class="n">packages</span>
+</span><span data-line="62">        <span class="k">for</span> <span class="n">conflict</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_conflicts</span>
+</span><span data-line="63">    <span class="p">)</span>
+</span><span data-line="64">    <span class="n">warnings</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="65">        <span class="n">item</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">w</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+</span><span data-line="66">        <span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span> <span class="n">packages</span>
+</span><span data-line="67">        <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">provider_warnings</span>
+</span><span data-line="68">    <span class="p">)</span>
+</span><span data-line="69">    <span class="k">if</span> <span class="ow">not</span> <span class="n">warnings</span><span class="p">:</span>
+</span><span data-line="70">        <span class="k">return</span> <span class="p">[]</span>
+</span><span data-line="71">    <span class="k">return</span> <span class="p">[</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"## Enrichment warnings"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">warnings</span><span class="p">]</span>
 </span><span data-line="72">
-</span><span data-line="73"><span class="k">def</span><span class="w"> </span><span class="nf">_vulnerability_count</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="74">    <span class="k">if</span> <span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities_unknown</span><span class="p">:</span>
-</span><span data-line="75">        <span class="k">return</span> <span class="s2">"unknown"</span>
-</span><span data-line="76">    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities</span><span class="p">))</span>
-</span><span data-line="77">
+</span><span data-line="73">
+</span><span data-line="74"><span class="k">def</span><span class="w"> </span><span class="nf">_vulnerability_count</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="75">    <span class="k">if</span> <span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities_unknown</span><span class="p">:</span>
+</span><span data-line="76">        <span class="k">return</span> <span class="s2">"unknown"</span>
+</span><span data-line="77">    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities</span><span class="p">))</span>
 </span><span data-line="78">
+</span><span data-line="79">
 <div class="viewcode-block" id="format_info">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_info">[docs]</a>
-</span><span data-line="79"><span class="k">def</span><span class="w"> </span><span class="nf">format_info</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="80"><span class="w">    </span><span class="sd">"""Format package metadata as Markdown.</span>
-</span><span data-line="81">
-</span><span data-line="82"><span class="sd">    Returns:</span>
-</span><span data-line="83"><span class="sd">        A Markdown heading and field table.</span>
-</span><span data-line="84"><span class="sd">    """</span>
-</span><span data-line="85">    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="86">        <span class="p">(</span><span class="s2">"Source"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
-</span><span data-line="87">        <span class="p">(</span><span class="s2">"Summary"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">summary</span><span class="p">),</span>
-</span><span data-line="88">        <span class="p">(</span><span class="s2">"License"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">license</span><span class="p">),</span>
-</span><span data-line="89">        <span class="p">(</span><span class="s2">"Requires Python"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">python_requires</span><span class="p">),</span>
-</span><span data-line="90">        <span class="p">(</span><span class="s2">"Homepage"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">homepage</span><span class="p">),</span>
-</span><span data-line="91">        <span class="p">(</span><span class="s2">"Dependencies"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependencies</span><span class="p">),</span>
-</span><span data-line="92">        <span class="p">(</span><span class="s2">"Downloads"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">download_count</span><span class="p">),</span>
-</span><span data-line="93">        <span class="p">(</span><span class="s2">"Dependents"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependent_count</span><span class="p">),</span>
-</span><span data-line="94">    <span class="p">]</span>
-</span><span data-line="95">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="s2">"| Field | Value |"</span><span class="p">,</span> <span class="s2">"| --- | --- |"</span><span class="p">]</span>
-</span><span data-line="96">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">)</span>
-</span><span data-line="97">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_security_lines</span><span class="p">(</span><span class="n">pkg</span><span class="p">))</span>
-</span><span data-line="98">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="80"><span class="k">def</span><span class="w"> </span><span class="nf">format_info</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="81"><span class="w">    </span><span class="sd">"""Format package metadata as Markdown.</span>
+</span><span data-line="82">
+</span><span data-line="83"><span class="sd">    Returns:</span>
+</span><span data-line="84"><span class="sd">        A Markdown heading and field table.</span>
+</span><span data-line="85"><span class="sd">    """</span>
+</span><span data-line="86">    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="87">        <span class="p">(</span><span class="s2">"Source"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
+</span><span data-line="88">        <span class="p">(</span><span class="s2">"Summary"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">summary</span><span class="p">),</span>
+</span><span data-line="89">        <span class="p">(</span><span class="s2">"License"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">license</span><span class="p">),</span>
+</span><span data-line="90">        <span class="p">(</span><span class="s2">"Requires Python"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">python_requires</span><span class="p">),</span>
+</span><span data-line="91">        <span class="p">(</span><span class="s2">"Homepage"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">homepage</span><span class="p">),</span>
+</span><span data-line="92">        <span class="p">(</span><span class="s2">"Dependencies"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependencies</span><span class="p">),</span>
+</span><span data-line="93">        <span class="p">(</span><span class="s2">"Downloads"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">download_count</span><span class="p">),</span>
+</span><span data-line="94">        <span class="p">(</span><span class="s2">"Dependents"</span><span class="p">,</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependent_count</span><span class="p">),</span>
+</span><span data-line="95">    <span class="p">]</span>
+</span><span data-line="96">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="s2">"| Field | Value |"</span><span class="p">,</span> <span class="s2">"| --- | --- |"</span><span class="p">]</span>
+</span><span data-line="97">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">)</span>
+</span><span data-line="98">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_security_lines</span><span class="p">(</span><span class="n">pkg</span><span class="p">))</span>
+</span><span data-line="99">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
-</span><span data-line="99">
 </span><span data-line="100">
+</span><span data-line="101">
 <div class="viewcode-block" id="format_compare">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_compare">[docs]</a>
-</span><span data-line="101"><span class="k">def</span><span class="w"> </span><span class="nf">format_compare</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="102"><span class="w">    </span><span class="sd">"""Format a package comparison as Markdown.</span>
-</span><span data-line="103">
-</span><span data-line="104"><span class="sd">    Returns:</span>
-</span><span data-line="105"><span class="sd">        A Markdown comparison table.</span>
-</span><span data-line="106"><span class="sd">    """</span>
-</span><span data-line="107">    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="108">        <span class="p">(</span><span class="s2">"Version"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">version</span><span class="p">),</span>
-</span><span data-line="109">        <span class="p">(</span><span class="s2">"Source"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
-</span><span data-line="110">        <span class="p">(</span><span class="s2">"License"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">license</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">license</span><span class="p">),</span>
-</span><span data-line="111">        <span class="p">(</span><span class="s2">"Requires Python"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">python_requires</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">python_requires</span><span class="p">),</span>
-</span><span data-line="112">        <span class="p">(</span><span class="s2">"Dependencies"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">dependencies</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">dependencies</span><span class="p">),</span>
-</span><span data-line="113">        <span class="p">(</span><span class="s2">"Vulnerabilities"</span><span class="p">,</span> <span class="n">_vulnerability_count</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">_vulnerability_count</span><span class="p">(</span><span class="n">b</span><span class="p">)),</span>
-</span><span data-line="114">    <span class="p">]</span>
-</span><span data-line="115">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="116">        <span class="s2">"# Package comparison"</span><span class="p">,</span>
-</span><span data-line="117">        <span class="s2">""</span><span class="p">,</span>
-</span><span data-line="118">        <span class="sa">f</span><span class="s2">"| Field | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span><span class="p">,</span>
-</span><span data-line="119">        <span class="s2">"| --- | --- | --- |"</span><span class="p">,</span>
-</span><span data-line="120">    <span class="p">]</span>
-</span><span data-line="121">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="122">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">a_value</span><span class="p">)</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">b_value</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span>
-</span><span data-line="123">        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">a_value</span><span class="p">,</span> <span class="n">b_value</span> <span class="ow">in</span> <span class="n">rows</span>
-</span><span data-line="124">    <span class="p">)</span>
-</span><span data-line="125">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_warning_lines</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span>
-</span><span data-line="126">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="102"><span class="k">def</span><span class="w"> </span><span class="nf">format_compare</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="103"><span class="w">    </span><span class="sd">"""Format a package comparison as Markdown.</span>
+</span><span data-line="104">
+</span><span data-line="105"><span class="sd">    Returns:</span>
+</span><span data-line="106"><span class="sd">        A Markdown comparison table.</span>
+</span><span data-line="107"><span class="sd">    """</span>
+</span><span data-line="108">    <span class="n">rows</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="109">        <span class="p">(</span><span class="s2">"Version"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">version</span><span class="p">),</span>
+</span><span data-line="110">        <span class="p">(</span><span class="s2">"Source"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">source</span><span class="p">),</span>
+</span><span data-line="111">        <span class="p">(</span><span class="s2">"License"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">license</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">license</span><span class="p">),</span>
+</span><span data-line="112">        <span class="p">(</span><span class="s2">"Requires Python"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">python_requires</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">python_requires</span><span class="p">),</span>
+</span><span data-line="113">        <span class="p">(</span><span class="s2">"Dependencies"</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">dependencies</span><span class="p">,</span> <span class="n">b</span><span class="o">.</span><span class="n">dependencies</span><span class="p">),</span>
+</span><span data-line="114">        <span class="p">(</span><span class="s2">"Vulnerabilities"</span><span class="p">,</span> <span class="n">_vulnerability_count</span><span class="p">(</span><span class="n">a</span><span class="p">),</span> <span class="n">_vulnerability_count</span><span class="p">(</span><span class="n">b</span><span class="p">)),</span>
+</span><span data-line="115">    <span class="p">]</span>
+</span><span data-line="116">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="117">        <span class="s2">"# Package comparison"</span><span class="p">,</span>
+</span><span data-line="118">        <span class="s2">""</span><span class="p">,</span>
+</span><span data-line="119">        <span class="sa">f</span><span class="s2">"| Field | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">b</span><span class="o">.</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span><span class="p">,</span>
+</span><span data-line="120">        <span class="s2">"| --- | --- | --- |"</span><span class="p">,</span>
+</span><span data-line="121">    <span class="p">]</span>
+</span><span data-line="122">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="123">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">a_value</span><span class="p">)</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">b_value</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span>
+</span><span data-line="124">        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">a_value</span><span class="p">,</span> <span class="n">b_value</span> <span class="ow">in</span> <span class="n">rows</span>
+</span><span data-line="125">    <span class="p">)</span>
+</span><span data-line="126">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_warning_lines</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">))</span>
+</span><span data-line="127">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
-</span><span data-line="127">
 </span><span data-line="128">
-</span><span data-line="129"><span class="k">def</span><span class="w"> </span><span class="nf">_tree_lines</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="130">    <span class="n">suffix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">version_spec</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">version_spec</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="131">    <span class="n">circular</span> <span class="o">=</span> <span class="s2">" _(circular)_"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">circular</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="132">    <span class="n">installed</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="133">        <span class="sa">f</span><span class="s2">" _(installed </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">installed_version</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span>
-</span><span data-line="134">        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">installed_version</span>
-</span><span data-line="135">        <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="136">    <span class="p">)</span>
-</span><span data-line="137">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
-</span><span data-line="138">    <span class="n">unresolved</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" _(unresolved: </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span> <span class="k">if</span> <span class="n">failure</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="139">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'  '</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">depth</span><span class="si">}</span><span class="s2">- `</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">`</span><span class="si">{</span><span class="n">circular</span><span class="si">}{</span><span class="n">installed</span><span class="si">}{</span><span class="n">unresolved</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
-</span><span data-line="140">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
-</span><span data-line="141">        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
-</span><span data-line="142">    <span class="k">return</span> <span class="n">lines</span>
-</span><span data-line="143">
+</span><span data-line="129">
+</span><span data-line="130"><span class="k">def</span><span class="w"> </span><span class="nf">_tree_lines</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="131">    <span class="n">suffix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">version_spec</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">version_spec</span> <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="132">    <span class="n">circular</span> <span class="o">=</span> <span class="s2">" _(circular)_"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">circular</span> <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="133">    <span class="n">installed</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="134">        <span class="sa">f</span><span class="s2">" _(installed </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">installed_version</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span>
+</span><span data-line="135">        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">installed_version</span>
+</span><span data-line="136">        <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="137">    <span class="p">)</span>
+</span><span data-line="138">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
+</span><span data-line="139">    <span class="n">unresolved</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" _(unresolved: </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span> <span class="k">if</span> <span class="n">failure</span> <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="140">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'  '</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">depth</span><span class="si">}</span><span class="s2">- `</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">`</span><span class="si">{</span><span class="n">circular</span><span class="si">}{</span><span class="n">installed</span><span class="si">}{</span><span class="n">unresolved</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+</span><span data-line="141">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+</span><span data-line="142">        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+</span><span data-line="143">    <span class="k">return</span> <span class="n">lines</span>
 </span><span data-line="144">
+</span><span data-line="145">
 <div class="viewcode-block" id="format_dep_tree">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_dep_tree">[docs]</a>
-</span><span data-line="145"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="146"><span class="w">    </span><span class="sd">"""Format a dependency tree as Markdown.</span>
-</span><span data-line="147">
-</span><span data-line="148"><span class="sd">    Returns:</span>
-</span><span data-line="149"><span class="sd">        A heading and nested Markdown list.</span>
-</span><span data-line="150"><span class="sd">    """</span>
-</span><span data-line="151">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">"# Dependencies for </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">node</span><span class="p">)])</span></div>
+</span><span data-line="146"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="147"><span class="w">    </span><span class="sd">"""Format a dependency tree as Markdown.</span>
+</span><span data-line="148">
+</span><span data-line="149"><span class="sd">    Returns:</span>
+</span><span data-line="150"><span class="sd">        A heading and nested Markdown list.</span>
+</span><span data-line="151"><span class="sd">    """</span>
+</span><span data-line="152">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="sa">f</span><span class="s2">"# Dependencies for </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">node</span><span class="p">)])</span></div>
 
-</span><span data-line="152">
 </span><span data-line="153">
+</span><span data-line="154">
 <div class="viewcode-block" id="format_why">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_why">[docs]</a>
-</span><span data-line="154"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="155"><span class="w">    </span><span class="sd">"""Format dependency paths as Markdown.</span>
-</span><span data-line="156">
-</span><span data-line="157"><span class="sd">    Returns:</span>
-</span><span data-line="158"><span class="sd">        A heading and one list item per path.</span>
-</span><span data-line="159"><span class="sd">    """</span>
-</span><span data-line="160">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Why </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">?"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
-</span><span data-line="161">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- </span><span class="si">{</span><span class="s1">' → '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">'`</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">`'</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">)</span>
-</span><span data-line="162">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="155"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="156"><span class="w">    </span><span class="sd">"""Format dependency paths as Markdown.</span>
+</span><span data-line="157">
+</span><span data-line="158"><span class="sd">    Returns:</span>
+</span><span data-line="159"><span class="sd">        A heading and one list item per path.</span>
+</span><span data-line="160"><span class="sd">    """</span>
+</span><span data-line="161">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Why </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">?"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
+</span><span data-line="162">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- </span><span class="si">{</span><span class="s1">' → '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">'`</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">`'</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">)</span>
+</span><span data-line="163">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
-</span><span data-line="163">
 </span><span data-line="164">
+</span><span data-line="165">
 <div class="viewcode-block" id="format_files">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_files">[docs]</a>
-</span><span data-line="165"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="166"><span class="w">    </span><span class="sd">"""Format an installed file list as Markdown.</span>
-</span><span data-line="167">
-</span><span data-line="168"><span class="sd">    Returns:</span>
-</span><span data-line="169"><span class="sd">        A heading and Markdown list.</span>
-</span><span data-line="170"><span class="sd">    """</span>
-</span><span data-line="171">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Files for </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
-</span><span data-line="172">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">`"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[])</span>
-</span><span data-line="173">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="166"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="167"><span class="w">    </span><span class="sd">"""Format an installed file list as Markdown.</span>
+</span><span data-line="168">
+</span><span data-line="169"><span class="sd">    Returns:</span>
+</span><span data-line="170"><span class="sd">        A heading and Markdown list.</span>
+</span><span data-line="171"><span class="sd">    """</span>
+</span><span data-line="172">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Files for </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
+</span><span data-line="173">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">`"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[])</span>
+</span><span data-line="174">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
-</span><span data-line="174">
 </span><span data-line="175">
+</span><span data-line="176">
 <div class="viewcode-block" id="format_versions">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_versions">[docs]</a>
-</span><span data-line="176"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="177"><span class="w">    </span><span class="sd">"""Format published versions as Markdown.</span>
-</span><span data-line="178">
-</span><span data-line="179"><span class="sd">    Returns:</span>
-</span><span data-line="180"><span class="sd">        A heading and Markdown table.</span>
-</span><span data-line="181"><span class="sd">    """</span>
-</span><span data-line="182">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Versions for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="s2">"| Version | Uploaded |"</span><span class="p">,</span> <span class="s2">"| --- | --- |"</span><span class="p">]</span>
-</span><span data-line="183">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="184">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'version'</span><span class="p">])</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'upload_time'</span><span class="p">])</span><span class="si">}</span><span class="s2"> |"</span>
-</span><span data-line="185">        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">versions</span>
-</span><span data-line="186">    <span class="p">)</span>
-</span><span data-line="187">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="177"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="178"><span class="w">    </span><span class="sd">"""Format published versions as Markdown.</span>
+</span><span data-line="179">
+</span><span data-line="180"><span class="sd">    Returns:</span>
+</span><span data-line="181"><span class="sd">        A heading and Markdown table.</span>
+</span><span data-line="182"><span class="sd">    """</span>
+</span><span data-line="183">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Versions for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="s2">"| Version | Uploaded |"</span><span class="p">,</span> <span class="s2">"| --- | --- |"</span><span class="p">]</span>
+</span><span data-line="184">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="185">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'version'</span><span class="p">])</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'upload_time'</span><span class="p">])</span><span class="si">}</span><span class="s2"> |"</span>
+</span><span data-line="186">        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">versions</span>
+</span><span data-line="187">    <span class="p">)</span>
+</span><span data-line="188">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

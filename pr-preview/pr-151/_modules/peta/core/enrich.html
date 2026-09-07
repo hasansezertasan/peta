@@ -128,7 +128,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="10"><span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
 </span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span><span class="p">,</span> <span class="n">cast</span>
 </span><span data-line="12">
-</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">EnrichmentFailure</span><span class="p">,</span> <span class="n">ProviderConflict</span>
+</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">EnrichmentFailure</span><span class="p">,</span> <span class="n">ProviderConflict</span><span class="p">,</span> <span class="n">ProviderWarning</span>
 </span><span data-line="14"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.output</span><span class="w"> </span><span class="kn">import</span> <span class="n">SourceRecord</span><span class="p">,</span> <span class="n">utc_now</span>
 </span><span data-line="15"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.providers</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
 </span><span data-line="16">    <span class="n">CAPABILITY_GROUPS</span><span class="p">,</span>
@@ -485,45 +485,49 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="367">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span>
 </span><span data-line="368">        <span class="k">if</span> <span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">failure</span><span class="o">.</span><span class="n">field</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">resolved</span>
 </span><span data-line="369">    <span class="p">]</span>
-</span><span data-line="370">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-</span><span data-line="371">        <span class="n">pkg</span><span class="p">,</span>
-</span><span data-line="372">        <span class="n">enrichment_sources</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">,</span> <span class="o">*</span><span class="n">sources</span><span class="p">],</span>
-</span><span data-line="373">        <span class="n">enrichment_failures</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">prior_failures</span><span class="p">,</span> <span class="o">*</span><span class="n">failures</span><span class="p">],</span>
-</span><span data-line="374">    <span class="p">)</span>
-</span><span data-line="375">
-</span><span data-line="376">
+</span><span data-line="370">    <span class="n">new_warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ProviderWarning</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="371">        <span class="n">warning</span> <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span> <span class="k">for</span> <span class="n">warning</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">warnings</span>
+</span><span data-line="372">    <span class="p">]</span>
+</span><span data-line="373">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+</span><span data-line="374">        <span class="n">pkg</span><span class="p">,</span>
+</span><span data-line="375">        <span class="n">enrichment_sources</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">,</span> <span class="o">*</span><span class="n">sources</span><span class="p">],</span>
+</span><span data-line="376">        <span class="n">enrichment_failures</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">prior_failures</span><span class="p">,</span> <span class="o">*</span><span class="n">failures</span><span class="p">],</span>
+</span><span data-line="377">        <span class="n">provider_warnings</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">provider_warnings</span><span class="p">,</span> <span class="o">*</span><span class="n">new_warnings</span><span class="p">],</span>
+</span><span data-line="378">    <span class="p">)</span>
+</span><span data-line="379">
+</span><span data-line="380">
 <div class="viewcode-block" id="enrich">
 <a class="viewcode-back" href="../../../modules.html#peta.core.enrich.enrich">[docs]</a>
-</span><span data-line="377"><span class="k">def</span><span class="w"> </span><span class="nf">enrich</span><span class="p">(</span>
-</span><span data-line="378">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="379">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="380">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="381">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="382">    <span class="n">providers</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">EnrichmentProvider</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="383"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="384"><span class="w">    </span><span class="sd">"""Best-effort enrich a package from every configured provider.</span>
-</span><span data-line="385">
-</span><span data-line="386"><span class="sd">    Never raises: providers report failure as a result state, so an enrichment</span>
-</span><span data-line="387"><span class="sd">    problem stays visible in the output without affecting exit codes.</span>
-</span><span data-line="388">
-</span><span data-line="389"><span class="sd">    Args:</span>
-</span><span data-line="390"><span class="sd">        pkg: The resolved package to enrich.</span>
-</span><span data-line="391"><span class="sd">        no_osv: Skip the vulnerability provider group.</span>
-</span><span data-line="392"><span class="sd">        no_stats: Skip the usage-statistics provider group.</span>
-</span><span data-line="393"><span class="sd">        providers: The providers to consult, in conflict-priority order.</span>
-</span><span data-line="394"><span class="sd">            Injectable so callers and tests can substitute sources; defaults to</span>
-</span><span data-line="395"><span class="sd">            :data:`~peta.core.providers.DEFAULT_PROVIDERS`. Resolved at call</span>
-</span><span data-line="396"><span class="sd">            time rather than bound as a default argument, so the registry stays</span>
-</span><span data-line="397"><span class="sd">            swappable.</span>
-</span><span data-line="398">
-</span><span data-line="399"><span class="sd">    Returns:</span>
-</span><span data-line="400"><span class="sd">        The enriched package metadata.</span>
-</span><span data-line="401"><span class="sd">    """</span>
-</span><span data-line="402">    <span class="n">disabled</span> <span class="o">=</span> <span class="n">_disabled_groups</span><span class="p">(</span><span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">)</span>
-</span><span data-line="403">    <span class="n">results</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span>
-</span><span data-line="404">        <span class="n">pkg</span><span class="p">,</span> <span class="n">DEFAULT_PROVIDERS</span> <span class="k">if</span> <span class="n">providers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">providers</span><span class="p">,</span> <span class="n">disabled</span>
-</span><span data-line="405">    <span class="p">)</span>
-</span><span data-line="406">    <span class="k">return</span> <span class="n">_provenance</span><span class="p">(</span><span class="n">_merge</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">results</span><span class="p">),</span> <span class="n">results</span><span class="p">)</span></div>
+</span><span data-line="381"><span class="k">def</span><span class="w"> </span><span class="nf">enrich</span><span class="p">(</span>
+</span><span data-line="382">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="383">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="384">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="385">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="386">    <span class="n">providers</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">EnrichmentProvider</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="387"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="388"><span class="w">    </span><span class="sd">"""Best-effort enrich a package from every configured provider.</span>
+</span><span data-line="389">
+</span><span data-line="390"><span class="sd">    Never raises: providers report failure as a result state, so an enrichment</span>
+</span><span data-line="391"><span class="sd">    problem stays visible in the output without affecting exit codes.</span>
+</span><span data-line="392">
+</span><span data-line="393"><span class="sd">    Args:</span>
+</span><span data-line="394"><span class="sd">        pkg: The resolved package to enrich.</span>
+</span><span data-line="395"><span class="sd">        no_osv: Skip the vulnerability provider group.</span>
+</span><span data-line="396"><span class="sd">        no_stats: Skip the usage-statistics provider group.</span>
+</span><span data-line="397"><span class="sd">        providers: The providers to consult, in conflict-priority order.</span>
+</span><span data-line="398"><span class="sd">            Injectable so callers and tests can substitute sources; defaults to</span>
+</span><span data-line="399"><span class="sd">            :data:`~peta.core.providers.DEFAULT_PROVIDERS`. Resolved at call</span>
+</span><span data-line="400"><span class="sd">            time rather than bound as a default argument, so the registry stays</span>
+</span><span data-line="401"><span class="sd">            swappable.</span>
+</span><span data-line="402">
+</span><span data-line="403"><span class="sd">    Returns:</span>
+</span><span data-line="404"><span class="sd">        The enriched package metadata.</span>
+</span><span data-line="405"><span class="sd">    """</span>
+</span><span data-line="406">    <span class="n">disabled</span> <span class="o">=</span> <span class="n">_disabled_groups</span><span class="p">(</span><span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">)</span>
+</span><span data-line="407">    <span class="n">results</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span>
+</span><span data-line="408">        <span class="n">pkg</span><span class="p">,</span> <span class="n">DEFAULT_PROVIDERS</span> <span class="k">if</span> <span class="n">providers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">providers</span><span class="p">,</span> <span class="n">disabled</span>
+</span><span data-line="409">    <span class="p">)</span>
+</span><span data-line="410">    <span class="k">return</span> <span class="n">_provenance</span><span class="p">(</span><span class="n">_merge</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">results</span><span class="p">),</span> <span class="n">results</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

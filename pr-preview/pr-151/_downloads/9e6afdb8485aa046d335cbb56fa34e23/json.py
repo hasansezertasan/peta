@@ -220,16 +220,18 @@ def _warnings(
     conflicts = [
         OutputMessage(
             code="provider_conflict",
-            message=(
-                f"{_remap_field(conflict.field, path)}: kept {conflict.kept}, "
-                f"discarded conflicting {conflict.discarded}"
-            ),
+            message=f"{_remap_field(conflict.field, path)}: {conflict.description}",
             source=conflict.kept,
         )
         for pkg, path in pairs
         for conflict in pkg.enrichment_conflicts
     ]
-    return failures + conflicts
+    provider_warnings = [
+        OutputMessage(code="provider_warning", message=w.message, source=w.source)
+        for pkg, _ in pairs
+        for w in pkg.provider_warnings
+    ]
+    return failures + conflicts + provider_warnings
 
 
 def _dump(data: dict[str, object]) -> str:

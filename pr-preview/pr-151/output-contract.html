@@ -151,8 +151,9 @@ the rest of the document.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">failed</span></code>: the command failed and <code class="docutils literal notranslate"><span class="pre">result</span></code> is <code class="docutils literal notranslate"><span class="pre">null</span></code>.</p></li>
 </ul>
 <p>Each source record has its own <code class="docutils literal notranslate"><span class="pre">state</span></code>: <code class="docutils literal notranslate"><span class="pre">success</span></code>, <code class="docutils literal notranslate"><span class="pre">empty</span></code>, <code class="docutils literal notranslate"><span class="pre">skipped</span></code>,
-<code class="docutils literal notranslate"><span class="pre">unavailable</span></code>, or <code class="docutils literal notranslate"><span class="pre">failed</span></code>. This distinguishes a source that returned no data
-from one that was disabled, could not be configured, or failed during retrieval.
+<code class="docutils literal notranslate"><span class="pre">unavailable</span></code>, <code class="docutils literal notranslate"><span class="pre">unsupported</span></code>, or <code class="docutils literal notranslate"><span class="pre">failed</span></code>. This distinguishes a source that
+returned no data from one that was disabled, could not be configured, does not
+support the query, or failed during retrieval.
 Successful retrievals include the time captured when the source returned in
 <code class="docutils literal notranslate"><span class="pre">retrieved_at</span></code>. The <code class="docutils literal notranslate"><span class="pre">fields</span></code> array links a source to JSON paths in <code class="docutils literal notranslate"><span class="pre">result</span></code>;
 records may also include a query <code class="docutils literal notranslate"><span class="pre">target</span></code> or failure <code class="docutils literal notranslate"><span class="pre">reason</span></code>.</p>

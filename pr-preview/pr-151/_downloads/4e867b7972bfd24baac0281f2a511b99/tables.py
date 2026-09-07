@@ -11,7 +11,7 @@ from rich.tree import Tree
 from peta.cli.output.console import render as _render
 
 if TYPE_CHECKING:
-    from peta.core.models import DependencyNode, PackageInfo, ProviderConflict
+    from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
     "render_compare",
@@ -85,10 +85,6 @@ def _vuln_block(pkg: PackageInfo) -> str:
     return "\n\n" + "\n".join(lines)
 
 
-def _conflict_reason(conflict: ProviderConflict) -> str:
-    return f"kept {conflict.kept}, discarded conflicting {conflict.discarded}"
-
-
 def _enrichment_block(*packages: PackageInfo) -> str:
     show_package = len(packages) > 1
 
@@ -101,9 +97,14 @@ def _enrichment_block(*packages: PackageInfo) -> str:
         for failure in pkg.enrichment_failures
     ]
     warnings.extend(
-        f"  {prefix(pkg.name)}{conflict.field}: {_conflict_reason(conflict)}"
+        f"  {prefix(pkg.name)}{conflict.field}: {conflict.description}"
         for pkg in packages
         for conflict in pkg.enrichment_conflicts
+    )
+    warnings.extend(
+        f"  {prefix(pkg.name)}{w.source}: {w.message}"
+        for pkg in packages
+        for w in pkg.provider_warnings
     )
     if not warnings:
         return ""
