@@ -11,10 +11,10 @@ carries no compatibility guarantees outside this package.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType
 
-from peta.core.models import VULNERABILITY_FIELD, Vulnerability
+from peta.core.models import VULNERABILITY_FIELD, ProviderWarning, Vulnerability
 from peta.core.output import SOURCE_STATES
 
 if TYPE_CHECKING:
@@ -179,7 +179,7 @@ _EVIDENCE_TYPES: dict[Capability, type[VulnerabilityEvidence | CountEvidence]] =
 }
 """The evidence variant each capability must carry."""
 
-_EVIDENCE_FREE_STATES = frozenset({"failed", "skipped", "unavailable"})
+_EVIDENCE_FREE_STATES = frozenset({"failed", "skipped", "unavailable", "unsupported"})
 """States that describe an absent answer, so cannot carry evidence."""
 
 
@@ -222,8 +222,8 @@ def _validate_reason(state: SourceState, reason: str | None) -> None:
     Raises:
         ValueError: If a failed result carries no diagnostic.
     """
-    if state == "failed" and not (reason or "").strip():
-        msg = "state 'failed' must carry a reason"
+    if state in {"failed", "unsupported"} and not (reason or "").strip():
+        msg = f"state {state!r} must carry a reason"
         raise ValueError(msg)
 
 
@@ -256,8 +256,11 @@ class ProviderResult:
     state: SourceState
     subject: str
     retrieved_at: str | None = None
+    freshness: str | None = None
+    upstream_id: str | None = None
     evidence: Evidence | None = None
     reason: str | None = None
+    warnings: list[ProviderWarning] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         """Reject result variants that orchestration could not merge coherently.

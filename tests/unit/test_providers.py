@@ -199,7 +199,9 @@ class TestResultVariantValidation:
                 evidence=CountEvidence(1),
             )
 
-    @pytest.mark.parametrize("state", ["failed", "skipped", "unavailable"])
+    @pytest.mark.parametrize(
+        "state", ["failed", "skipped", "unavailable", "unsupported"]
+    )
     def test_absent_answer_states_cannot_carry_an_answer(
         self, state: SourceState
     ) -> None:
@@ -212,7 +214,9 @@ class TestResultVariantValidation:
                 evidence=CountEvidence(1),
             )
 
-    @pytest.mark.parametrize("state", ["failed", "skipped", "unavailable"])
+    @pytest.mark.parametrize(
+        "state", ["failed", "skipped", "unavailable", "unsupported"]
+    )
     def test_absent_answer_states_cannot_carry_empty_evidence_either(
         self, state: SourceState
     ) -> None:
@@ -258,13 +262,22 @@ class TestResultVariantValidation:
 
     @pytest.mark.parametrize("reason", [None, "", "   "])
     def test_failed_must_carry_a_diagnostic(self, reason: str | None) -> None:
-        # The warning built from this reason is the user's only account of the
-        # missing data, so an empty one is worse than useless.
         with pytest.raises(ValueError, match="must carry a reason"):
             ProviderResult(
                 provider="bad",
                 capability="download_count",
                 state="failed",
+                subject="requests",
+                reason=reason,
+            )
+
+    @pytest.mark.parametrize("reason", [None, "", "   "])
+    def test_unsupported_must_carry_a_diagnostic(self, reason: str | None) -> None:
+        with pytest.raises(ValueError, match="must carry a reason"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state="unsupported",
                 subject="requests",
                 reason=reason,
             )

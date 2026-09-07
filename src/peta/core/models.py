@@ -15,6 +15,7 @@ __all__ = [
     "EnrichmentFailure",
     "PackageInfo",
     "ProviderConflict",
+    "ProviderWarning",
     "Vulnerability",
 ]
 
@@ -54,6 +55,15 @@ class EnrichmentFailure:
 
 
 @dataclass(frozen=True)
+class ProviderWarning:
+    """An advisory message a provider returned alongside its evidence."""
+
+    source: str
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
 class ProviderConflict:
     """Two providers offered different evidence for the same field.
 
@@ -64,6 +74,15 @@ class ProviderConflict:
     field: str
     kept: str
     discarded: str
+
+    @property
+    def description(self) -> str:
+        """Human-readable summary of the disagreement.
+
+        Returns:
+            The single-source conflict reason used by every output renderer.
+        """
+        return f"kept {self.kept}, discarded conflicting {self.discarded}"
 
 
 @dataclass(frozen=True)
@@ -102,6 +121,7 @@ class PackageInfo:
     license_source: Literal["expression", "legacy"] | None = None
     enrichment_failures: list[EnrichmentFailure] = field(default_factory=list)
     enrichment_conflicts: list[ProviderConflict] = field(default_factory=list)
+    provider_warnings: list[ProviderWarning] = field(default_factory=list)
     retrieved_at: str | None = None
     enrichment_sources: list[SourceRecord] = field(default_factory=list)
 

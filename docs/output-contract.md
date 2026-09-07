@@ -36,8 +36,9 @@ The envelope `status` is one of:
 - `failed`: the command failed and `result` is `null`.
 
 Each source record has its own `state`: `success`, `empty`, `skipped`,
-`unavailable`, or `failed`. This distinguishes a source that returned no data
-from one that was disabled, could not be configured, or failed during retrieval.
+`unavailable`, `unsupported`, or `failed`. This distinguishes a source that
+returned no data from one that was disabled, could not be configured, does not
+support the query, or failed during retrieval.
 Successful retrievals include the time captured when the source returned in
 `retrieved_at`. The `fields` array links a source to JSON paths in `result`;
 records may also include a query `target` or failure `reason`.

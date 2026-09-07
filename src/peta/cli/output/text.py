@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from peta.core.models import DependencyNode, PackageInfo, ProviderConflict
+    from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
     "format_compare",
@@ -39,10 +39,6 @@ def _security_lines(pkg: PackageInfo) -> list[str]:
     return lines
 
 
-def _conflict_reason(conflict: ProviderConflict) -> str:
-    return f"kept {conflict.kept}, discarded conflicting {conflict.discarded}"
-
-
 def _warning_lines(*packages: PackageInfo) -> list[str]:
     prefixed = len(packages) > 1
 
@@ -55,9 +51,14 @@ def _warning_lines(*packages: PackageInfo) -> list[str]:
         for failure in pkg.enrichment_failures
     ]
     warnings.extend(
-        f"- {owner(pkg.name)}{conflict.field}: {_conflict_reason(conflict)}"
+        f"- {owner(pkg.name)}{conflict.field}: {conflict.description}"
         for pkg in packages
         for conflict in pkg.enrichment_conflicts
+    )
+    warnings.extend(
+        f"- {owner(pkg.name)}{w.source}: {w.message}"
+        for pkg in packages
+        for w in pkg.provider_warnings
     )
     if not warnings:
         return []

@@ -48,10 +48,12 @@ MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
         "network_error",
         "package_not_found",
         "provider_conflict",
+        "provider_warning",
     ],
 )
 SourceState = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "SourceState", Literal["success", "empty", "skipped", "unavailable", "failed"]
+    "SourceState",
+    Literal["success", "empty", "skipped", "unavailable", "unsupported", "failed"],
 )
 
 SOURCE_STATES: frozenset[SourceState] = frozenset({
@@ -59,6 +61,7 @@ SOURCE_STATES: frozenset[SourceState] = frozenset({
     "empty",
     "skipped",
     "unavailable",
+    "unsupported",
     "failed",
 })
 """Every documented source state, as a runtime-checkable set.

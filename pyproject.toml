@@ -263,6 +263,9 @@ ignore_names = [
   # in core/stats.py
   "last_month",
   "dependents_count",
+  # ProviderResult fields populated by future providers (#106, #111)
+  "freshness",
+  "upstream_id",
 ]
 min_confidence = 60
 paths = ["src", "tests"]

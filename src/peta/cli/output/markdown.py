@@ -57,13 +57,14 @@ def _warning_lines(*packages: PackageInfo) -> list[str]:
         for failure in pkg.enrichment_failures
     ]
     warnings.extend(
-        item(
-            pkg.name,
-            conflict.field,
-            f"kept {conflict.kept}, discarded conflicting {conflict.discarded}",
-        )
+        item(pkg.name, conflict.field, conflict.description)
         for pkg in packages
         for conflict in pkg.enrichment_conflicts
+    )
+    warnings.extend(
+        item(pkg.name, w.source, w.message)
+        for pkg in packages
+        for w in pkg.provider_warnings
     )
     if not warnings:
         return []

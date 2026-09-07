@@ -10,7 +10,7 @@ from __future__ import annotations
 import dataclasses
 from typing import TYPE_CHECKING, cast
 
-from peta.core.models import EnrichmentFailure, ProviderConflict
+from peta.core.models import EnrichmentFailure, ProviderConflict, ProviderWarning
 from peta.core.output import SourceRecord, utc_now
 from peta.core.providers import (
     CAPABILITY_GROUPS,
@@ -367,10 +367,14 @@ def _provenance(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageI
         for failure in pkg.enrichment_failures
         if (failure.source, failure.field) not in resolved
     ]
+    new_warnings: list[ProviderWarning] = [
+        warning for result in results for warning in result.warnings
+    ]
     return dataclasses.replace(
         pkg,
         enrichment_sources=[*pkg.enrichment_sources, *sources],
         enrichment_failures=[*prior_failures, *failures],
+        provider_warnings=[*pkg.provider_warnings, *new_warnings],
     )
 
 

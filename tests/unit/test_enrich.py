@@ -17,6 +17,7 @@ from peta.core.models import (
     EnrichmentFailure,
     PackageInfo,
     ProviderConflict,
+    ProviderWarning,
     Vulnerability,
 )
 from peta.core.providers import (
@@ -48,6 +49,7 @@ class FakeProvider:
     evidence: Evidence | None = None
     reason: str | None = None
     retrieved_at: str | None = "2026-09-04T12:00:00Z"
+    warnings: list[ProviderWarning] = field(default_factory=list)
     calls: list[str] = field(default_factory=list)
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
@@ -65,6 +67,7 @@ class FakeProvider:
             retrieved_at=self.retrieved_at,
             evidence=self.evidence,
             reason=self.reason,
+            warnings=self.warnings,
         )
 
 
@@ -489,6 +492,18 @@ class TestEnrich:
         assert pkg.enrichment_failures == []
         assert pkg.enrichment_sources[0].state == "unavailable"
         assert pkg.enrichment_sources[0].reason == "no API key"
+
+    def test_provider_warnings_are_propagated(self) -> None:
+        warning = ProviderWarning(
+            source="pypistats", code="rate_limited", message="throttled to 1 req/s"
+        )
+        pkg = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(warnings=[warning])],
+        )
+        assert pkg.provider_warnings == [warning]
 
 
 class TestMergeConflicts:
