@@ -7,7 +7,7 @@ from typing import Required, TypedDict, cast
 
 import httpx
 
-from peta.core.remote import DEFAULT_TIMEOUT
+from peta.core import http
 from peta.core.validation import (
     EnrichmentError,
     ResponseValidationError,
@@ -64,7 +64,7 @@ def _decode(response: httpx.Response, source: str) -> object:
 
 def _fetch_pypistats(name: str) -> int:
     try:
-        response = httpx.get(f"{PYPISTATS_URL}/{name}/recent", timeout=DEFAULT_TIMEOUT)
+        response = http.get(f"{PYPISTATS_URL}/{name}/recent")
     except httpx.RequestError as exc:
         raise EnrichmentError(PYPISTATS_SOURCE, str(exc)) from exc
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
@@ -110,11 +110,7 @@ def libraries_io_api_key() -> str | None:
 
 def _fetch_libraries_io(name: str, api_key: str) -> int:
     try:
-        response = httpx.get(
-            f"{LIBRARIES_IO_URL}/{name}",
-            params={"api_key": api_key},
-            timeout=DEFAULT_TIMEOUT,
-        )
+        response = http.get(f"{LIBRARIES_IO_URL}/{name}", params={"api_key": api_key})
     except httpx.RequestError as exc:
         raise EnrichmentError(LIBRARIES_IO_SOURCE, str(exc)) from exc
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]

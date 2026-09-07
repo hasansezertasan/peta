@@ -11,8 +11,9 @@ from packaging.version import InvalidVersion, Version
 
 from peta.cli.output.render import render_versions
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
+from peta.core import http
 from peta.core.output import utc_now
-from peta.core.remote import DEFAULT_TIMEOUT, PYPI_BASE_URL, NetworkError
+from peta.core.remote import PYPI_BASE_URL, NetworkError
 from peta.core.validation import (
     ResponseValidationError,
     expect_list,
@@ -115,7 +116,7 @@ def get_versions(name: str) -> list[dict[str, str]]:
     """
     url = f"{PYPI_BASE_URL}/{name}/json"
     try:
-        response = httpx.get(url, timeout=DEFAULT_TIMEOUT)
+        response = http.get(url)
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
 

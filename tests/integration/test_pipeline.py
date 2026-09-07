@@ -1,11 +1,15 @@
-"""Integration: resolve -> render wired together, httpx boundary mocked."""
+"""Integration: resolve -> render wired together, HTTP served from canned replies."""
 
-from unittest.mock import MagicMock, patch
+import json
+from typing import TYPE_CHECKING
 
 import pytest
 from typer.testing import CliRunner
 
 from peta.cli.app import app
+
+if TYPE_CHECKING:
+    from tests.transport import FakeTransport
 
 pytestmark = pytest.mark.integration
 runner = CliRunner()
@@ -30,25 +34,27 @@ _PAYLOAD = {
 }
 
 
-@patch("peta.core.remote.httpx")
-def test_remote_info_renders(mock_httpx: MagicMock) -> None:
-    resp = MagicMock()
-    resp.status_code = 200
-    resp.json.return_value = _PAYLOAD
-    mock_httpx.get.return_value = resp
+def _serve_all_sources(fake_http: FakeTransport) -> None:
+    """Answer every source ``info`` consults, so no request escapes to the network.
+
+    The enrichment sources are registered too, not just PyPI: they are
+    optional, so an unanswered request would be swallowed as a provider
+    failure and the test would still pass while quietly reaching out.
+    """
+    fake_http.reply(url="pypi.org", json=_PAYLOAD)
+    fake_http.reply(url="api.osv.dev", json={"vulns": []})
+    fake_http.reply(url="pypistats.org", json={"data": {"last_month": 5}})
+
+
+def test_remote_info_renders(fake_http: FakeTransport) -> None:
+    _serve_all_sources(fake_http)
     result = runner.invoke(app, ["info", "flask", "--remote"])
     assert result.exit_code == 0
     assert "flask" in result.output
     assert "3.0.0" in result.output
 
 
-@patch("peta.core.remote.httpx")
-def test_remote_info_json(mock_httpx: MagicMock) -> None:
-    import json
-
-    resp = MagicMock()
-    resp.status_code = 200
-    resp.json.return_value = _PAYLOAD
-    mock_httpx.get.return_value = resp
+def test_remote_info_json(fake_http: FakeTransport) -> None:
+    _serve_all_sources(fake_http)
     result = runner.invoke(app, ["info", "flask", "--remote", "--json"])
     assert json.loads(result.output)["result"]["name"] == "flask"

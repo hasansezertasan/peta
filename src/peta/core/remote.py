@@ -6,6 +6,7 @@ from typing import Literal, Required, TypedDict, cast
 
 import httpx
 
+from peta.core import http
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.output import utc_now
 from peta.core.validation import (
@@ -30,7 +31,6 @@ __all__ = [
 
 
 PYPI_BASE_URL = "https://pypi.org/pypi"
-DEFAULT_TIMEOUT = 10.0
 
 
 # The PyPI JSON API is untyped from Python's perspective (``response.json()``
@@ -118,7 +118,7 @@ def _fetch(name: str, version: str | None) -> PyPIResponse:
     """
     url = _pypi_url(name, version)
     try:
-        response = httpx.get(url, timeout=DEFAULT_TIMEOUT)
+        response = http.get(url)
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
 
