@@ -239,234 +239,291 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="121">    <span class="k">return</span> <span class="n">_accepted</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">capability</span><span class="p">,</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">provider</span><span class="o">.</span><span class="n">fetch</span><span class="p">(</span><span class="n">pkg</span><span class="p">))</span>
 </span><span data-line="122">
 </span><span data-line="123">
-</span><span data-line="124"><span class="k">def</span><span class="w"> </span><span class="nf">_rejected</span><span class="p">(</span>
-</span><span data-line="125">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="126"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
-</span><span data-line="127"><span class="w">    </span><span class="sd">"""Describe a provider that misbehaved, in that provider's own terms.</span>
-</span><span data-line="128">
-</span><span data-line="129"><span class="sd">    Returns:</span>
-</span><span data-line="130"><span class="sd">        A failed result attributed to the consulted provider.</span>
-</span><span data-line="131"><span class="sd">    """</span>
-</span><span data-line="132">    <span class="k">return</span> <span class="n">ProviderResult</span><span class="p">(</span>
-</span><span data-line="133">        <span class="n">provider</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="134">        <span class="n">capability</span><span class="o">=</span><span class="n">capability</span><span class="p">,</span>
-</span><span data-line="135">        <span class="n">state</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
-</span><span data-line="136">        <span class="n">subject</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="137">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">(),</span>
-</span><span data-line="138">        <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
-</span><span data-line="139">    <span class="p">)</span>
-</span><span data-line="140">
-</span><span data-line="141">
-</span><span data-line="142"><span class="k">def</span><span class="w"> </span><span class="nf">_mismatch</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">ProviderResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="143"><span class="w">    </span><span class="sd">"""Report how a result disagrees with the provider that returned it.</span>
-</span><span data-line="144">
-</span><span data-line="145"><span class="sd">    ``ProviderResult`` validates that its own parts agree, but nothing ties a</span>
-</span><span data-line="146"><span class="sd">    self-consistent result back to the provider actually consulted. Without</span>
-</span><span data-line="147"><span class="sd">    this a provider in the vulnerability group could return a</span>
-</span><span data-line="148"><span class="sd">    ``download_count`` result and populate statistics under ``--no-stats``.</span>
-</span><span data-line="149">
-</span><span data-line="150"><span class="sd">    ``subject`` is deliberately not checked: a provider may legitimately answer</span>
-</span><span data-line="151"><span class="sd">    about a normalized form of the requested name.</span>
+</span><span data-line="124"><span class="k">def</span><span class="w"> </span><span class="nf">_safe_capability</span><span class="p">(</span><span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Capability</span><span class="p">:</span>
+</span><span data-line="125"><span class="w">    </span><span class="sd">"""Normalize a capability to one safe to store on a result.</span>
+</span><span data-line="126">
+</span><span data-line="127"><span class="sd">    A provider can return anything at runtime despite the annotation,</span>
+</span><span data-line="128"><span class="sd">    including something unhashable such as a list. ``capability in</span>
+</span><span data-line="129"><span class="sd">    CAPABILITY_GROUPS`` itself raises ``TypeError`` for such a value, and an</span>
+</span><span data-line="130"><span class="sd">    unhashable or unknown capability stored on a result would blow up later</span>
+</span><span data-line="131"><span class="sd">    when :attr:`ProviderResult.field` looks it up outside any guard.</span>
+</span><span data-line="132">
+</span><span data-line="133"><span class="sd">    Returns:</span>
+</span><span data-line="134"><span class="sd">        The given capability if it is a hashable, known one; otherwise</span>
+</span><span data-line="135"><span class="sd">        :data:`_UNKNOWN_CAPABILITY`.</span>
+</span><span data-line="136"><span class="sd">    """</span>
+</span><span data-line="137">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="138">        <span class="n">known</span> <span class="o">=</span> <span class="n">capability</span> <span class="ow">in</span> <span class="n">CAPABILITY_GROUPS</span>
+</span><span data-line="139">    <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
+</span><span data-line="140">        <span class="k">return</span> <span class="n">_UNKNOWN_CAPABILITY</span>
+</span><span data-line="141">    <span class="k">return</span> <span class="n">capability</span> <span class="k">if</span> <span class="n">known</span> <span class="k">else</span> <span class="n">_UNKNOWN_CAPABILITY</span>
+</span><span data-line="142">
+</span><span data-line="143">
+</span><span data-line="144"><span class="k">def</span><span class="w"> </span><span class="nf">_rejected</span><span class="p">(</span>
+</span><span data-line="145">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="146"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
+</span><span data-line="147"><span class="w">    </span><span class="sd">"""Describe a provider that misbehaved, in that provider's own terms.</span>
+</span><span data-line="148">
+</span><span data-line="149"><span class="sd">    ``reason`` already carries the offending capability via ``!r`` where</span>
+</span><span data-line="150"><span class="sd">    relevant, so normalizing the stored capability here loses no diagnostic</span>
+</span><span data-line="151"><span class="sd">    detail.</span>
 </span><span data-line="152">
 </span><span data-line="153"><span class="sd">    Returns:</span>
-</span><span data-line="154"><span class="sd">        A description of the disagreement, or ``None`` when they agree.</span>
+</span><span data-line="154"><span class="sd">        A failed result attributed to the consulted provider.</span>
 </span><span data-line="155"><span class="sd">    """</span>
-</span><span data-line="156">    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">provider</span> <span class="o">!=</span> <span class="n">name</span><span class="p">:</span>
-</span><span data-line="157">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"provider returned a result attributed to </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="si">!r}</span><span class="s2">"</span>
-</span><span data-line="158">    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">capability</span> <span class="o">!=</span> <span class="n">capability</span><span class="p">:</span>
-</span><span data-line="159">        <span class="k">return</span> <span class="p">(</span>
-</span><span data-line="160">            <span class="sa">f</span><span class="s2">"provider declares capability </span><span class="si">{</span><span class="n">capability</span><span class="si">!r}</span><span class="s2"> but returned "</span>
-</span><span data-line="161">            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">capability</span><span class="si">!r}</span><span class="s2">"</span>
-</span><span data-line="162">        <span class="p">)</span>
-</span><span data-line="163">    <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="156">    <span class="k">return</span> <span class="n">ProviderResult</span><span class="p">(</span>
+</span><span data-line="157">        <span class="n">provider</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="158">        <span class="n">capability</span><span class="o">=</span><span class="n">_safe_capability</span><span class="p">(</span><span class="n">capability</span><span class="p">),</span>
+</span><span data-line="159">        <span class="n">state</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
+</span><span data-line="160">        <span class="n">subject</span><span class="o">=</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="161">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">(),</span>
+</span><span data-line="162">        <span class="n">reason</span><span class="o">=</span><span class="n">reason</span><span class="p">,</span>
+</span><span data-line="163">    <span class="p">)</span>
 </span><span data-line="164">
 </span><span data-line="165">
-</span><span data-line="166"><span class="k">def</span><span class="w"> </span><span class="nf">_accepted</span><span class="p">(</span>
-</span><span data-line="167">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">ProviderResult</span>
-</span><span data-line="168"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
-</span><span data-line="169"><span class="w">    </span><span class="sd">"""Accept a result once it agrees with the provider that returned it.</span>
-</span><span data-line="170">
-</span><span data-line="171"><span class="sd">    Returns:</span>
-</span><span data-line="172"><span class="sd">        The result, stamped if it completed without a retrieval time, or a</span>
-</span><span data-line="173"><span class="sd">        failed result when it does not belong to this provider.</span>
-</span><span data-line="174"><span class="sd">    """</span>
-</span><span data-line="175">    <span class="n">mismatch</span> <span class="o">=</span> <span class="n">_mismatch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">capability</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
-</span><span data-line="176">    <span class="k">if</span> <span class="n">mismatch</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="177">        <span class="k">return</span> <span class="n">_rejected</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">capability</span><span class="p">,</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">mismatch</span><span class="p">)</span>
-</span><span data-line="178">    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="n">_COMPLETED_STATES</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="179">        <span class="c1"># The contract promises a retrieval time for every completed lookup, so</span>
-</span><span data-line="180">        <span class="c1"># stamp it here rather than discarding otherwise-good evidence.</span>
-</span><span data-line="181">        <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">())</span>
-</span><span data-line="182">    <span class="k">return</span> <span class="n">result</span>
-</span><span data-line="183">
-</span><span data-line="184">
-</span><span data-line="185"><span class="k">def</span><span class="w"> </span><span class="nf">_with_count</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="186"><span class="w">    </span><span class="sd">"""Write a scalar count onto the field its capability names.</span>
-</span><span data-line="187">
-</span><span data-line="188"><span class="sd">    Returns:</span>
-</span><span data-line="189"><span class="sd">        The package carrying the count.</span>
-</span><span data-line="190"><span class="sd">    """</span>
-</span><span data-line="191">    <span class="k">if</span> <span class="n">capability</span> <span class="o">==</span> <span class="s2">"download_count"</span><span class="p">:</span>
-</span><span data-line="192">        <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">download_count</span><span class="o">=</span><span class="n">count</span><span class="p">)</span>
-</span><span data-line="193">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">dependent_count</span><span class="o">=</span><span class="n">count</span><span class="p">)</span>
+</span><span data-line="166"><span class="k">def</span><span class="w"> </span><span class="nf">_mismatch</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">ProviderResult</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="167"><span class="w">    </span><span class="sd">"""Report how a result disagrees with the provider that returned it.</span>
+</span><span data-line="168">
+</span><span data-line="169"><span class="sd">    ``ProviderResult`` validates that its own parts agree, but nothing ties a</span>
+</span><span data-line="170"><span class="sd">    self-consistent result back to the provider actually consulted. Without</span>
+</span><span data-line="171"><span class="sd">    this a provider in the vulnerability group could return a</span>
+</span><span data-line="172"><span class="sd">    ``download_count`` result and populate statistics under ``--no-stats``.</span>
+</span><span data-line="173">
+</span><span data-line="174"><span class="sd">    ``subject`` is deliberately not checked: a provider may legitimately answer</span>
+</span><span data-line="175"><span class="sd">    about a normalized form of the requested name.</span>
+</span><span data-line="176">
+</span><span data-line="177"><span class="sd">    Returns:</span>
+</span><span data-line="178"><span class="sd">        A description of the disagreement, or ``None`` when they agree.</span>
+</span><span data-line="179"><span class="sd">    """</span>
+</span><span data-line="180">    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">provider</span> <span class="o">!=</span> <span class="n">name</span><span class="p">:</span>
+</span><span data-line="181">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"provider returned a result attributed to </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="si">!r}</span><span class="s2">"</span>
+</span><span data-line="182">    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">capability</span> <span class="o">!=</span> <span class="n">capability</span><span class="p">:</span>
+</span><span data-line="183">        <span class="k">return</span> <span class="p">(</span>
+</span><span data-line="184">            <span class="sa">f</span><span class="s2">"provider declares capability </span><span class="si">{</span><span class="n">capability</span><span class="si">!r}</span><span class="s2"> but returned "</span>
+</span><span data-line="185">            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">capability</span><span class="si">!r}</span><span class="s2">"</span>
+</span><span data-line="186">        <span class="p">)</span>
+</span><span data-line="187">    <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="188">
+</span><span data-line="189">
+</span><span data-line="190"><span class="k">def</span><span class="w"> </span><span class="nf">_accepted</span><span class="p">(</span>
+</span><span data-line="191">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">result</span><span class="p">:</span> <span class="n">ProviderResult</span>
+</span><span data-line="192"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ProviderResult</span><span class="p">:</span>
+</span><span data-line="193"><span class="w">    </span><span class="sd">"""Accept a result once it agrees with the provider that returned it.</span>
 </span><span data-line="194">
-</span><span data-line="195">
-</span><span data-line="196"><span class="k">def</span><span class="w"> </span><span class="nf">_merge_count</span><span class="p">(</span>
-</span><span data-line="197">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="198">    <span class="n">result</span><span class="p">:</span> <span class="n">ProviderResult</span><span class="p">,</span>
-</span><span data-line="199">    <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="200">    <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
-</span><span data-line="201">    <span class="n">claims</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
-</span><span data-line="202"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">,</span> <span class="n">ProviderConflict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span data-line="203"><span class="w">    </span><span class="sd">"""Apply a count unless another provider already claimed the field.</span>
-</span><span data-line="204">
-</span><span data-line="205"><span class="sd">    The first claimant wins, so the outcome depends on provider order rather</span>
-</span><span data-line="206"><span class="sd">    than on which lookup happened to finish last.</span>
+</span><span data-line="195"><span class="sd">    Returns:</span>
+</span><span data-line="196"><span class="sd">        The result, stamped if it completed without a retrieval time, or a</span>
+</span><span data-line="197"><span class="sd">        failed result when it does not belong to this provider.</span>
+</span><span data-line="198"><span class="sd">    """</span>
+</span><span data-line="199">    <span class="n">mismatch</span> <span class="o">=</span> <span class="n">_mismatch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">capability</span><span class="p">,</span> <span class="n">result</span><span class="p">)</span>
+</span><span data-line="200">    <span class="k">if</span> <span class="n">mismatch</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="201">        <span class="k">return</span> <span class="n">_rejected</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">capability</span><span class="p">,</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">mismatch</span><span class="p">)</span>
+</span><span data-line="202">    <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="n">_COMPLETED_STATES</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="203">        <span class="c1"># The contract promises a retrieval time for every completed lookup, so</span>
+</span><span data-line="204">        <span class="c1"># stamp it here rather than discarding otherwise-good evidence.</span>
+</span><span data-line="205">        <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">())</span>
+</span><span data-line="206">    <span class="k">return</span> <span class="n">result</span>
 </span><span data-line="207">
-</span><span data-line="208"><span class="sd">    Returns:</span>
-</span><span data-line="209"><span class="sd">        The updated package, and a conflict when a later provider disagreed.</span>
-</span><span data-line="210"><span class="sd">    """</span>
-</span><span data-line="211">    <span class="n">prior</span> <span class="o">=</span> <span class="n">claims</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
-</span><span data-line="212">    <span class="n">holder</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">prior</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">prior</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span data-line="213">    <span class="k">if</span> <span class="n">prior</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">holder</span> <span class="o">==</span> <span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">:</span>
-</span><span data-line="214">        <span class="c1"># A new claim, or the owner refreshing its own: a count such as monthly</span>
-</span><span data-line="215">        <span class="c1"># downloads legitimately changes between lookups, and a source can</span>
-</span><span data-line="216">        <span class="c1"># never disagree with itself.</span>
-</span><span data-line="217">        <span class="n">claims</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
-</span><span data-line="218">        <span class="k">return</span> <span class="n">_with_count</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">capability</span><span class="p">,</span> <span class="n">count</span><span class="p">),</span> <span class="kc">None</span>
-</span><span data-line="219">    <span class="k">if</span> <span class="n">prior</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">count</span><span class="p">:</span>
-</span><span data-line="220">        <span class="k">return</span> <span class="n">pkg</span><span class="p">,</span> <span class="kc">None</span>
-</span><span data-line="221">    <span class="n">conflict</span> <span class="o">=</span> <span class="n">ProviderConflict</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="n">field</span><span class="p">,</span> <span class="n">kept</span><span class="o">=</span><span class="n">prior</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">discarded</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">)</span>
-</span><span data-line="222">    <span class="k">return</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">conflict</span>
-</span><span data-line="223">
-</span><span data-line="224">
-</span><span data-line="225"><span class="k">def</span><span class="w"> </span><span class="nf">_existing_claims</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
-</span><span data-line="226"><span class="w">    </span><span class="sd">"""Recover the scalar claims an earlier enrichment pass already made.</span>
-</span><span data-line="227">
-</span><span data-line="228"><span class="sd">    ``enrich`` can be composed in stages. Without this, a second pass starts</span>
-</span><span data-line="229"><span class="sd">    with no claims, so its first provider silently overwrites a value the first</span>
-</span><span data-line="230"><span class="sd">    pass established while provenance keeps both sources.</span>
+</span><span data-line="208">
+</span><span data-line="209"><span class="k">def</span><span class="w"> </span><span class="nf">_with_count</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">capability</span><span class="p">:</span> <span class="n">Capability</span><span class="p">,</span> <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="210"><span class="w">    </span><span class="sd">"""Write a scalar count onto the field its capability names.</span>
+</span><span data-line="211">
+</span><span data-line="212"><span class="sd">    Returns:</span>
+</span><span data-line="213"><span class="sd">        The package carrying the count.</span>
+</span><span data-line="214"><span class="sd">    """</span>
+</span><span data-line="215">    <span class="k">if</span> <span class="n">capability</span> <span class="o">==</span> <span class="s2">"download_count"</span><span class="p">:</span>
+</span><span data-line="216">        <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">download_count</span><span class="o">=</span><span class="n">count</span><span class="p">)</span>
+</span><span data-line="217">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">dependent_count</span><span class="o">=</span><span class="n">count</span><span class="p">)</span>
+</span><span data-line="218">
+</span><span data-line="219">
+</span><span data-line="220"><span class="k">def</span><span class="w"> </span><span class="nf">_merge_count</span><span class="p">(</span>
+</span><span data-line="221">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="222">    <span class="n">result</span><span class="p">:</span> <span class="n">ProviderResult</span><span class="p">,</span>
+</span><span data-line="223">    <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="224">    <span class="n">count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+</span><span data-line="225">    <span class="n">claims</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
+</span><span data-line="226"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">PackageInfo</span><span class="p">,</span> <span class="n">ProviderConflict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="227"><span class="w">    </span><span class="sd">"""Apply a count unless another provider already claimed the field.</span>
+</span><span data-line="228">
+</span><span data-line="229"><span class="sd">    The first claimant wins, so the outcome depends on provider order rather</span>
+</span><span data-line="230"><span class="sd">    than on which lookup happened to finish last.</span>
 </span><span data-line="231">
 </span><span data-line="232"><span class="sd">    Returns:</span>
-</span><span data-line="233"><span class="sd">        The claimed field paths mapped to their owning source and value.</span>
+</span><span data-line="233"><span class="sd">        The updated package, and a conflict when a later provider disagreed.</span>
 </span><span data-line="234"><span class="sd">    """</span>
-</span><span data-line="235">    <span class="c1"># Reversed so the *first* successful source for a field wins the dict</span>
-</span><span data-line="236">    <span class="c1"># comprehension: the value in the package came from whichever source</span>
-</span><span data-line="237">    <span class="c1"># claimed it first, not from the last one that reported the same field.</span>
-</span><span data-line="238">    <span class="n">owners</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="239">        <span class="n">record</span><span class="o">.</span><span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">record</span><span class="o">.</span><span class="n">name</span>
-</span><span data-line="240">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">)</span>
-</span><span data-line="241">        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"success"</span> <span class="ow">and</span> <span class="n">record</span><span class="o">.</span><span class="n">fields</span>
-</span><span data-line="242">    <span class="p">}</span>
-</span><span data-line="243">    <span class="n">counts</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="244">        <span class="s2">"result.download_count"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">download_count</span><span class="p">,</span>
-</span><span data-line="245">        <span class="s2">"result.dependent_count"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependent_count</span><span class="p">,</span>
-</span><span data-line="246">    <span class="p">}</span>
-</span><span data-line="247">    <span class="k">return</span> <span class="p">{</span>
-</span><span data-line="248">        <span class="n">field</span><span class="p">:</span> <span class="p">(</span><span class="n">owners</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">_UNATTRIBUTED</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
-</span><span data-line="249">        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">counts</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-</span><span data-line="250">        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-</span><span data-line="251">    <span class="p">}</span>
-</span><span data-line="252">
-</span><span data-line="253">
-</span><span data-line="254"><span class="k">def</span><span class="w"> </span><span class="nf">_merge</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ProviderResult</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="255"><span class="w">    </span><span class="sd">"""Fold provider evidence into the package in consultation order.</span>
-</span><span data-line="256">
-</span><span data-line="257"><span class="sd">    Vulnerabilities union across sources and cannot conflict; scalar counts are</span>
-</span><span data-line="258"><span class="sd">    first-writer-wins, and a later provider offering a different value is</span>
-</span><span data-line="259"><span class="sd">    recorded as a conflict instead of overwriting.</span>
-</span><span data-line="260">
-</span><span data-line="261"><span class="sd">    Returns:</span>
-</span><span data-line="262"><span class="sd">        The package carrying every provider's evidence.</span>
-</span><span data-line="263"><span class="sd">    """</span>
-</span><span data-line="264">    <span class="n">conflicts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ProviderConflict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="265">    <span class="n">claims</span> <span class="o">=</span> <span class="n">_existing_claims</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span>
-</span><span data-line="266">    <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-</span><span data-line="267">        <span class="n">evidence</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">evidence</span>
-</span><span data-line="268">        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evidence</span><span class="p">,</span> <span class="n">VulnerabilityEvidence</span><span class="p">):</span>
-</span><span data-line="269">            <span class="n">pkg</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-</span><span data-line="270">                <span class="n">pkg</span><span class="p">,</span>
-</span><span data-line="271">                <span class="n">vulnerabilities</span><span class="o">=</span><span class="n">merge_vulnerabilities</span><span class="p">(</span>
-</span><span data-line="272">                    <span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities</span><span class="p">,</span> <span class="n">evidence</span><span class="o">.</span><span class="n">vulnerabilities</span>
-</span><span data-line="273">                <span class="p">),</span>
-</span><span data-line="274">            <span class="p">)</span>
-</span><span data-line="275">        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evidence</span><span class="p">,</span> <span class="n">CountEvidence</span><span class="p">)</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">field</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="276">            <span class="c1"># A result with no attributable field has nothing to merge into.</span>
-</span><span data-line="277">            <span class="n">pkg</span><span class="p">,</span> <span class="n">conflict</span> <span class="o">=</span> <span class="n">_merge_count</span><span class="p">(</span>
-</span><span data-line="278">                <span class="n">pkg</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">field</span><span class="p">,</span> <span class="n">evidence</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="n">claims</span>
-</span><span data-line="279">            <span class="p">)</span>
-</span><span data-line="280">            <span class="k">if</span> <span class="n">conflict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="281">                <span class="n">conflicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conflict</span><span class="p">)</span>
-</span><span data-line="282">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-</span><span data-line="283">        <span class="n">pkg</span><span class="p">,</span> <span class="n">enrichment_conflicts</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_conflicts</span><span class="p">,</span> <span class="o">*</span><span class="n">conflicts</span><span class="p">]</span>
-</span><span data-line="284">    <span class="p">)</span>
-</span><span data-line="285">
-</span><span data-line="286">
-</span><span data-line="287"><span class="k">def</span><span class="w"> </span><span class="nf">_provenance</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ProviderResult</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="288"><span class="w">    </span><span class="sd">"""Record a source per provider, and a failure per failed provider.</span>
-</span><span data-line="289">
-</span><span data-line="290"><span class="sd">    Returns:</span>
-</span><span data-line="291"><span class="sd">        The package carrying provenance for every consulted provider.</span>
-</span><span data-line="292"><span class="sd">    """</span>
-</span><span data-line="293">    <span class="n">sources</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="294">        <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="295">            <span class="n">name</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
-</span><span data-line="296">            <span class="n">state</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">state</span><span class="p">,</span>
-</span><span data-line="297">            <span class="n">target</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span>
-</span><span data-line="298">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
-</span><span data-line="299">            <span class="n">reason</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
-</span><span data-line="300">            <span class="c1"># An unattributable result claims no field rather than an</span>
-</span><span data-line="301">            <span class="c1"># invented one.</span>
-</span><span data-line="302">            <span class="n">fields</span><span class="o">=</span><span class="p">[]</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">field</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">field</span><span class="p">],</span>
-</span><span data-line="303">        <span class="p">)</span>
-</span><span data-line="304">        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span>
-</span><span data-line="305">    <span class="p">]</span>
-</span><span data-line="306">    <span class="n">failures</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="307">        <span class="n">EnrichmentFailure</span><span class="p">(</span>
-</span><span data-line="308">            <span class="n">source</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">reason</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">field</span>
-</span><span data-line="309">        <span class="p">)</span>
-</span><span data-line="310">        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span>
-</span><span data-line="311">        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"failed"</span>
-</span><span data-line="312">    <span class="p">]</span>
-</span><span data-line="313">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
-</span><span data-line="314">        <span class="n">pkg</span><span class="p">,</span>
-</span><span data-line="315">        <span class="n">enrichment_sources</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">,</span> <span class="o">*</span><span class="n">sources</span><span class="p">],</span>
-</span><span data-line="316">        <span class="n">enrichment_failures</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span><span class="p">,</span> <span class="o">*</span><span class="n">failures</span><span class="p">],</span>
-</span><span data-line="317">    <span class="p">)</span>
-</span><span data-line="318">
-</span><span data-line="319">
+</span><span data-line="235">    <span class="n">prior</span> <span class="o">=</span> <span class="n">claims</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+</span><span data-line="236">    <span class="n">holder</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">prior</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">prior</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span data-line="237">    <span class="k">if</span> <span class="n">prior</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">holder</span> <span class="o">==</span> <span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">:</span>
+</span><span data-line="238">        <span class="c1"># A new claim, or the owner refreshing its own: a count such as monthly</span>
+</span><span data-line="239">        <span class="c1"># downloads legitimately changes between lookups, and a source can</span>
+</span><span data-line="240">        <span class="c1"># never disagree with itself.</span>
+</span><span data-line="241">        <span class="n">claims</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span> <span class="n">count</span><span class="p">)</span>
+</span><span data-line="242">        <span class="k">return</span> <span class="n">_with_count</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">capability</span><span class="p">,</span> <span class="n">count</span><span class="p">),</span> <span class="kc">None</span>
+</span><span data-line="243">    <span class="k">if</span> <span class="n">prior</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">==</span> <span class="n">count</span><span class="p">:</span>
+</span><span data-line="244">        <span class="k">return</span> <span class="n">pkg</span><span class="p">,</span> <span class="kc">None</span>
+</span><span data-line="245">    <span class="n">conflict</span> <span class="o">=</span> <span class="n">ProviderConflict</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="n">field</span><span class="p">,</span> <span class="n">kept</span><span class="o">=</span><span class="n">prior</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">discarded</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">)</span>
+</span><span data-line="246">    <span class="k">return</span> <span class="n">pkg</span><span class="p">,</span> <span class="n">conflict</span>
+</span><span data-line="247">
+</span><span data-line="248">
+</span><span data-line="249"><span class="k">def</span><span class="w"> </span><span class="nf">_existing_claims</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">int</span><span class="p">]]:</span>
+</span><span data-line="250"><span class="w">    </span><span class="sd">"""Recover the scalar claims an earlier enrichment pass already made.</span>
+</span><span data-line="251">
+</span><span data-line="252"><span class="sd">    ``enrich`` can be composed in stages. Without this, a second pass starts</span>
+</span><span data-line="253"><span class="sd">    with no claims, so its first provider silently overwrites a value the first</span>
+</span><span data-line="254"><span class="sd">    pass established while provenance keeps both sources.</span>
+</span><span data-line="255">
+</span><span data-line="256"><span class="sd">    Returns:</span>
+</span><span data-line="257"><span class="sd">        The claimed field paths mapped to their owning source and value.</span>
+</span><span data-line="258"><span class="sd">    """</span>
+</span><span data-line="259">    <span class="c1"># Reversed so the *first* successful source for a field wins the dict</span>
+</span><span data-line="260">    <span class="c1"># comprehension: the value in the package came from whichever source</span>
+</span><span data-line="261">    <span class="c1"># claimed it first, not from the last one that reported the same field.</span>
+</span><span data-line="262">    <span class="n">owners</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="263">        <span class="n">record</span><span class="o">.</span><span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">record</span><span class="o">.</span><span class="n">name</span>
+</span><span data-line="264">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="nb">reversed</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">)</span>
+</span><span data-line="265">        <span class="k">if</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"success"</span> <span class="ow">and</span> <span class="n">record</span><span class="o">.</span><span class="n">fields</span>
+</span><span data-line="266">    <span class="p">}</span>
+</span><span data-line="267">    <span class="n">counts</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="268">        <span class="s2">"result.download_count"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">download_count</span><span class="p">,</span>
+</span><span data-line="269">        <span class="s2">"result.dependent_count"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">dependent_count</span><span class="p">,</span>
+</span><span data-line="270">    <span class="p">}</span>
+</span><span data-line="271">    <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="272">        <span class="n">field</span><span class="p">:</span> <span class="p">(</span><span class="n">owners</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">_UNATTRIBUTED</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="273">        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">counts</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+</span><span data-line="274">        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+</span><span data-line="275">    <span class="p">}</span>
+</span><span data-line="276">
+</span><span data-line="277">
+</span><span data-line="278"><span class="k">def</span><span class="w"> </span><span class="nf">_merge</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ProviderResult</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="279"><span class="w">    </span><span class="sd">"""Fold provider evidence into the package in consultation order.</span>
+</span><span data-line="280">
+</span><span data-line="281"><span class="sd">    Vulnerabilities union across sources and cannot conflict; scalar counts are</span>
+</span><span data-line="282"><span class="sd">    first-writer-wins, and a later provider offering a different value is</span>
+</span><span data-line="283"><span class="sd">    recorded as a conflict instead of overwriting.</span>
+</span><span data-line="284">
+</span><span data-line="285"><span class="sd">    Returns:</span>
+</span><span data-line="286"><span class="sd">        The package carrying every provider's evidence.</span>
+</span><span data-line="287"><span class="sd">    """</span>
+</span><span data-line="288">    <span class="n">conflicts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ProviderConflict</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="289">    <span class="n">claims</span> <span class="o">=</span> <span class="n">_existing_claims</span><span class="p">(</span><span class="n">pkg</span><span class="p">)</span>
+</span><span data-line="290">    <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+</span><span data-line="291">        <span class="n">evidence</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">evidence</span>
+</span><span data-line="292">        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evidence</span><span class="p">,</span> <span class="n">VulnerabilityEvidence</span><span class="p">):</span>
+</span><span data-line="293">            <span class="n">pkg</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+</span><span data-line="294">                <span class="n">pkg</span><span class="p">,</span>
+</span><span data-line="295">                <span class="n">vulnerabilities</span><span class="o">=</span><span class="n">merge_vulnerabilities</span><span class="p">(</span>
+</span><span data-line="296">                    <span class="n">pkg</span><span class="o">.</span><span class="n">vulnerabilities</span><span class="p">,</span> <span class="n">evidence</span><span class="o">.</span><span class="n">vulnerabilities</span>
+</span><span data-line="297">                <span class="p">),</span>
+</span><span data-line="298">            <span class="p">)</span>
+</span><span data-line="299">        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">evidence</span><span class="p">,</span> <span class="n">CountEvidence</span><span class="p">)</span> <span class="ow">and</span> <span class="n">result</span><span class="o">.</span><span class="n">field</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="300">            <span class="c1"># A result with no attributable field has nothing to merge into.</span>
+</span><span data-line="301">            <span class="n">pkg</span><span class="p">,</span> <span class="n">conflict</span> <span class="o">=</span> <span class="n">_merge_count</span><span class="p">(</span>
+</span><span data-line="302">                <span class="n">pkg</span><span class="p">,</span> <span class="n">result</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">field</span><span class="p">,</span> <span class="n">evidence</span><span class="o">.</span><span class="n">count</span><span class="p">,</span> <span class="n">claims</span>
+</span><span data-line="303">            <span class="p">)</span>
+</span><span data-line="304">            <span class="k">if</span> <span class="n">conflict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="305">                <span class="n">conflicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">conflict</span><span class="p">)</span>
+</span><span data-line="306">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+</span><span data-line="307">        <span class="n">pkg</span><span class="p">,</span> <span class="n">enrichment_conflicts</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_conflicts</span><span class="p">,</span> <span class="o">*</span><span class="n">conflicts</span><span class="p">]</span>
+</span><span data-line="308">    <span class="p">)</span>
+</span><span data-line="309">
+</span><span data-line="310">
+</span><span data-line="311"><span class="k">def</span><span class="w"> </span><span class="nf">_resolved_this_pass</span><span class="p">(</span>
+</span><span data-line="312">    <span class="n">results</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ProviderResult</span><span class="p">],</span>
+</span><span data-line="313"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">set</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]]:</span>
+</span><span data-line="314"><span class="w">    </span><span class="sd">"""Name the ``(source, field)`` pairs a completed lookup now answers.</span>
+</span><span data-line="315">
+</span><span data-line="316"><span class="sd">    ``empty`` counts as resolved alongside ``success``: a source that was</span>
+</span><span data-line="317"><span class="sd">    queried and confirmed it holds nothing has answered the question just as</span>
+</span><span data-line="318"><span class="sd">    definitively, so an earlier failure for it is equally stale. ``skipped``</span>
+</span><span data-line="319"><span class="sd">    and ``unavailable`` do not, since no lookup happened.</span>
+</span><span data-line="320">
+</span><span data-line="321"><span class="sd">    Returns:</span>
+</span><span data-line="322"><span class="sd">        One pair per completed result, so a stale failure for the same source</span>
+</span><span data-line="323"><span class="sd">        and field can be told apart from an unrelated one.</span>
+</span><span data-line="324"><span class="sd">    """</span>
+</span><span data-line="325">    <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="326">        <span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">field</span><span class="p">)</span>
+</span><span data-line="327">        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span>
+</span><span data-line="328">        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="n">_COMPLETED_STATES</span>
+</span><span data-line="329">    <span class="p">}</span>
+</span><span data-line="330">
+</span><span data-line="331">
+</span><span data-line="332"><span class="k">def</span><span class="w"> </span><span class="nf">_provenance</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">results</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">ProviderResult</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="333"><span class="w">    </span><span class="sd">"""Record a source per provider, and a failure per failed provider.</span>
+</span><span data-line="334">
+</span><span data-line="335"><span class="sd">    A failure recorded in an earlier pass is dropped once this pass reports a</span>
+</span><span data-line="336"><span class="sd">    success for the same source and field, so a provider that fails once and</span>
+</span><span data-line="337"><span class="sd">    then recovers does not leave a permanently stale failure behind. Matching</span>
+</span><span data-line="338"><span class="sd">    on both source and field means a provider succeeding at one field never</span>
+</span><span data-line="339"><span class="sd">    clears an unrelated, still-failing one.</span>
+</span><span data-line="340">
+</span><span data-line="341"><span class="sd">    Returns:</span>
+</span><span data-line="342"><span class="sd">        The package carrying provenance for every consulted provider.</span>
+</span><span data-line="343"><span class="sd">    """</span>
+</span><span data-line="344">    <span class="n">sources</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="345">        <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="346">            <span class="n">name</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span>
+</span><span data-line="347">            <span class="n">state</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">state</span><span class="p">,</span>
+</span><span data-line="348">            <span class="n">target</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">subject</span><span class="p">,</span>
+</span><span data-line="349">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
+</span><span data-line="350">            <span class="n">reason</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
+</span><span data-line="351">            <span class="c1"># An unattributable result claims no field rather than an</span>
+</span><span data-line="352">            <span class="c1"># invented one.</span>
+</span><span data-line="353">            <span class="n">fields</span><span class="o">=</span><span class="p">[]</span> <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">field</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="n">result</span><span class="o">.</span><span class="n">field</span><span class="p">],</span>
+</span><span data-line="354">        <span class="p">)</span>
+</span><span data-line="355">        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span>
+</span><span data-line="356">    <span class="p">]</span>
+</span><span data-line="357">    <span class="n">failures</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="358">        <span class="n">EnrichmentFailure</span><span class="p">(</span>
+</span><span data-line="359">            <span class="n">source</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">provider</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">reason</span> <span class="ow">or</span> <span class="s2">""</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">result</span><span class="o">.</span><span class="n">field</span>
+</span><span data-line="360">        <span class="p">)</span>
+</span><span data-line="361">        <span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">results</span>
+</span><span data-line="362">        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"failed"</span>
+</span><span data-line="363">    <span class="p">]</span>
+</span><span data-line="364">    <span class="n">resolved</span> <span class="o">=</span> <span class="n">_resolved_this_pass</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+</span><span data-line="365">    <span class="n">prior_failures</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="366">        <span class="n">failure</span>
+</span><span data-line="367">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_failures</span>
+</span><span data-line="368">        <span class="k">if</span> <span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">source</span><span class="p">,</span> <span class="n">failure</span><span class="o">.</span><span class="n">field</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">resolved</span>
+</span><span data-line="369">    <span class="p">]</span>
+</span><span data-line="370">    <span class="k">return</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span>
+</span><span data-line="371">        <span class="n">pkg</span><span class="p">,</span>
+</span><span data-line="372">        <span class="n">enrichment_sources</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">pkg</span><span class="o">.</span><span class="n">enrichment_sources</span><span class="p">,</span> <span class="o">*</span><span class="n">sources</span><span class="p">],</span>
+</span><span data-line="373">        <span class="n">enrichment_failures</span><span class="o">=</span><span class="p">[</span><span class="o">*</span><span class="n">prior_failures</span><span class="p">,</span> <span class="o">*</span><span class="n">failures</span><span class="p">],</span>
+</span><span data-line="374">    <span class="p">)</span>
+</span><span data-line="375">
+</span><span data-line="376">
 <div class="viewcode-block" id="enrich">
 <a class="viewcode-back" href="../../../modules.html#peta.core.enrich.enrich">[docs]</a>
-</span><span data-line="320"><span class="k">def</span><span class="w"> </span><span class="nf">enrich</span><span class="p">(</span>
-</span><span data-line="321">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="322">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="323">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="324">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="325">    <span class="n">providers</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">EnrichmentProvider</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="326"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="327"><span class="w">    </span><span class="sd">"""Best-effort enrich a package from every configured provider.</span>
-</span><span data-line="328">
-</span><span data-line="329"><span class="sd">    Never raises: providers report failure as a result state, so an enrichment</span>
-</span><span data-line="330"><span class="sd">    problem stays visible in the output without affecting exit codes.</span>
-</span><span data-line="331">
-</span><span data-line="332"><span class="sd">    Args:</span>
-</span><span data-line="333"><span class="sd">        pkg: The resolved package to enrich.</span>
-</span><span data-line="334"><span class="sd">        no_osv: Skip the vulnerability provider group.</span>
-</span><span data-line="335"><span class="sd">        no_stats: Skip the usage-statistics provider group.</span>
-</span><span data-line="336"><span class="sd">        providers: The providers to consult, in conflict-priority order.</span>
-</span><span data-line="337"><span class="sd">            Injectable so callers and tests can substitute sources; defaults to</span>
-</span><span data-line="338"><span class="sd">            :data:`~peta.core.providers.DEFAULT_PROVIDERS`. Resolved at call</span>
-</span><span data-line="339"><span class="sd">            time rather than bound as a default argument, so the registry stays</span>
-</span><span data-line="340"><span class="sd">            swappable.</span>
-</span><span data-line="341">
-</span><span data-line="342"><span class="sd">    Returns:</span>
-</span><span data-line="343"><span class="sd">        The enriched package metadata.</span>
-</span><span data-line="344"><span class="sd">    """</span>
-</span><span data-line="345">    <span class="n">disabled</span> <span class="o">=</span> <span class="n">_disabled_groups</span><span class="p">(</span><span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">)</span>
-</span><span data-line="346">    <span class="n">results</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span>
-</span><span data-line="347">        <span class="n">pkg</span><span class="p">,</span> <span class="n">DEFAULT_PROVIDERS</span> <span class="k">if</span> <span class="n">providers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">providers</span><span class="p">,</span> <span class="n">disabled</span>
-</span><span data-line="348">    <span class="p">)</span>
-</span><span data-line="349">    <span class="k">return</span> <span class="n">_provenance</span><span class="p">(</span><span class="n">_merge</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">results</span><span class="p">),</span> <span class="n">results</span><span class="p">)</span></div>
+</span><span data-line="377"><span class="k">def</span><span class="w"> </span><span class="nf">enrich</span><span class="p">(</span>
+</span><span data-line="378">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="379">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="380">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="381">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="382">    <span class="n">providers</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">EnrichmentProvider</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="383"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="384"><span class="w">    </span><span class="sd">"""Best-effort enrich a package from every configured provider.</span>
+</span><span data-line="385">
+</span><span data-line="386"><span class="sd">    Never raises: providers report failure as a result state, so an enrichment</span>
+</span><span data-line="387"><span class="sd">    problem stays visible in the output without affecting exit codes.</span>
+</span><span data-line="388">
+</span><span data-line="389"><span class="sd">    Args:</span>
+</span><span data-line="390"><span class="sd">        pkg: The resolved package to enrich.</span>
+</span><span data-line="391"><span class="sd">        no_osv: Skip the vulnerability provider group.</span>
+</span><span data-line="392"><span class="sd">        no_stats: Skip the usage-statistics provider group.</span>
+</span><span data-line="393"><span class="sd">        providers: The providers to consult, in conflict-priority order.</span>
+</span><span data-line="394"><span class="sd">            Injectable so callers and tests can substitute sources; defaults to</span>
+</span><span data-line="395"><span class="sd">            :data:`~peta.core.providers.DEFAULT_PROVIDERS`. Resolved at call</span>
+</span><span data-line="396"><span class="sd">            time rather than bound as a default argument, so the registry stays</span>
+</span><span data-line="397"><span class="sd">            swappable.</span>
+</span><span data-line="398">
+</span><span data-line="399"><span class="sd">    Returns:</span>
+</span><span data-line="400"><span class="sd">        The enriched package metadata.</span>
+</span><span data-line="401"><span class="sd">    """</span>
+</span><span data-line="402">    <span class="n">disabled</span> <span class="o">=</span> <span class="n">_disabled_groups</span><span class="p">(</span><span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span> <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">)</span>
+</span><span data-line="403">    <span class="n">results</span> <span class="o">=</span> <span class="n">_collect</span><span class="p">(</span>
+</span><span data-line="404">        <span class="n">pkg</span><span class="p">,</span> <span class="n">DEFAULT_PROVIDERS</span> <span class="k">if</span> <span class="n">providers</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">providers</span><span class="p">,</span> <span class="n">disabled</span>
+</span><span data-line="405">    <span class="p">)</span>
+</span><span data-line="406">    <span class="k">return</span> <span class="n">_provenance</span><span class="p">(</span><span class="n">_merge</span><span class="p">(</span><span class="n">pkg</span><span class="p">,</span> <span class="n">results</span><span class="p">),</span> <span class="n">results</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
