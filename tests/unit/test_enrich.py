@@ -397,6 +397,34 @@ class TestEnrich:
         assert failure.field is None
         assert "RuntimeError: no name for you" in failure.reason
 
+    def test_a_bare_key_error_from_a_provider_is_contained(self) -> None:
+        class BareKeyError:
+            name = "bare"
+            capability: Capability = "download_count"
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                """Raise an argument-less KeyError, as an adapter bug might.
+
+                Raises:
+                    KeyError: Always, with no arguments.
+                """
+                assert pkg.name
+                raise KeyError
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[BareKeyError(), downloads]
+        )
+        # The recovery path must not assume the exception carries arguments,
+        # and must not mistake a provider's own lookup bug for a bad
+        # capability declaration.
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "bare"
+        assert failure.reason == "provider raised KeyError: "
+        assert failure.field == "result.download_count"
+
     def test_a_provider_returning_a_non_result_is_contained(self) -> None:
         class Malformed:
             name = "malformed"

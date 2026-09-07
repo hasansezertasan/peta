@@ -31,6 +31,7 @@ if TYPE_CHECKING:
     from peta.core.output import SourceState
 
 if TYPE_CHECKING:
+    from peta.core.output import SourceState
     from peta.core.providers import Capability
 
 pytestmark = pytest.mark.unit
@@ -269,6 +270,18 @@ class TestResultVariantValidation:
                 state="failed",
                 subject="requests",
                 reason=reason,
+            )
+
+    @pytest.mark.parametrize("state", ["bogus", "", "SUCCESS"])
+    def test_an_undocumented_state_is_rejected(self, state: str) -> None:
+        # An annotation does not stop a runtime string, and an undocumented
+        # state would otherwise reach the envelope unchallenged.
+        with pytest.raises(ValueError, match="not a documented source state"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state=cast("SourceState", cast("object", state)),
+                subject="requests",
             )
 
     def test_empty_may_carry_empty_evidence(self) -> None:

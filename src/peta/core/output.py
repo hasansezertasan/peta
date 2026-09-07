@@ -53,6 +53,20 @@ SourceState = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
     "SourceState", Literal["success", "empty", "skipped", "unavailable", "failed"]
 )
 
+SOURCE_STATES: frozenset[SourceState] = frozenset({
+    "success",
+    "empty",
+    "skipped",
+    "unavailable",
+    "failed",
+})
+"""Every documented source state, as a runtime-checkable set.
+
+Lets a runtime-supplied state be checked against the schema before it reaches
+the envelope, since an annotation alone does not stop one. Kept in step with
+:data:`SourceState` by ``test_source_states_match_the_alias``.
+"""
+
 
 @dataclass(frozen=True)
 class TargetEnvironment:

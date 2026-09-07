@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType
 
 from peta.core.models import VULNERABILITY_FIELD
+from peta.core.output import SOURCE_STATES
 
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo, Vulnerability
@@ -126,8 +127,14 @@ def _validate_state(state: SourceState, evidence: Evidence | None) -> None:
     the record will produce.
 
     Raises:
-        ValueError: If the state and the evidence disagree.
+        ValueError: If the state is not a documented one, or the state and the
+            evidence disagree.
     """
+    if state not in SOURCE_STATES:
+        # An injected provider can supply any string despite the annotation,
+        # and an undocumented state would reach the envelope unchallenged.
+        msg = f"state {state!r} is not a documented source state"
+        raise ValueError(msg)
     answered = evidence is not None and not evidence.is_empty
     if answered != (state == "success"):
         detail = (

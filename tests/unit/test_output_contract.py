@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
-from typing import cast
+from typing import cast, get_args
 
 import pytest
 
@@ -23,7 +23,7 @@ from peta.core.models import (
     EnrichmentFailure,
     PackageInfo,
 )
-from peta.core.output import SCHEMA_VERSION, SourceRecord
+from peta.core.output import SCHEMA_VERSION, SOURCE_STATES, SourceRecord, SourceState
 
 pytestmark = pytest.mark.unit
 
@@ -158,3 +158,8 @@ def test_compare_sources_reference_indexed_result_paths() -> None:
         "result.packages[0].vulnerabilities",
         "result.packages[1]",
     ]
+
+
+def test_source_states_match_the_alias() -> None:
+    # Guards the runtime set against drifting from the documented literals.
+    assert frozenset(get_args(SourceState.__value__)) == SOURCE_STATES
