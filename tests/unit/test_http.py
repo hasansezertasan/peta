@@ -1,6 +1,7 @@
 """Unit tests for the shared outbound HTTP client."""
 
 import atexit
+import threading
 from typing import TYPE_CHECKING
 
 import httpx
@@ -35,6 +36,28 @@ def test_requests_carry_the_default_timeout() -> None:
     assert request.extensions["timeout"] == expected
 
 
+def test_threads_racing_the_first_call_share_one_client() -> None:
+    # `functools.cache` never holds a lock across the wrapped call, so
+    # simultaneous misses each run it. Without the init lock this builds one
+    # client per thread, each pinned for the process's life by its own atexit
+    # registration, leaving the first requests on separate pools.
+    http._build_client.cache_clear()
+    barrier = threading.Barrier(8)
+    seen: list[httpx.Client] = []
+
+    def race() -> None:
+        _ = barrier.wait()
+        seen.append(http.client())
+
+    threads = [threading.Thread(target=race) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert len({id(instance) for instance in seen}) == 1
+
+
 def test_the_client_is_closed_at_interpreter_exit(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -44,12 +67,12 @@ def test_the_client_is_closed_at_interpreter_exit(
     # turns into a failure.
     registered: list[Callable[[], object]] = []
     monkeypatch.setattr(atexit, "register", registered.append)
-    http.client.cache_clear()
+    http._build_client.cache_clear()
 
     instance = http.client()
 
     assert instance.close in registered
-    http.client.cache_clear()
+    http._build_client.cache_clear()
 
 
 def test_get_goes_through_the_shared_client(fake_http: FakeTransport) -> None:

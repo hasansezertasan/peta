@@ -16,6 +16,7 @@ lookup is not (:class:`~peta.core.validation.EnrichmentError`).
 from __future__ import annotations
 
 import atexit
+import threading
 from functools import cache
 
 import httpx
@@ -32,14 +33,23 @@ DEFAULT_TIMEOUT = 10.0
 USER_AGENT = f"{PROJECT_NAME}/{__version__}"
 """Identifies peta to the APIs it queries, as their usage guidelines ask."""
 
+_INIT_LOCK = threading.Lock()
+"""Serializes first use, since ``functools.cache`` does not.
+
+``cache`` never holds a lock across the wrapped call, so simultaneous misses
+each run it: N threads racing the first request would build N clients, and
+each would be pinned for the process's life by its own ``atexit``
+registration. That would leave the first requests on separate pools and an
+extra pool alive until shutdown — precisely what this module exists to
+prevent. Nothing in peta is threaded today, but bounded concurrency is the
+next piece of transport work, so the guard goes in with the client rather
+than after something has already raced it.
+"""
+
 
 @cache
-def client() -> httpx.Client:
-    """Return the process-wide pooled client, building it on first use.
-
-    Cached rather than built at import time so merely importing a source
-    module opens no sockets, and so the client is created only in a process
-    that actually makes a request.
+def _build_client() -> httpx.Client:
+    """Construct the pooled client and arrange for it to be closed.
 
     Closing is registered with :mod:`atexit` because the cache holds the only
     reference for the life of the process: without it the pool's sockets are
@@ -48,11 +58,26 @@ def client() -> httpx.Client:
     turns into a test failure.
 
     Returns:
-        The shared :class:`httpx.Client`.
+        A new pooled :class:`httpx.Client`.
     """
     instance = httpx.Client(timeout=DEFAULT_TIMEOUT, headers={"user-agent": USER_AGENT})
     _ = atexit.register(instance.close)
     return instance
+
+
+def client() -> httpx.Client:
+    """Return the process-wide pooled client, building it on first use.
+
+    Built on demand rather than at import time because constructing a client
+    loads the system CA bundle, which costs tens of milliseconds — a price
+    ``peta files`` and ``peta info --local`` should not pay to import a module
+    they never send a request through.
+
+    Returns:
+        The shared :class:`httpx.Client`.
+    """
+    with _INIT_LOCK:
+        return _build_client()
 
 
 def get(url: str, *, params: dict[str, str] | None = None) -> httpx.Response:

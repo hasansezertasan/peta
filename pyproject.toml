@@ -371,6 +371,10 @@ convention = "pep257"
   "assert",
   "magic-value-comparison",
   "import-private-name",
+  # Sibling of `import-private-name` for attribute access: a test that resets a
+  # private cache to exercise first-use behavior would otherwise force a public
+  # reset hook to exist for no reason other than to be called by tests.
+  "private-member-access",
   "docstring-missing-returns",
   "implicit-namespace-package",
   "undocumented-public-class",
