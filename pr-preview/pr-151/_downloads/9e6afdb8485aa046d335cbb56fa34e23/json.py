@@ -227,8 +227,12 @@ def _warnings(
         for conflict in pkg.enrichment_conflicts
     ]
     provider_warnings = [
-        OutputMessage(code="provider_warning", message=w.message, source=w.source)
-        for pkg, _ in pairs
+        OutputMessage(
+            code="provider_warning",
+            message=f"{path}: [{w.code}] {w.message}",
+            source=w.source,
+        )
+        for pkg, path in pairs
         for w in pkg.provider_warnings
     ]
     return failures + conflicts + provider_warnings
