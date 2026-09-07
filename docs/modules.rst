@@ -15,6 +15,8 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.output
 
+.. automodule:: peta.core.http
+
 .. automodule:: peta.core.local
 
 .. automodule:: peta.core.remote

@@ -31,7 +31,8 @@ Core (``peta.core``)
 * ``peta.core.models`` — package, vulnerability, and dependency-tree models.
 * ``peta.core.output`` — typed output-envelope, query, source, and message models.
 * ``peta.core.local`` — reads installed metadata via ``importlib.metadata``.
-* ``peta.core.remote`` — fetches from the PyPI JSON API with ``httpx``.
+* ``peta.core.http`` — the one pooled ``httpx`` client every source shares.
+* ``peta.core.remote`` — fetches from the PyPI JSON API.
 * ``peta.core.resolve`` — chooses local or remote package metadata.
 * ``peta.core.deptree`` — builds recursive declared-metadata dependency trees.
 * ``peta.core.enrich`` — coordinates optional vulnerability and statistics data.

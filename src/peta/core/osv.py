@@ -6,8 +6,8 @@ from typing import Required, TypedDict, cast
 
 import httpx
 
+from peta.core import http
 from peta.core.models import Vulnerability
-from peta.core.remote import DEFAULT_TIMEOUT
 from peta.core.validation import (
     EnrichmentError,
     ResponseValidationError,
@@ -88,9 +88,7 @@ def _query_body(name: str, version: str | None) -> dict[str, object]:
 
 def _fetch(name: str, version: str | None) -> OsvResponse:
     try:
-        response = httpx.post(
-            OSV_API_URL, json=_query_body(name, version), timeout=DEFAULT_TIMEOUT
-        )
+        response = http.post(OSV_API_URL, json=_query_body(name, version))
     except httpx.RequestError as exc:
         raise EnrichmentError(OSV_SOURCE, str(exc)) from exc
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
