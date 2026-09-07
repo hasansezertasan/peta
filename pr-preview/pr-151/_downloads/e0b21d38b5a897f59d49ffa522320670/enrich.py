@@ -86,25 +86,39 @@ def _consult(
     try:
         name = provider.name
         capability = provider.capability
-        if CAPABILITY_GROUPS[capability] in disabled:
-            return ProviderResult(
-                provider=name, capability=capability, state="skipped", subject=pkg.name
-            )
-        return _accepted(name, capability, pkg, provider.fetch(pkg))
+        return _dispatch(name, capability, provider, pkg, disabled)
     # A misbehaving provider is contained here, never propagated to the caller.
     except Exception as exc:  # ruff: ignore[blind-except]
-        return _rejected(name, capability, pkg, _misbehaviour(exc))
+        reason = f"provider raised {type(exc).__name__}: {exc}"
+        return _rejected(name, capability, pkg, reason)
 
 
-def _misbehaviour(exc: Exception) -> str:
-    """Describe a provider fault in terms a consumer can act on.
+def _dispatch(
+    name: str,
+    capability: Capability,
+    provider: EnrichmentProvider,
+    pkg: PackageInfo,
+    disabled: frozenset[ProviderGroup],
+) -> ProviderResult:
+    """Consult a provider whose identity has already been read safely.
 
     Returns:
-        A safe diagnostic for the fault.
+        A skipped result for a disabled group, a failed result for a capability
+        peta does not know, or the provider's own answer.
     """
-    if isinstance(exc, KeyError):
-        return f"provider declares unknown capability {exc.args[0]!r}"
-    return f"provider raised {type(exc).__name__}: {exc}"
+    group = CAPABILITY_GROUPS.get(capability)
+    if group is None:
+        # Checked directly rather than caught: no opt-out flag can gate a
+        # capability peta does not know, so consulting it would run it ungated,
+        # and inferring this from a ``KeyError`` would also misreport a
+        # provider's own internal lookup failures.
+        reason = f"provider declares unknown capability {capability!r}"
+        return _rejected(name, capability, pkg, reason)
+    if group in disabled:
+        return ProviderResult(
+            provider=name, capability=capability, state="skipped", subject=pkg.name
+        )
+    return _accepted(name, capability, pkg, provider.fetch(pkg))
 
 
 def _rejected(
