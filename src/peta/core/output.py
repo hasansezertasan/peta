@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "SCHEMA_VERSION",
+    "SOURCE_STATES",
     "CommandName",
     "EnvelopeStatus",
     "MessageCode",
@@ -46,11 +47,29 @@ MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
         "invalid_arguments",
         "network_error",
         "package_not_found",
+        "provider_conflict",
+        "provider_warning",
     ],
 )
 SourceState = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "SourceState", Literal["success", "empty", "skipped", "unavailable", "failed"]
+    "SourceState",
+    Literal["success", "empty", "skipped", "unavailable", "unsupported", "failed"],
 )
+
+SOURCE_STATES: frozenset[SourceState] = frozenset({
+    "success",
+    "empty",
+    "skipped",
+    "unavailable",
+    "unsupported",
+    "failed",
+})
+"""Every documented source state, as a runtime-checkable set.
+
+Lets a runtime-supplied state be checked against the schema before it reaches
+the envelope, since an annotation alone does not stop one. Kept in step with
+:data:`SourceState` by ``test_source_states_match_the_alias``.
+"""
 
 
 @dataclass(frozen=True)

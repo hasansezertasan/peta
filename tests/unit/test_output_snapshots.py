@@ -17,7 +17,12 @@ from peta.cli.output.json import (
     format_versions,
     format_why,
 )
-from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
+from peta.core.models import (
+    VULNERABILITY_FIELD,
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+)
 from peta.core.output import SourceRecord
 
 pytestmark = pytest.mark.unit
@@ -314,9 +319,13 @@ def test_each_command_envelope_snapshot() -> None:
 
 def test_partial_failure_envelope_snapshot() -> None:
     failures = [
-        EnrichmentFailure(source="osv", reason="HTTP 503"),
-        EnrichmentFailure(source="pypistats", reason="invalid JSON"),
-        EnrichmentFailure(source="libraries.io", reason="HTTP 429"),
+        EnrichmentFailure(source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD),
+        EnrichmentFailure(
+            source="pypistats", reason="invalid JSON", field="result.download_count"
+        ),
+        EnrichmentFailure(
+            source="libraries.io", reason="HTTP 429", field="result.dependent_count"
+        ),
     ]
     envelope = _stable(
         format_info(_pkg(enrichment_failures=failures), generated_at=GENERATED_AT)

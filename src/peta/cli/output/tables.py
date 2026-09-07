@@ -86,17 +86,29 @@ def _vuln_block(pkg: PackageInfo) -> str:
 
 
 def _enrichment_block(*packages: PackageInfo) -> str:
-    failures = [
-        (pkg.name, failure) for pkg in packages for failure in pkg.enrichment_failures
-    ]
-    if not failures:
-        return ""
-    lines = ["⚠ Enrichment warnings:"]
     show_package = len(packages) > 1
-    for package, failure in failures:
-        prefix = f"{package}: " if show_package else ""
-        lines.append(f"  {prefix}{failure.source}: {failure.reason}")
-    return "\n\n" + "\n".join(lines)
+
+    def prefix(name: str) -> str:
+        return f"{name}: " if show_package else ""
+
+    warnings = [
+        f"  {prefix(pkg.name)}{failure.source}: {failure.reason}"
+        for pkg in packages
+        for failure in pkg.enrichment_failures
+    ]
+    warnings.extend(
+        f"  {prefix(pkg.name)}{conflict.field}: {conflict.description}"
+        for pkg in packages
+        for conflict in pkg.enrichment_conflicts
+    )
+    warnings.extend(
+        f"  {prefix(pkg.name)}{w.source}: {w.message}"
+        for pkg in packages
+        for w in pkg.provider_warnings
+    )
+    if not warnings:
+        return ""
+    return "\n\n" + "\n".join(["⚠ Enrichment warnings:", *warnings])
 
 
 def render_info(pkg: PackageInfo, *, color: bool) -> str:
@@ -187,7 +199,7 @@ def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
         return "-" if value is None else f"{value:,}"
 
     def vulnerability_count(pkg: PackageInfo) -> str:
-        if any(failure.source == "osv" for failure in pkg.enrichment_failures):
+        if pkg.vulnerabilities_unknown:
             return "unknown"
         return str(len(pkg.vulnerabilities))
 

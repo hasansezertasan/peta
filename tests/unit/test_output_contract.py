@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
-from typing import cast
+from typing import cast, get_args
 
 import pytest
 
@@ -17,8 +17,13 @@ from peta.cli.output.json import (
     format_versions,
     format_why,
 )
-from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
-from peta.core.output import SCHEMA_VERSION, SourceRecord
+from peta.core.models import (
+    VULNERABILITY_FIELD,
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+)
+from peta.core.output import SCHEMA_VERSION, SOURCE_STATES, SourceRecord, SourceState
 
 pytestmark = pytest.mark.unit
 
@@ -44,7 +49,13 @@ def _assert_envelope(raw: str, command: str) -> dict[str, object]:
 
 
 def test_info_envelope_and_partial_failure() -> None:
-    pkg = _pkg(enrichment_failures=[EnrichmentFailure(source="osv", reason="HTTP 503")])
+    pkg = _pkg(
+        enrichment_failures=[
+            EnrichmentFailure(
+                source="osv", reason="HTTP 503", field=VULNERABILITY_FIELD
+            )
+        ]
+    )
     data = _assert_envelope(
         format_info(
             pkg,
@@ -147,3 +158,8 @@ def test_compare_sources_reference_indexed_result_paths() -> None:
         "result.packages[0].vulnerabilities",
         "result.packages[1]",
     ]
+
+
+def test_source_states_match_the_alias() -> None:
+    # Guards the runtime set against drifting from the documented literals.
+    assert frozenset(get_args(SourceState.__value__)) == SOURCE_STATES

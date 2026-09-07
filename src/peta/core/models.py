@@ -9,12 +9,23 @@ if TYPE_CHECKING:
     from peta.core.output import SourceRecord
 
 __all__ = [
+    "VULNERABILITY_FIELD",
     "DependencyNode",
     "DependencyResolutionFailure",
     "EnrichmentFailure",
     "PackageInfo",
+    "ProviderConflict",
+    "ProviderWarning",
     "Vulnerability",
 ]
+
+
+VULNERABILITY_FIELD = "result.vulnerabilities"
+"""The ``result`` path advisory evidence is written to.
+
+Declared here rather than in :mod:`peta.core.providers` so a package can be
+asked whether its advisory lookup failed without importing the provider layer.
+"""
 
 
 @dataclass
@@ -34,6 +45,44 @@ class EnrichmentFailure:
 
     source: str
     reason: str
+    field: str | None
+    """The ``result`` path the failed source would have written to.
+
+    Required but nullable, so a failure always states *what* is missing —
+    including stating explicitly that it cannot be attributed to a result
+    field, rather than leaving that to a forgotten default.
+    """
+
+
+@dataclass(frozen=True)
+class ProviderWarning:
+    """An advisory message a provider returned alongside its evidence."""
+
+    source: str
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class ProviderConflict:
+    """Two providers offered different evidence for the same field.
+
+    Both sources are named so the disagreement stays visible; ``kept`` records
+    which one the deterministic merge order selected.
+    """
+
+    field: str
+    kept: str
+    discarded: str
+
+    @property
+    def description(self) -> str:
+        """Human-readable summary of the disagreement.
+
+        Returns:
+            The single-source conflict reason used by every output renderer.
+        """
+        return f"kept {self.kept}, discarded conflicting {self.discarded}"
 
 
 @dataclass(frozen=True)
@@ -71,8 +120,24 @@ class PackageInfo:
     dependent_count: int | None = None
     license_source: Literal["expression", "legacy"] | None = None
     enrichment_failures: list[EnrichmentFailure] = field(default_factory=list)
+    enrichment_conflicts: list[ProviderConflict] = field(default_factory=list)
+    provider_warnings: list[ProviderWarning] = field(default_factory=list)
     retrieved_at: str | None = None
     enrichment_sources: list[SourceRecord] = field(default_factory=list)
+
+    @property
+    def vulnerabilities_unknown(self) -> bool:
+        """Whether the advisory lookup failed, leaving the count unknown.
+
+        Derived from the failed field rather than a provider name, so an
+        alternate advisory source is never reported as a clean zero.
+
+        Returns:
+            ``True`` when a source that supplies advisories failed.
+        """
+        return any(
+            failure.field == VULNERABILITY_FIELD for failure in self.enrichment_failures
+        )
 
 
 @dataclass
