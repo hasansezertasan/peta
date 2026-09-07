@@ -57,8 +57,13 @@ def _assert_count_or_reported_failure(data: dict, source: str, field: str) -> No
         assert data["result"][field] is None
         assert any(item["source"] == source for item in data["warnings"])
         return
-    assert isinstance(data["result"][field], int)
-    assert data["result"][field] > 0
+    count = data["result"][field]
+    # Exact type, not isinstance: a JSON boolean decodes to bool, which passes
+    # isinstance(x, int). Both guards this value crosses on the way out —
+    # validation.expect_int and providers.base._is_count — reject bool for
+    # that reason, so the end-to-end assertion should not be looser.
+    assert type(count) is int
+    assert count > 0
 
 
 def test_info_remote_download_count() -> None:
