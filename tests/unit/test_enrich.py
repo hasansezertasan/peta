@@ -332,12 +332,7 @@ class TestEnrich:
             name = "stranger"
             capability = cast("Capability", "made_up")
 
-            def fetch(self, pkg: PackageInfo) -> ProviderResult:
-                """Never reached: the declaration is rejected first.
-
-                Raises:
-                    AssertionError: Always, to prove it was not consulted.
-                """
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:  # pragma: no cover
                 msg = f"should not be consulted for {pkg.name}"
                 raise AssertionError(msg)
 
@@ -369,21 +364,11 @@ class TestEnrich:
                 raise RuntimeError(msg)
 
             @property
-            def capability(self) -> Capability:
-                """Never reached.
-
-                Raises:
-                    RuntimeError: Always.
-                """
+            def capability(self) -> Capability:  # pragma: no cover
                 msg = "no capability either"
                 raise RuntimeError(msg)
 
-            def fetch(self, pkg: PackageInfo) -> ProviderResult:
-                """Never reached.
-
-                Raises:
-                    AssertionError: Always.
-                """
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:  # pragma: no cover
                 msg = f"should not be consulted for {pkg.name}"
                 raise AssertionError(msg)
 
@@ -458,12 +443,7 @@ class TestEnrich:
             name = cast("str", ["not", "a", "name"])
             capability: Capability = "download_count"
 
-            def fetch(self, pkg: PackageInfo) -> ProviderResult:
-                """Never reached: the name is rejected first.
-
-                Raises:
-                    AssertionError: Always, to prove it was not consulted.
-                """
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:  # pragma: no cover
                 msg = f"should not be consulted for {pkg.name}"
                 raise AssertionError(msg)
 
@@ -482,12 +462,7 @@ class TestEnrich:
             name = "shapeshifter"
             capability = cast("Capability", ["not", "a", "capability"])
 
-            def fetch(self, pkg: PackageInfo) -> ProviderResult:
-                """Never reached: the declaration is rejected first.
-
-                Raises:
-                    AssertionError: Always, to prove it was not consulted.
-                """
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:  # pragma: no cover
                 msg = f"should not be consulted for {pkg.name}"
                 raise AssertionError(msg)
 
