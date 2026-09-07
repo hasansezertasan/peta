@@ -28,7 +28,6 @@ from peta.core.providers import (
 from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
-    from peta.core.cache import Freshness
     from peta.core.models import ProviderWarning
     from peta.core.output import SourceState
     from peta.core.providers import Capability
@@ -396,15 +395,19 @@ class TestFreshnessValidation:
     def test_an_undocumented_origin_is_rejected(self) -> None:
         # An injected provider can put any string here despite the annotation,
         # and it would otherwise reach the envelope as an undocumented value.
+        # Built with ``replace`` rather than a cast: it re-runs __post_init__,
+        # so the check is exercised without asking the type checkers to
+        # pretend an invalid literal is valid.
+        valid = ProviderResult(
+            provider="pypistats",
+            capability="download_count",
+            state="success",
+            subject="requests",
+            freshness="live",
+            evidence=CountEvidence(1),
+        )
         with pytest.raises(ValueError, match="not a documented origin"):
-            _ = ProviderResult(
-                provider="pypistats",
-                capability="download_count",
-                state="success",
-                subject="requests",
-                freshness=cast("Freshness", "probably-fine"),
-                evidence=CountEvidence(1),
-            )
+            _ = replace(valid, freshness="probably-fine")
 
     def test_no_stated_origin_is_allowed(self) -> None:
         # A source with no retrieval to speak of, such as one that was never

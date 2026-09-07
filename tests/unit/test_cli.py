@@ -730,8 +730,14 @@ class TestCacheAndOffline:
         envelope = json.loads(result.output)
         assert envelope["status"] == "failed"
         assert envelope["errors"][0]["code"] == "offline_unavailable"
-        # Actionable means naming what could not be answered.
-        assert "pypi.org" in envelope["errors"][0]["message"]
+        # Actionable means naming exactly what could not be answered. Asserted
+        # whole rather than by substring: a hostname substring check is the
+        # shape of a bypassable URL guard, and the exact message is what the
+        # contract promises anyway.
+        assert envelope["errors"][0]["message"] == (
+            "offline and no cached response for "
+            "https://pypi.org/pypi/requests/2.31.0/json"
+        )
         assert fake_http.requests == []
 
     def test_refresh_refetches_a_cached_answer(
@@ -748,6 +754,8 @@ class TestCacheAndOffline:
     def test_offline_and_refresh_are_rejected_together(self, tmp_path: Path) -> None:
         # Contradictory: one says refetch everything, the other says make no
         # requests. Either reading could be meant, so neither is guessed.
+        # Asserted through the JSON envelope rather than the rendered text,
+        # which Rich decorates with escape codes that split the option names.
         result = runner.invoke(
             app,
             [
@@ -757,11 +765,15 @@ class TestCacheAndOffline:
                 str(tmp_path),
                 "info",
                 "requests",
+                "--json",
             ],
         )
 
         assert result.exit_code == 2
-        assert "--offline cannot be combined with --refresh" in result.output
+        envelope = json.loads(result.output)
+        assert envelope["status"] == "failed"
+        assert envelope["errors"][0]["code"] == "invalid_arguments"
+        assert "cannot be combined" in envelope["errors"][0]["message"]
 
     def test_optional_enrichment_survives_being_offline(
         self, fake_http: FakeTransport, tmp_path: Path
