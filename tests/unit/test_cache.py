@@ -128,10 +128,26 @@ class TestRoundTrip:
         assert cache.load(cache.key_for("GET", _URL)) is None
 
     def test_nothing_is_read_or_written_while_disabled(self, tmp_path: Path) -> None:
+        # Both halves matter. Asserting only that load() returns None passes
+        # even when the file was written, which is exactly how a write-side
+        # leak stayed hidden here.
         cache.configure(directory=tmp_path, enabled=False)
         key = cache.key_for("GET", _URL)
+
         cache.store(key, url=_URL, status=200, body="{}", headers={})
+
         assert cache.load(key) is None
+        assert list(tmp_path.glob("*.json")) == []
+
+    def test_revalidating_writes_nothing_while_disabled(self, tmp_path: Path) -> None:
+        # touch() shares the same funnel as store(), so it must be covered by
+        # the same guard.
+        cache.configure(directory=tmp_path, enabled=False)
+        entry = cache.CachedResponse(200, "{}", {"etag": "e"}, stored_at=0.0)
+
+        cache.touch("k", entry, url=_URL)
+
+        assert list(tmp_path.glob("*.json")) == []
 
     def test_only_allowlisted_headers_are_kept(self, cache_dir: Path) -> None:
         # Whatever a source chooses to send must not be persisted wholesale:

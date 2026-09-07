@@ -463,12 +463,20 @@ def _prune(directory: Path, at: float) -> None:
 
 
 def _write(key: str, payload: dict[str, object]) -> None:
-    """Store one entry, ignoring an unwritable cache.
+    """Store one entry, unless the cache is off or cannot be written.
+
+    The ``enabled`` check belongs here rather than only in :func:`load`: the
+    setting says whether the cache is used *at all*, so honouring it on the
+    read side alone would still leave files on disk for a caller that asked
+    for none. This is the single funnel for both :func:`store` and
+    :func:`touch`, so one guard covers every write.
 
     A read-only home directory, a full disk, or a missing permission is not a
     reason to fail a command that already has its answer; the next run simply
     fetches again.
     """
+    if not settings().enabled:
+        return
     directory = settings().directory
     try:
         _atomic_write(directory, key, payload)
