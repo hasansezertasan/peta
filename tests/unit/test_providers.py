@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from peta.core.models import PackageInfo, ProviderWarning, Vulnerability
+from peta.core.models import PackageInfo, Vulnerability
 from peta.core.providers import (
     CAPABILITY_FIELDS,
     CAPABILITY_GROUPS,
@@ -28,6 +28,7 @@ from peta.core.providers import (
 from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
+    from peta.core.models import ProviderWarning
     from peta.core.output import SourceState
     from peta.core.providers import Capability
 
