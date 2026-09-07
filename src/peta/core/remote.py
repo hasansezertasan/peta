@@ -8,7 +8,6 @@ import httpx
 
 from peta.core import cache, http
 from peta.core.models import PackageInfo, Vulnerability
-from peta.core.output import utc_now
 from peta.core.validation import (
     ResponseValidationError,
     expect_list,
@@ -20,7 +19,7 @@ from peta.core.validation import (
 )
 
 if TYPE_CHECKING:
-    from peta.core.cache import Freshness
+    from peta.core.cache import Provenance
 
 __all__ = [
     "NetworkError",
@@ -122,8 +121,12 @@ def _ttl(version: str | None) -> int:
     return cache.IMMUTABLE if version else cache.LATEST
 
 
-def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Freshness]:
+def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:
     """Fetch the raw PyPI JSON payload for a package.
+
+    The response is offered to the cache only once it has decoded and
+    validated, so a ``200`` carrying an error page or truncated JSON is not
+    stored and replayed for the next month.
 
     Returns:
         The decoded JSON body, and where it came from.
@@ -148,7 +151,9 @@ def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Freshness]:
         msg = f"PyPI returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    return _decode_response(response), fetched.freshness
+    payload = _decode_response(response)
+    http.keep(fetched)
+    return payload, fetched.provenance
 
 
 def _decode_response(response: httpx.Response) -> PyPIResponse:
@@ -245,7 +250,7 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         A :class:`PackageInfo` with ``source="remote"``. Not-found and network
         failures propagate from :func:`_fetch`.
     """
-    data, freshness = _fetch(name, version)
+    data, provenance = _fetch(name, version)
     info: PyPIInfo = data["info"]
     license_value, license_source = _parse_license(info)
     return PackageInfo(
@@ -266,6 +271,6 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         files=None,
         vulnerabilities=_parse_vulnerabilities(data.get("vulnerabilities", [])),
         source="remote",
-        retrieved_at=utc_now(),
-        freshness=freshness,
+        retrieved_at=provenance.retrieved_at,
+        freshness=provenance.freshness,
     )

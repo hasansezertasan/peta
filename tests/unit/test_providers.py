@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from peta.core.cache import Provenance
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.providers import (
     CAPABILITY_FIELDS,
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
     from peta.core.providers import Capability
 
 pytestmark = pytest.mark.unit
+
+_LIVE = Provenance("live", "2026-01-01T00:00:00Z")
 
 
 def _bare_result() -> ProviderResult:
@@ -85,7 +88,7 @@ class TestOsvProvider:
 class TestPypiStatsProvider:
     @patch(
         "peta.core.providers.builtin.stats.get_download_count",
-        return_value=(1234, "live"),
+        return_value=(1234, _LIVE),
     )
     def test_success_carries_count_evidence(self, m: MagicMock) -> None:
         result = PypiStatsProvider().fetch(_pkg())
@@ -96,7 +99,7 @@ class TestPypiStatsProvider:
 
     @patch(
         "peta.core.providers.builtin.stats.get_download_count",
-        return_value=(None, "live"),
+        return_value=(None, _LIVE),
     )
     def test_missing_count_is_empty(self, m: MagicMock) -> None:
         result = PypiStatsProvider().fetch(_pkg())
@@ -128,7 +131,7 @@ class TestLibrariesIoProvider:
 
     @patch(
         "peta.core.providers.builtin.stats.get_dependent_count",
-        return_value=(42, "live"),
+        return_value=(42, _LIVE),
     )
     @patch(
         "peta.core.providers.builtin.stats.libraries_io_api_key", return_value="secret"

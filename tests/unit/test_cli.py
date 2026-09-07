@@ -9,6 +9,7 @@ import pytest
 from typer.testing import CliRunner
 
 from peta.cli.app import _SUBCOMMANDS, app, run
+from peta.core.cache import Provenance
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.remote import PackageNotFoundError as RemoteNotFound
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
     from tests.transport import FakeTransport
 
 pytestmark = pytest.mark.unit
+
+_LIVE = Provenance("live", "2026-01-01T00:00:00Z")
 runner = CliRunner()
 
 
@@ -185,8 +188,8 @@ class TestInfo:
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
     ) -> None:
         ml.return_value = _pkg()
-        mdl.return_value = (1234567, "live")
-        mdep.return_value = (42, "live")
+        mdl.return_value = (1234567, _LIVE)
+        mdep.return_value = (42, _LIVE)
         mkey.return_value = "secret"
         r = runner.invoke(app, ["info", "requests"])
         assert r.exit_code == 0
@@ -216,8 +219,8 @@ class TestInfo:
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
     ) -> None:
         ml.return_value = _pkg()
-        mdl.return_value = (100, "live")
-        mdep.return_value = (5, "live")
+        mdl.return_value = (100, _LIVE)
+        mdep.return_value = (5, _LIVE)
         mkey.return_value = "secret"
         r = runner.invoke(app, ["info", "requests", "--json"])
         data = json.loads(r.output)
@@ -535,12 +538,12 @@ class TestFiles:
 class TestVersions:
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions(self, m: MagicMock) -> None:
-        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], "live")
+        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], _LIVE)
         assert "2.31.0" in runner.invoke(app, ["versions", "requests"]).output
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_json(self, m: MagicMock) -> None:
-        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], "live")
+        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], _LIVE)
         assert isinstance(
             json.loads(runner.invoke(app, ["versions", "requests", "--json"]).output)[
                 "result"
@@ -550,20 +553,20 @@ class TestVersions:
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_markdown(self, m: MagicMock) -> None:
-        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], "live")
+        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], _LIVE)
         result = runner.invoke(app, ["versions", "requests", "--format", "markdown"])
         assert result.output.startswith("# Versions for requests")
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_not_found(self, m: MagicMock) -> None:
-        m.return_value = ([], "live")
+        m.return_value = ([], _LIVE)
         assert runner.invoke(app, ["versions", "nope"]).exit_code == 1
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_limit(self, m: MagicMock) -> None:
         m.return_value = (
             [{"version": f"1.{i}.0", "upload_time": ""} for i in range(4, -1, -1)],
-            "live",
+            _LIVE,
         )
         out = runner.invoke(app, ["versions", "x", "-n", "2"]).output
         assert "1.4.0" in out

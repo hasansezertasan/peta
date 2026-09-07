@@ -34,9 +34,11 @@ __all__ = [
     "FRESHNESS_VALUES",
     "IMMUTABLE",
     "LATEST",
+    "MAX_AGE",
     "CacheSettings",
     "CachedResponse",
     "Freshness",
+    "Provenance",
     "configure",
     "default_directory",
     "key_for",
@@ -80,6 +82,15 @@ DAILY = 6 * 60 * 60
 
 Shorter than a day so a query late in the cycle does not serve a count from
 two refreshes ago.
+"""
+
+MAX_AGE = IMMUTABLE
+"""How long any entry may sit on disk, however long its TTL.
+
+A TTL decides whether an entry may still be *served*; without a separate
+bound nothing would ever delete one, so querying many packages — a dependency
+tree especially — would leave every file behind for good. Set to the longest
+TTL, so pruning never discards an entry that could still have been used.
 """
 
 _CREDENTIAL_PARAMS = frozenset({
@@ -261,6 +272,21 @@ def key_for(method: str, url: str) -> str:
 
 
 @dataclass(frozen=True)
+class Provenance:
+    """Where a source's answer came from, and when it was retrieved.
+
+    Carried separately from the answer so a caller can report accurate
+    provenance without knowing whether the cache was involved. ``retrieved_at``
+    is the moment the *source* answered, not the moment it was replayed: a
+    response stored days ago and served from disk must not claim it was
+    retrieved just now, or the provenance is worse than useless.
+    """
+
+    freshness: Freshness
+    retrieved_at: str
+
+
+@dataclass(frozen=True)
 class CachedResponse:
     """A stored response and the moment it was stored."""
 
@@ -416,6 +442,26 @@ def _atomic_write(directory: Path, key: str, payload: dict[str, object]) -> None
         raise
 
 
+def _prune(directory: Path, at: float) -> None:
+    """Delete entries older than :data:`MAX_AGE`, ignoring any that resist.
+
+    Judged by file modification time rather than the stored timestamp, so
+    pruning costs one directory scan instead of reading and parsing every
+    entry — which would make writes more expensive the more the cache holds,
+    the opposite of what a cache is for.
+    """
+    try:
+        entries = list(directory.iterdir())
+    except OSError:
+        return
+    for entry in entries:
+        try:
+            if entry.suffix == ".json" and at - entry.stat().st_mtime > MAX_AGE:
+                entry.unlink(missing_ok=True)
+        except OSError:
+            continue
+
+
 def _write(key: str, payload: dict[str, object]) -> None:
     """Store one entry, ignoring an unwritable cache.
 
@@ -423,10 +469,12 @@ def _write(key: str, payload: dict[str, object]) -> None:
     reason to fail a command that already has its answer; the next run simply
     fetches again.
     """
+    directory = settings().directory
     try:
-        _atomic_write(settings().directory, key, payload)
+        _atomic_write(directory, key, payload)
     except OSError:
         return
+    _prune(directory, now())
 
 
 def store(

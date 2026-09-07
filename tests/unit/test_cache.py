@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, get_args
 
@@ -290,10 +291,11 @@ class TestEndToEndThroughHttp:
         fake_http.reply(json={"info": {}})
 
         first = http.get(_URL, ttl=60)
+        http.keep(first)
         second = http.get(_URL, ttl=60)
 
-        assert first.freshness == "live"
-        assert second.freshness == "cached"
+        assert first.provenance.freshness == "live"
+        assert second.provenance.freshness == "cached"
         # The point of the exercise: the source was asked exactly once.
         assert len(fake_http.requests) == 1
         assert second.response.json() == {"info": {}}
@@ -333,3 +335,51 @@ class TestWriteFailures:
         monkeypatch.setenv("XDG_CACHE_HOME", str(tmp_path))
 
         assert cache.default_directory() == tmp_path / "peta"
+
+
+class TestPruning:
+    def test_an_entry_past_the_max_age_is_deleted_on_the_next_write(
+        self, cache_dir: Path
+    ) -> None:
+        # A TTL decides whether an entry may be served, not whether it is
+        # kept. Without pruning, walking a dependency tree would leave every
+        # file on disk for good, so the advertised lifetimes would bound
+        # nothing at all.
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        ancient = cache_dir / "ancient.json"
+        ancient.write_text("{}")
+        old = cache.now() - cache.MAX_AGE - 60
+        os.utime(ancient, (old, old))
+
+        cache.store("fresh", url=_URL, status=200, body="{}", headers={})
+
+        assert not ancient.exists()
+        assert (cache_dir / "fresh.json").exists()
+
+    def test_an_entry_within_the_max_age_survives(self, cache_dir: Path) -> None:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        recent = cache_dir / "recent.json"
+        recent.write_text("{}")
+        just_inside = cache.now() - cache.MAX_AGE + 3600
+        os.utime(recent, (just_inside, just_inside))
+
+        cache.store("fresh", url=_URL, status=200, body="{}", headers={})
+
+        assert recent.exists()
+
+    def test_pruning_ignores_files_it_does_not_own(self, cache_dir: Path) -> None:
+        # Only peta's own entries are removed; anything else in the directory
+        # is left alone rather than deleted on a user's behalf.
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        stranger = cache_dir / "notes.txt"
+        stranger.write_text("do not delete me")
+        old = cache.now() - cache.MAX_AGE - 60
+        os.utime(stranger, (old, old))
+
+        cache.store("fresh", url=_URL, status=200, body="{}", headers={})
+
+        assert stranger.exists()
+
+    def test_the_longest_ttl_is_never_pruned_early(self) -> None:
+        # Pruning must not discard an entry that could still have been served.
+        assert cache.MAX_AGE >= cache.IMMUTABLE

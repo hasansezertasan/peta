@@ -12,7 +12,6 @@ from packaging.version import InvalidVersion, Version
 from peta.cli.output.render import render_versions
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import cache, http
-from peta.core.output import utc_now
 from peta.core.remote import PYPI_BASE_URL, NetworkError
 from peta.core.validation import (
     ResponseValidationError,
@@ -22,7 +21,7 @@ from peta.core.validation import (
 )
 
 if TYPE_CHECKING:
-    from peta.core.cache import Freshness
+    from peta.core.cache import Provenance
     from peta.core.remote import PyPIReleaseFile
 
 __all__ = ["get_versions", "versions"]
@@ -103,7 +102,7 @@ def _decode_body(response: httpx.Response) -> object:
         raise NetworkError(msg) from exc
 
 
-def get_versions(name: str) -> tuple[list[dict[str, str]], Freshness]:
+def get_versions(name: str) -> tuple[list[dict[str, str]], Provenance]:
     """Fetch all published versions for a package from PyPI.
 
     The listing grows with every release, so it is cached only briefly.
@@ -126,7 +125,7 @@ def get_versions(name: str) -> tuple[list[dict[str, str]], Freshness]:
     response = fetched.response
 
     if response.status_code == 404:  # ruff: ignore[magic-value-comparison]
-        return [], fetched.freshness
+        return [], fetched.provenance
 
     try:
         _ = response.raise_for_status()
@@ -143,7 +142,8 @@ def get_versions(name: str) -> tuple[list[dict[str, str]], Freshness]:
         raw_time: object = files[0].get("upload_time", "") if files else ""
         upload_time = raw_time[:10] if isinstance(raw_time, str) else ""
         result.append({"version": ver, "upload_time": upload_time})
-    return result, fetched.freshness
+    http.keep(fetched)
+    return result, fetched.provenance
 
 
 # Patch target used by tests.
@@ -162,8 +162,7 @@ def versions(
     arguments: dict[str, object] = {"package": package, "limit": limit}
     selected = resolve_or_fail("versions", arguments, output_format, use_json=use_json)
     try:
-        vers, freshness = remote_get_versions(package)
-        retrieved_at = utc_now()
+        vers, provenance = remote_get_versions(package)
     except http.OfflineError as exc:
         fail(
             "versions",
@@ -201,7 +200,7 @@ def versions(
         shown,
         arguments=arguments,
         color=color,
-        retrieved_at=retrieved_at,
-        freshness=freshness,
+        retrieved_at=provenance.retrieved_at,
+        freshness=provenance.freshness,
     )
     typer.echo(rendered)

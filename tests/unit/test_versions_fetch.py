@@ -34,10 +34,9 @@ def test_success_sorted_newest_first(fake_http: FakeTransport) -> None:
 def test_accepts_recorded_contract_and_unknown_fields(fake_http: FakeTransport) -> None:
     fake_http.reply(json=load_contract("pypi-package.json"))
 
-    assert get_versions("example-package") == (
-        [{"version": "1.2.3", "upload_time": "2026-01-02"}],
-        "live",
-    )
+    versions, provenance = get_versions("example-package")
+    assert versions == [{"version": "1.2.3", "upload_time": "2026-01-02"}]
+    assert provenance.freshness == "live"
 
 
 def test_tolerates_non_pep440_release_keys(fake_http: FakeTransport) -> None:
@@ -56,7 +55,9 @@ def test_tolerates_non_pep440_release_keys(fake_http: FakeTransport) -> None:
 
 def test_not_found_returns_empty(fake_http: FakeTransport) -> None:
     fake_http.reply(status=404)
-    assert get_versions("nope-xyz") == ([], "live")
+    versions, provenance = get_versions("nope-xyz")
+    assert versions == []
+    assert provenance.freshness == "live"
 
 
 def test_request_error_raises_network_error(fake_http: FakeTransport) -> None:

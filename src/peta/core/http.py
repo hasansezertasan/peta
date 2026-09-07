@@ -31,9 +31,11 @@ import httpx
 from peta.__metadata__ import PROJECT_NAME
 from peta._version import __version__
 from peta.core import cache
+from peta.core.cache import Provenance
+from peta.core.output import utc_from, utc_now
 
 if TYPE_CHECKING:
-    from peta.core.cache import CachedResponse, Freshness
+    from peta.core.cache import CachedResponse
 
 __all__ = [
     "DEFAULT_TIMEOUT",
@@ -42,6 +44,7 @@ __all__ = [
     "OfflineError",
     "client",
     "get",
+    "keep",
     "post",
 ]
 
@@ -104,10 +107,16 @@ def client() -> httpx.Client:
 
 @dataclass(frozen=True)
 class Fetched:
-    """A response, and where it came from."""
+    """A response, where it came from, and whether it may still be cached."""
 
     response: httpx.Response
-    freshness: Freshness
+    provenance: Provenance
+    cache_key: str | None = None
+    """Set only for a live response the caller may still choose to keep.
+
+    ``None`` for anything already stored, or for a response that must never
+    be stored, so :func:`keep` is safe to call unconditionally.
+    """
 
 
 class OfflineError(Exception):
@@ -125,19 +134,42 @@ class OfflineError(Exception):
         super().__init__(f"offline and no cached response for {url}")
 
 
-def _replay(entry: CachedResponse, request: httpx.Request) -> httpx.Response:
+def _bind(url: str) -> httpx.Request:
+    """Make a request object to bind a replayed response to.
+
+    Deliberately not built through the client: a cache hit must not pay for
+    constructing one, which loads the system CA bundle, and an offline
+    lookup must not fail because TLS configuration is broken in an
+    environment that never intends to make a request.
+
+    Returns:
+        A bare request carrying only the method and URL.
+    """
+    return httpx.Request("GET", url)
+
+
+def _replay(entry: CachedResponse, url: str) -> httpx.Response:
     """Rebuild a real response from a stored entry.
 
-    Returned as an ``httpx.Response`` bound to ``request`` so a cached answer
-    supports everything a live one does, ``raise_for_status`` included, and no
-    source needs to know whether it was served from disk.
+    Returned as an ``httpx.Response`` so a cached answer supports everything
+    a live one does, ``raise_for_status`` included, and no source needs to
+    know whether it was served from disk.
 
     Returns:
         The reconstructed response.
     """
     return httpx.Response(
-        entry.status, text=entry.body, headers=entry.headers, request=request
+        entry.status, text=entry.body, headers=entry.headers, request=_bind(url)
     )
+
+
+def _served(entry: CachedResponse, url: str) -> Fetched:
+    """Present a stored entry as a fetch result, dated when it was stored.
+
+    Returns:
+        The replayed response, reporting the source's own retrieval time.
+    """
+    return Fetched(_replay(entry, url), Provenance("cached", utc_from(entry.stored_at)))
 
 
 def _send(request: httpx.Request) -> httpx.Response:
@@ -154,13 +186,13 @@ def _send(request: httpx.Request) -> httpx.Response:
     return client().send(request)
 
 
-def _serve_offline(request: httpx.Request, entry: CachedResponse | None) -> Fetched:
+def _serve_offline(url: str, entry: CachedResponse | None) -> Fetched:
     """Answer from the cache while offline, even if the entry is stale.
 
     Past its TTL is not the same as wrong, and a user who asked for offline
     has already said they prefer an old answer to no answer. The staleness is
-    not hidden: the reported freshness is ``cached``, so output says where the
-    data came from.
+    not hidden: the result is reported as ``cached`` and dated when it was
+    stored, so output says both where the data came from and how old it is.
 
     Returns:
         The stored response.
@@ -169,49 +201,70 @@ def _serve_offline(request: httpx.Request, entry: CachedResponse | None) -> Fetc
         OfflineError: If nothing is stored for this request.
     """
     if entry is None:
-        raise OfflineError(str(request.url))
-    return Fetched(_replay(entry, request), "cached")
+        raise OfflineError(url)
+    return _served(entry, url)
 
 
-def _revalidate(
-    request: httpx.Request, key: str, entry: CachedResponse | None
-) -> Fetched:
+def _revalidate(url: str, key: str, entry: CachedResponse | None) -> Fetched:
     """Ask the source, offering any stored validator to save it resending.
 
     Returns:
         The live response, or the stored one if the source confirmed it.
     """
+    request = client().build_request("GET", url)
     if entry is not None:
         request.headers.update(entry.validators)
     response = _send(request)
-    url = str(request.url)
     if response.status_code == _NOT_MODIFIED and entry is not None:
         cache.touch(key, entry, url=url)
-        return Fetched(_replay(entry, request), "revalidated")
-    if response.status_code == _OK:
-        cache.store(
-            key,
-            url=url,
-            status=response.status_code,
-            body=response.text,
-            headers=dict(response.headers),
-        )
-    return Fetched(response, "live")
+        # The source confirmed the body just now, so this is a current
+        # retrieval of it, not a replay of an old one.
+        return Fetched(_replay(entry, url), Provenance("revalidated", utc_now()))
+    return Fetched(response, Provenance("live", utc_now()), cache_key=key)
 
 
-def _cached_get(request: httpx.Request, ttl: int) -> Fetched:
+def _cached_get(url: str, ttl: int) -> Fetched:
     """Serve a GET from the cache when possible, otherwise from the source.
 
     Returns:
         The response and where it came from.
     """
-    key = cache.key_for("GET", str(request.url))
+    key = cache.key_for("GET", url)
     entry = None if cache.settings().refresh else cache.load(key)
     if entry is not None and entry.is_fresh(ttl, cache.now()):
-        return Fetched(_replay(entry, request), "cached")
+        return _served(entry, url)
     if cache.settings().offline:
-        return _serve_offline(request, entry)
-    return _revalidate(request, key, entry)
+        return _serve_offline(url, entry)
+    return _revalidate(url, key, entry)
+
+
+def keep(fetched: Fetched) -> None:
+    """Store a live response the caller has confirmed it could actually use.
+
+    Storing on arrival would cache a body the source-specific decoder then
+    rejects — a ``200`` carrying an error page, or truncated JSON — and every
+    later request would replay that same unusable response until the TTL
+    expired, up to a month for pinned metadata. A transient upstream fault
+    would become a persistent one.
+
+    So nothing is written until the caller has decoded and validated the
+    body and says so by calling this. Failing to call it means the response
+    is simply not cached, which costs a refetch; the opposite default would
+    poison the cache.
+
+    Args:
+        fetched: The result to store. Ignored unless it is a live ``200``
+            still carrying a cache key, so callers need not check.
+    """
+    if fetched.cache_key is None or fetched.response.status_code != _OK:
+        return
+    cache.store(
+        fetched.cache_key,
+        url=str(fetched.response.request.url),
+        status=fetched.response.status_code,
+        body=fetched.response.text,
+        headers=dict(fetched.response.headers),
+    )
 
 
 def get(
@@ -219,8 +272,12 @@ def get(
 ) -> Fetched:
     """Send a GET request, using the cache when the caller allows it.
 
-    A transport-level ``httpx.RequestError`` propagates untouched: each
-    source maps it onto its own error type.
+    A transport-level ``httpx.RequestError`` propagates untouched, and an
+    :class:`OfflineError` propagates when offline mode is on and the cache
+    cannot answer; each source maps them onto its own error type.
+
+    A live result is not cached until the caller confirms the body was usable
+    by passing it to :func:`keep`.
 
     Args:
         url: The absolute URL to request.
@@ -229,16 +286,20 @@ def get(
             bypasses the cache entirely, for a URL whose answer should never
             be reused.
 
-    An :class:`OfflineError` propagates from the send path when offline mode
-    is on and the cache cannot answer.
-
     Returns:
         The response and where it came from.
     """
-    request = client().build_request("GET", url, params=params)
+    # Merged here rather than by the client, so a cache hit never constructs
+    # one; the result is byte-identical to what ``build_request`` produces.
+    # ``params=None`` is not passed through: httpx reads that as "replace the
+    # query with nothing" and silently drops any query already in the URL,
+    # where ``build_request`` leaves it alone.
+    full = str(httpx.URL(url) if params is None else httpx.URL(url, params=params))
     if ttl is None:
-        return Fetched(_send(request), "live")
-    return _cached_get(request, ttl)
+        return Fetched(
+            _send(client().build_request("GET", full)), Provenance("live", utc_now())
+        )
+    return _cached_get(full, ttl)
 
 
 def post(url: str, *, json: dict[str, object]) -> Fetched:
@@ -248,18 +309,15 @@ def post(url: str, *, json: dict[str, object]) -> Fetched:
     source is an advisory query whose request shape is about to change with
     batching. Offline mode still refuses it rather than pretending.
 
-    A transport-level ``httpx.RequestError`` propagates untouched: each
-    source maps it onto its own error type.
+    A transport-level ``httpx.RequestError`` propagates untouched, and an
+    :class:`OfflineError` propagates when offline mode is on.
 
     Args:
         url: The absolute URL to request.
         json: The request body, serialized as JSON.
 
-    An :class:`OfflineError` propagates from the send path when offline mode
-    is on.
-
     Returns:
         The response and where it came from, always ``live``.
     """
     request = client().build_request("POST", url, json=json)
-    return Fetched(_send(request), "live")
+    return Fetched(_send(request), Provenance("live", utc_now()))

@@ -28,6 +28,7 @@ __all__ = [
     "SourceState",
     "TargetEnvironment",
     "make_envelope",
+    "utc_from",
     "utc_now",
 ]
 
@@ -180,13 +181,32 @@ def _without_none(data: Mapping[str, object]) -> dict[str, object]:
     return {key: value for key, value in data.items() if value is not None}
 
 
+def _rfc3339(moment: datetime) -> str:
+    return moment.replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def utc_now() -> str:
     """Return the current UTC time in RFC 3339 form.
 
     Returns:
         A second-precision UTC timestamp ending in ``Z``.
     """
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return _rfc3339(datetime.now(UTC))
+
+
+def utc_from(timestamp: float) -> str:
+    """Format a Unix timestamp in the same RFC 3339 form as :func:`utc_now`.
+
+    Lets a response served from cache report when it was actually retrieved
+    rather than when it was replayed.
+
+    Args:
+        timestamp: Seconds since the epoch.
+
+    Returns:
+        A second-precision UTC timestamp ending in ``Z``.
+    """
+    return _rfc3339(datetime.fromtimestamp(timestamp, UTC))
 
 
 def make_envelope(

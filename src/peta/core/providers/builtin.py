@@ -86,7 +86,7 @@ class PypiStatsProvider:
             The download count, an empty answer, or the lookup failure.
         """
         try:
-            count, freshness = stats.get_download_count(pkg.name)
+            count, provenance = stats.get_download_count(pkg.name)
         except EnrichmentError as exc:
             return _failure(self.name, self.capability, pkg.name, exc)
         return ProviderResult(
@@ -94,8 +94,8 @@ class PypiStatsProvider:
             capability=self.capability,
             state="empty" if count is None else "success",
             subject=pkg.name,
-            retrieved_at=utc_now(),
-            freshness=freshness,
+            retrieved_at=provenance.retrieved_at,
+            freshness=provenance.freshness,
             evidence=None if count is None else CountEvidence(count),
         )
 
@@ -127,7 +127,7 @@ class LibrariesIoProvider:
                 reason="LIBRARIES_IO_API_KEY is not configured",
             )
         try:
-            count, freshness = stats.get_dependent_count(pkg.name, api_key=api_key)
+            count, provenance = stats.get_dependent_count(pkg.name, api_key=api_key)
         except EnrichmentError as exc:
             return _failure(self.name, self.capability, pkg.name, exc)
         return ProviderResult(
@@ -135,8 +135,8 @@ class LibrariesIoProvider:
             capability=self.capability,
             state="empty" if count is None else "success",
             subject=pkg.name,
-            retrieved_at=utc_now(),
-            freshness=freshness,
+            retrieved_at=provenance.retrieved_at,
+            freshness=provenance.freshness,
             evidence=None if count is None else CountEvidence(count),
         )
 
