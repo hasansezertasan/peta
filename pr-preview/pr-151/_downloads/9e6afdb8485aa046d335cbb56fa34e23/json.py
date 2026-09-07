@@ -186,7 +186,7 @@ def _source_records(
                 name=failure.source,
                 state="failed",
                 target=pkg.name,
-                retrieved_at=None,
+                retrieved_at=timestamp,
                 reason=failure.reason,
                 fields=_failure_fields(failure, result_path),
             )
