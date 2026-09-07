@@ -141,6 +141,21 @@ def _validate_state(state: SourceState, evidence: Evidence | None) -> None:
         raise ValueError(msg)
 
 
+def _validate_reason(state: SourceState, reason: str | None) -> None:
+    """Require a failure to explain itself.
+
+    A provider failure is deliberately non-fatal, so the warning built from
+    this reason is the only account the user gets of the missing data. An
+    empty one would report that something went wrong and nothing else.
+
+    Raises:
+        ValueError: If a failed result carries no diagnostic.
+    """
+    if state == "failed" and not (reason or "").strip():
+        msg = "state 'failed' must carry a reason"
+        raise ValueError(msg)
+
+
 def _validate_capability(capability: Capability, evidence: Evidence | None) -> None:
     """Require the evidence variant to match the capability it answers.
 
@@ -183,10 +198,11 @@ class ProviderResult:
         write one thing while claiming another in provenance, so they are
         rejected where they are constructed rather than merged silently.
 
-        The checks live in :func:`_validate_state` and
-        :func:`_validate_capability`, which raise on a contradiction.
+        The checks live in :func:`_validate_state`, :func:`_validate_reason`,
+        and :func:`_validate_capability`, which raise on a contradiction.
         """
         _validate_state(self.state, self.evidence)
+        _validate_reason(self.state, self.reason)
         _validate_capability(self.capability, self.evidence)
 
     @property

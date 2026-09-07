@@ -8,7 +8,7 @@ the same field disagree loudly rather than silently overwriting each other.
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from peta.core.models import EnrichmentFailure, ProviderConflict
 from peta.core.output import SourceRecord, utc_now
@@ -28,6 +28,16 @@ if TYPE_CHECKING:
     from peta.core.providers import Capability, EnrichmentProvider, ProviderGroup
 
 __all__ = ["enrich"]
+
+_UNKNOWN_PROVIDER = "unidentified provider"
+"""Stand-in name for a provider whose own identity could not be read."""
+
+_UNKNOWN_CAPABILITY = cast("Capability", cast("object", "unknown"))
+"""Stand-in capability, deliberately absent from every capability map.
+
+Not one of the declared literals, so a result carrying it has no attributable
+field. Cast through ``object`` because that mismatch is the whole point.
+"""
 
 _UNATTRIBUTED = "an earlier pass"
 """Named owner for a count already present without a source record."""
@@ -63,26 +73,27 @@ def _consult(
 ) -> ProviderResult:
     """Resolve one provider's outcome, containing every way it can misbehave.
 
-    The whole step is contained, not just ``fetch``: reading the declared
-    capability and resolving its opt-out group can both fail on a provider
-    whose declaration does not match its annotation.
+    Everything the provider controls is read inside the guarded path: its own
+    identity and capability (either can be a property that raises), the group
+    lookup for that capability, and the fetch itself. The recovery path uses
+    only locals, so it can never re-trip the fault it is reporting.
 
     Returns:
         The provider's result, or a failed result describing what went wrong.
     """
+    name = _UNKNOWN_PROVIDER
+    capability = _UNKNOWN_CAPABILITY
     try:
-        group = CAPABILITY_GROUPS[provider.capability]
-        if group in disabled:
+        name = provider.name
+        capability = provider.capability
+        if CAPABILITY_GROUPS[capability] in disabled:
             return ProviderResult(
-                provider=provider.name,
-                capability=provider.capability,
-                state="skipped",
-                subject=pkg.name,
+                provider=name, capability=capability, state="skipped", subject=pkg.name
             )
-        return _accepted(provider, pkg, provider.fetch(pkg))
+        return _accepted(name, capability, pkg, provider.fetch(pkg))
     # A misbehaving provider is contained here, never propagated to the caller.
     except Exception as exc:  # ruff: ignore[blind-except]
-        return _rejected(provider, pkg, _misbehaviour(exc))
+        return _rejected(name, capability, pkg, _misbehaviour(exc))
 
 
 def _misbehaviour(exc: Exception) -> str:
@@ -97,7 +108,7 @@ def _misbehaviour(exc: Exception) -> str:
 
 
 def _rejected(
-    provider: EnrichmentProvider, pkg: PackageInfo, reason: str
+    name: str, capability: Capability, pkg: PackageInfo, reason: str
 ) -> ProviderResult:
     """Describe a provider that misbehaved, in that provider's own terms.
 
@@ -105,8 +116,8 @@ def _rejected(
         A failed result attributed to the consulted provider.
     """
     return ProviderResult(
-        provider=provider.name,
-        capability=provider.capability,
+        provider=name,
+        capability=capability,
         state="failed",
         subject=pkg.name,
         retrieved_at=utc_now(),
@@ -114,7 +125,7 @@ def _rejected(
     )
 
 
-def _mismatch(provider: EnrichmentProvider, result: ProviderResult) -> str | None:
+def _mismatch(name: str, capability: Capability, result: ProviderResult) -> str | None:
     """Report how a result disagrees with the provider that returned it.
 
     ``ProviderResult`` validates that its own parts agree, but nothing ties a
@@ -128,18 +139,18 @@ def _mismatch(provider: EnrichmentProvider, result: ProviderResult) -> str | Non
     Returns:
         A description of the disagreement, or ``None`` when they agree.
     """
-    if result.provider != provider.name:
+    if result.provider != name:
         return f"provider returned a result attributed to {result.provider!r}"
-    if result.capability != provider.capability:
+    if result.capability != capability:
         return (
-            f"provider declares capability {provider.capability!r} but returned "
+            f"provider declares capability {capability!r} but returned "
             f"{result.capability!r}"
         )
     return None
 
 
 def _accepted(
-    provider: EnrichmentProvider, pkg: PackageInfo, result: ProviderResult
+    name: str, capability: Capability, pkg: PackageInfo, result: ProviderResult
 ) -> ProviderResult:
     """Accept a result once it agrees with the provider that returned it.
 
@@ -147,9 +158,9 @@ def _accepted(
         The result, stamped if it completed without a retrieval time, or a
         failed result when it does not belong to this provider.
     """
-    mismatch = _mismatch(provider, result)
+    mismatch = _mismatch(name, capability, result)
     if mismatch is not None:
-        return _rejected(provider, pkg, mismatch)
+        return _rejected(name, capability, pkg, mismatch)
     if result.state in _COMPLETED_STATES and result.retrieved_at is None:
         # The contract promises a retrieval time for every completed lookup, so
         # stamp it here rather than discarding otherwise-good evidence.
@@ -184,13 +195,16 @@ def _merge_count(
         The updated package, and a conflict when a later provider disagreed.
     """
     prior = claims.get(field)
-    if prior is None:
+    holder = None if prior is None else prior[0]
+    if prior is None or holder == result.provider:
+        # A new claim, or the owner refreshing its own: a count such as monthly
+        # downloads legitimately changes between lookups, and a source can
+        # never disagree with itself.
         claims[field] = (result.provider, count)
         return _with_count(pkg, result.capability, count), None
-    holder, held = prior
-    if held == count:
+    if prior[1] == count:
         return pkg, None
-    conflict = ProviderConflict(field=field, kept=holder, discarded=result.provider)
+    conflict = ProviderConflict(field=field, kept=prior[0], discarded=result.provider)
     return pkg, conflict
 
 

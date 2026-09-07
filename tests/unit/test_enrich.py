@@ -353,6 +353,50 @@ class TestEnrich:
         assert failure.field is None
         assert pkg.enrichment_sources[0].fields == []
 
+    def test_a_provider_whose_metadata_raises_is_contained(self) -> None:
+        class Hostile:
+            @property
+            def name(self) -> str:
+                """Fail on the very first thing orchestration reads.
+
+                Raises:
+                    RuntimeError: Always.
+                """
+                msg = "no name for you"
+                raise RuntimeError(msg)
+
+            @property
+            def capability(self) -> Capability:
+                """Never reached.
+
+                Raises:
+                    RuntimeError: Always.
+                """
+                msg = "no capability either"
+                raise RuntimeError(msg)
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                """Never reached.
+
+                Raises:
+                    AssertionError: Always.
+                """
+                msg = f"should not be consulted for {pkg.name}"
+                raise AssertionError(msg)
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[Hostile(), downloads]
+        )
+        # Reading the provider's own identity is inside the guard, and the
+        # recovery path must not re-trip the fault it is reporting.
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "unidentified provider"
+        assert failure.field is None
+        assert "RuntimeError: no name for you" in failure.reason
+
     def test_a_provider_returning_a_non_result_is_contained(self) -> None:
         class Malformed:
             name = "malformed"
@@ -555,3 +599,21 @@ class TestComposedPasses:
         conflict = second.enrichment_conflicts[-1]
         assert conflict.kept == "pypistats"
         assert conflict.discarded == "deps.dev"
+
+    def test_the_owning_provider_may_refresh_its_own_count(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(100, name="pypistats")],
+        )
+        second = enrich(
+            first,
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(101, name="pypistats")],
+        )
+        # A monthly download count legitimately moves, and a source cannot
+        # disagree with itself.
+        assert second.download_count == 101
+        assert second.enrichment_conflicts == []

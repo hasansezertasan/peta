@@ -18,7 +18,6 @@ from peta.core.providers import (
     CAPABILITY_FIELDS,
     CAPABILITY_GROUPS,
     DEFAULT_PROVIDERS,
-    Capability,
     CountEvidence,
     LibrariesIoProvider,
     OsvProvider,
@@ -30,6 +29,9 @@ from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
     from peta.core.output import SourceState
+
+if TYPE_CHECKING:
+    from peta.core.providers import Capability
 
 pytestmark = pytest.mark.unit
 
@@ -254,6 +256,19 @@ class TestResultVariantValidation:
                 state="empty",
                 subject="requests",
                 evidence=CountEvidence(5),
+            )
+
+    @pytest.mark.parametrize("reason", [None, "", "   "])
+    def test_failed_must_carry_a_diagnostic(self, reason: str | None) -> None:
+        # The warning built from this reason is the user's only account of the
+        # missing data, so an empty one is worse than useless.
+        with pytest.raises(ValueError, match="must carry a reason"):
+            ProviderResult(
+                provider="bad",
+                capability="download_count",
+                state="failed",
+                subject="requests",
+                reason=reason,
             )
 
     def test_empty_may_carry_empty_evidence(self) -> None:
