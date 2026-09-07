@@ -314,6 +314,23 @@ class TestResultVariantValidation:
         with pytest.raises(TypeError, match="Vulnerability instances"):
             VulnerabilityEvidence(cast("list[Vulnerability]", [item]))
 
+    def test_vulnerability_evidence_rejects_unhashable_id(self) -> None:
+        vuln = Vulnerability(
+            id=cast("str", ["not", "a", "string"]), aliases=[], summary="s", fixed_in=[]
+        )
+        with pytest.raises(TypeError, match="id and aliases must be strings"):
+            VulnerabilityEvidence([vuln])
+
+    def test_vulnerability_evidence_rejects_unhashable_alias(self) -> None:
+        vuln = Vulnerability(
+            id="GHSA-1",
+            aliases=cast("list[str]", [["nested"]]),
+            summary="s",
+            fixed_in=[],
+        )
+        with pytest.raises(TypeError, match="id and aliases must be strings"):
+            VulnerabilityEvidence([vuln])
+
     def test_vulnerability_evidence_accepts_genuine_vulnerabilities(self) -> None:
         vuln = Vulnerability(id="GHSA-1", aliases=[], summary="s", fixed_in=[])
         evidence = VulnerabilityEvidence([vuln])

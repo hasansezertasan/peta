@@ -12,7 +12,7 @@ carries no compatibility guarantees outside this package.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType, cast
 
 from peta.core.models import VULNERABILITY_FIELD, ProviderWarning, Vulnerability
 from peta.core.output import SOURCE_STATES
@@ -88,21 +88,26 @@ class VulnerabilityEvidence:
     vulnerabilities: list[Vulnerability]
 
     def __post_init__(self) -> None:
-        """Reject a payload ``_merge`` could not read ``.id``/``.aliases`` off.
+        """Reject a payload the merge could not read safely.
 
-        The list annotation is only a static promise: an injected provider can
-        satisfy it at the type-checker level while filling it with anything at
-        runtime. Left unchecked, a malformed item surfaces as an
-        ``AttributeError`` from :func:`peta.core.vulns.merge_vulnerabilities`,
-        outside the guard that contains a normal provider failure.
+        Checks both the outer type and the fields
+        :func:`peta.core.vulns._identity` hashes (``id`` and ``aliases``),
+        since a genuine ``Vulnerability`` whose ``id`` or alias is unhashable
+        would crash the set construction outside ``_consult``'s guard.
 
         Raises:
-            TypeError: If any item is not a
+            TypeError: If any item is not a well-formed
                 :class:`~peta.core.models.Vulnerability`.
         """
-        if not all(_is_vulnerability(item) for item in self.vulnerabilities):
-            msg = "vulnerabilities must contain only Vulnerability instances"
-            raise TypeError(msg)
+        for item in self.vulnerabilities:
+            if not _is_vulnerability(item):
+                msg = "vulnerabilities must contain only Vulnerability instances"
+                raise TypeError(msg)
+            if not isinstance(cast("object", item.id), str) or not all(
+                isinstance(cast("object", a), str) for a in item.aliases
+            ):
+                msg = "vulnerability id and aliases must be strings"
+                raise TypeError(msg)
 
     @property
     def is_empty(self) -> bool:

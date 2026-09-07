@@ -85,6 +85,9 @@ def _consult(
     capability = _UNKNOWN_CAPABILITY
     try:
         name = provider.name
+        if not isinstance(cast("object", name), str):
+            reason = f"provider name is {type(name).__name__}, not str"
+            return _rejected(name, capability, pkg, reason)
         capability = provider.capability
         return _dispatch(name, capability, provider, pkg, disabled)
     # A misbehaving provider is contained here, never propagated to the caller.
@@ -146,15 +149,17 @@ def _rejected(
 ) -> ProviderResult:
     """Describe a provider that misbehaved, in that provider's own terms.
 
-    ``reason`` already carries the offending capability via ``!r`` where
-    relevant, so normalizing the stored capability here loses no diagnostic
-    detail.
+    Both ``name`` and ``capability`` are normalized: ``reason`` already
+    carries the offending values via ``!r`` where relevant, and an
+    unhashable name or capability stored on the result would crash the
+    set comprehension in :func:`_resolved_this_pass`.
 
     Returns:
         A failed result attributed to the consulted provider.
     """
+    safe_name = name if isinstance(cast("object", name), str) else _UNKNOWN_PROVIDER
     return ProviderResult(
-        provider=name,
+        provider=safe_name,
         capability=_safe_capability(capability),
         state="failed",
         subject=pkg.name,

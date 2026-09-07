@@ -453,6 +453,30 @@ class TestEnrich:
         assert pkg.download_count == 100
         assert pkg.enrichment_failures[0].source == "malformed"
 
+    def test_a_provider_with_an_unhashable_name_is_contained(self) -> None:
+        class UnhashableName:
+            name = cast("str", ["not", "a", "name"])
+            capability: Capability = "download_count"
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                """Never reached: the name is rejected first.
+
+                Raises:
+                    AssertionError: Always, to prove it was not consulted.
+                """
+                msg = f"should not be consulted for {pkg.name}"
+                raise AssertionError(msg)
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[UnhashableName(), downloads]
+        )
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        failure = pkg.enrichment_failures[0]
+        assert failure.source == "unidentified provider"
+        assert "not str" in failure.reason
+
     def test_a_provider_returning_an_unhashable_capability_is_contained(self) -> None:
         class Shapeshifter:
             name = "shapeshifter"
