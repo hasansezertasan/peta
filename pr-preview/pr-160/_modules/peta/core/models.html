@@ -296,7 +296,14 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="158">    <span class="n">circular</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
 </span><span data-line="159">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span data-line="160">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="161">    <span class="n">resolution_failure</span><span class="p">:</span> <span class="n">DependencyResolutionFailure</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+</span><span data-line="161">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="162"><span class="w">    </span><span class="sd">"""Where this node's metadata came from: the source, or peta's cache.</span>
+</span><span data-line="163">
+</span><span data-line="164"><span class="sd">    Carried per node because a tree can be assembled from a mix — some</span>
+</span><span data-line="165"><span class="sd">    dependencies served from cache, others fetched — so one figure for the</span>
+</span><span data-line="166"><span class="sd">    whole command would be a fiction.</span>
+</span><span data-line="167"><span class="sd">    """</span>
+</span><span data-line="168">    <span class="n">resolution_failure</span><span class="p">:</span> <span class="n">DependencyResolutionFailure</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
