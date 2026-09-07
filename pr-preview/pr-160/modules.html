@@ -121,18 +121,24 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li><a class="reference internal" href="#peta.core.output.make_envelope"><code class="docutils literal notranslate"><span class="pre">make_envelope()</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.output.utc_from"><code class="docutils literal notranslate"><span class="pre">utc_from()</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.output.utc_now"><code class="docutils literal notranslate"><span class="pre">utc_now()</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.http.DEFAULT_TIMEOUT"><code class="docutils literal notranslate"><span class="pre">DEFAULT_TIMEOUT</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.http.USER_AGENT"><code class="docutils literal notranslate"><span class="pre">USER_AGENT</span></code></a></li>
-<li><a class="reference internal" href="#peta.core.http.Fetched"><code class="docutils literal notranslate"><span class="pre">Fetched</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.http.Fetched"><code class="docutils literal notranslate"><span class="pre">Fetched</span></code></a><ul>
+<li><a class="reference internal" href="#peta.core.http.Fetched.cache_key"><code class="docutils literal notranslate"><span class="pre">Fetched.cache_key</span></code></a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#peta.core.http.OfflineError"><code class="docutils literal notranslate"><span class="pre">OfflineError</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.http.client"><code class="docutils literal notranslate"><span class="pre">client()</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.http.get"><code class="docutils literal notranslate"><span class="pre">get()</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.http.keep"><code class="docutils literal notranslate"><span class="pre">keep()</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.http.post"><code class="docutils literal notranslate"><span class="pre">post()</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.DAILY"><code class="docutils literal notranslate"><span class="pre">DAILY</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.FRESHNESS_VALUES"><code class="docutils literal notranslate"><span class="pre">FRESHNESS_VALUES</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.IMMUTABLE"><code class="docutils literal notranslate"><span class="pre">IMMUTABLE</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.LATEST"><code class="docutils literal notranslate"><span class="pre">LATEST</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.cache.MAX_AGE"><code class="docutils literal notranslate"><span class="pre">MAX_AGE</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.CacheSettings"><code class="docutils literal notranslate"><span class="pre">CacheSettings</span></code></a><ul>
 <li><a class="reference internal" href="#peta.core.cache.CacheSettings.offline"><code class="docutils literal notranslate"><span class="pre">CacheSettings.offline</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.CacheSettings.refresh"><code class="docutils literal notranslate"><span class="pre">CacheSettings.refresh</span></code></a></li>
@@ -146,6 +152,7 @@ data-aria-dark="Switch to auto color mode">
 </ul>
 </li>
 <li><a class="reference internal" href="#peta.core.cache.Freshness"><code class="docutils literal notranslate"><span class="pre">Freshness</span></code></a></li>
+<li><a class="reference internal" href="#peta.core.cache.Provenance"><code class="docutils literal notranslate"><span class="pre">Provenance</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.configure"><code class="docutils literal notranslate"><span class="pre">configure()</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.default_directory"><code class="docutils literal notranslate"><span class="pre">default_directory()</span></code></a></li>
 <li><a class="reference internal" href="#peta.core.cache.key_for"><code class="docutils literal notranslate"><span class="pre">key_for()</span></code></a></li>
@@ -702,6 +709,28 @@ environment, or one that never completed a retrieval.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="peta.core.output.utc_from">
+<span class="sig-prename descclassname"><span class="pre">peta.core.output.</span></span><span class="sig-name descname"><span class="pre">utc_from</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestamp</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/output.html#utc_from"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.output.utc_from" title="Link to this definition">#</a></dt>
+<dd><p>Format a Unix timestamp in the same RFC 3339 form as <a class="reference internal" href="#peta.core.output.utc_now" title="peta.core.output.utc_now"><code class="xref py py-func docutils literal notranslate"><span class="pre">utc_now()</span></code></a>.</p>
+<p>Lets a response served from cache report when it was actually retrieved
+rather than when it was replayed.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><span class="target" id="peta.core.output.utc_from.params.timestamp"></span><strong>timestamp</strong><a class="paramlink headerlink reference internal" href="#peta.core.output.utc_from.params.timestamp">¶</a> – Seconds since the epoch.</p></li>
+<li><p><strong>timestamp</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A second-precision UTC timestamp ending in <code class="docutils literal notranslate"><span class="pre">Z</span></code>.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="peta.core.output.utc_now">
 <span class="sig-prename descclassname"><span class="pre">peta.core.output.</span></span><span class="sig-name descname"><span class="pre">utc_now</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/output.html#utc_now"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.output.utc_now" title="Link to this definition">#</a></dt>
 <dd><p>Return the current UTC time in RFC 3339 form.</p>
@@ -744,17 +773,26 @@ for how long, stays with the caller: see <a class="reference internal" href="#mo
 
 <dl class="py class">
 <dt class="sig sig-object py" id="peta.core.http.Fetched">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">peta.core.http.</span></span><span class="sig-name descname"><span class="pre">Fetched</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">freshness</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/http.html#Fetched"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.http.Fetched" title="Link to this definition">#</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">peta.core.http.</span></span><span class="sig-name descname"><span class="pre">Fetched</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">response</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">provenance</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">cache_key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/http.html#Fetched"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.http.Fetched" title="Link to this definition">#</a></dt>
 <dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
-<p>A response, and where it came from.</p>
+<p>A response, where it came from, and whether it may still be cached.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>response</strong> (<em>httpx.Response</em>)</p></li>
-<li><p><strong>freshness</strong> (<a class="reference internal" href="#peta.core.cache.Freshness" title="peta.core.cache.Freshness"><em>Freshness</em></a>)</p></li>
+<li><p><strong>response</strong> (<em>Response</em>)</p></li>
+<li><p><strong>provenance</strong> (<a class="reference internal" href="#peta.core.cache.Provenance" title="peta.core.cache.Provenance"><em>Provenance</em></a>)</p></li>
+<li><p><strong>cache_key</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>
 </dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="peta.core.http.Fetched.cache_key">
+<span class="sig-name descname"><span class="pre">cache_key</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></span><a class="headerlink" href="#peta.core.http.Fetched.cache_key" title="Link to this definition">#</a></dt>
+<dd><p>Set only for a live response the caller may still choose to keep.</p>
+<p><code class="docutils literal notranslate"><span class="pre">None</span></code> for anything already stored, or for a response that must never
+be stored, so <a class="reference internal" href="#peta.core.http.keep" title="peta.core.http.keep"><code class="xref py py-func docutils literal notranslate"><span class="pre">keep()</span></code></a> is safe to call unconditionally.</p>
+</dd></dl>
+
 </dd></dl>
 
 <dl class="py exception">
@@ -799,8 +837,11 @@ they never send a request through.</p>
 <dt class="sig sig-object py" id="peta.core.http.get">
 <span class="sig-prename descclassname"><span class="pre">peta.core.http.</span></span><span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">url</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ttl</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/http.html#get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.http.get" title="Link to this definition">#</a></dt>
 <dd><p>Send a GET request, using the cache when the caller allows it.</p>
-<p>A transport-level <code class="docutils literal notranslate"><span class="pre">httpx.RequestError</span></code> propagates untouched: each
-source maps it onto its own error type.</p>
+<p>A transport-level <code class="docutils literal notranslate"><span class="pre">httpx.RequestError</span></code> propagates untouched, and an
+<a class="reference internal" href="#peta.core.http.OfflineError" title="peta.core.http.OfflineError"><code class="xref py py-class docutils literal notranslate"><span class="pre">OfflineError</span></code></a> propagates when offline mode is on and the cache
+cannot answer; each source maps them onto its own error type.</p>
+<p>A live result is not cached until the caller confirms the body was usable
+by passing it to <a class="reference internal" href="#peta.core.http.keep" title="peta.core.http.keep"><code class="xref py py-func docutils literal notranslate"><span class="pre">keep()</span></code></a>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -814,25 +855,38 @@ be reused.</p></li>
 <li><p><strong>ttl</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#peta.core.http.Fetched" title="peta.core.http.Fetched"><em>Fetched</em></a></p>
-</dd>
-</dl>
-<p>An <a class="reference internal" href="#peta.core.http.OfflineError" title="peta.core.http.OfflineError"><code class="xref py py-class docutils literal notranslate"><span class="pre">OfflineError</span></code></a> propagates from the send path when offline mode
-is on and the cache cannot answer.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>The response and where it came from.</p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>url</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>] </em><em>| </em><em>None</em>)</p></li>
-<li><p><strong>ttl</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em> | </em><em>None</em>)</p></li>
-</ul>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The response and where it came from.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#peta.core.http.Fetched" title="peta.core.http.Fetched"><em>Fetched</em></a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="peta.core.http.keep">
+<span class="sig-prename descclassname"><span class="pre">peta.core.http.</span></span><span class="sig-name descname"><span class="pre">keep</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fetched</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/http.html#keep"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.http.keep" title="Link to this definition">#</a></dt>
+<dd><p>Store a live response the caller has confirmed it could actually use.</p>
+<p>Storing on arrival would cache a body the source-specific decoder then
+rejects — a <code class="docutils literal notranslate"><span class="pre">200</span></code> carrying an error page, or truncated JSON — and every
+later request would replay that same unusable response until the TTL
+expired, up to a month for pinned metadata. A transient upstream fault
+would become a persistent one.</p>
+<p>So nothing is written until the caller has decoded and validated the
+body and says so by calling this. Failing to call it means the response
+is simply not cached, which costs a refetch; the opposite default would
+poison the cache.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><span class="target" id="peta.core.http.keep.params.fetched"></span><strong>fetched</strong><a class="paramlink headerlink reference internal" href="#peta.core.http.keep.params.fetched">¶</a> – The result to store. Ignored unless it is a live <code class="docutils literal notranslate"><span class="pre">200</span></code>
+still carrying a cache key, so callers need not check.</p></li>
+<li><p><strong>fetched</strong> (<a class="reference internal" href="#peta.core.http.Fetched" title="peta.core.http.Fetched"><em>Fetched</em></a>)</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>None</p>
 </dd>
 </dl>
 </dd></dl>
@@ -844,8 +898,8 @@ is on and the cache cannot answer.</p>
 <p>Never cached: a POST body carries the question, and peta’s only POST
 source is an advisory query whose request shape is about to change with
 batching. Offline mode still refuses it rather than pretending.</p>
-<p>A transport-level <code class="docutils literal notranslate"><span class="pre">httpx.RequestError</span></code> propagates untouched: each
-source maps it onto its own error type.</p>
+<p>A transport-level <code class="docutils literal notranslate"><span class="pre">httpx.RequestError</span></code> propagates untouched, and an
+<a class="reference internal" href="#peta.core.http.OfflineError" title="peta.core.http.OfflineError"><code class="xref py py-class docutils literal notranslate"><span class="pre">OfflineError</span></code></a> propagates when offline mode is on.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -855,21 +909,8 @@ source maps it onto its own error type.</p>
 <li><p><strong>json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><em>object</em></a><em>]</em>)</p></li>
 </ul>
 </dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference internal" href="#peta.core.http.Fetched" title="peta.core.http.Fetched"><em>Fetched</em></a></p>
-</dd>
-</dl>
-<p>An <a class="reference internal" href="#peta.core.http.OfflineError" title="peta.core.http.OfflineError"><code class="xref py py-class docutils literal notranslate"><span class="pre">OfflineError</span></code></a> propagates from the send path when offline mode
-is on.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>The response and where it came from, always <code class="docutils literal notranslate"><span class="pre">live</span></code>.</p>
-</dd>
-<dt class="field-even">Parameters<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><strong>url</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
-<li><p><strong>json</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><em>object</em></a><em>]</em>)</p></li>
-</ul>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The response and where it came from, always <code class="docutils literal notranslate"><span class="pre">live</span></code>.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p><a class="reference internal" href="#peta.core.http.Fetched" title="peta.core.http.Fetched"><em>Fetched</em></a></p>
@@ -917,6 +958,16 @@ limit; nothing about the data itself expires.</p>
 <dt class="sig sig-object py" id="peta.core.cache.LATEST">
 <span class="sig-prename descclassname"><span class="pre">peta.core.cache.</span></span><span class="sig-name descname"><span class="pre">LATEST</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">3600</span></span><a class="headerlink" href="#peta.core.cache.LATEST" title="Link to this definition">#</a></dt>
 <dd><p>What <code class="docutils literal notranslate"><span class="pre">latest</span></code> resolves to, and which versions exist, can change any time.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="peta.core.cache.MAX_AGE">
+<span class="sig-prename descclassname"><span class="pre">peta.core.cache.</span></span><span class="sig-name descname"><span class="pre">MAX_AGE</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2592000</span></span><a class="headerlink" href="#peta.core.cache.MAX_AGE" title="Link to this definition">#</a></dt>
+<dd><p>How long any entry may sit on disk, however long its TTL.</p>
+<p>A TTL decides whether an entry may still be <em>served</em>; without a separate
+bound nothing would ever delete one, so querying many packages — a dependency
+tree especially — would leave every file behind for good. Set to the longest
+TTL, so pruning never discards an entry that could still have been used.</p>
 </dd></dl>
 
 <dl class="py class">
@@ -1033,6 +1084,26 @@ source supplied no validator to revalidate against.</p>
 <p><code class="docutils literal notranslate"><span class="pre">live</span></code> means the source answered, <code class="docutils literal notranslate"><span class="pre">cached</span></code> means the entry was read from
 disk without contacting the source, and <code class="docutils literal notranslate"><span class="pre">revalidated</span></code> means the source
 confirmed a stored entry was still current without resending its body.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="peta.core.cache.Provenance">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">peta.core.cache.</span></span><span class="sig-name descname"><span class="pre">Provenance</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">freshness</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retrieved_at</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/peta/core/cache.html#Provenance"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#peta.core.cache.Provenance" title="Link to this definition">#</a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>Where a source’s answer came from, and when it was retrieved.</p>
+<p>Carried separately from the answer so a caller can report accurate
+provenance without knowing whether the cache was involved. <code class="docutils literal notranslate"><span class="pre">retrieved_at</span></code>
+is the moment the <em>source</em> answered, not the moment it was replayed: a
+response stored days ago and served from disk must not claim it was
+retrieved just now, or the provenance is worse than useless.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>freshness</strong> (<a class="reference internal" href="#peta.core.cache.Freshness" title="peta.core.cache.Freshness"><em>Freshness</em></a>)</p></li>
+<li><p><strong>retrieved_at</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p></li>
+</ul>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -1903,7 +1974,7 @@ when no API key is available.</p>
 when no API key is configured.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a> | None, <a class="reference internal" href="#peta.core.cache.Freshness" title="peta.core.cache.Freshness">Freshness</a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a> | None, <a class="reference internal" href="#peta.core.cache.Provenance" title="peta.core.cache.Provenance"><em>Provenance</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -1925,7 +1996,7 @@ non-fatal while still being visible to users.</p>
 <dd class="field-even"><p>The last-month download count, and where it came from.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a> | None, <a class="reference internal" href="#peta.core.cache.Freshness" title="peta.core.cache.Freshness">Freshness</a>]</p>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)">int</a> | None, <a class="reference internal" href="#peta.core.cache.Provenance" title="peta.core.cache.Provenance"><em>Provenance</em></a>]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -2193,14 +2264,14 @@ into only the first match. The result prefers a non-<code class="docutils litera
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
-<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f98abb0d590&gt;</em><em>]</em>)</p></li>
-<li><p><strong>b</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f98abb0d6d0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0d810&gt;</em><em>]</em>)</p></li>
-<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0d950&gt;</em><em>]</em>)</p></li>
-<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0da90&gt;</em><em>]</em>)</p></li>
-<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0dbd0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>no_osv</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0dd10&gt;</em><em>]</em>)</p></li>
-<li><p><strong>no_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0de50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>a</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f925474d810&gt;</em><em>]</em>)</p></li>
+<li><p><strong>b</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f925474d950&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474da90&gt;</em><em>]</em>)</p></li>
+<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474dbd0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474dd10&gt;</em><em>]</em>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474de50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_osv</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474df90&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474e0d0&gt;</em><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -2217,13 +2288,13 @@ into only the first match. The result prefers a non-<code class="docutils litera
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
-<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f98abb0e850&gt;</em><em>]</em>)</p></li>
-<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0e990&gt;</em><em>]</em>)</p></li>
-<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0ead0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0ec10&gt;</em><em>]</em>)</p></li>
-<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0ed50&gt;</em><em>]</em>)</p></li>
-<li><p><strong>why</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0ee90&gt;</em><em>]</em>)</p></li>
-<li><p><strong>depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0efd0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f925474ead0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474ec10&gt;</em><em>]</em>)</p></li>
+<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474ed50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474ee90&gt;</em><em>]</em>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474efd0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>why</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em> | </em><em>None</em><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474f110&gt;</em><em>]</em>)</p></li>
+<li><p><strong>depth</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474f250&gt;</em><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -2240,9 +2311,9 @@ into only the first match. The result prefers a non-<code class="docutils litera
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
-<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f98abb0f4d0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0f610&gt;</em><em>]</em>)</p></li>
-<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98abb0f750&gt;</em><em>]</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f925474f750&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474f890&gt;</em><em>]</em>)</p></li>
+<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f925474f9d0&gt;</em><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -2259,13 +2330,13 @@ into only the first match. The result prefers a non-<code class="docutils litera
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
-<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f98ab894190&gt;</em><em>]</em>)</p></li>
-<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab8942d0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab894410&gt;</em><em>]</em>)</p></li>
-<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab894550&gt;</em><em>]</em>)</p></li>
-<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab894690&gt;</em><em>]</em>)</p></li>
-<li><p><strong>no_osv</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab8947d0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>no_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab894910&gt;</em><em>]</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f924f970410&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f970550&gt;</em><em>]</em>)</p></li>
+<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f970690&gt;</em><em>]</em>)</p></li>
+<li><p><strong>local</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f9707d0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>remote</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f970910&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_osv</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f970a50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_stats</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f970b90&gt;</em><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -2282,11 +2353,11 @@ into only the first match. The result prefers a non-<code class="docutils litera
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
-<li><p><strong>_version</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab895090&gt;</em><em>]</em>)</p></li>
-<li><p><strong>no_color</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab8951d0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>offline</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab895310&gt;</em><em>]</em>)</p></li>
-<li><p><strong>refresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab895450&gt;</em><em>]</em>)</p></li>
-<li><p><strong>cache_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><em>Path</em></a><em> | </em><em>None</em><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab895590&gt;</em><em>]</em>)</p></li>
+<li><p><strong>_version</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f971310&gt;</em><em>]</em>)</p></li>
+<li><p><strong>no_color</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f971450&gt;</em><em>]</em>)</p></li>
+<li><p><strong>offline</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f971590&gt;</em><em>]</em>)</p></li>
+<li><p><strong>refresh</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f9716d0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>cache_dir</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><em>Path</em></a><em> | </em><em>None</em><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f971810&gt;</em><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -2314,10 +2385,10 @@ into only the first match. The result prefers a non-<code class="docutils litera
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>ctx</strong> (<em>Context</em>)</p></li>
-<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f98ab895bd0&gt;</em><em>]</em>)</p></li>
-<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab895d10&gt;</em><em>]</em>)</p></li>
-<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab895e50&gt;</em><em>]</em>)</p></li>
-<li><p><strong>limit</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f98ab895f90&gt;</em><em>]</em>)</p></li>
+<li><p><strong>package</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>&lt;typer.models.ArgumentInfo object at 0x7f924f971e50&gt;</em><em>]</em>)</p></li>
+<li><p><strong>use_json</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f971f90&gt;</em><em>]</em>)</p></li>
+<li><p><strong>output_format</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference internal" href="#peta.cli.output.selection.OutputFormat" title="peta.cli.output.selection.OutputFormat"><em>OutputFormat</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f9720d0&gt;</em><em>]</em>)</p></li>
+<li><p><strong>limit</strong> (<a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated" title="(in Python v3.14)"><em>Annotated</em></a><em>[</em><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>&lt;typer.models.OptionInfo object at 0x7f924f972210&gt;</em><em>]</em>)</p></li>
 </ul>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -3280,7 +3351,7 @@ the listing came from; the list is empty if the package is not found
 <dd class="field-odd"><p><strong>name</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>)</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]], <a class="reference internal" href="#peta.core.cache.Freshness" title="peta.core.cache.Freshness">Freshness</a>]</p>
+<dd class="field-even"><p><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#tuple" title="(in Python v3.14)">tuple</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#list" title="(in Python v3.14)">list</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)">dict</a>[<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>, <a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)">str</a>]], <a class="reference internal" href="#peta.core.cache.Provenance" title="peta.core.cache.Provenance">Provenance</a>]</p>
 </dd>
 </dl>
 </dd></dl>
