@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
+    from peta.core.cache import Freshness
     from peta.core.output import SourceRecord
 
 __all__ = [
@@ -123,6 +124,12 @@ class PackageInfo:
     enrichment_conflicts: list[ProviderConflict] = field(default_factory=list)
     provider_warnings: list[ProviderWarning] = field(default_factory=list)
     retrieved_at: str | None = None
+    freshness: Freshness | None = None
+    """Where the metadata came from: the source, or peta's cache.
+
+    ``None`` for a package read from the installed environment, which has no
+    retrieval to be fresh or stale relative to.
+    """
     enrichment_sources: list[SourceRecord] = field(default_factory=list)
 
     @property

@@ -8,6 +8,7 @@ from peta.cli.output import json, markdown, tables, text
 from peta.cli.output.selection import OutputFormat
 
 if TYPE_CHECKING:
+    from peta.core.cache import Freshness
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -136,6 +137,7 @@ def render_versions(
     arguments: dict[str, object],
     color: bool,
     retrieved_at: str,
+    freshness: Freshness | None = None,
 ) -> str:
     """Render published versions in the selected format.
 
@@ -144,7 +146,11 @@ def render_versions(
     """
     if output_format == OutputFormat.JSON:
         return json.format_versions(
-            package, versions, arguments=arguments, retrieved_at=retrieved_at
+            package,
+            versions,
+            arguments=arguments,
+            retrieved_at=retrieved_at,
+            freshness=freshness,
         )
     if output_format == OutputFormat.MARKDOWN:
         return markdown.format_versions(package, versions)

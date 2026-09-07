@@ -24,7 +24,7 @@ def test_success_sorted_newest_first(fake_http: FakeTransport) -> None:
         }
     }
     fake_http.reply(json=payload)
-    result = get_versions("pkg")
+    result, _ = get_versions("pkg")
     assert [r["version"] for r in result] == ["2.0.0", "1.5.0", "1.0.0"]
     assert result[0]["upload_time"] == "2021-02-03"
     # Release with no files yields an empty upload_time.
@@ -34,9 +34,10 @@ def test_success_sorted_newest_first(fake_http: FakeTransport) -> None:
 def test_accepts_recorded_contract_and_unknown_fields(fake_http: FakeTransport) -> None:
     fake_http.reply(json=load_contract("pypi-package.json"))
 
-    assert get_versions("example-package") == [
-        {"version": "1.2.3", "upload_time": "2026-01-02"}
-    ]
+    assert get_versions("example-package") == (
+        [{"version": "1.2.3", "upload_time": "2026-01-02"}],
+        "live",
+    )
 
 
 def test_tolerates_non_pep440_release_keys(fake_http: FakeTransport) -> None:
@@ -49,13 +50,13 @@ def test_tolerates_non_pep440_release_keys(fake_http: FakeTransport) -> None:
     }
     fake_http.reply(json=payload)
     # A single legacy key must not abort the listing with an InvalidVersion.
-    result = get_versions("pkg")
+    result, _ = get_versions("pkg")
     assert [r["version"] for r in result] == ["2.0.0", "1.0.0", "not-a-version"]
 
 
 def test_not_found_returns_empty(fake_http: FakeTransport) -> None:
     fake_http.reply(status=404)
-    assert get_versions("nope-xyz") == []
+    assert get_versions("nope-xyz") == ([], "live")
 
 
 def test_request_error_raises_network_error(fake_http: FakeTransport) -> None:

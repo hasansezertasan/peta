@@ -32,6 +32,7 @@ Core (``peta.core``)
 * ``peta.core.output`` — typed output-envelope, query, source, and message models.
 * ``peta.core.local`` — reads installed metadata via ``importlib.metadata``.
 * ``peta.core.http`` — the one pooled ``httpx`` client every source shares.
+* ``peta.core.cache`` — on-disk response cache, TTL vocabulary, and offline mode.
 * ``peta.core.remote`` — fetches from the PyPI JSON API.
 * ``peta.core.resolve`` — chooses local or remote package metadata.
 * ``peta.core.deptree`` — builds recursive declared-metadata dependency trees.
@@ -45,6 +46,9 @@ Core (``peta.core``)
 Error model
 -----------
 
-``PackageNotFoundError`` (exit 1) and ``NetworkError`` (exit 2) are raised
-by the core layer and mapped to exit codes by the command handlers. JSON output
+``PackageNotFoundError`` (exit 1), ``NetworkError`` (exit 2), and
+``OfflineError`` (exit 2) are raised by the core layer and mapped to exit codes
+by the command handlers. ``OfflineError`` is kept separate from
+``NetworkError``: under ``--offline`` nothing failed, peta was told not to use
+the network and does not hold the answer. JSON output
 also renders these failures as structured, versioned envelopes.

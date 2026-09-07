@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import sys
 from importlib.metadata import Distribution, PackageNotFoundError
+
+# Imported at runtime, not under TYPE_CHECKING: Typer resolves command
+# annotations with ``get_type_hints`` to build the parser, so a name used in an
+# ``Annotated[...]`` option must exist when the module is imported.
+from pathlib import Path  # ruff: ignore[typing-only-standard-library-import]
 from typing import Annotated, cast
 
 import typer
@@ -20,6 +25,7 @@ from peta.cli.output.console import resolve_color
 from peta.cli.output.errors import StructuredErrorGroup
 from peta.cli.output.selection import OutputFormat
 from peta.cli.state import CliState
+from peta.core import cache
 
 __all__ = ["compare", "deps", "files", "info", "main", "run", "versions"]
 
@@ -90,6 +96,26 @@ def _color_from_ctx(ctx: typer.Context) -> bool:
     return obj.color if isinstance(obj, CliState) else False
 
 
+def _configure_cache(*, offline: bool, refresh: bool, cache_dir: Path | None) -> None:
+    """Apply the cache options for this invocation.
+
+    Args:
+        offline: Answer only from cache, never from the network.
+        refresh: Discard stored entries and fetch again.
+        cache_dir: Where to keep the cache; the platform default when ``None``.
+
+    Raises:
+        typer.BadParameter: If ``--offline`` and ``--refresh`` are combined,
+            which asks peta both to refetch everything and to make no
+            requests. Rejected rather than silently resolved, because either
+            reading could be what the user meant.
+    """
+    if offline and refresh:
+        msg = "--offline cannot be combined with --refresh."
+        raise typer.BadParameter(msg)
+    cache.configure(directory=cache_dir, offline=offline, refresh=refresh)
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -106,8 +132,19 @@ def main(
     no_color: Annotated[
         bool, typer.Option("--no-color", help="Disable colored output.")
     ] = False,
+    offline: Annotated[
+        bool, typer.Option("--offline", help="Use only cached data; make no requests.")
+    ] = False,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Ignore cached data and refetch.")
+    ] = False,
+    cache_dir: Annotated[
+        Path | None,
+        typer.Option("--cache-dir", help="Directory for peta's response cache."),
+    ] = None,
 ) -> None:
     """Human-friendly Python package metadata viewer."""
+    _configure_cache(offline=offline, refresh=refresh, cache_dir=cache_dir)
     ctx.obj = CliState(color=resolve_color(no_color=no_color))
 
 

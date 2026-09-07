@@ -8,6 +8,7 @@ from packaging.markers import UndefinedEnvironmentName
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
+from peta.core import http
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import DependencyNode, DependencyResolutionFailure
 from peta.core.output import utc_now
@@ -21,12 +22,20 @@ __all__ = ["build_tree", "find_why"]
 
 # Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter
 # cannot strip the parentheses into Python-2-only ``except A, B`` syntax.
-_UNRESOLVABLE = (LocalNotFound, RemoteNotFound, NetworkError)
+_UNRESOLVABLE = (LocalNotFound, RemoteNotFound, NetworkError, http.OfflineError)
 
 
 def _resolution_failure(
-    exc: LocalNotFound | RemoteNotFound | NetworkError,
+    exc: LocalNotFound | RemoteNotFound | NetworkError | http.OfflineError,
 ) -> DependencyResolutionFailure:
+    # Offline is ``unavailable`` rather than ``failed``: nothing went wrong,
+    # this dependency simply is not in the cache and peta was told not to ask.
+    # The root resolution is not routed through here, so an offline root still
+    # aborts the command instead of yielding a tree of unavailable nodes.
+    if isinstance(exc, http.OfflineError):
+        return DependencyResolutionFailure(
+            source="pypi", state="unavailable", reason=str(exc), retrieved_at=utc_now()
+        )
     if isinstance(exc, NetworkError):
         return DependencyResolutionFailure(
             source="pypi", state="failed", reason=str(exc), retrieved_at=utc_now()

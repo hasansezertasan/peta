@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Literal, Required, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, Required, TypedDict, cast
 
 import httpx
 
-from peta.core import http
+from peta.core import cache, http
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.output import utc_now
 from peta.core.validation import (
@@ -18,6 +18,9 @@ from peta.core.validation import (
     optional_string_list,
     optional_string_mapping,
 )
+
+if TYPE_CHECKING:
+    from peta.core.cache import Freshness
 
 __all__ = [
     "NetworkError",
@@ -106,11 +109,24 @@ def _pypi_url(name: str, version: str | None) -> str:
     return f"{PYPI_BASE_URL}/{name}/json"
 
 
-def _fetch(name: str, version: str | None) -> PyPIResponse:
+def _ttl(version: str | None) -> int:
+    """Choose how long this lookup's answer stays usable.
+
+    A specific version's metadata is settled once published, so it is kept
+    for a long time; a bare name resolves to whatever is newest, which can
+    change with any release.
+
+    Returns:
+        The cache lifetime in seconds.
+    """
+    return cache.IMMUTABLE if version else cache.LATEST
+
+
+def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Freshness]:
     """Fetch the raw PyPI JSON payload for a package.
 
     Returns:
-        The decoded JSON body from the PyPI JSON API.
+        The decoded JSON body, and where it came from.
 
     Raises:
         PackageNotFoundError: If PyPI responds 404 for the package/version.
@@ -118,9 +134,10 @@ def _fetch(name: str, version: str | None) -> PyPIResponse:
     """
     url = _pypi_url(name, version)
     try:
-        response = http.get(url)
+        fetched = http.get(url, ttl=_ttl(version))
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
+    response = fetched.response
 
     if response.status_code == 404:  # ruff: ignore[magic-value-comparison]
         raise PackageNotFoundError(name, version)
@@ -131,7 +148,7 @@ def _fetch(name: str, version: str | None) -> PyPIResponse:
         msg = f"PyPI returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    return _decode_response(response)
+    return _decode_response(response), fetched.freshness
 
 
 def _decode_response(response: httpx.Response) -> PyPIResponse:
@@ -228,7 +245,7 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         A :class:`PackageInfo` with ``source="remote"``. Not-found and network
         failures propagate from :func:`_fetch`.
     """
-    data = _fetch(name, version)
+    data, freshness = _fetch(name, version)
     info: PyPIInfo = data["info"]
     license_value, license_source = _parse_license(info)
     return PackageInfo(
@@ -250,4 +267,5 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         vulnerabilities=_parse_vulnerabilities(data.get("vulnerabilities", [])),
         source="remote",
         retrieved_at=utc_now(),
+        freshness=freshness,
     )

@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from peta.core import http
 from peta.core.deptree import build_tree, find_why
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import DependencyNode, PackageInfo
@@ -14,6 +15,11 @@ pytestmark = pytest.mark.unit
 
 def _pkg(name: str, deps: list[str]) -> PackageInfo:
     return PackageInfo(name=name, version="1.0", source="local", dependencies=deps)
+
+
+def _raise(exc: Exception) -> PackageInfo:
+    """Re-raise ``exc``, since a lambda cannot contain a raise statement."""
+    raise exc
 
 
 class TestBuildTree:
@@ -120,6 +126,32 @@ class TestBuildTree:
         assert leaf.resolution_failure.state == "failed"
         assert leaf.resolution_failure.source == "pypi"
         assert leaf.resolution_failure.reason == "Network error: connection reset"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_an_uncached_dep_is_unavailable_when_offline(self, m: MagicMock) -> None:
+        # ``unavailable`` rather than ``failed``: nothing went wrong, this
+        # dependency simply is not cached and peta was told not to ask. The
+        # resolved part of the tree must survive.
+        offline = http.OfflineError("https://pypi.org/pypi/b/json")
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(offline)
+        )
+        tree = build_tree("a", local=False, remote=False)
+
+        leaf = tree.children[0]
+        assert leaf.installed_version is None
+        assert leaf.resolution_failure is not None
+        assert leaf.resolution_failure.state == "unavailable"
+        assert leaf.resolution_failure.source == "pypi"
+        assert "offline" in leaf.resolution_failure.reason
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_an_offline_root_still_aborts(self, m: MagicMock) -> None:
+        # The root is not routed through the per-dependency guard, so a tree
+        # of entirely unavailable nodes is never produced.
+        m.side_effect = http.OfflineError("https://pypi.org/pypi/a/json")
+        with pytest.raises(http.OfflineError):
+            _ = build_tree("a", local=False, remote=False)
 
     @patch("peta.core.deptree.resolve_package")
     def test_root_not_found_raises(self, m: MagicMock) -> None:

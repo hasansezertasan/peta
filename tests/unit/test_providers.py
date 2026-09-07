@@ -28,6 +28,7 @@ from peta.core.providers import (
 from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
+    from peta.core.cache import Freshness
     from peta.core.models import ProviderWarning
     from peta.core.output import SourceState
     from peta.core.providers import Capability
@@ -73,7 +74,10 @@ class TestOsvProvider:
 
 
 class TestPypiStatsProvider:
-    @patch("peta.core.providers.builtin.stats.get_download_count", return_value=1234)
+    @patch(
+        "peta.core.providers.builtin.stats.get_download_count",
+        return_value=(1234, "live"),
+    )
     def test_success_carries_count_evidence(self, m: MagicMock) -> None:
         result = PypiStatsProvider().fetch(_pkg())
         assert result.state == "success"
@@ -81,7 +85,10 @@ class TestPypiStatsProvider:
         assert result.field == "result.download_count"
         m.assert_called_once_with("requests")
 
-    @patch("peta.core.providers.builtin.stats.get_download_count", return_value=None)
+    @patch(
+        "peta.core.providers.builtin.stats.get_download_count",
+        return_value=(None, "live"),
+    )
     def test_missing_count_is_empty(self, m: MagicMock) -> None:
         result = PypiStatsProvider().fetch(_pkg())
         assert result.state == "empty"
@@ -110,7 +117,10 @@ class TestLibrariesIoProvider:
         assert result.retrieved_at is None
         mdep.assert_not_called()
 
-    @patch("peta.core.providers.builtin.stats.get_dependent_count", return_value=42)
+    @patch(
+        "peta.core.providers.builtin.stats.get_dependent_count",
+        return_value=(42, "live"),
+    )
     @patch(
         "peta.core.providers.builtin.stats.libraries_io_api_key", return_value="secret"
     )
@@ -369,3 +379,41 @@ class TestResultVariantValidation:
                 subject="requests",
                 warnings=cast("list[ProviderWarning]", [{"source": "x"}]),
             )
+
+
+class TestFreshnessValidation:
+    def test_a_documented_origin_is_accepted(self) -> None:
+        result = ProviderResult(
+            provider="pypistats",
+            capability="download_count",
+            state="success",
+            subject="requests",
+            freshness="cached",
+            evidence=CountEvidence(1),
+        )
+        assert result.freshness == "cached"
+
+    def test_an_undocumented_origin_is_rejected(self) -> None:
+        # An injected provider can put any string here despite the annotation,
+        # and it would otherwise reach the envelope as an undocumented value.
+        with pytest.raises(ValueError, match="not a documented origin"):
+            _ = ProviderResult(
+                provider="pypistats",
+                capability="download_count",
+                state="success",
+                subject="requests",
+                freshness=cast("Freshness", "probably-fine"),
+                evidence=CountEvidence(1),
+            )
+
+    def test_no_stated_origin_is_allowed(self) -> None:
+        # A source with no retrieval to speak of, such as one that was never
+        # consulted, has no origin to report.
+        result = ProviderResult(
+            provider="libraries.io",
+            capability="dependent_count",
+            state="unavailable",
+            subject="requests",
+            reason="LIBRARIES_IO_API_KEY is not configured",
+        )
+        assert result.freshness is None

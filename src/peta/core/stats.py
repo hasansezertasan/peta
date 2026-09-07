@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 import os
-from typing import Required, TypedDict, cast
+from typing import TYPE_CHECKING, Required, TypedDict, cast
 
 import httpx
 
-from peta.core import http
+from peta.core import cache, http
 from peta.core.validation import (
     EnrichmentError,
     ResponseValidationError,
     expect_int,
     expect_mapping,
 )
+
+if TYPE_CHECKING:
+    from peta.core.cache import Freshness
 
 __all__ = [
     "LIBRARIES_IO_URL",
@@ -29,6 +32,7 @@ __all__ = [
 
 PYPISTATS_URL = "https://pypistats.org/api/packages"
 LIBRARIES_IO_URL = "https://libraries.io/api/pypi"
+_OFFLINE_REASON = "offline; no cached counts"
 PYPISTATS_SOURCE = "pypistats"
 LIBRARIES_IO_SOURCE = "libraries.io"
 
@@ -62,15 +66,18 @@ def _decode(response: httpx.Response, source: str) -> object:
         raise EnrichmentError(source, "invalid JSON") from exc
 
 
-def _fetch_pypistats(name: str) -> int:
+def _fetch_pypistats(name: str) -> tuple[int | None, Freshness]:
     try:
-        response = http.get(f"{PYPISTATS_URL}/{name}/recent")
+        fetched = http.get(f"{PYPISTATS_URL}/{name}/recent", ttl=cache.DAILY)
+    except http.OfflineError as exc:
+        raise EnrichmentError(PYPISTATS_SOURCE, _OFFLINE_REASON) from exc
     except httpx.RequestError as exc:
         raise EnrichmentError(PYPISTATS_SOURCE, str(exc)) from exc
+    response = fetched.response
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         raise EnrichmentError(PYPISTATS_SOURCE, f"HTTP {response.status_code}")
     try:
-        return _parse_pypistats(_decode(response, PYPISTATS_SOURCE))
+        return _parse_pypistats(_decode(response, PYPISTATS_SOURCE)), fetched.freshness
     except ResponseValidationError as exc:
         raise EnrichmentError(PYPISTATS_SOURCE, f"malformed response: {exc}") from exc
 
@@ -83,7 +90,7 @@ def _parse_pypistats(body: object) -> int:
     )
 
 
-def get_download_count(name: str) -> int | None:
+def get_download_count(name: str) -> tuple[int | None, Freshness]:
     """Look up a package's last-month download count on pypistats.org.
 
     The enrichment coordinator catches source-specific failures so they remain
@@ -93,7 +100,7 @@ def get_download_count(name: str) -> int | None:
         name: Package name to query (assumed to be a PyPI package).
 
     Returns:
-        The last-month download count.
+        The last-month download count, and where it came from.
 
     """
     return _fetch_pypistats(name)
@@ -108,19 +115,25 @@ def libraries_io_api_key() -> str | None:
     return os.environ.get("LIBRARIES_IO_API_KEY") or None
 
 
-def _fetch_libraries_io(name: str, api_key: str) -> int:
+def _fetch_libraries_io(name: str, api_key: str) -> tuple[int, Freshness]:
     try:
-        response = http.get(f"{LIBRARIES_IO_URL}/{name}", params={"api_key": api_key})
+        fetched = http.get(
+            f"{LIBRARIES_IO_URL}/{name}", params={"api_key": api_key}, ttl=cache.DAILY
+        )
+    except http.OfflineError as exc:
+        raise EnrichmentError(LIBRARIES_IO_SOURCE, _OFFLINE_REASON) from exc
     except httpx.RequestError as exc:
         raise EnrichmentError(LIBRARIES_IO_SOURCE, str(exc)) from exc
+    response = fetched.response
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         raise EnrichmentError(LIBRARIES_IO_SOURCE, f"HTTP {response.status_code}")
     try:
-        return _parse_libraries_io(_decode(response, LIBRARIES_IO_SOURCE))
+        count = _parse_libraries_io(_decode(response, LIBRARIES_IO_SOURCE))
     except ResponseValidationError as exc:
         raise EnrichmentError(
             LIBRARIES_IO_SOURCE, f"malformed response: {exc}"
         ) from exc
+    return count, fetched.freshness
 
 
 def _parse_libraries_io(body: object) -> int:
@@ -132,7 +145,9 @@ def _parse_libraries_io(body: object) -> int:
     )
 
 
-def get_dependent_count(name: str, *, api_key: str | None) -> int | None:
+def get_dependent_count(
+    name: str, *, api_key: str | None
+) -> tuple[int | None, Freshness]:
     """Look up a package's dependent count on libraries.io.
 
     The enrichment coordinator catches source-specific failures so they remain
@@ -144,9 +159,10 @@ def get_dependent_count(name: str, *, api_key: str | None) -> int | None:
         api_key: The libraries.io API key, or ``None`` to skip the lookup.
 
     Returns:
-        The dependent count, or ``None`` when no API key is configured.
+        The dependent count and where it came from; the count is ``None``
+        when no API key is configured.
 
     """
     if not api_key:
-        return None
+        return None, "live"
     return _fetch_libraries_io(name, api_key)

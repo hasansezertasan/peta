@@ -66,6 +66,8 @@ class OsvProvider:
             state="success" if vulnerabilities else "empty",
             subject=pkg.name,
             retrieved_at=utc_now(),
+            # Advisory queries are not cached, so the answer is always live.
+            freshness="live",
             evidence=VulnerabilityEvidence(vulnerabilities),
         )
 
@@ -84,7 +86,7 @@ class PypiStatsProvider:
             The download count, an empty answer, or the lookup failure.
         """
         try:
-            count = stats.get_download_count(pkg.name)
+            count, freshness = stats.get_download_count(pkg.name)
         except EnrichmentError as exc:
             return _failure(self.name, self.capability, pkg.name, exc)
         return ProviderResult(
@@ -93,6 +95,7 @@ class PypiStatsProvider:
             state="empty" if count is None else "success",
             subject=pkg.name,
             retrieved_at=utc_now(),
+            freshness=freshness,
             evidence=None if count is None else CountEvidence(count),
         )
 
@@ -124,7 +127,7 @@ class LibrariesIoProvider:
                 reason="LIBRARIES_IO_API_KEY is not configured",
             )
         try:
-            count = stats.get_dependent_count(pkg.name, api_key=api_key)
+            count, freshness = stats.get_dependent_count(pkg.name, api_key=api_key)
         except EnrichmentError as exc:
             return _failure(self.name, self.capability, pkg.name, exc)
         return ProviderResult(
@@ -133,6 +136,7 @@ class LibrariesIoProvider:
             state="empty" if count is None else "success",
             subject=pkg.name,
             retrieved_at=utc_now(),
+            freshness=freshness,
             evidence=None if count is None else CountEvidence(count),
         )
 

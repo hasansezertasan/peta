@@ -13,6 +13,8 @@ from peta._version import __version__
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+    from peta.core.cache import Freshness
+
 __all__ = [
     "SCHEMA_VERSION",
     "SOURCE_STATES",
@@ -46,6 +48,7 @@ MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
         "enrichment_failed",
         "invalid_arguments",
         "network_error",
+        "offline_unavailable",
         "package_not_found",
         "provider_conflict",
         "provider_warning",
@@ -121,6 +124,12 @@ class SourceRecord:
     target: str | None = None
     retrieved_at: str | None = None
     reason: str | None = None
+    freshness: Freshness | None = None
+    """Whether this record's data came from the source or from peta's cache.
+
+    Absent when the question does not apply — a source read from the local
+    environment, or one that never completed a retrieval.
+    """
     fields: list[str] = field(default_factory=list)
 
 

@@ -2,6 +2,7 @@
 
 import json
 from dataclasses import replace
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -11,6 +12,11 @@ from peta.cli.app import _SUBCOMMANDS, app, run
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.remote import PackageNotFoundError as RemoteNotFound
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from tests.transport import FakeTransport
 
 pytestmark = pytest.mark.unit
 runner = CliRunner()
@@ -179,8 +185,8 @@ class TestInfo:
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
     ) -> None:
         ml.return_value = _pkg()
-        mdl.return_value = 1234567
-        mdep.return_value = 42
+        mdl.return_value = (1234567, "live")
+        mdep.return_value = (42, "live")
         mkey.return_value = "secret"
         r = runner.invoke(app, ["info", "requests"])
         assert r.exit_code == 0
@@ -210,8 +216,8 @@ class TestInfo:
         self, ml: MagicMock, mdl: MagicMock, mdep: MagicMock, mkey: MagicMock
     ) -> None:
         ml.return_value = _pkg()
-        mdl.return_value = 100
-        mdep.return_value = 5
+        mdl.return_value = (100, "live")
+        mdep.return_value = (5, "live")
         mkey.return_value = "secret"
         r = runner.invoke(app, ["info", "requests", "--json"])
         data = json.loads(r.output)
@@ -529,12 +535,12 @@ class TestFiles:
 class TestVersions:
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions(self, m: MagicMock) -> None:
-        m.return_value = [{"version": "2.31.0", "upload_time": "2023-05-22"}]
+        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], "live")
         assert "2.31.0" in runner.invoke(app, ["versions", "requests"]).output
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_json(self, m: MagicMock) -> None:
-        m.return_value = [{"version": "2.31.0", "upload_time": "2023-05-22"}]
+        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], "live")
         assert isinstance(
             json.loads(runner.invoke(app, ["versions", "requests", "--json"]).output)[
                 "result"
@@ -544,20 +550,21 @@ class TestVersions:
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_markdown(self, m: MagicMock) -> None:
-        m.return_value = [{"version": "2.31.0", "upload_time": "2023-05-22"}]
+        m.return_value = ([{"version": "2.31.0", "upload_time": "2023-05-22"}], "live")
         result = runner.invoke(app, ["versions", "requests", "--format", "markdown"])
         assert result.output.startswith("# Versions for requests")
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_not_found(self, m: MagicMock) -> None:
-        m.return_value = []
+        m.return_value = ([], "live")
         assert runner.invoke(app, ["versions", "nope"]).exit_code == 1
 
     @patch("peta.cli.commands.versions.remote_get_versions")
     def test_versions_limit(self, m: MagicMock) -> None:
-        m.return_value = [
-            {"version": f"1.{i}.0", "upload_time": ""} for i in range(4, -1, -1)
-        ]
+        m.return_value = (
+            [{"version": f"1.{i}.0", "upload_time": ""} for i in range(4, -1, -1)],
+            "live",
+        )
         out = runner.invoke(app, ["versions", "x", "-n", "2"]).output
         assert "1.4.0" in out
         assert "1.2.0" not in out
@@ -661,3 +668,127 @@ class TestNoColor:
         assert r.exit_code == 0
         assert "requests" in r.output
         assert "\x1b" not in r.output
+
+
+_PYPI_BODY = {
+    "info": {"name": "requests", "version": "2.31.0", "summary": "http"},
+    "vulnerabilities": [],
+}
+
+
+class TestCacheAndOffline:
+    """The cache and ``--offline`` as a user meets them, through the CLI."""
+
+    def test_a_repeated_versioned_query_needs_no_network(
+        self, fake_http: FakeTransport, tmp_path: Path
+    ) -> None:
+        # The headline promise: a pinned release's metadata cannot change, so
+        # asking twice must cost one request — and the second must succeed
+        # with the network taken away entirely.
+        fake_http.reply(json=_PYPI_BODY)
+        warm = ["info", "requests==2.31.0", "--no-osv", "--no-stats", "--json"]
+        cached = ["--offline", *warm]
+
+        first = runner.invoke(app, ["--cache-dir", str(tmp_path), *warm])
+        second = runner.invoke(app, ["--cache-dir", str(tmp_path), *cached])
+
+        assert first.exit_code == 0
+        assert second.exit_code == 0
+        assert json.loads(second.output)["result"]["version"] == "2.31.0"
+        assert len(fake_http.requests) == 1
+
+    def test_the_envelope_says_where_the_data_came_from(
+        self, fake_http: FakeTransport, tmp_path: Path
+    ) -> None:
+        fake_http.reply(json=_PYPI_BODY)
+        args = ["info", "requests==2.31.0", "--no-osv", "--no-stats", "--json"]
+
+        first = runner.invoke(app, ["--cache-dir", str(tmp_path), *args])
+        second = runner.invoke(app, ["--cache-dir", str(tmp_path), *args])
+
+        live = json.loads(first.output)["sources"][0]
+        served = json.loads(second.output)["sources"][0]
+        assert live["freshness"] == "live"
+        assert served["freshness"] == "cached"
+
+    def test_offline_with_an_empty_cache_fails_with_a_structured_error(
+        self, fake_http: FakeTransport, tmp_path: Path
+    ) -> None:
+        result = runner.invoke(
+            app,
+            [
+                "--offline",
+                "--cache-dir",
+                str(tmp_path),
+                "info",
+                "requests==2.31.0",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 2
+        envelope = json.loads(result.output)
+        assert envelope["status"] == "failed"
+        assert envelope["errors"][0]["code"] == "offline_unavailable"
+        # Actionable means naming what could not be answered.
+        assert "pypi.org" in envelope["errors"][0]["message"]
+        assert fake_http.requests == []
+
+    def test_refresh_refetches_a_cached_answer(
+        self, fake_http: FakeTransport, tmp_path: Path
+    ) -> None:
+        fake_http.reply(json=_PYPI_BODY)
+        args = ["info", "requests==2.31.0", "--no-osv", "--no-stats", "--json"]
+
+        _ = runner.invoke(app, ["--cache-dir", str(tmp_path), *args])
+        _ = runner.invoke(app, ["--cache-dir", str(tmp_path), "--refresh", *args])
+
+        assert len(fake_http.requests) == 2
+
+    def test_offline_and_refresh_are_rejected_together(self, tmp_path: Path) -> None:
+        # Contradictory: one says refetch everything, the other says make no
+        # requests. Either reading could be meant, so neither is guessed.
+        result = runner.invoke(
+            app,
+            [
+                "--offline",
+                "--refresh",
+                "--cache-dir",
+                str(tmp_path),
+                "info",
+                "requests",
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "--offline cannot be combined with --refresh" in result.output
+
+    def test_optional_enrichment_survives_being_offline(
+        self, fake_http: FakeTransport, tmp_path: Path
+    ) -> None:
+        # Offline must not turn a usable result into a failure just because an
+        # optional source could not be reached.
+        fake_http.reply(json=_PYPI_BODY)
+        # ``--no-osv``/``--no-stats`` are command options, so they follow the
+        # subcommand; only the cache flags belong before it.
+        warm = ["info", "requests==2.31.0", "--json", "--no-osv", "--no-stats"]
+        _ = runner.invoke(app, ["--cache-dir", str(tmp_path), *warm])
+
+        result = runner.invoke(
+            app,
+            [
+                "--cache-dir",
+                str(tmp_path),
+                "--offline",
+                "info",
+                "requests==2.31.0",
+                "--json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        envelope = json.loads(result.output)
+        assert envelope["status"] == "partial"
+        assert envelope["result"]["version"] == "2.31.0"
+        reasons = [source.get("reason", "") for source in envelope["sources"]]
+        assert any("offline" in reason for reason in reasons)

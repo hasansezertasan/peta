@@ -7,10 +7,11 @@ from typing import TYPE_CHECKING
 import httpx
 import pytest
 
-from peta.core import http
+from peta.core import cache, http
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
     from tests.transport import FakeTransport
 
@@ -78,9 +79,10 @@ def test_the_client_is_closed_at_interpreter_exit(
 def test_get_goes_through_the_shared_client(fake_http: FakeTransport) -> None:
     fake_http.reply(json={"ok": True})
 
-    response = http.get(_URL)
+    fetched = http.get(_URL)
 
-    assert response.json() == {"ok": True}
+    assert fetched.response.json() == {"ok": True}
+    assert fetched.freshness == "live"
     assert fake_http.request.method == "GET"
     assert str(fake_http.request.url) == _URL
 
@@ -117,3 +119,185 @@ def test_an_unregistered_request_fails_the_test(fake_http: FakeTransport) -> Non
     assert fake_http.requests == []
     with pytest.raises(AssertionError, match="no reply registered"):
         _ = http.get(_URL)
+
+
+class TestCaching:
+    """The cache as the sources see it, through :func:`peta.core.http.get`."""
+
+    def test_a_fresh_entry_is_served_without_asking_the_source(
+        self, fake_http: FakeTransport, cache_dir: Path
+    ) -> None:
+        assert cache.settings().directory == cache_dir
+        fake_http.reply(json={"v": 1})
+
+        _ = http.get(_URL, ttl=60)
+        second = http.get(_URL, ttl=60)
+
+        assert second.freshness == "cached"
+        assert second.response.json() == {"v": 1}
+        assert len(fake_http.requests) == 1
+
+    def test_an_expired_entry_is_fetched_again(
+        self, fake_http: FakeTransport, cache_dir: Path, frozen_clock: list[float]
+    ) -> None:
+        assert cache_dir.parent.exists()
+        fake_http.reply(json={"v": 1})
+
+        _ = http.get(_URL, ttl=60)
+        frozen_clock[0] += 61
+        second = http.get(_URL, ttl=60)
+
+        assert second.freshness == "live"
+        assert len(fake_http.requests) == 2
+
+    def test_no_ttl_bypasses_the_cache_entirely(
+        self, fake_http: FakeTransport, cache_dir: Path
+    ) -> None:
+        assert cache.settings().directory == cache_dir
+        fake_http.reply(json={"v": 1})
+
+        first = http.get(_URL)
+        second = http.get(_URL)
+
+        assert (first.freshness, second.freshness) == ("live", "live")
+        assert len(fake_http.requests) == 2
+        assert list(cache_dir.glob("*.json")) == []
+
+    def test_an_error_response_is_not_cached(
+        self, fake_http: FakeTransport, cache_dir: Path
+    ) -> None:
+        # An error describes this moment, not the package. Storing one would
+        # turn a transient outage into a persistent wrong answer.
+        assert cache.settings().directory == cache_dir
+        fake_http.reply(status=500)
+
+        _ = http.get(_URL, ttl=60)
+
+        assert list(cache_dir.glob("*.json")) == []
+
+    def test_refresh_ignores_a_fresh_entry(
+        self, fake_http: FakeTransport, cache_dir: Path
+    ) -> None:
+        fake_http.reply(json={"v": 1})
+        _ = http.get(_URL, ttl=60)
+        cache.configure(directory=cache_dir, refresh=True)
+
+        second = http.get(_URL, ttl=60)
+
+        assert second.freshness == "live"
+        assert len(fake_http.requests) == 2
+
+
+class TestConditionalRequests:
+    def test_a_stale_entry_offers_its_validator(
+        self, fake_http: FakeTransport, cache_dir: Path, frozen_clock: list[float]
+    ) -> None:
+        assert cache_dir.parent.exists()
+        fake_http.reply(json={"v": 1}, headers={"etag": 'W/"v1"'})
+        _ = http.get(_URL, ttl=60)
+        frozen_clock[0] += 61
+
+        _ = http.get(_URL, ttl=60)
+
+        assert fake_http.requests[1].headers["if-none-match"] == 'W/"v1"'
+
+    def test_a_304_serves_the_stored_body(
+        self, fake_http: FakeTransport, cache_dir: Path, frozen_clock: list[float]
+    ) -> None:
+        assert cache_dir.parent.exists()
+        fake_http.reply(url="?first", json={"v": 1}, headers={"etag": 'W/"v1"'})
+        first = http.get(_URL + "?first", ttl=60)
+        assert first.freshness == "live"
+        frozen_clock[0] += 61
+        # The source now answers "unchanged" with no body at all.
+        fake_http.reply(url="?first", status=304)
+
+        second = http.get(_URL + "?first", ttl=60)
+
+        assert second.freshness == "revalidated"
+        assert second.response.json() == {"v": 1}
+
+    def test_a_304_restamps_the_entry_so_the_next_read_is_a_hit(
+        self, fake_http: FakeTransport, cache_dir: Path, frozen_clock: list[float]
+    ) -> None:
+        assert cache_dir.parent.exists()
+        fake_http.reply(url="?r", json={"v": 1}, headers={"etag": "e"})
+        _ = http.get(_URL + "?r", ttl=60)
+        frozen_clock[0] += 61
+        fake_http.reply(url="?r", status=304)
+        _ = http.get(_URL + "?r", ttl=60)
+
+        third = http.get(_URL + "?r", ttl=60)
+
+        assert third.freshness == "cached"
+        # Two requests total: the original and the one revalidation.
+        assert len(fake_http.requests) == 2
+
+
+class TestOffline:
+    def test_a_cache_miss_names_the_url_it_could_not_answer(
+        self, cache_dir: Path
+    ) -> None:
+        cache.configure(directory=cache_dir, offline=True)
+
+        with pytest.raises(http.OfflineError, match=_URL):
+            _ = http.get(_URL, ttl=60)
+
+    def test_no_request_is_attempted(
+        self, fake_http: FakeTransport, cache_dir: Path
+    ) -> None:
+        cache.configure(directory=cache_dir, offline=True)
+
+        with pytest.raises(http.OfflineError):
+            _ = http.get(_URL, ttl=60)
+
+        assert fake_http.requests == []
+
+    def test_a_stale_entry_is_still_served(
+        self, fake_http: FakeTransport, cache_dir: Path, frozen_clock: list[float]
+    ) -> None:
+        # Past its TTL is not the same as wrong, and someone who asked for
+        # offline has already said they prefer an old answer to none.
+        fake_http.reply(json={"v": 1})
+        _ = http.get(_URL, ttl=60)
+        frozen_clock[0] += 10_000
+        cache.configure(directory=cache_dir, offline=True)
+
+        served = http.get(_URL, ttl=60)
+
+        assert served.freshness == "cached"
+        assert served.response.json() == {"v": 1}
+        assert len(fake_http.requests) == 1
+
+    def test_an_uncacheable_request_is_refused_rather_than_sent(
+        self, fake_http: FakeTransport, cache_dir: Path
+    ) -> None:
+        cache.configure(directory=cache_dir, offline=True)
+
+        with pytest.raises(http.OfflineError):
+            _ = http.get(_URL)
+
+        assert fake_http.requests == []
+
+    def test_a_post_is_refused(self, fake_http: FakeTransport, cache_dir: Path) -> None:
+        cache.configure(directory=cache_dir, offline=True)
+
+        with pytest.raises(http.OfflineError):
+            _ = http.post(_URL, json={"q": 1})
+
+        assert fake_http.requests == []
+
+
+class TestPost:
+    def test_a_post_is_never_cached(
+        self, fake_http: FakeTransport, cache_dir: Path
+    ) -> None:
+        assert cache.settings().directory == cache_dir
+        fake_http.reply(json={"vulns": []})
+
+        first = http.post(_URL, json={"q": 1})
+        second = http.post(_URL, json={"q": 1})
+
+        assert (first.freshness, second.freshness) == ("live", "live")
+        assert len(fake_http.requests) == 2
+        assert list(cache_dir.glob("*.json")) == []
