@@ -15,6 +15,8 @@ import pytest
 
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.providers import (
+    CAPABILITY_FIELDS,
+    CAPABILITY_GROUPS,
     DEFAULT_PROVIDERS,
     CountEvidence,
     LibrariesIoProvider,
@@ -143,12 +145,34 @@ def test_default_registry_covers_every_capability_exactly_once() -> None:
 
 
 def test_default_registry_groups_match_the_cli_opt_out_flags() -> None:
-    groups = {provider.name: provider.group for provider in DEFAULT_PROVIDERS}
+    groups = {
+        provider.name: CAPABILITY_GROUPS[provider.capability]
+        for provider in DEFAULT_PROVIDERS
+    }
     assert groups == {
         "osv": "vulnerabilities",
         "pypistats": "stats",
         "libraries.io": "stats",
     }
+
+
+def test_every_capability_maps_to_an_opt_out_group() -> None:
+    # A capability with no group would silently escape both --no-osv and
+    # --no-stats, so the map must stay total over Capability.
+    assert set(CAPABILITY_GROUPS) == set(CAPABILITY_FIELDS)
+
+
+def test_group_follows_the_capability_not_the_provider() -> None:
+    # A provider cannot declare a group, so it cannot file a count under the
+    # vulnerability family to dodge --no-stats.
+    result = ProviderResult(
+        provider="forger",
+        capability="download_count",
+        state="empty",
+        subject="requests",
+        retrieved_at="2026-09-07T12:00:00Z",
+    )
+    assert result.group == "stats"
 
 
 class TestResultVariantValidation:

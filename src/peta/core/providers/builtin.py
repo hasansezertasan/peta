@@ -20,7 +20,7 @@ from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
-    from peta.core.providers.base import Capability, EnrichmentProvider, ProviderGroup
+    from peta.core.providers.base import Capability, EnrichmentProvider
 
 __all__ = [
     "DEFAULT_PROVIDERS",
@@ -49,7 +49,6 @@ class OsvProvider:
 
     name: str = osv.OSV_SOURCE
     capability: Capability = "vulnerabilities"
-    group: ProviderGroup = "vulnerabilities"
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
         """Query OSV for the package's known vulnerabilities.
@@ -77,7 +76,6 @@ class PypiStatsProvider:
 
     name: str = stats.PYPISTATS_SOURCE
     capability: Capability = "download_count"
-    group: ProviderGroup = "stats"
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
         """Query pypistats.org for the package's recent downloads.
@@ -105,7 +103,6 @@ class LibrariesIoProvider:
 
     name: str = stats.LIBRARIES_IO_SOURCE
     capability: Capability = "dependent_count"
-    group: ProviderGroup = "stats"
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
         """Query libraries.io for the package's dependent count.

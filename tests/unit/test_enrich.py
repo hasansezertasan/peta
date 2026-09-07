@@ -7,7 +7,7 @@ transport is irrelevant here and covered by its own client tests.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -23,7 +23,6 @@ from peta.core.providers import (
     Capability,
     CountEvidence,
     Evidence,
-    ProviderGroup,
     ProviderResult,
     VulnerabilityEvidence,
 )
@@ -45,7 +44,6 @@ class FakeProvider:
 
     name: str
     capability: Capability
-    group: ProviderGroup
     state: SourceState = "success"
     evidence: Evidence | None = None
     reason: str | None = None
@@ -75,7 +73,6 @@ class _Impostor:
 
     name = "honest"
     capability: Capability = "download_count"
-    group: ProviderGroup = "stats"
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
         """Return a result claiming to come from somewhere else.
@@ -98,7 +95,6 @@ class _CapabilityForger:
 
     name = "forger"
     capability: Capability = "vulnerabilities"
-    group: ProviderGroup = "vulnerabilities"
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
         """Return a count result from a declared vulnerability provider.
@@ -125,7 +121,6 @@ def _osv(**over: object) -> FakeProvider:
     base = FakeProvider(
         name="osv",
         capability="vulnerabilities",
-        group="vulnerabilities",
         evidence=VulnerabilityEvidence([_vuln("GHSA-1")]),
     )
     return replace(base, **over)
@@ -133,20 +128,14 @@ def _osv(**over: object) -> FakeProvider:
 
 def _downloads(count: int = 100, **over: object) -> FakeProvider:
     base = FakeProvider(
-        name="pypistats",
-        capability="download_count",
-        group="stats",
-        evidence=CountEvidence(count),
+        name="pypistats", capability="download_count", evidence=CountEvidence(count)
     )
     return replace(base, **over)
 
 
 def _dependents(count: int = 5, **over: object) -> FakeProvider:
     base = FakeProvider(
-        name="libraries.io",
-        capability="dependent_count",
-        group="stats",
-        evidence=CountEvidence(count),
+        name="libraries.io", capability="dependent_count", evidence=CountEvidence(count)
     )
     return replace(base, **over)
 
@@ -281,7 +270,6 @@ class TestEnrich:
         class Exploding:
             name = "boom"
             capability: Capability = "dependent_count"
-            group: ProviderGroup = "stats"
 
             def fetch(self, pkg: PackageInfo) -> ProviderResult:
                 msg = f"kaboom on {pkg.name}"
@@ -302,8 +290,9 @@ class TestEnrich:
         assert pkg.enrichment_sources[0].state == "failed"
 
     def test_a_result_for_another_capability_is_rejected(self) -> None:
-        # A provider filed under the vulnerability group must not populate
-        # statistics, or --no-stats is bypassable by declaring the other group.
+        # A declared vulnerability provider must not answer with a count:
+        # its group follows its capability, so --no-stats skipped it and the
+        # returned field was never consulted for.
         pkg = enrich(
             _pkg(), no_osv=False, no_stats=True, providers=[_CapabilityForger()]
         )
@@ -334,6 +323,31 @@ class TestEnrich:
         source = pkg.enrichment_sources[0]
         assert source.state == "success"
         assert source.retrieved_at is not None
+
+    def test_a_provider_returning_a_non_result_is_contained(self) -> None:
+        class Malformed:
+            name = "malformed"
+            capability: Capability = "download_count"
+
+            def fetch(self, pkg: PackageInfo) -> ProviderResult:
+                """Return nothing at all, as a broken provider might.
+
+                Returns:
+                    Not a result, despite the annotation.
+                """
+                assert pkg.name
+                # Deliberately lies about its return type, as a broken
+                # third-party provider would.
+                return cast("ProviderResult", None)
+
+        downloads = _downloads()
+        pkg = enrich(
+            _pkg(), no_osv=True, no_stats=False, providers=[Malformed(), downloads]
+        )
+        # Inspecting the result must not crash before containment applies.
+        assert downloads.calls == ["requests"]
+        assert pkg.download_count == 100
+        assert pkg.enrichment_failures[0].source == "malformed"
 
     def test_unavailable_provider_is_not_a_failure(self) -> None:
         pkg = enrich(
@@ -467,3 +481,48 @@ class TestComposedPasses:
         )
         assert second.download_count == 100
         assert second.enrichment_conflicts == []
+
+    def test_a_later_conflict_names_the_original_owner(self) -> None:
+        # Pass 1 consulted two sources; pypistats won. A third source
+        # conflicting later must be told it lost to pypistats, not to the
+        # last source that merely reported the same field.
+        first = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _downloads(100, name="pypistats"),
+                _downloads(999, name="deps.dev"),
+            ],
+        )
+        second = enrich(
+            first,
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(555, name="third-party")],
+        )
+        assert second.download_count == 100
+        assert second.enrichment_conflicts[-1] == ProviderConflict(
+            field="result.download_count", kept="pypistats", discarded="third-party"
+        )
+
+    def test_reconsulting_a_discarded_source_does_not_self_conflict(self) -> None:
+        first = enrich(
+            _pkg(),
+            no_osv=True,
+            no_stats=False,
+            providers=[
+                _downloads(100, name="pypistats"),
+                _downloads(999, name="deps.dev"),
+            ],
+        )
+        second = enrich(
+            first,
+            no_osv=True,
+            no_stats=False,
+            providers=[_downloads(999, name="deps.dev")],
+        )
+        # Never "kept deps.dev, discarded deps.dev".
+        conflict = second.enrichment_conflicts[-1]
+        assert conflict.kept == "pypistats"
+        assert conflict.discarded == "deps.dev"

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "CAPABILITY_FIELDS",
+    "CAPABILITY_GROUPS",
     "Capability",
     "CountEvidence",
     "EnrichmentProvider",
@@ -43,10 +44,18 @@ Capability = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
 ProviderGroup = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
     "ProviderGroup", Literal["vulnerabilities", "stats"]
 )
-"""The ``--no-osv`` / ``--no-stats`` family a provider belongs to.
+"""The ``--no-osv`` / ``--no-stats`` family a capability belongs to."""
 
-Grouping lives on the provider so orchestration can honour the CLI's opt-out
-flags without naming individual sources.
+CAPABILITY_GROUPS: dict[Capability, ProviderGroup] = {
+    "vulnerabilities": "vulnerabilities",
+    "download_count": "stats",
+    "dependent_count": "stats",
+}
+"""The opt-out family each capability falls under.
+
+Derived from the capability rather than declared per provider: the CLI's
+opt-out flags select kinds of data, so a provider cannot place itself in a
+group that does not match what it supplies and thereby escape its own flag.
 """
 
 CAPABILITY_FIELDS: dict[Capability, str] = {
@@ -178,6 +187,15 @@ class ProviderResult:
         _validate_capability(self.capability, self.evidence)
 
     @property
+    def group(self) -> ProviderGroup:
+        """Name the opt-out family this result's capability falls under.
+
+        Returns:
+            The group for the result's capability.
+        """
+        return CAPABILITY_GROUPS[self.capability]
+
+    @property
     def field(self) -> str:
         """Name the ``result`` path this provider contributes to.
 
@@ -190,8 +208,9 @@ class ProviderResult:
 class EnrichmentProvider(Protocol):
     """An optional metadata source that enriches one package.
 
-    Implementations expose their identity as ``name``, the single result field
-    they contribute as ``capability``, and their opt-out family as ``group``.
+    Implementations expose their identity as ``name`` and the single result
+    field they contribute as ``capability``; the opt-out family follows from
+    the capability via :data:`CAPABILITY_GROUPS`.
 
     Implementations must not raise: every outcome, including failure and
     missing configuration, is reported as a :class:`ProviderResult` so one
@@ -220,18 +239,6 @@ class EnrichmentProvider(Protocol):
 
         Returns:
             The provider's capability.
-
-        Raises:
-            NotImplementedError: Always; implementations supply the value.
-        """
-        raise NotImplementedError
-
-    @property
-    def group(self) -> ProviderGroup:
-        """Name the opt-out family this provider belongs to.
-
-        Returns:
-            The provider's group.
 
         Raises:
             NotImplementedError: Always; implementations supply the value.

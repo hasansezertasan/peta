@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from peta.core.providers.base import (
     CAPABILITY_FIELDS,
+    CAPABILITY_GROUPS,
     Capability,
     CountEvidence,
     EnrichmentProvider,
@@ -21,6 +22,7 @@ from peta.core.providers.builtin import (
 
 __all__ = [
     "CAPABILITY_FIELDS",
+    "CAPABILITY_GROUPS",
     "DEFAULT_PROVIDERS",
     "Capability",
     "CountEvidence",

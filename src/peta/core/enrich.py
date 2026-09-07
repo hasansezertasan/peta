@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from peta.core.models import EnrichmentFailure, ProviderConflict
 from peta.core.output import SourceRecord, utc_now
 from peta.core.providers import (
+    CAPABILITY_GROUPS,
     DEFAULT_PROVIDERS,
     CountEvidence,
     ProviderResult,
@@ -61,7 +62,7 @@ def _collect(
             state="skipped",
             subject=pkg.name,
         )
-        if provider.group in disabled
+        if CAPABILITY_GROUPS[provider.capability] in disabled
         else _fetch(provider, pkg)
         for provider in providers
     ]
@@ -121,10 +122,24 @@ def _fetch(provider: EnrichmentProvider, pkg: PackageInfo) -> ProviderResult:
         The provider's result, or a failed result describing what went wrong.
     """
     try:
-        result = provider.fetch(pkg)
+        # Inspection happens inside the containment too: a provider that
+        # returns something that is not a result at all must be reported the
+        # same way as one that raises, not crash on the first attribute read.
+        return _accepted(provider, pkg, provider.fetch(pkg))
     # A misbehaving provider is contained here, never propagated to the caller.
     except Exception as exc:  # ruff: ignore[blind-except]
         return _rejected(provider, pkg, f"provider raised {type(exc).__name__}: {exc}")
+
+
+def _accepted(
+    provider: EnrichmentProvider, pkg: PackageInfo, result: ProviderResult
+) -> ProviderResult:
+    """Accept a result once it agrees with the provider that returned it.
+
+    Returns:
+        The result, stamped if it completed without a retrieval time, or a
+        failed result when it does not belong to this provider.
+    """
     mismatch = _mismatch(provider, result)
     if mismatch is not None:
         return _rejected(provider, pkg, mismatch)
@@ -183,9 +198,12 @@ def _existing_claims(pkg: PackageInfo) -> dict[str, tuple[str, int]]:
     Returns:
         The claimed field paths mapped to their owning source and value.
     """
+    # Reversed so the *first* successful source for a field wins the dict
+    # comprehension: the value in the package came from whichever source
+    # claimed it first, not from the last one that reported the same field.
     owners = {
         record.fields[0]: record.name
-        for record in pkg.enrichment_sources
+        for record in reversed(pkg.enrichment_sources)
         if record.state == "success" and record.fields
     }
     counts = {
