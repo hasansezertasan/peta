@@ -365,13 +365,13 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="238">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
 </span><span data-line="239">
 </span><span data-line="240">
-</span><span data-line="241"><span class="k">def</span><span class="w"> </span><span class="nf">_cached_get</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="241"><span class="k">def</span><span class="w"> </span><span class="nf">_cached_get</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
 </span><span data-line="242"><span class="w">    </span><span class="sd">"""Serve a GET from the cache when possible, otherwise from the source.</span>
 </span><span data-line="243">
 </span><span data-line="244"><span class="sd">    Returns:</span>
 </span><span data-line="245"><span class="sd">        The response and where it came from.</span>
 </span><span data-line="246"><span class="sd">    """</span>
-</span><span data-line="247">    <span class="n">key</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">key_for</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="247">    <span class="n">key</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">key_for</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">scope</span><span class="p">)</span>
 </span><span data-line="248">    <span class="n">entry</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">refresh</span> <span class="k">else</span> <span class="n">cache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
 </span><span data-line="249">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_fresh</span><span class="p">(</span><span class="n">ttl</span><span class="p">,</span> <span class="n">cache</span><span class="o">.</span><span class="n">now</span><span class="p">()):</span>
 </span><span data-line="250">        <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
@@ -415,65 +415,72 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="get">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.get">[docs]</a>
 </span><span data-line="285"><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
-</span><span data-line="286">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="287"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="288"><span class="w">    </span><span class="sd">"""Send a GET request, using the cache when the caller allows it.</span>
-</span><span data-line="289">
-</span><span data-line="290"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
-</span><span data-line="291"><span class="sd">    :class:`OfflineError` propagates when offline mode is on and the cache</span>
-</span><span data-line="292"><span class="sd">    cannot answer; each source maps them onto its own error type.</span>
+</span><span data-line="286">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="287">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="288">    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="289">    <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="290">    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+</span><span data-line="291"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="292"><span class="w">    </span><span class="sd">"""Send a GET request, using the cache when the caller allows it.</span>
 </span><span data-line="293">
-</span><span data-line="294"><span class="sd">    A live result is not cached until the caller confirms the body was usable</span>
-</span><span data-line="295"><span class="sd">    by passing it to :func:`keep`.</span>
-</span><span data-line="296">
-</span><span data-line="297"><span class="sd">    Args:</span>
-</span><span data-line="298"><span class="sd">        url: The absolute URL to request.</span>
-</span><span data-line="299"><span class="sd">        params: Optional query-string parameters.</span>
-</span><span data-line="300"><span class="sd">        ttl: How long a stored response stays usable, in seconds. ``None``</span>
-</span><span data-line="301"><span class="sd">            bypasses the cache entirely, for a URL whose answer should never</span>
-</span><span data-line="302"><span class="sd">            be reused.</span>
-</span><span data-line="303">
-</span><span data-line="304"><span class="sd">    Returns:</span>
-</span><span data-line="305"><span class="sd">        The response and where it came from.</span>
-</span><span data-line="306"><span class="sd">    """</span>
-</span><span data-line="307">    <span class="c1"># Merged here rather than by the client, so a cache hit never constructs</span>
-</span><span data-line="308">    <span class="c1"># one; the result is byte-identical to what ``build_request`` produces.</span>
-</span><span data-line="309">    <span class="c1"># ``params=None`` is not passed through: httpx reads that as "replace the</span>
-</span><span data-line="310">    <span class="c1"># query with nothing" and silently drops any query already in the URL,</span>
-</span><span data-line="311">    <span class="c1"># where ``build_request`` leaves it alone.</span>
-</span><span data-line="312">    <span class="n">full</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">))</span>
-</span><span data-line="313">    <span class="k">if</span> <span class="n">ttl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="314">        <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
-</span><span data-line="315">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span>
-</span><span data-line="316">            <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">full</span><span class="p">)),</span>
-</span><span data-line="317">            <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span>
-</span><span data-line="318">        <span class="p">)</span>
-</span><span data-line="319">    <span class="k">return</span> <span class="n">_cached_get</span><span class="p">(</span><span class="n">full</span><span class="p">,</span> <span class="n">ttl</span><span class="p">)</span></div>
+</span><span data-line="294"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
+</span><span data-line="295"><span class="sd">    :class:`OfflineError` propagates when offline mode is on and the cache</span>
+</span><span data-line="296"><span class="sd">    cannot answer; each source maps them onto its own error type.</span>
+</span><span data-line="297">
+</span><span data-line="298"><span class="sd">    A live result is not cached until the caller confirms the body was usable</span>
+</span><span data-line="299"><span class="sd">    by passing it to :func:`keep`.</span>
+</span><span data-line="300">
+</span><span data-line="301"><span class="sd">    Args:</span>
+</span><span data-line="302"><span class="sd">        url: The absolute URL to request.</span>
+</span><span data-line="303"><span class="sd">        params: Optional query-string parameters.</span>
+</span><span data-line="304"><span class="sd">        ttl: How long a stored response stays usable, in seconds. ``None``</span>
+</span><span data-line="305"><span class="sd">            bypasses the cache entirely, for a URL whose answer should never</span>
+</span><span data-line="306"><span class="sd">            be reused.</span>
+</span><span data-line="307"><span class="sd">        scope: Distinguishes consumers that fetch the same URL but validate</span>
+</span><span data-line="308"><span class="sd">            different parts of it, so neither replays a body the other</span>
+</span><span data-line="309"><span class="sd">            accepted. See :func:`peta.core.cache.key_for`.</span>
+</span><span data-line="310">
+</span><span data-line="311"><span class="sd">    Returns:</span>
+</span><span data-line="312"><span class="sd">        The response and where it came from.</span>
+</span><span data-line="313"><span class="sd">    """</span>
+</span><span data-line="314">    <span class="c1"># Merged here rather than by the client, so a cache hit never constructs</span>
+</span><span data-line="315">    <span class="c1"># one; the result is byte-identical to what ``build_request`` produces.</span>
+</span><span data-line="316">    <span class="c1"># ``params=None`` is not passed through: httpx reads that as "replace the</span>
+</span><span data-line="317">    <span class="c1"># query with nothing" and silently drops any query already in the URL,</span>
+</span><span data-line="318">    <span class="c1"># where ``build_request`` leaves it alone.</span>
+</span><span data-line="319">    <span class="n">full</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">))</span>
+</span><span data-line="320">    <span class="k">if</span> <span class="n">ttl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="321">        <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
+</span><span data-line="322">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span>
+</span><span data-line="323">            <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">full</span><span class="p">)),</span>
+</span><span data-line="324">            <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span>
+</span><span data-line="325">        <span class="p">)</span>
+</span><span data-line="326">    <span class="k">return</span> <span class="n">_cached_get</span><span class="p">(</span><span class="n">full</span><span class="p">,</span> <span class="n">ttl</span><span class="p">,</span> <span class="n">scope</span><span class="p">)</span></div>
 
-</span><span data-line="320">
-</span><span data-line="321">
+</span><span data-line="327">
+</span><span data-line="328">
 <div class="viewcode-block" id="post">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.post">[docs]</a>
-</span><span data-line="322"><span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="323"><span class="w">    </span><span class="sd">"""Send a JSON POST request over the shared client.</span>
-</span><span data-line="324">
-</span><span data-line="325"><span class="sd">    Never cached: a POST body carries the question, and peta's only POST</span>
-</span><span data-line="326"><span class="sd">    source is an advisory query whose request shape is about to change with</span>
-</span><span data-line="327"><span class="sd">    batching. Offline mode still refuses it rather than pretending.</span>
-</span><span data-line="328">
-</span><span data-line="329"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
-</span><span data-line="330"><span class="sd">    :class:`OfflineError` propagates when offline mode is on.</span>
+</span><span data-line="329"><span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="330"><span class="w">    </span><span class="sd">"""Send a JSON POST request over the shared client.</span>
 </span><span data-line="331">
-</span><span data-line="332"><span class="sd">    Args:</span>
-</span><span data-line="333"><span class="sd">        url: The absolute URL to request.</span>
-</span><span data-line="334"><span class="sd">        json: The request body, serialized as JSON.</span>
+</span><span data-line="332"><span class="sd">    Never cached: a POST body carries the question, and peta's only POST</span>
+</span><span data-line="333"><span class="sd">    source is an advisory query whose request shape is about to change with</span>
+</span><span data-line="334"><span class="sd">    batching. Offline mode still refuses it rather than pretending.</span>
 </span><span data-line="335">
-</span><span data-line="336"><span class="sd">    Returns:</span>
-</span><span data-line="337"><span class="sd">        The response and where it came from, always ``live``.</span>
-</span><span data-line="338"><span class="sd">    """</span>
-</span><span data-line="339">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="340">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"POST"</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">json</span><span class="p">)</span>
-</span><span data-line="341">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span></div>
+</span><span data-line="336"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
+</span><span data-line="337"><span class="sd">    :class:`OfflineError` propagates when offline mode is on.</span>
+</span><span data-line="338">
+</span><span data-line="339"><span class="sd">    Args:</span>
+</span><span data-line="340"><span class="sd">        url: The absolute URL to request.</span>
+</span><span data-line="341"><span class="sd">        json: The request body, serialized as JSON.</span>
+</span><span data-line="342">
+</span><span data-line="343"><span class="sd">    Returns:</span>
+</span><span data-line="344"><span class="sd">        The response and where it came from, always ``live``.</span>
+</span><span data-line="345"><span class="sd">    """</span>
+</span><span data-line="346">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="347">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"POST"</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">json</span><span class="p">)</span>
+</span><span data-line="348">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
