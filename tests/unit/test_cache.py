@@ -506,3 +506,27 @@ class TestConsumerScope:
         assert cache.key_for("GET", url, "package") == cache.key_for(
             "GET", url, "package"
         )
+
+
+class TestStuckEntries:
+    def test_a_body_that_no_longer_parses_is_a_miss(self, cache_dir: Path) -> None:
+        # The wrapper stays valid JSON while the body inside is mangled. Served
+        # as-is, the caller's decoder would reject it on every read until the
+        # TTL expired, with no way to recover while the source is healthy.
+        cache.store("k", url=_URL, status=200, body='{"ok": true}', headers={})
+        entry_file = cache_dir / "k.json"
+        payload = json.loads(entry_file.read_text())
+        payload["body"] = "<html>corrupted</html>"
+        entry_file.write_text(json.dumps(payload))
+
+        assert cache.load("k") is None
+
+    def test_the_entry_version_is_part_of_every_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Bumping it must make existing entries unreachable, so a stricter
+        # decoder never inherits a body a looser one accepted.
+        before = cache.key_for("GET", _URL)
+        monkeypatch.setattr(cache, "_ENTRY_VERSION", "99")
+
+        assert cache.key_for("GET", _URL) != before

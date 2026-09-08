@@ -424,3 +424,21 @@ class TestFreshnessValidation:
             reason="LIBRARIES_IO_API_KEY is not configured",
         )
         assert result.freshness is None
+
+
+class TestFailureProvenance:
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
+    def test_a_source_that_was_reached_records_when(self, mo: MagicMock) -> None:
+        mo.side_effect = EnrichmentError("osv", "HTTP 503")
+        result = OsvProvider().fetch(_pkg())
+        assert result.state == "failed"
+        assert result.retrieved_at is not None
+
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
+    def test_a_source_never_contacted_claims_no_time(self, mo: MagicMock) -> None:
+        # Offline refuses before anything is sent, so there is no retrieval to
+        # timestamp; claiming one would say a request happened when none did.
+        mo.side_effect = EnrichmentError("osv", "offline", contacted=False)
+        result = OsvProvider().fetch(_pkg())
+        assert result.state == "failed"
+        assert result.retrieved_at is None

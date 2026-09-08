@@ -146,6 +146,15 @@ parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but
 some of the project's other tools cannot yet parse.
 """
 
+_ENTRY_VERSION = "1"
+"""Mixed into every cache key, so entries never outlive their own format.
+
+The lever to pull when the stored layout changes *or* when a source's
+validators get stricter: bumping it makes every existing entry unreachable
+rather than letting a new decoder inherit a body an older, looser one
+accepted and then reject it on every read until the TTL expires.
+"""
+
 _ENTRY_DIR = "entries"
 """Subdirectory of the configured location that holds the entries.
 
@@ -323,7 +332,7 @@ def key_for(method: str, url: str, scope: str = "") -> str:
     Returns:
         A hex digest usable as a file name.
     """
-    material = f"{method.upper()}\n{redacted(url)}\n{scope}"
+    material = f"{_ENTRY_VERSION}\n{method.upper()}\n{redacted(url)}\n{scope}"
     return hashlib.sha256(material.encode()).hexdigest()
 
 
@@ -461,6 +470,25 @@ def _is_entry_shape(status: object, body: object, stored_at: object) -> bool:
     return _is_representable(stored_at)
 
 
+def _holds_json(body: str) -> bool:
+    """Whether a stored body is still the JSON it was written as.
+
+    Every source peta caches serves JSON, so a body that no longer parses is
+    a damaged entry, not a response — and serving it would fail the caller's
+    decoder on every read until the TTL expired, with no way to recover while
+    the source itself is healthy. Checked here so that failure degrades to a
+    refetch, which is what the corruption path promises.
+
+    Returns:
+        ``True`` if the body parses.
+    """
+    try:
+        _ = cast("object", json.loads(body))
+    except ValueError:
+        return False
+    return True
+
+
 def _decode(raw: object) -> CachedResponse | None:
     """Build an entry from decoded JSON, rejecting anything malformed.
 
@@ -473,6 +501,8 @@ def _decode(raw: object) -> CachedResponse | None:
     status, body, stored_at = entry.get("status"), entry.get("body"), entry.get("at")
     headers = entry.get("headers")
     if not _is_entry_shape(status, body, stored_at) or not _is_string_map(headers):
+        return None
+    if not _holds_json(cast("str", body)):
         return None
     return CachedResponse(
         status=cast("int", status),

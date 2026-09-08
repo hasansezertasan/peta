@@ -102,7 +102,9 @@ def _query(name: str, version: str | None) -> httpx.Response:
     try:
         return http.post(OSV_API_URL, json=_query_body(name, version)).response
     except http.OfflineError as exc:
-        raise EnrichmentError(OSV_SOURCE, "offline; advisories are not cached") from exc
+        raise EnrichmentError(
+            OSV_SOURCE, "offline; advisories are not cached", contacted=False
+        ) from exc
     except httpx.RequestError as exc:
         raise EnrichmentError(OSV_SOURCE, str(exc)) from exc
 

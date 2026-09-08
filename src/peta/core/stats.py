@@ -69,7 +69,9 @@ def _fetch_pypistats(name: str) -> tuple[int | None, Provenance]:
     try:
         fetched = http.get(f"{PYPISTATS_URL}/{name}/recent", ttl=cache.DAILY)
     except http.OfflineError as exc:
-        raise EnrichmentError(PYPISTATS_SOURCE, _OFFLINE_REASON) from exc
+        raise EnrichmentError(
+            PYPISTATS_SOURCE, _OFFLINE_REASON, contacted=False
+        ) from exc
     except httpx.RequestError as exc:
         raise EnrichmentError(PYPISTATS_SOURCE, str(exc)) from exc
     response = fetched.response
@@ -122,7 +124,9 @@ def _fetch_libraries_io(name: str, api_key: str) -> tuple[int, Provenance]:
             f"{LIBRARIES_IO_URL}/{name}", params={"api_key": api_key}, ttl=cache.DAILY
         )
     except http.OfflineError as exc:
-        raise EnrichmentError(LIBRARIES_IO_SOURCE, _OFFLINE_REASON) from exc
+        raise EnrichmentError(
+            LIBRARIES_IO_SOURCE, _OFFLINE_REASON, contacted=False
+        ) from exc
     except httpx.RequestError as exc:
         raise EnrichmentError(LIBRARIES_IO_SOURCE, str(exc)) from exc
     response = fetched.response

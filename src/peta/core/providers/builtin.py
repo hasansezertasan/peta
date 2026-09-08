@@ -33,12 +33,21 @@ __all__ = [
 def _failure(
     provider: str, capability: Capability, subject: str, exc: EnrichmentError
 ) -> ProviderResult:
+    """Report a source failure, dating it only if the source was reached.
+
+    A refusal that never left the machine — being offline — has no retrieval
+    to timestamp, and claiming one would make the provenance say a request
+    happened when none did.
+
+    Returns:
+        The failed provider result.
+    """
     return ProviderResult(
         provider=provider,
         capability=capability,
         state="failed",
         subject=subject,
-        retrieved_at=utc_now(),
+        retrieved_at=utc_now() if exc.contacted else None,
         reason=exc.reason,
     )
 
