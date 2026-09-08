@@ -92,14 +92,17 @@ def fake_http(monkeypatch: pytest.MonkeyPatch) -> Iterator[FakeTransport]:
 
 @pytest.fixture
 def cache_dir(tmp_path: Path) -> Path:
-    """Enable the cache in a directory private to this test.
+    """Enable the cache in a location private to this test.
+
+    Returns the directory the entries themselves land in, not the location
+    peta was pointed at, since that is what a test inspecting the cache
+    wants; ``cache_dir.parent`` is the configured location.
 
     Returns:
-        The active cache directory.
+        The directory holding this test's cache entries.
     """
-    directory = tmp_path / "cache"
-    cache.configure(directory=directory, enabled=True)
-    return directory
+    cache.configure(directory=tmp_path / "cache", enabled=True)
+    return cache.entries_directory()
 
 
 @pytest.fixture

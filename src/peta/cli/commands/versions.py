@@ -105,7 +105,10 @@ def _decode_body(response: httpx.Response) -> object:
 def get_versions(name: str) -> tuple[list[dict[str, str]], Provenance]:
     """Fetch all published versions for a package from PyPI.
 
-    The listing grows with every release, so it is cached only briefly.
+    The listing grows with every release, so it is cached only briefly, and
+    under its own cache scope: ``info`` fetches the same URL but validates
+    ``info`` rather than ``releases``, so neither may replay a body the other
+    accepted.
 
     Returns:
         A list of ``{"version", "upload_time"}`` dicts newest first, and where
@@ -119,7 +122,7 @@ def get_versions(name: str) -> tuple[list[dict[str, str]], Provenance]:
     """
     url = f"{PYPI_BASE_URL}/{name}/json"
     try:
-        fetched = http.get(url, ttl=cache.LATEST)
+        fetched = http.get(url, ttl=cache.LATEST, scope="releases")
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
     response = fetched.response

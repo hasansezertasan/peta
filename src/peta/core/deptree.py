@@ -33,8 +33,10 @@ def _resolution_failure(
     # The root resolution is not routed through here, so an offline root still
     # aborts the command instead of yielding a tree of unavailable nodes.
     if isinstance(exc, http.OfflineError):
+        # No timestamp: this branch deliberately made no request, so dating it
+        # would claim a retrieval that never happened.
         return DependencyResolutionFailure(
-            source="pypi", state="unavailable", reason=str(exc), retrieved_at=utc_now()
+            source="pypi", state="unavailable", reason=str(exc), retrieved_at=None
         )
     if isinstance(exc, NetworkError):
         return DependencyResolutionFailure(

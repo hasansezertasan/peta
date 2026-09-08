@@ -238,13 +238,13 @@ def _revalidate(url: str, key: str, entry: CachedResponse | None) -> Fetched:
     return Fetched(response, Provenance("live", utc_now()), cache_key=key)
 
 
-def _cached_get(url: str, ttl: int) -> Fetched:
+def _cached_get(url: str, ttl: int, scope: str) -> Fetched:
     """Serve a GET from the cache when possible, otherwise from the source.
 
     Returns:
         The response and where it came from.
     """
-    key = cache.key_for("GET", url)
+    key = cache.key_for("GET", url, scope)
     entry = None if cache.settings().refresh else cache.load(key)
     if entry is not None and entry.is_fresh(ttl, cache.now()):
         return _served(entry, url)
@@ -283,7 +283,11 @@ def keep(fetched: Fetched) -> None:
 
 
 def get(
-    url: str, *, params: dict[str, str] | None = None, ttl: int | None = None
+    url: str,
+    *,
+    params: dict[str, str] | None = None,
+    ttl: int | None = None,
+    scope: str = "",
 ) -> Fetched:
     """Send a GET request, using the cache when the caller allows it.
 
@@ -300,6 +304,9 @@ def get(
         ttl: How long a stored response stays usable, in seconds. ``None``
             bypasses the cache entirely, for a URL whose answer should never
             be reused.
+        scope: Distinguishes consumers that fetch the same URL but validate
+            different parts of it, so neither replays a body the other
+            accepted. See :func:`peta.core.cache.key_for`.
 
     Returns:
         The response and where it came from.
@@ -316,7 +323,7 @@ def get(
             client().send(client().build_request("GET", full)),
             Provenance("live", utc_now()),
         )
-    return _cached_get(full, ttl)
+    return _cached_get(full, ttl, scope)
 
 
 def post(url: str, *, json: dict[str, object]) -> Fetched:

@@ -93,7 +93,14 @@ class DependencyResolutionFailure:
     source: str
     state: Literal["empty", "unavailable", "failed"]
     reason: str
-    retrieved_at: str
+    retrieved_at: str | None
+    """When the source answered, or ``None`` if it was never contacted.
+
+    Required but nullable, so a failure always states whether a retrieval
+    happened at all rather than leaving it to a forgotten default. An offline
+    miss deliberately makes no request, and claiming a retrieval time for one
+    would make the provenance misleading.
+    """
 
 
 @dataclass

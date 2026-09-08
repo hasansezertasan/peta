@@ -214,3 +214,35 @@ class TestFreshness:
         tree = build_tree("a", local=False, remote=False, max_depth=1)
 
         assert tree.children[0].freshness == "cached"
+
+
+class TestOfflineProvenance:
+    @patch("peta.core.deptree.resolve_package")
+    def test_an_offline_miss_claims_no_retrieval_time(self, m: MagicMock) -> None:
+        # The branch deliberately makes no request, so dating it would claim a
+        # retrieval that never happened.
+        offline = http.OfflineError("https://pypi.org/pypi/b/json")
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(offline)
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.retrieved_at is None
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_network_failure_still_records_when_it_happened(
+        self, m: MagicMock
+    ) -> None:
+        # A request was made and failed, so there is a real moment to report.
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(NetworkError("reset"))
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.retrieved_at is not None

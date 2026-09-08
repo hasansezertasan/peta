@@ -124,7 +124,7 @@ class TestRoundTrip:
         assert cache_dir.exists()
 
     def test_a_missing_entry_is_a_miss(self, cache_dir: Path) -> None:
-        assert cache.settings().directory == cache_dir
+        assert cache.settings().directory == cache_dir.parent
         assert cache.load(cache.key_for("GET", _URL)) is None
 
     def test_nothing_is_read_or_written_while_disabled(self, tmp_path: Path) -> None:
@@ -215,6 +215,11 @@ class TestCorruption:
             # forever fresh, then raises out of datetime.fromtimestamp.
             '{"status": 200, "body": "{}", "at": 1e999, "headers": {}}',
             '{"status": 200, "body": "{}", "at": -1e999, "headers": {}}',
+            # Finite but outside what datetime.fromtimestamp accepts, which a
+            # plain isfinite check lets through.
+            '{"status": 200, "body": "{}", "at": 1e20, "headers": {}}',
+            '{"status": 200, "body": "{}", "at": 1e15, "headers": {}}',
+            '{"status": 200, "body": "{}", "at": -1e15, "headers": {}}',
         ],
     )
     def test_a_damaged_entry_reads_as_a_miss(
@@ -294,7 +299,7 @@ class TestRestamping:
     ) -> None:
         # How a revalidation is recorded: the confirmed body is written back
         # with a current timestamp, so the next read is a plain hit.
-        assert cache.settings().directory == cache_dir
+        assert cache.settings().directory == cache_dir.parent
         cache.store("k", url=_URL, status=200, body='{"v":1}', headers={"etag": "e"})
         stored = cache.load("k")
         assert stored is not None
@@ -320,7 +325,7 @@ class TestEndToEndThroughHttp:
     def test_a_second_identical_request_is_served_from_disk(
         self, fake_http: FakeTransport, cache_dir: Path
     ) -> None:
-        assert cache.settings().directory == cache_dir
+        assert cache.settings().directory == cache_dir.parent
         fake_http.reply(json={"info": {}})
 
         first = http.get(_URL, ttl=60)
@@ -461,3 +466,43 @@ class TestPruningScope:
 
         # Already pruned this process, so the second write does not rescan.
         assert later.exists()
+
+
+class TestOwnership:
+    def test_entries_live_in_a_directory_peta_creates(self, cache_dir: Path) -> None:
+        # A name pattern is not proof of ownership, so peta writes only inside
+        # a subdirectory of the location it was pointed at.
+        assert cache_dir.parent == cache.settings().directory
+        assert cache_dir.name != cache.settings().directory.name
+
+    def test_a_foreign_digest_named_file_beside_the_cache_survives(
+        self, cache_dir: Path
+    ) -> None:
+        # A shared content-addressed directory can hold files named exactly
+        # like a SHA-256 digest; pruning by name alone would delete them.
+        shared = cache_dir.parent
+        shared.mkdir(parents=True, exist_ok=True)
+        foreign = shared / f"{'a' * 64}.json"
+        foreign.write_text('{"someone": "else"}')
+        old = cache.now() - cache.MAX_AGE - 60
+        os.utime(foreign, (old, old))
+
+        cache.store("k", url=_URL, status=200, body="{}", headers={})
+
+        assert foreign.exists()
+
+
+class TestConsumerScope:
+    def test_the_same_url_under_two_scopes_is_two_entries(self) -> None:
+        # One command accepting a payload whose other half is malformed must
+        # not hand it to a command that reads that other half.
+        url = "https://pypi.org/pypi/requests/json"
+        assert cache.key_for("GET", url, "package") != cache.key_for(
+            "GET", url, "releases"
+        )
+
+    def test_the_same_scope_is_one_entry(self) -> None:
+        url = "https://pypi.org/pypi/requests/json"
+        assert cache.key_for("GET", url, "package") == cache.key_for(
+            "GET", url, "package"
+        )

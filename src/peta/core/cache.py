@@ -27,6 +27,7 @@ import tempfile
 import time
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypeAliasType, cast
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -42,6 +43,7 @@ __all__ = [
     "Provenance",
     "configure",
     "default_directory",
+    "entries_directory",
     "key_for",
     "load",
     "now",
@@ -135,13 +137,21 @@ parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but
 some of the project's other tools cannot yet parse.
 """
 
+_ENTRY_DIR = "entries"
+"""Subdirectory of the configured location that holds the entries.
+
+Peta writes and prunes only inside this, never in the directory it was
+pointed at. A name pattern alone is not proof of ownership: a shared
+content-addressed directory can hold foreign files named exactly like a
+SHA-256 digest, and pruning by name would delete them. Owning a subdirectory
+means nothing peta did not create is ever a candidate.
+"""
+
 _KEY_PATTERN = re.compile(r"^[0-9a-f]{64}\.json$")
 """Names :func:`key_for` can produce: a SHA-256 hex digest plus the suffix.
 
-Pruning matches against this rather than against ``*.json``. A user may point
-``--cache-dir`` at a directory that already holds their own data, and deleting
-any month-old JSON found there would destroy it. Only a name this cache could
-itself have written is ever removed.
+A second check on top of :data:`_ENTRY_DIR`, so anything a user drops into
+peta's own subdirectory is still left alone.
 """
 
 _PRUNED: list[bool] = []
@@ -286,18 +296,25 @@ def redacted(url: str) -> str:
     return urlunsplit(parts._replace(query=urlencode(kept)))
 
 
-def key_for(method: str, url: str) -> str:
+def key_for(method: str, url: str, scope: str = "") -> str:
     """Derive the cache key for one request.
+
+    ``scope`` separates consumers that fetch the same URL but validate
+    different parts of it. Nothing is stored until its caller confirms the
+    body was usable, and "usable" means usable *to that caller*: one command
+    accepting a payload whose other half is malformed must not hand it to a
+    command that reads that other half.
 
     Args:
         method: HTTP method, case-insensitive.
         url: The full request URL, credentials included; they are redacted
             before hashing.
+        scope: Which consumer's view of the response this entry holds.
 
     Returns:
         A hex digest usable as a file name.
     """
-    material = f"{method.upper()}\n{redacted(url)}"
+    material = f"{method.upper()}\n{redacted(url)}\n{scope}"
     return hashlib.sha256(material.encode()).hexdigest()
 
 
@@ -367,8 +384,17 @@ class CachedResponse:
         return headers
 
 
+def entries_directory() -> Path:
+    """Locate the directory the entries themselves live in.
+
+    Returns:
+        The subdirectory of the configured location that peta owns.
+    """
+    return settings().directory / _ENTRY_DIR
+
+
 def _path_for(key: str) -> Path:
-    return settings().directory / f"{key}.json"
+    return entries_directory() / f"{key}.json"
 
 
 def _is_string_map(value: object) -> bool:
@@ -381,6 +407,30 @@ def _is_string_map(value: object) -> bool:
         return False
     pairs = cast("dict[object, object]", value)
     return all(isinstance(k, str) and isinstance(v, str) for k, v in pairs.items())
+
+
+def _is_representable(stored_at: float) -> bool:
+    """Whether a timestamp can be turned back into a date.
+
+    A finiteness test is not enough: ``1e999`` decodes to ``inf`` but ``1e20``
+    is finite and still outside the range :func:`datetime.fromtimestamp`
+    accepts. Either would read as forever fresh — the age clamps to zero — and
+    then raise when the entry is dated for output, turning a damaged entry
+    into a crash instead of the refetch the corruption path promises.
+
+    Tested by conversion rather than against hardcoded bounds, so the check
+    tracks whatever the platform actually supports.
+
+    Returns:
+        ``True`` if the timestamp is a usable date.
+    """
+    if not math.isfinite(stored_at):
+        return False
+    try:
+        _ = datetime.fromtimestamp(stored_at, UTC)
+    except OSError, OverflowError, ValueError:
+        return False
+    return True
 
 
 def _is_entry_shape(status: object, body: object, stored_at: object) -> bool:
@@ -399,10 +449,7 @@ def _is_entry_shape(status: object, body: object, stored_at: object) -> bool:
         return False
     if not isinstance(stored_at, (int, float)) or isinstance(stored_at, bool):
         return False
-    # ``1e999`` decodes to ``inf``, which passes the type check, reads as
-    # forever fresh, and then raises out of ``datetime.fromtimestamp`` —
-    # turning a damaged entry into a crash instead of a refetch.
-    return math.isfinite(stored_at)
+    return _is_representable(stored_at)
 
 
 def _decode(raw: object) -> CachedResponse | None:
@@ -530,7 +577,7 @@ def _write(key: str, payload: dict[str, object]) -> None:
     """
     if not settings().enabled:
         return
-    directory = settings().directory
+    directory = entries_directory()
     try:
         _atomic_write(directory, key, payload)
     except OSError:

@@ -119,6 +119,11 @@ def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:
     is settled, but the same response carries the ``vulnerabilities`` array,
     and an advisory can be published against a release at any time.
 
+    Scoped to this consumer because ``versions`` fetches the same URL and
+    validates ``releases`` instead of ``info``: sharing one entry would let
+    either command replay a body the other had accepted without checking the
+    half it needs.
+
     Returns:
         The decoded JSON body, and where it came from.
 
@@ -128,7 +133,7 @@ def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:
     """
     url = _pypi_url(name, version)
     try:
-        fetched = http.get(url, ttl=cache.LATEST)
+        fetched = http.get(url, ttl=cache.LATEST, scope="package")
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
     response = fetched.response
