@@ -128,7 +128,9 @@ def _validate_file(value: object, index: int) -> IndexFile:
     result["upload_time"] = upload_time
     result["provenance"] = provenance
 
-    core_metadata = raw.get("core-metadata") or raw.get("data-dist-info-metadata")
+    core_metadata = raw.get("core-metadata")
+    if core_metadata is None:
+        core_metadata = raw.get("dist-info-metadata")
     if isinstance(core_metadata, bool):
         result["core_metadata"] = core_metadata
     elif isinstance(core_metadata, dict):
@@ -166,7 +168,7 @@ def _version_from_filename(filename: str) -> Version | None:
             _, version, _, _ = parse_wheel_filename(filename)
             return version
         return None
-    if filename.endswith((".tar.gz", ".zip", ".tar.bz2", ".tar.xz")):
+    if filename.endswith((".tar.gz", ".zip")):
         with contextlib.suppress(InvalidSdistFilename):
             _, version = parse_sdist_filename(filename)
             return version
@@ -244,7 +246,7 @@ def sorted_versions(versions: list[str]) -> list[str]:
 
 def _fetch_page(name: str, base_url: str) -> tuple[httpx.Response, http.Fetched]:
     canonical = canonicalize_name(name)
-    url = f"{base_url}/{canonical}/"
+    url = f"{base_url.rstrip('/')}/{canonical}/"
     try:
         fetched = http.get(
             url, headers={"accept": PEP691_ACCEPT}, ttl=cache.LATEST, scope="index"
