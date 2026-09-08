@@ -128,6 +128,15 @@ cookies, rate-limit tokens, anything added later. Only validators and the
 content type are needed to serve or revalidate an entry.
 """
 
+_UNDATABLE = (OSError, OverflowError, ValueError)
+"""Every way a stored timestamp can fail to convert into a date.
+
+A tuple constant for the same reason as :data:`_UNREADABLE`: the formatter
+strips inline ``except (A, B)`` parentheses into the bare form PEP 758
+permits, which Python 3.14 accepts but some of the project's other tools
+cannot yet parse.
+"""
+
 _UNREADABLE = (OSError, ValueError)
 """Every way reading an entry can fail: absent, unopenable, or not JSON.
 
@@ -428,7 +437,7 @@ def _is_representable(stored_at: float) -> bool:
         return False
     try:
         _ = datetime.fromtimestamp(stored_at, UTC)
-    except OSError, OverflowError, ValueError:
+    except _UNDATABLE:
         return False
     return True
 
