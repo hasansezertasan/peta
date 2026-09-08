@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING, cast
 
 import httpx
 import typer
+from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from peta.cli.output.render import render_versions
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
-from peta.core import http
-from peta.core.output import utc_now
+from peta.core import cache, http
 from peta.core.remote import PYPI_BASE_URL, NetworkError
 from peta.core.validation import (
     ResponseValidationError,
@@ -22,6 +22,7 @@ from peta.core.validation import (
 )
 
 if TYPE_CHECKING:
+    from peta.core.cache import Provenance
     from peta.core.remote import PyPIReleaseFile
 
 __all__ = ["get_versions", "versions"]
@@ -102,26 +103,35 @@ def _decode_body(response: httpx.Response) -> object:
         raise NetworkError(msg) from exc
 
 
-def get_versions(name: str) -> list[dict[str, str]]:
+def get_versions(name: str) -> tuple[list[dict[str, str]], Provenance]:
     """Fetch all published versions for a package from PyPI.
 
+    The listing grows with every release, so it is cached only briefly, and
+    under its own cache scope: ``info`` fetches the same URL but validates
+    ``info`` rather than ``releases``, so neither may replay a body the other
+    accepted.
+
     Returns:
-        A list of ``{"version", "upload_time"}`` dicts, newest first; empty
-        if the package is not found (HTTP 404).
+        A list of ``{"version", "upload_time"}`` dicts newest first, and where
+        the listing came from; the list is empty if the package is not found
+        (HTTP 404).
 
     Raises:
         NetworkError: If the request fails, returns a non-success status, or
             the decoded body is malformed (not a dict, or ``releases`` is not
             a dict).
     """
-    url = f"{PYPI_BASE_URL}/{name}/json"
+    # Canonical name, for the same reason as ``peta.core.remote._pypi_url``:
+    # equivalent spellings are one package to PyPI but different cache keys.
+    url = f"{PYPI_BASE_URL}/{canonicalize_name(name)}/json"
     try:
-        response = http.get(url)
+        fetched = http.get(url, ttl=cache.LATEST, scope="releases")
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
+    response = fetched.response
 
     if response.status_code == 404:  # ruff: ignore[magic-value-comparison]
-        return []
+        return [], fetched.provenance
 
     try:
         _ = response.raise_for_status()
@@ -138,7 +148,8 @@ def get_versions(name: str) -> list[dict[str, str]]:
         raw_time: object = files[0].get("upload_time", "") if files else ""
         upload_time = raw_time[:10] if isinstance(raw_time, str) else ""
         result.append({"version": ver, "upload_time": upload_time})
-    return result
+    http.keep(fetched)
+    return result, fetched.provenance
 
 
 # Patch target used by tests.
@@ -157,8 +168,17 @@ def versions(
     arguments: dict[str, object] = {"package": package, "limit": limit}
     selected = resolve_or_fail("versions", arguments, output_format, use_json=use_json)
     try:
-        vers = remote_get_versions(package)
-        retrieved_at = utc_now()
+        vers, provenance = remote_get_versions(package)
+    except http.OfflineError as exc:
+        fail(
+            "versions",
+            arguments=arguments,
+            code="offline_unavailable",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+            source="pypi",
+        )
     except NetworkError as exc:
         fail(
             "versions",
@@ -186,6 +206,7 @@ def versions(
         shown,
         arguments=arguments,
         color=color,
-        retrieved_at=retrieved_at,
+        retrieved_at=provenance.retrieved_at,
+        freshness=provenance.freshness,
     )
     typer.echo(rendered)

@@ -18,6 +18,7 @@ from peta.core.output import (
 if TYPE_CHECKING:
     from collections.abc import Container, Iterator
 
+    from peta.core.cache import Freshness
     from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
     from peta.core.output import CommandName, MessageCode
 
@@ -167,6 +168,7 @@ def _source_records(
                 state="success",
                 target=pkg.name,
                 retrieved_at=pkg.retrieved_at or timestamp,
+                freshness=pkg.freshness,
                 fields=[result_path],
             )
         )
@@ -346,6 +348,7 @@ def _dependency_source(
             target=node.name,
             retrieved_at=failure.retrieved_at,
             reason=failure.reason,
+            freshness=failure.freshness,
             fields=[field],
         )
     if node.source is None:
@@ -355,6 +358,7 @@ def _dependency_source(
         state="success",
         target=node.name,
         retrieved_at=node.retrieved_at or timestamp,
+        freshness=node.freshness,
         fields=[field],
     )
 
@@ -536,6 +540,7 @@ def format_versions(
     arguments: dict[str, object] | None = None,
     generated_at: str | None = None,
     retrieved_at: str | None = None,
+    freshness: Freshness | None = None,
 ) -> str:
     """Format published versions in the versioned JSON envelope.
 
@@ -555,6 +560,7 @@ def format_versions(
                 state="success" if versions else "empty",
                 target=name,
                 retrieved_at=retrieval_time,
+                freshness=freshness,
                 fields=["result.versions"],
             )
         ],

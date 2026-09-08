@@ -8,6 +8,7 @@ import typer
 
 from peta.cli.output.render import render_compare
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
+from peta.core import http
 from peta.core.enrich import enrich
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
@@ -80,6 +81,16 @@ def compare(
             message=str(exc),
             output_format=selected,
             exit_code=2,
+        )
+    except http.OfflineError as exc:
+        fail(
+            "compare",
+            arguments=arguments,
+            code="offline_unavailable",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+            source="pypi",
         )
     except NetworkError as exc:
         fail(

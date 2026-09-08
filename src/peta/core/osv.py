@@ -86,11 +86,31 @@ def _query_body(name: str, version: str | None) -> dict[str, object]:
     return body
 
 
-def _fetch(name: str, version: str | None) -> OsvResponse:
+def _query(name: str, version: str | None) -> httpx.Response:
+    """Send the advisory query, mapping transport failures onto this source.
+
+    Returns:
+        The raw response.
+
+    Raises:
+        EnrichmentError: If the request could not be made at all, including
+            because peta is offline. Reported as a source-specific failure
+            rather than as an offline error, because advisories are optional
+            enrichment: being offline must leave the command's own result
+            intact rather than abort it.
+    """
     try:
-        response = http.post(OSV_API_URL, json=_query_body(name, version))
+        return http.post(OSV_API_URL, json=_query_body(name, version)).response
+    except http.OfflineError as exc:
+        raise EnrichmentError(
+            OSV_SOURCE, "offline; advisories are not cached", contacted=False
+        ) from exc
     except httpx.RequestError as exc:
         raise EnrichmentError(OSV_SOURCE, str(exc)) from exc
+
+
+def _fetch(name: str, version: str | None) -> OsvResponse:
+    response = _query(name, version)
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         raise EnrichmentError(OSV_SOURCE, f"HTTP {response.status_code}")
     try:

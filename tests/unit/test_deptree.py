@@ -1,19 +1,26 @@
 """Unit tests for the recursive dependency tree builder."""
 
+from dataclasses import replace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from peta.core import http
 from peta.core.deptree import build_tree, find_why
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import DependencyNode, PackageInfo
-from peta.core.remote import NetworkError
+from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 
 pytestmark = pytest.mark.unit
 
 
 def _pkg(name: str, deps: list[str]) -> PackageInfo:
     return PackageInfo(name=name, version="1.0", source="local", dependencies=deps)
+
+
+def _raise(exc: Exception) -> PackageInfo:
+    """Re-raise ``exc``, since a lambda cannot contain a raise statement."""
+    raise exc
 
 
 class TestBuildTree:
@@ -122,6 +129,32 @@ class TestBuildTree:
         assert leaf.resolution_failure.reason == "Network error: connection reset"
 
     @patch("peta.core.deptree.resolve_package")
+    def test_an_uncached_dep_is_unavailable_when_offline(self, m: MagicMock) -> None:
+        # ``unavailable`` rather than ``failed``: nothing went wrong, this
+        # dependency simply is not cached and peta was told not to ask. The
+        # resolved part of the tree must survive.
+        offline = http.OfflineError("https://pypi.org/pypi/b/json")
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(offline)
+        )
+        tree = build_tree("a", local=False, remote=False)
+
+        leaf = tree.children[0]
+        assert leaf.installed_version is None
+        assert leaf.resolution_failure is not None
+        assert leaf.resolution_failure.state == "unavailable"
+        assert leaf.resolution_failure.source == "pypi"
+        assert "offline" in leaf.resolution_failure.reason
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_an_offline_root_still_aborts(self, m: MagicMock) -> None:
+        # The root is not routed through the per-dependency guard, so a tree
+        # of entirely unavailable nodes is never produced.
+        m.side_effect = http.OfflineError("https://pypi.org/pypi/a/json")
+        with pytest.raises(http.OfflineError):
+            _ = build_tree("a", local=False, remote=False)
+
+    @patch("peta.core.deptree.resolve_package")
     def test_root_not_found_raises(self, m: MagicMock) -> None:
         m.side_effect = LocalNotFound("a")
         with pytest.raises(LocalNotFound):
@@ -157,3 +190,90 @@ class TestFindWhy:
     def test_case_insensitive(self) -> None:
         paths = find_why(self._tree(), "Certifi")
         assert paths == [["flask", "requests", "certifi"]]
+
+
+class TestFreshness:
+    @patch("peta.core.deptree.resolve_package")
+    def test_each_node_reports_where_its_metadata_came_from(self, m: MagicMock) -> None:
+        # A tree can be assembled from a mix, so freshness is per node rather
+        # than one figure for the whole command.
+        served = replace(_pkg("b", []), freshness="cached")
+        fetched = replace(_pkg("a", ["b"]), freshness="live")
+        m.side_effect = lambda name, **_kw: fetched if name == "a" else served
+
+        tree = build_tree("a", local=False, remote=False)
+
+        assert tree.freshness == "live"
+        assert tree.children[0].freshness == "cached"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_truncated_node_still_reports_its_origin(self, m: MagicMock) -> None:
+        served = replace(_pkg("b", ["c"]), freshness="cached")
+        m.side_effect = lambda name, **_kw: _pkg("a", ["b"]) if name == "a" else served
+
+        tree = build_tree("a", local=False, remote=False, max_depth=1)
+
+        assert tree.children[0].freshness == "cached"
+
+
+class TestOfflineProvenance:
+    @patch("peta.core.deptree.resolve_package")
+    def test_an_offline_miss_claims_no_retrieval_time(self, m: MagicMock) -> None:
+        # The branch deliberately makes no request, so dating it would claim a
+        # retrieval that never happened.
+        offline = http.OfflineError("https://pypi.org/pypi/b/json")
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(offline)
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.retrieved_at is None
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_network_failure_still_records_when_it_happened(
+        self, m: MagicMock
+    ) -> None:
+        # A request was made and failed, so there is a real moment to report.
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(NetworkError("reset"))
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.retrieved_at is not None
+
+
+class TestEmptyResolutionProvenance:
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_pypi_miss_reports_a_live_origin(self, m: MagicMock) -> None:
+        # `empty` is a completed retrieval — PyPI was asked and holds nothing —
+        # so it reports its origin like any other completed lookup. Always
+        # live, since only 200 responses are ever cached.
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(RemoteNotFound("b"))
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.state == "empty"
+        assert failure.freshness == "live"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_local_miss_has_no_origin_to_report(self, m: MagicMock) -> None:
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(LocalNotFound("b"))
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.state == "empty"
+        assert failure.freshness is None

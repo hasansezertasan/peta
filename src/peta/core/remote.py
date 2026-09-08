@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Literal, Required, TypedDict, cast
+from typing import TYPE_CHECKING, Literal, Required, TypedDict, cast
 
 import httpx
+from packaging.utils import canonicalize_name
 
-from peta.core import http
+from peta.core import cache, http
 from peta.core.models import PackageInfo, Vulnerability
-from peta.core.output import utc_now
 from peta.core.validation import (
     ResponseValidationError,
     expect_list,
@@ -18,6 +18,9 @@ from peta.core.validation import (
     optional_string_list,
     optional_string_mapping,
 )
+
+if TYPE_CHECKING:
+    from peta.core.cache import Provenance
 
 __all__ = [
     "NetworkError",
@@ -101,16 +104,44 @@ class NetworkError(Exception):
 
 
 def _pypi_url(name: str, version: str | None) -> str:
-    if version:
-        return f"{PYPI_BASE_URL}/{name}/{version}/json"
-    return f"{PYPI_BASE_URL}/{name}/json"
+    """Build the JSON API URL for a package, under its canonical name.
 
-
-def _fetch(name: str, version: str | None) -> PyPIResponse:
-    """Fetch the raw PyPI JSON payload for a package.
+    PyPI serves every equivalent spelling of a name identically — ``Zope.Interface``,
+    ``zope_interface`` and ``zope-interface`` all return the same payload — but
+    they are different URLs, so caching by raw name would store the same
+    response several times and let an offline lookup miss an entry it holds
+    under another spelling. Canonicalizing matches what
+    :mod:`peta.core.resolve` and :mod:`peta.core.deptree` already do with
+    names. Error messages keep the user's own spelling; only the request does
+    not.
 
     Returns:
-        The decoded JSON body from the PyPI JSON API.
+        The absolute JSON API URL.
+    """
+    canonical = canonicalize_name(name)
+    if version:
+        return f"{PYPI_BASE_URL}/{canonical}/{version}/json"
+    return f"{PYPI_BASE_URL}/{canonical}/json"
+
+
+def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:
+    """Fetch the raw PyPI JSON payload for a package.
+
+    The response is offered to the cache only once it has decoded and
+    validated, so a ``200`` carrying an error page or truncated JSON is not
+    stored and replayed.
+
+    A pinned version gets no longer a lifetime than a bare name: its metadata
+    is settled, but the same response carries the ``vulnerabilities`` array,
+    and an advisory can be published against a release at any time.
+
+    Scoped to this consumer because ``versions`` fetches the same URL and
+    validates ``releases`` instead of ``info``: sharing one entry would let
+    either command replay a body the other had accepted without checking the
+    half it needs.
+
+    Returns:
+        The decoded JSON body, and where it came from.
 
     Raises:
         PackageNotFoundError: If PyPI responds 404 for the package/version.
@@ -118,9 +149,10 @@ def _fetch(name: str, version: str | None) -> PyPIResponse:
     """
     url = _pypi_url(name, version)
     try:
-        response = http.get(url)
+        fetched = http.get(url, ttl=cache.LATEST, scope="package")
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
+    response = fetched.response
 
     if response.status_code == 404:  # ruff: ignore[magic-value-comparison]
         raise PackageNotFoundError(name, version)
@@ -131,7 +163,9 @@ def _fetch(name: str, version: str | None) -> PyPIResponse:
         msg = f"PyPI returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    return _decode_response(response)
+    payload = _decode_response(response)
+    http.keep(fetched)
+    return payload, fetched.provenance
 
 
 def _decode_response(response: httpx.Response) -> PyPIResponse:
@@ -228,7 +262,7 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         A :class:`PackageInfo` with ``source="remote"``. Not-found and network
         failures propagate from :func:`_fetch`.
     """
-    data = _fetch(name, version)
+    data, provenance = _fetch(name, version)
     info: PyPIInfo = data["info"]
     license_value, license_source = _parse_license(info)
     return PackageInfo(
@@ -249,5 +283,6 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         files=None,
         vulnerabilities=_parse_vulnerabilities(data.get("vulnerabilities", [])),
         source="remote",
-        retrieved_at=utc_now(),
+        retrieved_at=provenance.retrieved_at,
+        freshness=provenance.freshness,
     )

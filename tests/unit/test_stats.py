@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 import httpx
 import pytest
 
+from peta.core import cache
 from peta.core.stats import (
     get_dependent_count,
     get_download_count,
@@ -14,9 +15,22 @@ from peta.core.validation import EnrichmentError
 from tests.contract_fixtures import load_contract
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
+    from peta.core.cache import Provenance
     from tests.transport import FakeTransport
 
 pytestmark = pytest.mark.unit
+
+
+def _count(result: tuple[int | None, Provenance]) -> tuple[int | None, str]:
+    """Flatten a count lookup to the pair a test cares about.
+
+    Returns:
+        The count and the freshness it was reported with.
+    """
+    value, provenance = result
+    return value, provenance.freshness
 
 
 class TestGetDownloadCount:
@@ -24,11 +38,11 @@ class TestGetDownloadCount:
         self, fake_http: FakeTransport
     ) -> None:
         fake_http.reply(json=load_contract("pypistats.json"))
-        assert get_download_count("example-package") == 12345
+        assert _count(get_download_count("example-package")) == (12345, "live")
 
     def test_happy_path(self, fake_http: FakeTransport) -> None:
         fake_http.reply(json={"data": {"last_month": 12345}})
-        assert get_download_count("requests") == 12345
+        assert _count(get_download_count("requests")) == (12345, "live")
 
     def test_404_identifies_source(self, fake_http: FakeTransport) -> None:
         fake_http.reply(status=404, json={})
@@ -92,19 +106,18 @@ class TestGetDependentCount:
         self, fake_http: FakeTransport
     ) -> None:
         fake_http.reply(json=load_contract("libraries-io.json"))
-        assert get_dependent_count("example-package", api_key="secret") == 42
+        assert _count(get_dependent_count("example-package", api_key="secret")) == (
+            42,
+            "live",
+        )
 
-    def test_no_key_makes_no_request(self, fake_http: FakeTransport) -> None:
-        assert get_dependent_count("requests", api_key=None) is None
-        assert fake_http.requests == []
-
-    def test_empty_key_makes_no_request(self, fake_http: FakeTransport) -> None:
-        assert get_dependent_count("requests", api_key="") is None
-        assert fake_http.requests == []
+    # "No key configured" is the provider's decision, not this helper's: see
+    # test_providers.TestLibrariesIoProvider.
+    #     test_missing_api_key_is_unavailable_without_a_request
 
     def test_happy_path(self, fake_http: FakeTransport) -> None:
         fake_http.reply(json={"dependents_count": 42})
-        assert get_dependent_count("requests", api_key="secret") == 42
+        assert _count(get_dependent_count("requests", api_key="secret")) == (42, "live")
 
     def test_sends_the_key_as_a_query_parameter(self, fake_http: FakeTransport) -> None:
         fake_http.reply(json={"dependents_count": 42})
@@ -139,4 +152,24 @@ class TestGetDependentCount:
     def test_invalid_json_identifies_source(self, fake_http: FakeTransport) -> None:
         fake_http.reply(text="not json at all")
         with pytest.raises(EnrichmentError, match=r"libraries\.io: invalid JSON"):
+            _ = get_dependent_count("requests", api_key="secret")
+
+
+class TestOffline:
+    def test_a_download_count_lookup_reports_offline_as_a_source_failure(
+        self, cache_dir: Path
+    ) -> None:
+        # Counts are optional enrichment, so being offline must surface as a
+        # named source failure rather than aborting the command.
+        cache.configure(directory=cache_dir, offline=True)
+
+        with pytest.raises(EnrichmentError, match="pypistats: offline"):
+            _ = get_download_count("requests")
+
+    def test_a_dependent_count_lookup_reports_offline_as_a_source_failure(
+        self, cache_dir: Path
+    ) -> None:
+        cache.configure(directory=cache_dir, offline=True)
+
+        with pytest.raises(EnrichmentError, match=r"libraries\.io: offline"):
             _ = get_dependent_count("requests", api_key="secret")

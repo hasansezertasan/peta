@@ -14,10 +14,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType, cast
 
+from peta.core.cache import FRESHNESS_VALUES
 from peta.core.models import VULNERABILITY_FIELD, ProviderWarning, Vulnerability
 from peta.core.output import SOURCE_STATES
 
 if TYPE_CHECKING:
+    from peta.core.cache import Freshness
     from peta.core.models import PackageInfo
     from peta.core.output import SourceState
 
@@ -248,6 +250,21 @@ def _validate_capability(capability: Capability, evidence: Evidence | None) -> N
         raise TypeError(msg)
 
 
+def _validate_freshness(freshness: Freshness | None) -> None:
+    """Require a stated origin to be one the output contract documents.
+
+    Checked for the same reason as ``state``: the annotation is only a static
+    promise, and an injected provider can put any string here, which would
+    reach the envelope as an undocumented value.
+
+    Raises:
+        ValueError: If the value is not a documented freshness.
+    """
+    if freshness is not None and freshness not in FRESHNESS_VALUES:
+        msg = f"freshness {freshness!r} is not a documented origin"
+        raise ValueError(msg)
+
+
 def _validate_warnings(warnings: list[ProviderWarning]) -> None:
     """Require warnings to be a list of well-formed ``ProviderWarning`` items.
 
@@ -276,7 +293,7 @@ class ProviderResult:
     state: SourceState
     subject: str
     retrieved_at: str | None = None
-    freshness: str | None = None
+    freshness: Freshness | None = None
     upstream_id: str | None = None
     evidence: Evidence | None = None
     reason: str | None = None
@@ -298,6 +315,7 @@ class ProviderResult:
         _validate_state(self.state, self.evidence)
         _validate_reason(self.state, self.reason)
         _validate_capability(self.capability, self.evidence)
+        _validate_freshness(self.freshness)
         _validate_warnings(self.warnings)
 
     @property

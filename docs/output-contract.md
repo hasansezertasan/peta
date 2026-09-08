@@ -43,11 +43,27 @@ Successful retrievals include the time captured when the source returned in
 `retrieved_at`. The `fields` array links a source to JSON paths in `result`;
 records may also include a query `target` or failure `reason`.
 
+A record that completed a retrieval also carries `freshness`, saying where the
+data came from: `live` means the source answered, `cached` means peta served a
+stored response without contacting the source, and `revalidated` means the
+source confirmed a stored response was still current without resending it. The
+field is absent when the question does not apply — a package read from the
+installed environment, or a source that never completed a lookup. Freshness
+describes provenance, not quality: a `cached` record is a real answer, and
+`--refresh` forces a `live` one.
+
 Warnings and errors contain stable `code` and `message` fields, plus `source`
 when a specific provider is responsible. When two providers answer the same
 result field with different values, the first one consulted wins and the
 disagreement is reported as a `provider_conflict` warning naming both; every
-consulted provider still appears in `sources`, so neither side is lost. Optional enrichment failures produce a
+consulted provider still appears in `sources`, so neither side is lost. Under `--offline` peta contacts no source. A fatal lookup that the cache cannot
+answer produces a `failed` envelope with an `offline_unavailable` error and exit
+code 2, naming the URL it could not answer; this is deliberately distinct from
+`network_error`, because nothing went wrong and the fix is to warm the cache or
+drop `--offline` rather than to check connectivity. An *optional* source that
+the cache cannot answer stays non-fatal, and an entry past its TTL is still
+served offline rather than withheld — reported as `cached`, so the staleness is
+visible. Optional enrichment failures produce a
 `partial` envelope and exit code 0. Fatal errors produce a `failed` envelope and
 retain the documented nonzero CLI exit code. When command-line validation fails
 before a command handler runs, `query.arguments.argv` preserves the unparsed

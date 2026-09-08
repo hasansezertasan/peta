@@ -8,6 +8,7 @@ from packaging.markers import UndefinedEnvironmentName
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
 
+from peta.core import http
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import DependencyNode, DependencyResolutionFailure
 from peta.core.output import utc_now
@@ -21,12 +22,22 @@ __all__ = ["build_tree", "find_why"]
 
 # Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter
 # cannot strip the parentheses into Python-2-only ``except A, B`` syntax.
-_UNRESOLVABLE = (LocalNotFound, RemoteNotFound, NetworkError)
+_UNRESOLVABLE = (LocalNotFound, RemoteNotFound, NetworkError, http.OfflineError)
 
 
 def _resolution_failure(
-    exc: LocalNotFound | RemoteNotFound | NetworkError,
+    exc: LocalNotFound | RemoteNotFound | NetworkError | http.OfflineError,
 ) -> DependencyResolutionFailure:
+    # Offline is ``unavailable`` rather than ``failed``: nothing went wrong,
+    # this dependency simply is not in the cache and peta was told not to ask.
+    # The root resolution is not routed through here, so an offline root still
+    # aborts the command instead of yielding a tree of unavailable nodes.
+    if isinstance(exc, http.OfflineError):
+        # No timestamp: this branch deliberately made no request, so dating it
+        # would claim a retrieval that never happened.
+        return DependencyResolutionFailure(
+            source="pypi", state="unavailable", reason=str(exc), retrieved_at=None
+        )
     if isinstance(exc, NetworkError):
         return DependencyResolutionFailure(
             source="pypi", state="failed", reason=str(exc), retrieved_at=utc_now()
@@ -34,9 +45,16 @@ def _resolution_failure(
     # A not-found response means the provider completed the lookup and holds no
     # package data, which the output contract calls ``empty`` rather than
     # ``unavailable`` (reserved for a source that could not be configured).
-    source = "local" if isinstance(exc, LocalNotFound) else "pypi"
+    # Being a completed retrieval, it reports its origin like any other: a
+    # PyPI 404 is always live, since only 200 responses are ever cached, and a
+    # local miss has no retrieval to describe.
+    local = isinstance(exc, LocalNotFound)
     return DependencyResolutionFailure(
-        source=source, state="empty", reason=str(exc), retrieved_at=utc_now()
+        source="local" if local else "pypi",
+        state="empty",
+        reason=str(exc),
+        retrieved_at=utc_now(),
+        freshness=None if local else "live",
     )
 
 
@@ -140,6 +158,7 @@ def _child_node(
             installed_version=child_pkg.version,
             source=child_pkg.source,
             retrieved_at=child_pkg.retrieved_at,
+            freshness=child_pkg.freshness,
         )
     children = _expand(
         child_pkg,
@@ -157,6 +176,7 @@ def _child_node(
         children=children,
         source=child_pkg.source,
         retrieved_at=child_pkg.retrieved_at,
+        freshness=child_pkg.freshness,
     )
 
 
@@ -220,6 +240,7 @@ def build_tree(
         children=children,
         source=root_pkg.source,
         retrieved_at=root_pkg.retrieved_at,
+        freshness=root_pkg.freshness,
     )
 
 

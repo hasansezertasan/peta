@@ -356,6 +356,7 @@ def _provenance(pkg: PackageInfo, results: Sequence[ProviderResult]) -> PackageI
             target=result.subject,
             retrieved_at=result.retrieved_at,
             reason=result.reason,
+            freshness=result.freshness,
             # An unattributable result claims no field rather than an
             # invented one.
             fields=[] if result.field is None else [result.field],

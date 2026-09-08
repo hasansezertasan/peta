@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
+    from peta.core.cache import Freshness
     from peta.core.output import SourceRecord
 
 __all__ = [
@@ -92,7 +93,21 @@ class DependencyResolutionFailure:
     source: str
     state: Literal["empty", "unavailable", "failed"]
     reason: str
-    retrieved_at: str
+    retrieved_at: str | None
+    """When the source answered, or ``None`` if it was never contacted.
+
+    Required but nullable, so a failure always states whether a retrieval
+    happened at all rather than leaving it to a forgotten default. An offline
+    miss deliberately makes no request, and claiming a retrieval time for one
+    would make the provenance misleading.
+    """
+    freshness: Freshness | None = None
+    """Where the answer came from, when there was one.
+
+    An ``empty`` result is a completed retrieval — the source was asked and
+    holds nothing — so it reports its origin like any other completed
+    lookup. A failure or an offline refusal has no origin to report.
+    """
 
 
 @dataclass
@@ -123,6 +138,12 @@ class PackageInfo:
     enrichment_conflicts: list[ProviderConflict] = field(default_factory=list)
     provider_warnings: list[ProviderWarning] = field(default_factory=list)
     retrieved_at: str | None = None
+    freshness: Freshness | None = None
+    """Where the metadata came from: the source, or peta's cache.
+
+    ``None`` for a package read from the installed environment, which has no
+    retrieval to be fresh or stale relative to.
+    """
     enrichment_sources: list[SourceRecord] = field(default_factory=list)
 
     @property
@@ -151,4 +172,11 @@ class DependencyNode:
     circular: bool = False
     source: str | None = None
     retrieved_at: str | None = None
+    freshness: Freshness | None = None
+    """Where this node's metadata came from: the source, or peta's cache.
+
+    Carried per node because a tree can be assembled from a mix — some
+    dependencies served from cache, others fetched — so one figure for the
+    whole command would be a fiction.
+    """
     resolution_failure: DependencyResolutionFailure | None = None

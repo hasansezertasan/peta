@@ -13,6 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from peta.core.cache import Provenance
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.providers import (
     CAPABILITY_FIELDS,
@@ -28,11 +29,23 @@ from peta.core.providers import (
 from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
-    from peta.core.models import ProviderWarning
     from peta.core.output import SourceState
     from peta.core.providers import Capability
 
 pytestmark = pytest.mark.unit
+
+_LIVE = Provenance("live", "2026-01-01T00:00:00Z")
+
+
+def _bare_result() -> ProviderResult:
+    """Build a minimal valid result to mutate into an invalid one.
+
+    Returns:
+        A result carrying no evidence and no warnings.
+    """
+    return ProviderResult(
+        provider="bad", capability="download_count", state="empty", subject="requests"
+    )
 
 
 def _pkg(**over: object) -> PackageInfo:
@@ -73,7 +86,10 @@ class TestOsvProvider:
 
 
 class TestPypiStatsProvider:
-    @patch("peta.core.providers.builtin.stats.get_download_count", return_value=1234)
+    @patch(
+        "peta.core.providers.builtin.stats.get_download_count",
+        return_value=(1234, _LIVE),
+    )
     def test_success_carries_count_evidence(self, m: MagicMock) -> None:
         result = PypiStatsProvider().fetch(_pkg())
         assert result.state == "success"
@@ -81,7 +97,10 @@ class TestPypiStatsProvider:
         assert result.field == "result.download_count"
         m.assert_called_once_with("requests")
 
-    @patch("peta.core.providers.builtin.stats.get_download_count", return_value=None)
+    @patch(
+        "peta.core.providers.builtin.stats.get_download_count",
+        return_value=(None, _LIVE),
+    )
     def test_missing_count_is_empty(self, m: MagicMock) -> None:
         result = PypiStatsProvider().fetch(_pkg())
         assert result.state == "empty"
@@ -110,7 +129,10 @@ class TestLibrariesIoProvider:
         assert result.retrieved_at is None
         mdep.assert_not_called()
 
-    @patch("peta.core.providers.builtin.stats.get_dependent_count", return_value=42)
+    @patch(
+        "peta.core.providers.builtin.stats.get_dependent_count",
+        return_value=(42, _LIVE),
+    )
     @patch(
         "peta.core.providers.builtin.stats.libraries_io_api_key", return_value="secret"
     )
@@ -351,21 +373,72 @@ class TestResultVariantValidation:
         assert CountEvidence(0).count == 0
 
     def test_warnings_rejects_none(self) -> None:
+        # Built with ``replace`` rather than a cast, for the same reason as
+        # the freshness check: it re-runs __post_init__, so the guard is
+        # exercised without a string cast that hides the type from analysis.
         with pytest.raises(TypeError, match="warnings must be a list"):
-            ProviderResult(
-                provider="bad",
-                capability="download_count",
-                state="empty",
-                subject="requests",
-                warnings=cast("list[ProviderWarning]", None),
-            )
+            _ = replace(_bare_result(), warnings=None)
 
     def test_warnings_rejects_a_malformed_item(self) -> None:
         with pytest.raises(TypeError, match="ProviderWarning instances"):
-            ProviderResult(
-                provider="bad",
-                capability="download_count",
-                state="empty",
-                subject="requests",
-                warnings=cast("list[ProviderWarning]", [{"source": "x"}]),
-            )
+            _ = replace(_bare_result(), warnings=[{"source": "x"}])
+
+
+class TestFreshnessValidation:
+    def test_a_documented_origin_is_accepted(self) -> None:
+        result = ProviderResult(
+            provider="pypistats",
+            capability="download_count",
+            state="success",
+            subject="requests",
+            freshness="cached",
+            evidence=CountEvidence(1),
+        )
+        assert result.freshness == "cached"
+
+    def test_an_undocumented_origin_is_rejected(self) -> None:
+        # An injected provider can put any string here despite the annotation,
+        # and it would otherwise reach the envelope as an undocumented value.
+        # Built with ``replace`` rather than a cast: it re-runs __post_init__,
+        # so the check is exercised without asking the type checkers to
+        # pretend an invalid literal is valid.
+        valid = ProviderResult(
+            provider="pypistats",
+            capability="download_count",
+            state="success",
+            subject="requests",
+            freshness="live",
+            evidence=CountEvidence(1),
+        )
+        with pytest.raises(ValueError, match="not a documented origin"):
+            _ = replace(valid, freshness="probably-fine")
+
+    def test_no_stated_origin_is_allowed(self) -> None:
+        # A source with no retrieval to speak of, such as one that was never
+        # consulted, has no origin to report.
+        result = ProviderResult(
+            provider="libraries.io",
+            capability="dependent_count",
+            state="unavailable",
+            subject="requests",
+            reason="LIBRARIES_IO_API_KEY is not configured",
+        )
+        assert result.freshness is None
+
+
+class TestFailureProvenance:
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
+    def test_a_source_that_was_reached_records_when(self, mo: MagicMock) -> None:
+        mo.side_effect = EnrichmentError("osv", "HTTP 503")
+        result = OsvProvider().fetch(_pkg())
+        assert result.state == "failed"
+        assert result.retrieved_at is not None
+
+    @patch("peta.core.providers.builtin.osv.get_vulnerabilities")
+    def test_a_source_never_contacted_claims_no_time(self, mo: MagicMock) -> None:
+        # Offline refuses before anything is sent, so there is no retrieval to
+        # timestamp; claiming one would say a request happened when none did.
+        mo.side_effect = EnrichmentError("osv", "offline", contacted=False)
+        result = OsvProvider().fetch(_pkg())
+        assert result.state == "failed"
+        assert result.retrieved_at is None

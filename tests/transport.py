@@ -64,8 +64,10 @@ class FakeTransport:
     ) -> None:
         """Answer requests whose URL contains ``url`` with this response.
 
-        Replies are matched in registration order and are reusable, so one
-        registration serves however many matching requests a test makes. An
+        The most recently registered matching reply answers, so a test can
+        change what a URL returns partway through — a source that first sends
+        a body and then answers "not modified", say. Replies are reusable, so
+        one registration serves however many matching requests follow it. An
         empty ``url`` matches everything, which is what a test exercising a
         single source wants.
 
@@ -109,7 +111,7 @@ class FakeTransport:
         of returning, standing in for a transport-level failure.
 
         Returns:
-            The first matching canned response.
+            The most recently registered matching response.
 
         Raises:
             AssertionError: If no reply matches, which means the test made a
@@ -117,7 +119,7 @@ class FakeTransport:
         """
         self.requests.append(request)
         url = str(request.url)
-        for reply in self._replies:
+        for reply in reversed(self._replies):
             if reply.match not in url:
                 continue
             if reply.error is not None:

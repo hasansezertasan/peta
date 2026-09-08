@@ -1,5 +1,6 @@
 """Unit tests for the PyPI remote fetcher (served by a canned transport)."""
 
+import re
 from typing import TYPE_CHECKING
 
 import httpx
@@ -139,3 +140,37 @@ def test_malformed_metadata_raises_network_error(
 
     with pytest.raises(NetworkError, match="malformed response from PyPI"):
         _ = get_package("pkg")
+
+
+class TestCanonicalNames:
+    @pytest.mark.parametrize(
+        "spelling", ["Zope.Interface", "zope_interface", "ZOPE-INTERFACE"]
+    )
+    def test_equivalent_spellings_request_one_url(
+        self, fake_http: FakeTransport, spelling: str
+    ) -> None:
+        # PyPI serves every spelling identically, but they are different URLs,
+        # so caching by raw name would store the same response repeatedly and
+        # let an offline lookup miss an entry it already holds.
+        fake_http.reply(json={"info": {"name": "zope.interface", "version": "6.0"}})
+
+        _ = get_package(spelling)
+
+        assert str(fake_http.request.url) == "https://pypi.org/pypi/zope-interface/json"
+
+    def test_a_version_is_left_alone(self, fake_http: FakeTransport) -> None:
+        fake_http.reply(json={"info": {"name": "typing-extensions", "version": "4.0"}})
+
+        _ = get_package("typing_extensions", version="4.0.0")
+
+        assert str(fake_http.request.url).endswith("/typing-extensions/4.0.0/json")
+
+    def test_the_users_spelling_survives_in_the_error(
+        self, fake_http: FakeTransport
+    ) -> None:
+        # Only the request is canonicalized; a message should echo what was
+        # actually typed.
+        fake_http.reply(status=404)
+
+        with pytest.raises(PackageNotFoundError, match=re.escape("Zope.Interface")):
+            _ = get_package("Zope.Interface")

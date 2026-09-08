@@ -8,6 +8,7 @@ import typer
 
 from peta.cli.output.render import render_dep_tree, render_why
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
+from peta.core import http
 from peta.core.deptree import build_tree, find_why
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
@@ -65,6 +66,66 @@ def _print_tree(
     typer.echo(rendered)
 
 
+def _build_or_fail(
+    package: str,
+    *,
+    local: bool,
+    remote: bool,
+    depth: int,
+    selected: OutputFormat,
+    arguments: dict[str, object],
+) -> DependencyNode:
+    """Resolve the tree, or render the failure and exit.
+
+    Extracted from :func:`deps` so the command body stays within the
+    project's complexity limit as error kinds accumulate.
+
+    Returns:
+        The resolved dependency tree.
+    """
+    try:
+        return build_tree(package, local=local, remote=remote, max_depth=depth)
+    except _NOT_FOUND as exc:
+        fail(
+            "deps",
+            arguments=arguments,
+            code="package_not_found",
+            message=f"Package '{package}' not found.",
+            output_format=selected,
+            exit_code=1,
+            source=not_found_source(exc),
+        )
+    except typer.BadParameter as exc:
+        fail(
+            "deps",
+            arguments=arguments,
+            code="invalid_arguments",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+        )
+    except http.OfflineError as exc:
+        fail(
+            "deps",
+            arguments=arguments,
+            code="offline_unavailable",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+            source="pypi",
+        )
+    except NetworkError as exc:
+        fail(
+            "deps",
+            arguments=arguments,
+            code="network_error",
+            message=str(exc),
+            output_format=selected,
+            exit_code=2,
+            source="pypi",
+        )
+
+
 def deps(
     package: str,
     *,
@@ -85,37 +146,14 @@ def deps(
         "depth": depth,
     }
     selected = resolve_or_fail("deps", arguments, output_format, use_json=use_json)
-    try:
-        tree = build_tree(package, local=local, remote=remote, max_depth=depth)
-    except _NOT_FOUND as exc:
-        fail(
-            "deps",
-            arguments=arguments,
-            code="package_not_found",
-            message=f"Package '{package}' not found.",
-            output_format=selected,
-            exit_code=1,
-            source=not_found_source(exc),
-        )
-    except typer.BadParameter as exc:
-        fail(
-            "deps",
-            arguments=arguments,
-            code="invalid_arguments",
-            message=str(exc),
-            output_format=selected,
-            exit_code=2,
-        )
-    except NetworkError as exc:
-        fail(
-            "deps",
-            arguments=arguments,
-            code="network_error",
-            message=str(exc),
-            output_format=selected,
-            exit_code=2,
-            source="pypi",
-        )
+    tree = _build_or_fail(
+        package,
+        local=local,
+        remote=remote,
+        depth=depth,
+        selected=selected,
+        arguments=arguments,
+    )
 
     if why is not None:
         _print_why(

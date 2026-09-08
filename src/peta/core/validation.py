@@ -20,10 +20,20 @@ __all__ = [
 class EnrichmentError(Exception):
     """A source-specific failure from an optional external API."""
 
-    def __init__(self, source: str, reason: str) -> None:
-        """Store the failed source and safe diagnostic reason."""
+    def __init__(self, source: str, reason: str, *, contacted: bool = True) -> None:
+        """Store the failed source, safe diagnostic reason, and whether it ran.
+
+        Args:
+            source: The source that failed.
+            reason: A diagnostic safe to show a user.
+            contacted: Whether a request was actually made. ``False`` for a
+                refusal that never reached the network — being offline — so
+                the resulting record can omit a retrieval time instead of
+                claiming one for a source nothing was sent to.
+        """
         self.source: str = source
         self.reason: str = reason
+        self.contacted: bool = contacted
         super().__init__(f"{source}: {reason}")
 
 

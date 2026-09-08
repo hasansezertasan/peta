@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import sys
 from importlib.metadata import Distribution, PackageNotFoundError
+
+# Imported at runtime, not under TYPE_CHECKING: Typer resolves command
+# annotations with ``get_type_hints`` to build the parser, so a name used in an
+# ``Annotated[...]`` option must exist when the module is imported.
+from pathlib import Path  # ruff: ignore[typing-only-standard-library-import]
 from typing import Annotated, cast
 
 import typer
@@ -20,6 +25,7 @@ from peta.cli.output.console import resolve_color
 from peta.cli.output.errors import StructuredErrorGroup
 from peta.cli.output.selection import OutputFormat
 from peta.cli.state import CliState
+from peta.core import cache
 
 __all__ = ["compare", "deps", "files", "info", "main", "run", "versions"]
 
@@ -37,6 +43,14 @@ _SUBCOMMANDS = {
 }
 
 _FORMAT_HELP = "Output format: rich, text, json, or markdown."
+
+_ROOT_OPTIONS_WITH_VALUES = frozenset({"--cache-dir"})
+"""Root options that consume the token after them.
+
+Needed so the shorthand rewrite does not mistake an option's value for the
+package name: in ``peta --cache-dir /tmp/c requests``, the package is the
+third token, not the second.
+"""
 
 app = typer.Typer(
     name="peta",
@@ -90,6 +104,26 @@ def _color_from_ctx(ctx: typer.Context) -> bool:
     return obj.color if isinstance(obj, CliState) else False
 
 
+def _configure_cache(*, offline: bool, refresh: bool, cache_dir: Path | None) -> None:
+    """Apply the cache options for this invocation.
+
+    Args:
+        offline: Answer only from cache, never from the network.
+        refresh: Discard stored entries and fetch again.
+        cache_dir: Where to keep the cache; the platform default when ``None``.
+
+    Raises:
+        typer.BadParameter: If ``--offline`` and ``--refresh`` are combined,
+            which asks peta both to refetch everything and to make no
+            requests. Rejected rather than silently resolved, because either
+            reading could be what the user meant.
+    """
+    if offline and refresh:
+        msg = "--offline cannot be combined with --refresh."
+        raise typer.BadParameter(msg)
+    cache.configure(directory=cache_dir, offline=offline, refresh=refresh)
+
+
 @app.callback(invoke_without_command=True)
 def main(
     ctx: typer.Context,
@@ -106,8 +140,19 @@ def main(
     no_color: Annotated[
         bool, typer.Option("--no-color", help="Disable colored output.")
     ] = False,
+    offline: Annotated[
+        bool, typer.Option("--offline", help="Use only cached data; make no requests.")
+    ] = False,
+    refresh: Annotated[
+        bool, typer.Option("--refresh", help="Ignore cached data and refetch.")
+    ] = False,
+    cache_dir: Annotated[
+        Path | None,
+        typer.Option("--cache-dir", help="Directory for peta's response cache."),
+    ] = None,
 ) -> None:
     """Human-friendly Python package metadata viewer."""
+    _configure_cache(offline=offline, refresh=refresh, cache_dir=cache_dir)
     ctx.obj = CliState(color=resolve_color(no_color=no_color))
 
 
@@ -257,9 +302,33 @@ def versions(
     )
 
 
+def _shorthand_position(args: list[str]) -> int | None:
+    """Find where ``info`` belongs, skipping any root options first.
+
+    Root options precede the subcommand, as they do in any Click application,
+    so ``peta --offline requests`` has to skip ``--offline`` before it can
+    tell that ``requests`` is a package rather than a command. Without this
+    the shorthand works only when nothing precedes the package, which the
+    cache flags would have quietly broken.
+
+    Returns:
+        The index in ``sys.argv`` to insert ``info`` at, or ``None`` when the
+        arguments already name a command, name nothing, or use ``--opt=value``
+        forms this does not need to interpret.
+    """
+    index = 0
+    while index < len(args) and args[index].startswith("-"):
+        option = args[index]
+        index += 2 if option in _ROOT_OPTIONS_WITH_VALUES else 1
+    if index >= len(args) or args[index] in _SUBCOMMANDS:
+        return None
+    # +1 for the program name that `args` was sliced from.
+    return index + 1
+
+
 def run() -> None:
     """Entry point; ``peta <package>`` is shorthand for ``peta info <package>``."""
-    args = sys.argv[1:]
-    if args and args[0] not in _SUBCOMMANDS and not args[0].startswith("-"):
-        sys.argv.insert(1, "info")
+    position = _shorthand_position(sys.argv[1:])
+    if position is not None:
+        sys.argv.insert(position, "info")
     app()

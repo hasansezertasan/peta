@@ -33,12 +33,21 @@ __all__ = [
 def _failure(
     provider: str, capability: Capability, subject: str, exc: EnrichmentError
 ) -> ProviderResult:
+    """Report a source failure, dating it only if the source was reached.
+
+    A refusal that never left the machine — being offline — has no retrieval
+    to timestamp, and claiming one would make the provenance say a request
+    happened when none did.
+
+    Returns:
+        The failed provider result.
+    """
     return ProviderResult(
         provider=provider,
         capability=capability,
         state="failed",
         subject=subject,
-        retrieved_at=utc_now(),
+        retrieved_at=utc_now() if exc.contacted else None,
         reason=exc.reason,
     )
 
@@ -66,6 +75,8 @@ class OsvProvider:
             state="success" if vulnerabilities else "empty",
             subject=pkg.name,
             retrieved_at=utc_now(),
+            # Advisory queries are not cached, so the answer is always live.
+            freshness="live",
             evidence=VulnerabilityEvidence(vulnerabilities),
         )
 
@@ -84,7 +95,7 @@ class PypiStatsProvider:
             The download count, an empty answer, or the lookup failure.
         """
         try:
-            count = stats.get_download_count(pkg.name)
+            count, provenance = stats.get_download_count(pkg.name)
         except EnrichmentError as exc:
             return _failure(self.name, self.capability, pkg.name, exc)
         return ProviderResult(
@@ -92,7 +103,8 @@ class PypiStatsProvider:
             capability=self.capability,
             state="empty" if count is None else "success",
             subject=pkg.name,
-            retrieved_at=utc_now(),
+            retrieved_at=provenance.retrieved_at,
+            freshness=provenance.freshness,
             evidence=None if count is None else CountEvidence(count),
         )
 
@@ -124,7 +136,7 @@ class LibrariesIoProvider:
                 reason="LIBRARIES_IO_API_KEY is not configured",
             )
         try:
-            count = stats.get_dependent_count(pkg.name, api_key=api_key)
+            count, provenance = stats.get_dependent_count(pkg.name, api_key=api_key)
         except EnrichmentError as exc:
             return _failure(self.name, self.capability, pkg.name, exc)
         return ProviderResult(
@@ -132,7 +144,8 @@ class LibrariesIoProvider:
             capability=self.capability,
             state="empty" if count is None else "success",
             subject=pkg.name,
-            retrieved_at=utc_now(),
+            retrieved_at=provenance.retrieved_at,
+            freshness=provenance.freshness,
             evidence=None if count is None else CountEvidence(count),
         )
 

@@ -23,6 +23,57 @@ root ``--no-color`` flag or the ``NO_COLOR`` environment variable; both take
 precedence over TTY detection. Text, JSON, and Markdown output is always plain. See
 :doc:`configuration` for the ``NO_COLOR`` variable.
 
+Caching and offline use
+------------------------
+
+Successful responses are cached on disk, so repeat queries cost a local read
+rather than a request. Package metadata and version listings are kept for an
+hour, and download and dependent counts for a few. A ``name==version`` lookup
+is *not* kept longer, even though a published release's metadata is settled:
+the same PyPI response carries the package's advisory list, and an advisory can
+be published against a release at any time. Where a source supplies a
+validator, peta revalidates a stale entry conditionally, so an unchanged answer
+costs a round trip but no body.
+
+Entries are removed once they pass a retention bound, so the cache does not
+grow without limit. Only files peta itself wrote are ever deleted, which
+matters if ``--cache-dir`` points somewhere that already holds your own data.
+
+Only ``200`` responses are stored. An error describes the moment, not the
+package, so caching one would turn a transient outage into a persistent wrong
+answer. Credentials never reach the cache: the Libraries.io API key travels in
+the query string and is stripped before a URL is hashed or recorded, and only
+an allowlist of response headers is kept.
+
+Root flags control it:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Flag
+     - Effect
+   * - ``--offline``
+     - Contact no source. Answers come from the cache, including entries past
+       their TTL, which are reported as ``cached`` rather than withheld. A
+       fatal lookup the cache cannot answer exits ``2`` with an
+       ``offline_unavailable`` error naming the URL; an optional enrichment
+       source that cannot be answered stays a non-fatal warning.
+   * - ``--refresh``
+     - Ignore stored entries and replace them with fresh responses. Cannot be
+       combined with ``--offline``, which would ask peta both to refetch
+       everything and to make no requests.
+   * - ``--cache-dir``
+     - Where to keep the cache. Defaults to ``$PETA_CACHE_DIR``, then
+       ``$XDG_CACHE_HOME/peta``, then ``~/.cache/peta``
+       (``%LOCALAPPDATA%\peta\Cache`` on Windows).
+
+These are root options, so they come before the command — ``peta --offline
+info requests``. They also work with the package shorthand, as in ``peta
+--offline requests``.
+
+JSON output records where every source's data came from in each source
+record's ``freshness`` field. See :doc:`output-contract`.
+
 Vulnerabilities
 ----------------
 
@@ -94,10 +145,12 @@ Exit codes
    * - ``1``
      - Package not found, or ``deps --why`` found no path to the target.
    * - ``2``
-     - Network or PyPI HTTP error, or invalid arguments (an unparsable
-       ``name==version``, ``--local`` with a version specifier, ``--json``
-       combined with a non-JSON ``--format``, or a parser rejection such as an
-       unknown option or out-of-range ``--depth``).
+     - Network or PyPI HTTP error; a lookup that ``--offline`` could not answer
+       from the cache; or invalid arguments (an unparsable ``name==version``,
+       ``--local`` with a version specifier, ``--json`` combined with a
+       non-JSON ``--format``, ``--offline`` combined with ``--refresh``, or a
+       parser rejection such as an unknown option or out-of-range
+       ``--depth``).
 
 Failures from optional OSV, pypistats, and Libraries.io enrichment sources are
 reported as warnings and retain exit code ``0``.
