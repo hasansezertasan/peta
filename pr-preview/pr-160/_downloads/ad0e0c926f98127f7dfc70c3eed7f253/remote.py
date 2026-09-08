@@ -108,25 +108,16 @@ def _pypi_url(name: str, version: str | None) -> str:
     return f"{PYPI_BASE_URL}/{name}/json"
 
 
-def _ttl(version: str | None) -> int:
-    """Choose how long this lookup's answer stays usable.
-
-    A specific version's metadata is settled once published, so it is kept
-    for a long time; a bare name resolves to whatever is newest, which can
-    change with any release.
-
-    Returns:
-        The cache lifetime in seconds.
-    """
-    return cache.IMMUTABLE if version else cache.LATEST
-
-
 def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:
     """Fetch the raw PyPI JSON payload for a package.
 
     The response is offered to the cache only once it has decoded and
     validated, so a ``200`` carrying an error page or truncated JSON is not
-    stored and replayed for the next month.
+    stored and replayed.
+
+    A pinned version gets no longer a lifetime than a bare name: its metadata
+    is settled, but the same response carries the ``vulnerabilities`` array,
+    and an advisory can be published against a release at any time.
 
     Returns:
         The decoded JSON body, and where it came from.
@@ -137,7 +128,7 @@ def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:
     """
     url = _pypi_url(name, version)
     try:
-        fetched = http.get(url, ttl=_ttl(version))
+        fetched = http.get(url, ttl=cache.LATEST)
     except httpx.RequestError as exc:
         raise NetworkError(str(exc)) from exc
     response = fetched.response

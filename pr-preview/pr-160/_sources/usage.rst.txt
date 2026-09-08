@@ -27,12 +27,17 @@ Caching and offline use
 ------------------------
 
 Successful responses are cached on disk, so repeat queries cost a local read
-rather than a request. How long an entry stays usable depends on how mutable
-the data is: a ``name==version`` lookup describes a published release that
-cannot change and is kept for a month, while ``latest`` metadata, version
-listings, and daily statistics are kept for an hour or a few. Where a source
-does, peta revalidates a stale entry conditionally, so an unchanged answer
+rather than a request. Package metadata and version listings are kept for an
+hour, and download and dependent counts for a few. A ``name==version`` lookup
+is *not* kept longer, even though a published release's metadata is settled:
+the same PyPI response carries the package's advisory list, and an advisory can
+be published against a release at any time. Where a source supplies a
+validator, peta revalidates a stale entry conditionally, so an unchanged answer
 costs a round trip but no body.
+
+Entries are removed once they pass a retention bound, so the cache does not
+grow without limit. Only files peta itself wrote are ever deleted, which
+matters if ``--cache-dir`` points somewhere that already holds your own data.
 
 Only ``200`` responses are stored. An error describes the moment, not the
 package, so caching one would turn a transient outage into a persistent wrong
@@ -61,6 +66,10 @@ Root flags control it:
      - Where to keep the cache. Defaults to ``$PETA_CACHE_DIR``, then
        ``$XDG_CACHE_HOME/peta``, then ``~/.cache/peta``
        (``%LOCALAPPDATA%\peta\Cache`` on Windows).
+
+These are root options, so they come before the command — ``peta --offline
+info requests``. They also work with the package shorthand, as in ``peta
+--offline requests``.
 
 JSON output records where every source's data came from in each source
 record's ``freshness`` field. See :doc:`output-contract`.
