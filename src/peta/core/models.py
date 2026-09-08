@@ -101,6 +101,13 @@ class DependencyResolutionFailure:
     miss deliberately makes no request, and claiming a retrieval time for one
     would make the provenance misleading.
     """
+    freshness: Freshness | None = None
+    """Where the answer came from, when there was one.
+
+    An ``empty`` result is a completed retrieval — the source was asked and
+    holds nothing — so it reports its origin like any other completed
+    lookup. A failure or an offline refusal has no origin to report.
+    """
 
 
 @dataclass

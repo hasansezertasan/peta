@@ -111,13 +111,9 @@ class TestGetDependentCount:
             "live",
         )
 
-    def test_no_key_makes_no_request(self, fake_http: FakeTransport) -> None:
-        assert _count(get_dependent_count("requests", api_key=None)) == (None, "live")
-        assert fake_http.requests == []
-
-    def test_empty_key_makes_no_request(self, fake_http: FakeTransport) -> None:
-        assert _count(get_dependent_count("requests", api_key="")) == (None, "live")
-        assert fake_http.requests == []
+    # "No key configured" is the provider's decision, not this helper's: see
+    # test_providers.TestLibrariesIoProvider.
+    #     test_missing_api_key_is_unavailable_without_a_request
 
     def test_happy_path(self, fake_http: FakeTransport) -> None:
         fake_http.reply(json={"dependents_count": 42})

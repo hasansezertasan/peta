@@ -45,9 +45,16 @@ def _resolution_failure(
     # A not-found response means the provider completed the lookup and holds no
     # package data, which the output contract calls ``empty`` rather than
     # ``unavailable`` (reserved for a source that could not be configured).
-    source = "local" if isinstance(exc, LocalNotFound) else "pypi"
+    # Being a completed retrieval, it reports its origin like any other: a
+    # PyPI 404 is always live, since only 200 responses are ever cached, and a
+    # local miss has no retrieval to describe.
+    local = isinstance(exc, LocalNotFound)
     return DependencyResolutionFailure(
-        source=source, state="empty", reason=str(exc), retrieved_at=utc_now()
+        source="local" if local else "pypi",
+        state="empty",
+        reason=str(exc),
+        retrieved_at=utc_now(),
+        freshness=None if local else "live",
     )
 
 

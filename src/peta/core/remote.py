@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal, Required, TypedDict, cast
 
 import httpx
+from packaging.utils import canonicalize_name
 
 from peta.core import cache, http
 from peta.core.models import PackageInfo, Vulnerability
@@ -103,9 +104,24 @@ class NetworkError(Exception):
 
 
 def _pypi_url(name: str, version: str | None) -> str:
+    """Build the JSON API URL for a package, under its canonical name.
+
+    PyPI serves every equivalent spelling of a name identically — ``Zope.Interface``,
+    ``zope_interface`` and ``zope-interface`` all return the same payload — but
+    they are different URLs, so caching by raw name would store the same
+    response several times and let an offline lookup miss an entry it holds
+    under another spelling. Canonicalizing matches what
+    :mod:`peta.core.resolve` and :mod:`peta.core.deptree` already do with
+    names. Error messages keep the user's own spelling; only the request does
+    not.
+
+    Returns:
+        The absolute JSON API URL.
+    """
+    canonical = canonicalize_name(name)
     if version:
-        return f"{PYPI_BASE_URL}/{name}/{version}/json"
-    return f"{PYPI_BASE_URL}/{name}/json"
+        return f"{PYPI_BASE_URL}/{canonical}/{version}/json"
+    return f"{PYPI_BASE_URL}/{canonical}/json"
 
 
 def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:

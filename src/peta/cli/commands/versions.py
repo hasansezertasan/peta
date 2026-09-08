@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, cast
 
 import httpx
 import typer
+from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from peta.cli.output.render import render_versions
@@ -120,7 +121,9 @@ def get_versions(name: str) -> tuple[list[dict[str, str]], Provenance]:
             the decoded body is malformed (not a dict, or ``releases`` is not
             a dict).
     """
-    url = f"{PYPI_BASE_URL}/{name}/json"
+    # Canonical name, for the same reason as ``peta.core.remote._pypi_url``:
+    # equivalent spellings are one package to PyPI but different cache keys.
+    url = f"{PYPI_BASE_URL}/{canonicalize_name(name)}/json"
     try:
         fetched = http.get(url, ttl=cache.LATEST, scope="releases")
     except httpx.RequestError as exc:

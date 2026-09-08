@@ -9,7 +9,7 @@ from peta.core import http
 from peta.core.deptree import build_tree, find_why
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import DependencyNode, PackageInfo
-from peta.core.remote import NetworkError
+from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 
 pytestmark = pytest.mark.unit
 
@@ -246,3 +246,34 @@ class TestOfflineProvenance:
         failure = tree.children[0].resolution_failure
         assert failure is not None
         assert failure.retrieved_at is not None
+
+
+class TestEmptyResolutionProvenance:
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_pypi_miss_reports_a_live_origin(self, m: MagicMock) -> None:
+        # `empty` is a completed retrieval — PyPI was asked and holds nothing —
+        # so it reports its origin like any other completed lookup. Always
+        # live, since only 200 responses are ever cached.
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(RemoteNotFound("b"))
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.state == "empty"
+        assert failure.freshness == "live"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_a_local_miss_has_no_origin_to_report(self, m: MagicMock) -> None:
+        m.side_effect = lambda name, **_kw: (
+            _pkg("a", ["b"]) if name == "a" else _raise(LocalNotFound("b"))
+        )
+
+        tree = build_tree("a", local=False, remote=False)
+
+        failure = tree.children[0].resolution_failure
+        assert failure is not None
+        assert failure.state == "empty"
+        assert failure.freshness is None
