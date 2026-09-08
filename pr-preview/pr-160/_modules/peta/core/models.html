@@ -232,85 +232,92 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="100"><span class="sd">    happened at all rather than leaving it to a forgotten default. An offline</span>
 </span><span data-line="101"><span class="sd">    miss deliberately makes no request, and claiming a retrieval time for one</span>
 </span><span data-line="102"><span class="sd">    would make the provenance misleading.</span>
-</span><span data-line="103"><span class="sd">    """</span></div>
+</span><span data-line="103"><span class="sd">    """</span>
+</span><span data-line="104">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="105"><span class="w">    </span><span class="sd">"""Where the answer came from, when there was one.</span>
+</span><span data-line="106">
+</span><span data-line="107"><span class="sd">    An ``empty`` result is a completed retrieval — the source was asked and</span>
+</span><span data-line="108"><span class="sd">    holds nothing — so it reports its origin like any other completed</span>
+</span><span data-line="109"><span class="sd">    lookup. A failure or an offline refusal has no origin to report.</span>
+</span><span data-line="110"><span class="sd">    """</span></div>
 
-</span><span data-line="104">
-</span><span data-line="105">
+</span><span data-line="111">
+</span><span data-line="112">
 <div class="viewcode-block" id="PackageInfo">
 <a class="viewcode-back" href="../../../modules.html#peta.core.models.PackageInfo">[docs]</a>
-</span><span data-line="106"><span class="nd">@dataclass</span>
-</span><span data-line="107"><span class="k">class</span><span class="w"> </span><span class="nc">PackageInfo</span><span class="p">:</span>
-</span><span data-line="108"><span class="w">    </span><span class="sd">"""Package metadata from a local installation or PyPI."""</span>
-</span><span data-line="109">
-</span><span data-line="110">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="111">    <span class="n">version</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="112">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># "local" or "remote"</span>
-</span><span data-line="113">
-</span><span data-line="114">    <span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="115">    <span class="n">author</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="116">    <span class="n">author_email</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="117">    <span class="n">maintainer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="118">    <span class="n">license</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="119">    <span class="n">python_requires</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="120">    <span class="n">homepage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="121">    <span class="n">project_urls</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
-</span><span data-line="122">    <span class="n">dependencies</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="123">    <span class="n">classifiers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="124">    <span class="n">keywords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="125">    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="126">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="127">    <span class="n">download_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="128">    <span class="n">dependent_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="129">    <span class="n">license_source</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"expression"</span><span class="p">,</span> <span class="s2">"legacy"</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="130">    <span class="n">enrichment_failures</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">EnrichmentFailure</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="131">    <span class="n">enrichment_conflicts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ProviderConflict</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="132">    <span class="n">provider_warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ProviderWarning</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="133">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="134">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="135"><span class="w">    </span><span class="sd">"""Where the metadata came from: the source, or peta's cache.</span>
-</span><span data-line="136">
-</span><span data-line="137"><span class="sd">    ``None`` for a package read from the installed environment, which has no</span>
-</span><span data-line="138"><span class="sd">    retrieval to be fresh or stale relative to.</span>
-</span><span data-line="139"><span class="sd">    """</span>
-</span><span data-line="140">    <span class="n">enrichment_sources</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="141">
-</span><span data-line="142">    <span class="nd">@property</span>
-</span><span data-line="143">    <span class="k">def</span><span class="w"> </span><span class="nf">vulnerabilities_unknown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="144"><span class="w">        </span><span class="sd">"""Whether the advisory lookup failed, leaving the count unknown.</span>
-</span><span data-line="145">
-</span><span data-line="146"><span class="sd">        Derived from the failed field rather than a provider name, so an</span>
-</span><span data-line="147"><span class="sd">        alternate advisory source is never reported as a clean zero.</span>
+</span><span data-line="113"><span class="nd">@dataclass</span>
+</span><span data-line="114"><span class="k">class</span><span class="w"> </span><span class="nc">PackageInfo</span><span class="p">:</span>
+</span><span data-line="115"><span class="w">    </span><span class="sd">"""Package metadata from a local installation or PyPI."""</span>
+</span><span data-line="116">
+</span><span data-line="117">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="118">    <span class="n">version</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="119">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># "local" or "remote"</span>
+</span><span data-line="120">
+</span><span data-line="121">    <span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="122">    <span class="n">author</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="123">    <span class="n">author_email</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="124">    <span class="n">maintainer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="125">    <span class="n">license</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="126">    <span class="n">python_requires</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="127">    <span class="n">homepage</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="128">    <span class="n">project_urls</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
+</span><span data-line="129">    <span class="n">dependencies</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="130">    <span class="n">classifiers</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="131">    <span class="n">keywords</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="132">    <span class="n">files</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="133">    <span class="n">vulnerabilities</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Vulnerability</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="134">    <span class="n">download_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="135">    <span class="n">dependent_count</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="136">    <span class="n">license_source</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"expression"</span><span class="p">,</span> <span class="s2">"legacy"</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="137">    <span class="n">enrichment_failures</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">EnrichmentFailure</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="138">    <span class="n">enrichment_conflicts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ProviderConflict</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="139">    <span class="n">provider_warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">ProviderWarning</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="140">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="141">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="142"><span class="w">    </span><span class="sd">"""Where the metadata came from: the source, or peta's cache.</span>
+</span><span data-line="143">
+</span><span data-line="144"><span class="sd">    ``None`` for a package read from the installed environment, which has no</span>
+</span><span data-line="145"><span class="sd">    retrieval to be fresh or stale relative to.</span>
+</span><span data-line="146"><span class="sd">    """</span>
+</span><span data-line="147">    <span class="n">enrichment_sources</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
 </span><span data-line="148">
-</span><span data-line="149"><span class="sd">        Returns:</span>
-</span><span data-line="150"><span class="sd">            ``True`` when a source that supplies advisories failed.</span>
-</span><span data-line="151"><span class="sd">        """</span>
-</span><span data-line="152">        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span>
-</span><span data-line="153">            <span class="n">failure</span><span class="o">.</span><span class="n">field</span> <span class="o">==</span> <span class="n">VULNERABILITY_FIELD</span> <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">enrichment_failures</span>
-</span><span data-line="154">        <span class="p">)</span></div>
-
+</span><span data-line="149">    <span class="nd">@property</span>
+</span><span data-line="150">    <span class="k">def</span><span class="w"> </span><span class="nf">vulnerabilities_unknown</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="151"><span class="w">        </span><span class="sd">"""Whether the advisory lookup failed, leaving the count unknown.</span>
+</span><span data-line="152">
+</span><span data-line="153"><span class="sd">        Derived from the failed field rather than a provider name, so an</span>
+</span><span data-line="154"><span class="sd">        alternate advisory source is never reported as a clean zero.</span>
 </span><span data-line="155">
-</span><span data-line="156">
+</span><span data-line="156"><span class="sd">        Returns:</span>
+</span><span data-line="157"><span class="sd">            ``True`` when a source that supplies advisories failed.</span>
+</span><span data-line="158"><span class="sd">        """</span>
+</span><span data-line="159">        <span class="k">return</span> <span class="nb">any</span><span class="p">(</span>
+</span><span data-line="160">            <span class="n">failure</span><span class="o">.</span><span class="n">field</span> <span class="o">==</span> <span class="n">VULNERABILITY_FIELD</span> <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">enrichment_failures</span>
+</span><span data-line="161">        <span class="p">)</span></div>
+
+</span><span data-line="162">
+</span><span data-line="163">
 <div class="viewcode-block" id="DependencyNode">
 <a class="viewcode-back" href="../../../modules.html#peta.core.models.DependencyNode">[docs]</a>
-</span><span data-line="157"><span class="nd">@dataclass</span>
-</span><span data-line="158"><span class="k">class</span><span class="w"> </span><span class="nc">DependencyNode</span><span class="p">:</span>
-</span><span data-line="159"><span class="w">    </span><span class="sd">"""A node in a package's recursive dependency tree."""</span>
-</span><span data-line="160">
-</span><span data-line="161">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="162">    <span class="n">version_spec</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="163">    <span class="n">installed_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="164">    <span class="n">children</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">DependencyNode</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="165">    <span class="n">circular</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-</span><span data-line="166">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="167">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="168">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="169"><span class="w">    </span><span class="sd">"""Where this node's metadata came from: the source, or peta's cache.</span>
-</span><span data-line="170">
-</span><span data-line="171"><span class="sd">    Carried per node because a tree can be assembled from a mix — some</span>
-</span><span data-line="172"><span class="sd">    dependencies served from cache, others fetched — so one figure for the</span>
-</span><span data-line="173"><span class="sd">    whole command would be a fiction.</span>
-</span><span data-line="174"><span class="sd">    """</span>
-</span><span data-line="175">    <span class="n">resolution_failure</span><span class="p">:</span> <span class="n">DependencyResolutionFailure</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
+</span><span data-line="164"><span class="nd">@dataclass</span>
+</span><span data-line="165"><span class="k">class</span><span class="w"> </span><span class="nc">DependencyNode</span><span class="p">:</span>
+</span><span data-line="166"><span class="w">    </span><span class="sd">"""A node in a package's recursive dependency tree."""</span>
+</span><span data-line="167">
+</span><span data-line="168">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="169">    <span class="n">version_spec</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="170">    <span class="n">installed_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="171">    <span class="n">children</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">DependencyNode</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="172">    <span class="n">circular</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="173">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="174">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="175">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="176"><span class="w">    </span><span class="sd">"""Where this node's metadata came from: the source, or peta's cache.</span>
+</span><span data-line="177">
+</span><span data-line="178"><span class="sd">    Carried per node because a tree can be assembled from a mix — some</span>
+</span><span data-line="179"><span class="sd">    dependencies served from cache, others fetched — so one figure for the</span>
+</span><span data-line="180"><span class="sd">    whole command would be a fiction.</span>
+</span><span data-line="181"><span class="sd">    """</span>
+</span><span data-line="182">    <span class="n">resolution_failure</span><span class="p">:</span> <span class="n">DependencyResolutionFailure</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

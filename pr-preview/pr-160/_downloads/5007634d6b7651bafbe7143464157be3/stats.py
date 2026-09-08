@@ -3,19 +3,20 @@
 from __future__ import annotations
 
 import os
-from typing import Required, TypedDict, cast
+from typing import TYPE_CHECKING, Required, TypedDict, cast
 
 import httpx
 
 from peta.core import cache, http
-from peta.core.cache import Provenance
-from peta.core.output import utc_now
 from peta.core.validation import (
     EnrichmentError,
     ResponseValidationError,
     expect_int,
     expect_mapping,
 )
+
+if TYPE_CHECKING:
+    from peta.core.cache import Provenance
 
 __all__ = [
     "LIBRARIES_IO_URL",
@@ -151,26 +152,24 @@ def _parse_libraries_io(body: object) -> int:
     )
 
 
-def get_dependent_count(
-    name: str, *, api_key: str | None
-) -> tuple[int | None, Provenance]:
+def get_dependent_count(name: str, *, api_key: str) -> tuple[int | None, Provenance]:
     """Look up a package's dependent count on libraries.io.
 
     The enrichment coordinator catches source-specific failures so they remain
-    non-fatal while still being visible to users. No request is made at all
-    when no API key is available.
+    non-fatal while still being visible to users.
+
+    A key is required rather than optional. Deciding what "not configured"
+    means is the provider's job — it reports ``unavailable`` without making a
+    request — and the previous no-key branch here had to invent a provenance
+    for a request that never happened, which is exactly the fabrication
+    ``Provenance`` exists to prevent.
 
     Args:
         name: Package name to query (assumed to be a PyPI package).
-        api_key: The libraries.io API key, or ``None`` to skip the lookup.
+        api_key: The libraries.io API key.
 
     Returns:
-        The dependent count and where it came from; the count is ``None``
-        when no API key is configured.
+        The dependent count and where it came from.
 
     """
-    if not api_key:
-        # No request was made, so there is nothing to be fresh or stale
-        # relative to; the provider reports this as ``unavailable`` anyway.
-        return None, Provenance("live", utc_now())
     return _fetch_libraries_io(name, api_key)

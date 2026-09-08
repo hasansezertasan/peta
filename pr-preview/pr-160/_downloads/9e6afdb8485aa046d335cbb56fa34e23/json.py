@@ -348,6 +348,7 @@ def _dependency_source(
             target=node.name,
             retrieved_at=failure.retrieved_at,
             reason=failure.reason,
+            freshness=failure.freshness,
             fields=[field],
         )
     if node.source is None:
