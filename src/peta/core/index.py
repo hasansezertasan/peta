@@ -46,6 +46,7 @@ PYPI_SIMPLE_URL = "https://pypi.org/simple"
 PEP691_ACCEPT = "application/vnd.pypi.simple.v1+json"
 
 _SOURCE = "Simple API"
+_NOT_FOUND = 404
 
 
 class IndexFile(TypedDict, total=False):
@@ -276,7 +277,7 @@ def get_project_page(
     response, fetched = _fetch_page(name, base_url)
     canonical = canonicalize_name(name)
 
-    if response.status_code == 404:  # ruff: ignore[magic-value-comparison]
+    if response.status_code == _NOT_FOUND:
         return ProjectPage(name=canonical, versions=[], files=[]), fetched.provenance
 
     try:

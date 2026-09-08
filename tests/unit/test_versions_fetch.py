@@ -242,3 +242,100 @@ def test_version_normalization_matches_upload_time(fake_http: FakeTransport) -> 
     fake_http.reply(json=payload)
     result, _ = get_versions("pkg")
     assert result == [{"version": "1.0.0", "upload_time": "2020-05-10"}]
+
+
+def _file(overrides: dict[str, object] | None = None) -> dict[str, object]:
+    base: dict[str, object] = {
+        "filename": "pkg-1.0.0.tar.gz",
+        "url": "https://example.invalid/pkg-1.0.0.tar.gz",
+        "hashes": {},
+    }
+    if overrides:
+        base.update(overrides)
+    return base
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("requires-python", 99), ("size", "big"), ("yanked", 1), ("provenance", 42)],
+)
+def test_file_bad_scalar_raises_network_error(
+    fake_http: FakeTransport, field: str, value: object
+) -> None:
+    payload = _simple_page(["1.0.0"], [_file({field: value})])
+    fake_http.reply(json=payload)
+    with pytest.raises(NetworkError, match="malformed response from Simple API"):
+        _ = get_versions("pkg")
+
+
+def test_file_non_string_hash_value_raises_network_error(
+    fake_http: FakeTransport,
+) -> None:
+    payload = _simple_page(["1.0.0"], [_file({"hashes": {"sha256": 123}})])
+    fake_http.reply(json=payload)
+    with pytest.raises(NetworkError, match="malformed response from Simple API"):
+        _ = get_versions("pkg")
+
+
+def test_unrecognized_extension_omits_upload_time(fake_http: FakeTransport) -> None:
+    payload = _simple_page(
+        ["1.0.0"],
+        [
+            {
+                "filename": "pkg-1.0.0.tar.bz2",
+                "url": "https://example.invalid/pkg-1.0.0.tar.bz2",
+                "hashes": {},
+                "upload-time": "2020-01-01T00:00:00Z",
+            }
+        ],
+    )
+    fake_http.reply(json=payload)
+    result, _ = get_versions("pkg")
+    assert result == [{"version": "1.0.0", "upload_time": ""}]
+
+
+def test_invalid_wheel_filename_omits_upload_time(fake_http: FakeTransport) -> None:
+    payload = _simple_page(
+        ["1.0.0"],
+        [
+            {
+                "filename": "bad.whl",
+                "url": "https://example.invalid/bad.whl",
+                "hashes": {},
+                "upload-time": "2020-01-01T00:00:00Z",
+            }
+        ],
+    )
+    fake_http.reply(json=payload)
+    result, _ = get_versions("pkg")
+    assert result == [{"version": "1.0.0", "upload_time": ""}]
+
+
+def test_file_version_not_in_versions_list_omits_upload_time(
+    fake_http: FakeTransport,
+) -> None:
+    payload = _simple_page(
+        ["2.0.0"],
+        [
+            {
+                "filename": "pkg-1.0.0.tar.gz",
+                "url": "https://example.invalid/pkg-1.0.0.tar.gz",
+                "hashes": {},
+                "upload-time": "2020-01-01T00:00:00Z",
+            }
+        ],
+    )
+    fake_http.reply(json=payload)
+    result, _ = get_versions("pkg")
+    assert result == [{"version": "2.0.0", "upload_time": ""}]
+
+
+def test_dist_info_metadata_fallback(fake_http: FakeTransport) -> None:
+    """The legacy dist-info-metadata key is read when core-metadata is absent."""
+    payload = _simple_page(
+        ["1.0.0"],
+        [_file({"dist-info-metadata": True, "upload-time": "2020-01-01T00:00:00Z"})],
+    )
+    fake_http.reply(json=payload)
+    result, _ = get_versions("pkg")
+    assert result == [{"version": "1.0.0", "upload_time": "2020-01-01"}]
