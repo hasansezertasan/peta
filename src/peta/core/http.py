@@ -180,18 +180,19 @@ def _served(entry: CachedResponse, url: str) -> Fetched:
     return Fetched(_replay(entry, url), Provenance("cached", utc_from(entry.stored_at)))
 
 
-def _send(request: httpx.Request) -> httpx.Response:
-    """Send a request, refusing outright when offline.
+def _refuse_offline(url: str) -> None:
+    """Stop before anything is built when offline mode is on.
 
-    Returns:
-        The live response.
+    Called ahead of every ``client()`` construction rather than at the point
+    of sending: building a client loads the system CA bundle and can fail
+    outright where TLS is misconfigured, which must not turn a defined
+    offline outcome into a generic transport exception.
 
     Raises:
         OfflineError: If offline mode is on.
     """
     if cache.settings().offline:
-        raise OfflineError(str(request.url))
-    return client().send(request)
+        raise OfflineError(url)
 
 
 def _serve_offline(url: str, entry: CachedResponse | None) -> Fetched:
@@ -219,15 +220,21 @@ def _revalidate(url: str, key: str, entry: CachedResponse | None) -> Fetched:
     Returns:
         The live response, or the stored one if the source confirmed it.
     """
+    _refuse_offline(url)
     request = client().build_request("GET", url)
     if entry is not None:
         request.headers.update(entry.validators)
-    response = _send(request)
+    response = client().send(request)
     if response.status_code == _NOT_MODIFIED and entry is not None:
-        cache.touch(key, entry, url=url)
-        # The source confirmed the body just now, so this is a current
-        # retrieval of it, not a replay of an old one.
-        return Fetched(_replay(entry, url), Provenance("revalidated", utc_now()))
+        # Restamped by ``keep``, not here: the stored body still has to
+        # satisfy the caller's decoder, which a stricter parser or a
+        # body-level corruption could now reject. Blessing it before that
+        # check would keep an unusable entry fresh for another full TTL.
+        # The source confirmed the body just now, so this counts as a
+        # current retrieval of it rather than a replay of an old one.
+        return Fetched(
+            _replay(entry, url), Provenance("revalidated", utc_now()), cache_key=key
+        )
     return Fetched(response, Provenance("live", utc_now()), cache_key=key)
 
 
@@ -304,8 +311,10 @@ def get(
     # where ``build_request`` leaves it alone.
     full = str(httpx.URL(url) if params is None else httpx.URL(url, params=params))
     if ttl is None:
+        _refuse_offline(full)
         return Fetched(
-            _send(client().build_request("GET", full)), Provenance("live", utc_now())
+            client().send(client().build_request("GET", full)),
+            Provenance("live", utc_now()),
         )
     return _cached_get(full, ttl)
 
@@ -327,5 +336,6 @@ def post(url: str, *, json: dict[str, object]) -> Fetched:
     Returns:
         The response and where it came from, always ``live``.
     """
+    _refuse_offline(url)
     request = client().build_request("POST", url, json=json)
-    return Fetched(_send(request), Provenance("live", utc_now()))
+    return Fetched(client().send(request), Provenance("live", utc_now()))

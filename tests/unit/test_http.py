@@ -522,3 +522,83 @@ class TestOfflineErrorRedaction:
 
         assert "super-secret" not in str(caught.value)
         assert "super-secret" not in str(caught.value.__cause__)
+
+
+class TestRevalidationIsAlsoDeferred:
+    def test_a_304_does_not_restamp_until_the_caller_keeps_it(
+        self, fake_http: FakeTransport, cache_dir: Path, frozen_clock: list[float]
+    ) -> None:
+        # The stored body still has to satisfy the caller's decoder, which a
+        # stricter parser could now reject. Blessing it on the 304 alone
+        # would keep an unusable entry fresh for another full TTL.
+        assert cache.settings().directory == cache_dir
+        fake_http.reply(url="?d", json={"v": 1}, headers={"etag": "e"})
+        http.keep(http.get(_URL + "?d", ttl=60))
+        stored_at = frozen_clock[0]
+        frozen_clock[0] += 61
+        fake_http.reply(url="?d", status=304)
+
+        again = http.get(_URL + "?d", ttl=60)
+
+        assert again.provenance.freshness == "revalidated"
+        entry = cache.load(cache.key_for("GET", _URL + "?d"))
+        assert entry is not None
+        assert entry.stored_at == stored_at
+
+    def test_keeping_a_revalidated_result_restamps_it(
+        self, fake_http: FakeTransport, cache_dir: Path, frozen_clock: list[float]
+    ) -> None:
+        assert cache.settings().directory == cache_dir
+        fake_http.reply(url="?k", json={"v": 1}, headers={"etag": "e"})
+        http.keep(http.get(_URL + "?k", ttl=60))
+        frozen_clock[0] += 61
+        fake_http.reply(url="?k", status=304)
+
+        http.keep(http.get(_URL + "?k", ttl=60))
+
+        third = http.get(_URL + "?k", ttl=60)
+        assert third.provenance.freshness == "cached"
+        assert len(fake_http.requests) == 2
+
+
+class TestOfflineNeverBuildsAClient:
+    @staticmethod
+    def _explode() -> httpx.Client:
+        msg = "no TLS available here"
+        raise RuntimeError(msg)
+
+    def test_an_uncached_get_refuses_before_construction(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cache.configure(directory=cache_dir, offline=True)
+        monkeypatch.setattr(http, "client", self._explode)
+
+        with pytest.raises(http.OfflineError):
+            _ = http.get(_URL)
+
+    def test_a_post_refuses_before_construction(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # info/compare run OSV offline, and a broken TLS config must not turn
+        # the defined offline outcome into a generic transport exception.
+        cache.configure(directory=cache_dir, offline=True)
+        monkeypatch.setattr(http, "client", self._explode)
+
+        with pytest.raises(http.OfflineError):
+            _ = http.post(_URL, json={"q": 1})
+
+    def test_a_stale_revalidation_refuses_before_construction(
+        self,
+        fake_http: FakeTransport,
+        cache_dir: Path,
+        frozen_clock: list[float],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        fake_http.reply(json={"v": 1})
+        http.keep(http.get(_URL, ttl=60))
+        frozen_clock[0] += 61
+        cache.configure(directory=cache_dir, offline=True)
+        monkeypatch.setattr(http, "client", self._explode)
+
+        # A stale entry is still served offline, without a client.
+        assert http.get(_URL, ttl=60).provenance.freshness == "cached"

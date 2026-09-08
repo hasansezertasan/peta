@@ -44,6 +44,14 @@ _SUBCOMMANDS = {
 
 _FORMAT_HELP = "Output format: rich, text, json, or markdown."
 
+_ROOT_OPTIONS_WITH_VALUES = frozenset({"--cache-dir"})
+"""Root options that consume the token after them.
+
+Needed so the shorthand rewrite does not mistake an option's value for the
+package name: in ``peta --cache-dir /tmp/c requests``, the package is the
+third token, not the second.
+"""
+
 app = typer.Typer(
     name="peta",
     cls=StructuredErrorGroup,
@@ -294,9 +302,33 @@ def versions(
     )
 
 
+def _shorthand_position(args: list[str]) -> int | None:
+    """Find where ``info`` belongs, skipping any root options first.
+
+    Root options precede the subcommand, as they do in any Click application,
+    so ``peta --offline requests`` has to skip ``--offline`` before it can
+    tell that ``requests`` is a package rather than a command. Without this
+    the shorthand works only when nothing precedes the package, which the
+    cache flags would have quietly broken.
+
+    Returns:
+        The index in ``sys.argv`` to insert ``info`` at, or ``None`` when the
+        arguments already name a command, name nothing, or use ``--opt=value``
+        forms this does not need to interpret.
+    """
+    index = 0
+    while index < len(args) and args[index].startswith("-"):
+        option = args[index]
+        index += 2 if option in _ROOT_OPTIONS_WITH_VALUES else 1
+    if index >= len(args) or args[index] in _SUBCOMMANDS:
+        return None
+    # +1 for the program name that `args` was sliced from.
+    return index + 1
+
+
 def run() -> None:
     """Entry point; ``peta <package>`` is shorthand for ``peta info <package>``."""
-    args = sys.argv[1:]
-    if args and args[0] not in _SUBCOMMANDS and not args[0].startswith("-"):
-        sys.argv.insert(1, "info")
+    position = _shorthand_position(sys.argv[1:])
+    if position is not None:
+        sys.argv.insert(position, "info")
     app()

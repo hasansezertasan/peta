@@ -1,6 +1,7 @@
 """Unit tests for the CLI (core layer mocked)."""
 
 import json
+import sys
 from dataclasses import replace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -8,7 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from peta.cli.app import _SUBCOMMANDS, app, run
+from peta.cli.app import _SUBCOMMANDS, _shorthand_position, app, run
 from peta.core.cache import Provenance
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo, Vulnerability
@@ -586,6 +587,47 @@ class TestVersions:
         assert result.exit_code != 0
 
 
+class TestShorthandPosition:
+    """Where ``info`` is inserted for the ``peta <package>`` shorthand."""
+
+    @pytest.mark.parametrize(
+        ("args", "expected"),
+        [
+            (["requests"], 1),
+            (["--offline", "requests"], 2),
+            (["--offline", "--refresh", "requests"], 3),
+            (["--no-color", "requests"], 2),
+            # --cache-dir consumes the token after it, which is not a package.
+            (["--cache-dir", "somewhere", "requests"], 3),
+            (["requests==2.31.0"], 1),
+        ],
+    )
+    def test_a_package_after_root_options_still_gets_info(
+        self, args: list[str], expected: int
+    ) -> None:
+        # Root options precede the subcommand in any Click application, so
+        # the shorthand has to skip them before it can tell a package name
+        # from a command. The cache flags would otherwise have broken it.
+        assert _shorthand_position(args) == expected
+
+    @pytest.mark.parametrize(
+        "args",
+        [
+            [],
+            ["info", "requests"],
+            ["compare", "a", "b"],
+            ["--cache-dir", "somewhere", "info", "requests"],
+            ["--help"],
+            ["--version"],
+            ["--offline"],
+        ],
+    )
+    def test_nothing_is_inserted_when_a_command_is_already_named(
+        self, args: list[str]
+    ) -> None:
+        assert _shorthand_position(args) is None
+
+
 class TestRun:
     def test_shorthand_inserts_info(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("sys.argv", ["peta", "requests"])
@@ -807,3 +849,20 @@ class TestCacheAndOffline:
         assert envelope["result"]["version"] == "2.31.0"
         reasons = [source.get("reason", "") for source in envelope["sources"]]
         assert any("offline" in reason for reason in reasons)
+
+
+class TestShorthandWithCacheFlags:
+    def test_a_root_flag_before_the_package_works_end_to_end(
+        self, fake_http: FakeTransport, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The whole point of the rewrite: `peta --offline requests` must run
+        # the info command, not fail with "no such command 'requests'".
+        fake_http.reply(json=_PYPI_BODY)
+        argv = ["peta", "--cache-dir", str(tmp_path), "requests==2.31.0", "--json"]
+        monkeypatch.setattr("sys.argv", argv)
+        captured: list[list[str]] = []
+        monkeypatch.setattr("peta.cli.app.app", lambda: captured.append(list(sys.argv)))
+
+        run()
+
+        assert captured[0][1:4] == ["--cache-dir", str(tmp_path), "info"]

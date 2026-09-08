@@ -139,13 +139,13 @@ class TestRoundTrip:
         assert cache.load(key) is None
         assert list(tmp_path.glob("*.json")) == []
 
-    def test_revalidating_writes_nothing_while_disabled(self, tmp_path: Path) -> None:
-        # touch() shares the same funnel as store(), so it must be covered by
-        # the same guard.
+    def test_storing_twice_writes_nothing_while_disabled(self, tmp_path: Path) -> None:
+        # store() is the only write funnel, so the guard covers a restamp of
+        # an existing entry too.
         cache.configure(directory=tmp_path, enabled=False)
-        entry = cache.CachedResponse(200, "{}", {"etag": "e"}, stored_at=0.0)
 
-        cache.touch("k", entry, url=_URL)
+        cache.store("k", url=_URL, status=200, body="{}", headers={"etag": "e"})
+        cache.store("k", url=_URL, status=200, body="{}", headers={"etag": "e"})
 
         assert list(tmp_path.glob("*.json")) == []
 
@@ -211,6 +211,10 @@ class TestCorruption:
             '{"status": 200, "body": "{}", "at": true, "headers": {}}',
             '{"status": 200, "body": "{}", "at": 1.0, "headers": []}',
             '{"status": 200, "body": "{}", "at": 1.0, "headers": {"a": 1}}',
+            # 1e999 decodes to inf: it passes a plain float check, reads as
+            # forever fresh, then raises out of datetime.fromtimestamp.
+            '{"status": 200, "body": "{}", "at": 1e999, "headers": {}}',
+            '{"status": 200, "body": "{}", "at": -1e999, "headers": {}}',
         ],
     )
     def test_a_damaged_entry_reads_as_a_miss(
@@ -261,7 +265,12 @@ class TestFreshness:
         assert entry.is_fresh(1, 500.0)
 
     def test_ttls_are_ordered_by_how_mutable_the_data_is(self) -> None:
-        assert cache.IMMUTABLE > cache.DAILY > cache.LATEST
+        assert cache.DAILY > cache.LATEST
+
+    def test_a_package_response_is_not_kept_long(self) -> None:
+        # The response carries advisories, which can be published against a
+        # release at any time, so it cannot inherit the metadata's longevity.
+        assert cache.LATEST <= 60 * 60
 
 
 class TestValidators:
@@ -279,17 +288,25 @@ class TestValidators:
         assert entry.validators == {}
 
 
-class TestTouch:
-    def test_revalidating_restamps_without_changing_the_body(
+class TestRestamping:
+    def test_storing_the_same_body_again_moves_its_timestamp(
         self, cache_dir: Path, frozen_clock: list[float]
     ) -> None:
+        # How a revalidation is recorded: the confirmed body is written back
+        # with a current timestamp, so the next read is a plain hit.
         assert cache.settings().directory == cache_dir
         cache.store("k", url=_URL, status=200, body='{"v":1}', headers={"etag": "e"})
         stored = cache.load("k")
         assert stored is not None
         frozen_clock[0] += 10_000
 
-        cache.touch("k", stored, url=_URL)
+        cache.store(
+            "k",
+            url=_URL,
+            status=stored.status,
+            body=stored.body,
+            headers=stored.headers,
+        )
 
         again = cache.load("k")
         assert again is not None
@@ -362,7 +379,8 @@ class TestPruning:
         # file on disk for good, so the advertised lifetimes would bound
         # nothing at all.
         cache_dir.mkdir(parents=True, exist_ok=True)
-        ancient = cache_dir / "ancient.json"
+        # Named as key_for would name it; anything else is not ours to delete.
+        ancient = cache_dir / f"{'0' * 64}.json"
         ancient.write_text("{}")
         old = cache.now() - cache.MAX_AGE - 60
         os.utime(ancient, (old, old))
@@ -374,7 +392,7 @@ class TestPruning:
 
     def test_an_entry_within_the_max_age_survives(self, cache_dir: Path) -> None:
         cache_dir.mkdir(parents=True, exist_ok=True)
-        recent = cache_dir / "recent.json"
+        recent = cache_dir / f"{'1' * 64}.json"
         recent.write_text("{}")
         just_inside = cache.now() - cache.MAX_AGE + 3600
         os.utime(recent, (just_inside, just_inside))
@@ -396,6 +414,50 @@ class TestPruning:
 
         assert stranger.exists()
 
-    def test_the_longest_ttl_is_never_pruned_early(self) -> None:
-        # Pruning must not discard an entry that could still have been served.
-        assert cache.MAX_AGE >= cache.IMMUTABLE
+    def test_no_ttl_outlives_the_retention_bound(self) -> None:
+        # Pruning must never discard an entry that could still be served.
+        assert max(cache.LATEST, cache.DAILY) < cache.MAX_AGE
+
+
+class TestPruningScope:
+    def test_a_users_own_json_in_a_shared_directory_is_never_deleted(
+        self, cache_dir: Path
+    ) -> None:
+        # --cache-dir may be pointed at a directory that already holds the
+        # user's data. Deleting any month-old JSON found there would destroy
+        # it, so only names key_for could have produced are candidates.
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        victim = cache_dir / "my-important-data.json"
+        victim.write_text('{"user": "data"}')
+        old = cache.now() - cache.MAX_AGE - 60
+        os.utime(victim, (old, old))
+
+        cache.store("k", url=_URL, status=200, body="{}", headers={})
+
+        assert victim.exists()
+
+    def test_a_stale_entry_of_ours_is_still_deleted(self, cache_dir: Path) -> None:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        ours = cache_dir / f"{'a' * 64}.json"
+        ours.write_text("{}")
+        old = cache.now() - cache.MAX_AGE - 60
+        os.utime(ours, (old, old))
+
+        cache.store("k", url=_URL, status=200, body="{}", headers={})
+
+        assert not ours.exists()
+
+    def test_pruning_runs_once_per_process(self, cache_dir: Path) -> None:
+        # Scanning after every write would make a cold dependency tree do
+        # quadratic filesystem work as the cache grows.
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        cache.store("first", url=_URL, status=200, body="{}", headers={})
+        later = cache_dir / f"{'b' * 64}.json"
+        later.write_text("{}")
+        old = cache.now() - cache.MAX_AGE - 60
+        os.utime(later, (old, old))
+
+        cache.store("second", url=_URL, status=200, body="{}", headers={})
+
+        # Already pruned this process, so the second write does not rescan.
+        assert later.exists()

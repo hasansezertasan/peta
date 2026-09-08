@@ -10,20 +10,22 @@ about the package, so caching one would turn a transient outage into a
 persistent wrong answer.
 
 How long an entry stays usable is the caller's decision, not this module's:
-the code building a URL is the only code that knows whether it asked for an
-immutable release or for whatever ``latest`` happens to point at today. This
-module supplies the vocabulary — :data:`IMMUTABLE`, :data:`LATEST`,
-:data:`DAILY` — and each source picks from it.
+the code building a URL is the only code that knows what kind of answer it
+asked for. This module supplies the vocabulary — :data:`LATEST`, :data:`DAILY`
+— and each source picks from it.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
+import re
 import sys
 import tempfile
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypeAliasType, cast
@@ -32,7 +34,6 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 __all__ = [
     "DAILY",
     "FRESHNESS_VALUES",
-    "IMMUTABLE",
     "LATEST",
     "MAX_AGE",
     "CacheSettings",
@@ -48,7 +49,6 @@ __all__ = [
     "reset",
     "settings",
     "store",
-    "touch",
 ]
 
 
@@ -68,15 +68,17 @@ FRESHNESS_VALUES: frozenset[Freshness] = frozenset({"live", "cached", "revalidat
 Kept in step with :data:`Freshness` by ``test_freshness_values_match_the_alias``.
 """
 
-IMMUTABLE = 30 * 24 * 60 * 60
-"""A published release's metadata never changes, so keep it for a month.
-
-Bounded rather than forever only so an abandoned cache cannot grow without
-limit; nothing about the data itself expires.
-"""
-
 LATEST = 60 * 60
-"""What ``latest`` resolves to, and which versions exist, can change any time."""
+"""A package's metadata response, whether a version was pinned or not.
+
+It is tempting to keep a pinned release for far longer, since its metadata is
+settled once published. The *response* is not: PyPI's package payload also
+carries a ``vulnerabilities`` array, and advisories are published against
+releases long after they ship. A month-long entry would let ``info
+name==version --no-osv`` report a package as clear after PyPI had already
+published an advisory against it, so the whole response expires on the
+advisory data's schedule rather than the metadata's.
+"""
 
 DAILY = 6 * 60 * 60
 """Download and dependent counts are recomputed about once a day.
@@ -85,13 +87,14 @@ Shorter than a day so a query late in the cycle does not serve a count from
 two refreshes ago.
 """
 
-MAX_AGE = IMMUTABLE
+MAX_AGE = 30 * 24 * 60 * 60
 """How long any entry may sit on disk, however long its TTL.
 
 A TTL decides whether an entry may still be *served*; without a separate
 bound nothing would ever delete one, so querying many packages — a dependency
-tree especially — would leave every file behind for good. Set to the longest
-TTL, so pruning never discards an entry that could still have been used.
+tree especially — would leave every file behind for good. Comfortably longer
+than any TTL, so pruning never discards an entry that could still have been
+served, and short enough that an abandoned cache does not grow without limit.
 """
 
 _CREDENTIAL_PARAMS = frozenset({
@@ -130,6 +133,23 @@ A tuple constant rather than an inline ``except (OSError, ValueError)``,
 matching the convention elsewhere in this package: the formatter strips those
 parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but
 some of the project's other tools cannot yet parse.
+"""
+
+_KEY_PATTERN = re.compile(r"^[0-9a-f]{64}\.json$")
+"""Names :func:`key_for` can produce: a SHA-256 hex digest plus the suffix.
+
+Pruning matches against this rather than against ``*.json``. A user may point
+``--cache-dir`` at a directory that already holds their own data, and deleting
+any month-old JSON found there would destroy it. Only a name this cache could
+itself have written is ever removed.
+"""
+
+_PRUNED: list[bool] = []
+"""Whether pruning has already run in this process.
+
+Once is enough: entries expire by age, not during a single invocation, so
+scanning again after every write would make a cold dependency tree do
+quadratic filesystem work for no benefit.
 """
 
 _SETTINGS: list[CacheSettings] = []
@@ -225,6 +245,7 @@ def configure(
         enabled: Whether the cache is consulted at all.
     """
     _SETTINGS.clear()
+    _PRUNED.clear()
     _SETTINGS.append(
         CacheSettings(
             directory=directory or default_directory(),
@@ -238,6 +259,7 @@ def configure(
 def reset() -> None:
     """Discard configured settings, restoring the defaults."""
     _SETTINGS.clear()
+    _PRUNED.clear()
 
 
 def redacted(url: str) -> str:
@@ -375,7 +397,12 @@ def _is_entry_shape(status: object, body: object, stored_at: object) -> bool:
         return False
     if not isinstance(body, str):
         return False
-    return isinstance(stored_at, (int, float)) and not isinstance(stored_at, bool)
+    if not isinstance(stored_at, (int, float)) or isinstance(stored_at, bool):
+        return False
+    # ``1e999`` decodes to ``inf``, which passes the type check, reads as
+    # forever fresh, and then raises out of ``datetime.fromtimestamp`` —
+    # turning a damaged entry into a crash instead of a refetch.
+    return math.isfinite(stored_at)
 
 
 def _decode(raw: object) -> CachedResponse | None:
@@ -450,24 +477,42 @@ def _atomic_write(directory: Path, key: str, payload: dict[str, object]) -> None
         raise
 
 
+def _expired(entry: Path, at: float) -> bool:
+    """Whether one directory member is an entry of ours past :data:`MAX_AGE`.
+
+    The name must be one :func:`key_for` could have produced, so nothing the
+    user happens to keep in the same directory is ever a candidate.
+
+    Returns:
+        ``True`` only for a stale entry this cache wrote itself.
+    """
+    if not _KEY_PATTERN.match(entry.name):
+        return False
+    try:
+        return at - entry.stat().st_mtime > MAX_AGE
+    except OSError:
+        return False
+
+
 def _prune(directory: Path, at: float) -> None:
-    """Delete entries older than :data:`MAX_AGE`, ignoring any that resist.
+    """Delete this cache's entries older than :data:`MAX_AGE`, once per process.
 
     Judged by file modification time rather than the stored timestamp, so
     pruning costs one directory scan instead of reading and parsing every
     entry — which would make writes more expensive the more the cache holds,
     the opposite of what a cache is for.
     """
+    if _PRUNED:
+        return
+    _PRUNED.append(True)
     try:
         entries = list(directory.iterdir())
     except OSError:
         return
     for entry in entries:
-        try:
-            if entry.suffix == ".json" and at - entry.stat().st_mtime > MAX_AGE:
+        if _expired(entry, at):
+            with suppress(OSError):
                 entry.unlink(missing_ok=True)
-        except OSError:
-            continue
 
 
 def _write(key: str, payload: dict[str, object]) -> None:
@@ -515,14 +560,3 @@ def store(
             "at": now(),
         },
     )
-
-
-def touch(key: str, entry: CachedResponse, *, url: str) -> None:
-    """Restamp an entry the source confirmed is still current.
-
-    Args:
-        key: The cache key.
-        entry: The entry that was revalidated.
-        url: The request URL, stored with credentials redacted.
-    """
-    store(key, url=url, status=entry.status, body=entry.body, headers=entry.headers)
