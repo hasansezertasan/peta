@@ -231,7 +231,12 @@ def _serve_offline(url: str, entry: CachedResponse | None) -> Fetched:
     return _served(entry, url)
 
 
-def _revalidate(url: str, key: str, entry: CachedResponse | None) -> Fetched:
+def _revalidate(
+    url: str,
+    key: str,
+    entry: CachedResponse | None,
+    headers: dict[str, str] | None = None,
+) -> Fetched:
     """Ask the source, offering any stored validator to save it resending.
 
     Returns:
@@ -239,6 +244,8 @@ def _revalidate(url: str, key: str, entry: CachedResponse | None) -> Fetched:
     """
     _refuse_offline(url)
     request = client().build_request("GET", url)
+    if headers:
+        request.headers.update(headers)
     if entry is not None:
         request.headers.update(entry.validators)
     response = client().send(request)
@@ -255,7 +262,9 @@ def _revalidate(url: str, key: str, entry: CachedResponse | None) -> Fetched:
     return Fetched(response, Provenance("live", utc_now()), cache_key=key)
 
 
-def _cached_get(url: str, ttl: int, scope: str) -> Fetched:
+def _cached_get(
+    url: str, ttl: int, scope: str, headers: dict[str, str] | None = None
+) -> Fetched:
     """Serve a GET from the cache when possible, otherwise from the source.
 
     Returns:
@@ -267,7 +276,7 @@ def _cached_get(url: str, ttl: int, scope: str) -> Fetched:
         return _served(entry, url)
     if cache.settings().offline:
         return _serve_offline(url, entry)
-    return _revalidate(url, key, entry)
+    return _revalidate(url, key, entry, headers=headers)
 
 
 def keep(fetched: Fetched) -> None:
@@ -303,6 +312,7 @@ def get(
     url: str,
     *,
     params: dict[str, str] | None = None,
+    headers: dict[str, str] | None = None,
     ttl: int | None = None,
     scope: str = "",
 ) -> Fetched:
@@ -318,6 +328,8 @@ def get(
     Args:
         url: The absolute URL to request.
         params: Optional query-string parameters.
+        headers: Extra request headers merged onto the shared client's
+            defaults, for content negotiation or similar per-source needs.
         ttl: How long a stored response stays usable, in seconds. ``None``
             bypasses the cache entirely, for a URL whose answer should never
             be reused.
@@ -336,11 +348,11 @@ def get(
     full = str(httpx.URL(url) if params is None else httpx.URL(url, params=params))
     if ttl is None:
         _refuse_offline(full)
-        return Fetched(
-            client().send(client().build_request("GET", full)),
-            Provenance("live", utc_now()),
-        )
-    return _cached_get(full, ttl, scope)
+        request = client().build_request("GET", full)
+        if headers:
+            request.headers.update(headers)
+        return Fetched(client().send(request), Provenance("live", utc_now()))
+    return _cached_get(full, ttl, scope, headers=headers)
 
 
 def post(url: str, *, json: dict[str, object]) -> Fetched:
