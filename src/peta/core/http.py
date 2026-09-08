@@ -32,6 +32,7 @@ from peta.__metadata__ import PROJECT_NAME
 from peta._version import __version__
 from peta.core import cache
 from peta.core.cache import Provenance
+from peta.core.concurrency import MAX_WORKERS
 from peta.core.output import utc_from, utc_now
 
 if TYPE_CHECKING:
@@ -57,6 +58,16 @@ DEFAULT_TIMEOUT = 10.0
 
 USER_AGENT = f"{PROJECT_NAME}/{__version__}"
 """Identifies peta to the APIs it queries, as their usage guidelines ask."""
+
+MAX_CONNECTIONS = MAX_WORKERS
+"""The real bound on concurrent requests, whatever the thread count.
+
+Sockets are the scarce resource, not threads, and this limit applies to the
+one shared client — so it holds across every concurrent fan-out at once,
+which a per-call worker count cannot promise. Matched to
+:data:`peta.core.concurrency.MAX_WORKERS` so a fan-out is never throttled by
+a bound narrower than the work it was allowed to start.
+"""
 
 _INIT_LOCK = threading.Lock()
 """Serializes first use, since ``functools.cache`` does not.
@@ -85,7 +96,13 @@ def _build_client() -> httpx.Client:
     Returns:
         A new pooled :class:`httpx.Client`.
     """
-    instance = httpx.Client(timeout=DEFAULT_TIMEOUT, headers={"user-agent": USER_AGENT})
+    instance = httpx.Client(
+        timeout=DEFAULT_TIMEOUT,
+        headers={"user-agent": USER_AGENT},
+        limits=httpx.Limits(
+            max_connections=MAX_CONNECTIONS, max_keepalive_connections=MAX_CONNECTIONS
+        ),
+    )
     _ = atexit.register(instance.close)
     return instance
 

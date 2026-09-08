@@ -2,6 +2,8 @@
 
 import json
 import sys
+import threading
+import time
 from dataclasses import replace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
@@ -17,6 +19,8 @@ from peta.core.remote import PackageNotFoundError as RemoteNotFound
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import httpx
 
     from tests.transport import FakeTransport
 
@@ -866,3 +870,76 @@ class TestShorthandWithCacheFlags:
         run()
 
         assert captured[0][1:4] == ["--cache-dir", str(tmp_path), "info"]
+
+
+class TestCompareConcurrency:
+    def test_both_packages_are_fetched_at_the_same_time(
+        self, fake_http: FakeTransport, tmp_path: Path
+    ) -> None:
+        # The two sides are unrelated lookups; waiting for the first before
+        # starting the second doubled the command's latency.
+        started = threading.Barrier(2, timeout=5)
+
+        def wait_for_the_other(_request: httpx.Request) -> None:
+            _ = started.wait()
+
+        fake_http.on_request = wait_for_the_other
+        fake_http.reply(
+            url="/requests/", json={"info": {"name": "requests", "version": "1.0"}}
+        )
+        fake_http.reply(
+            url="/httpx/", json={"info": {"name": "httpx", "version": "1.0"}}
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "--cache-dir",
+                str(tmp_path),
+                "compare",
+                "requests",
+                "httpx",
+                "--remote",
+                "--no-osv",
+                "--no-stats",
+                "--json",
+            ],
+        )
+
+        # The barrier can only clear if both lookups are in flight at once.
+        assert result.exit_code == 0
+
+    def test_the_left_package_stays_on_the_left(
+        self, fake_http: FakeTransport, tmp_path: Path
+    ) -> None:
+        # Which side a package is rendered on must not depend on which
+        # answered first, so the slower one is asked for first.
+        def delay_the_left_one(request: httpx.Request) -> None:
+            if "/requests/" in str(request.url):
+                time.sleep(0.05)
+
+        fake_http.on_request = delay_the_left_one
+        fake_http.reply(
+            url="/requests/", json={"info": {"name": "requests", "version": "1.0"}}
+        )
+        fake_http.reply(
+            url="/httpx/", json={"info": {"name": "httpx", "version": "1.0"}}
+        )
+
+        result = runner.invoke(
+            app,
+            [
+                "--cache-dir",
+                str(tmp_path),
+                "compare",
+                "requests",
+                "httpx",
+                "--remote",
+                "--no-osv",
+                "--no-stats",
+                "--json",
+            ],
+        )
+
+        packages = json.loads(result.output)["result"]["packages"]
+        assert [p["name"] for p in packages] == ["requests", "httpx"]

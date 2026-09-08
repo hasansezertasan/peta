@@ -19,6 +19,8 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.cache
 
+.. automodule:: peta.core.concurrency
+
 .. automodule:: peta.core.local
 
 .. automodule:: peta.core.remote

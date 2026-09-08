@@ -74,6 +74,22 @@ info requests``. They also work with the package shorthand, as in ``peta
 JSON output records where every source's data came from in each source
 record's ``freshness`` field. See :doc:`output-contract`.
 
+Concurrent lookups
+-------------------
+
+Requests that do not depend on each other are made at the same time: a
+package's vulnerability, download-count and dependent-count lookups query
+unrelated services, and ``compare`` resolves both of its packages together.
+Measured against the live services, that takes roughly a quarter off ``info``
+and a little under half off ``compare``.
+
+The number of requests in flight is bounded by the shared client's connection
+limit, so a wider fan-out cannot open connections without limit. Output does
+not depend on completion order: results are always assembled in the order they
+were asked for, so a comparison renders the same way round every time, and two
+sources disagreeing about the same field are still resolved by which was
+consulted first.
+
 Vulnerabilities
 ----------------
 

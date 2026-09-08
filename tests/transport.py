@@ -11,8 +11,12 @@ same one production runs, and canned replies are real
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 import httpx
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 __all__ = ["FakeTransport"]
 
@@ -51,6 +55,13 @@ class FakeTransport:
     def __init__(self) -> None:
         """Start with no replies queued and nothing recorded."""
         self.requests: list[httpx.Request] = []
+        self.on_request: Callable[[httpx.Request], None] | None = None
+        """Run for each request before it is answered.
+
+        Separate from the canned replies, which say *what* comes back: this
+        says something about *when*. Tests that need a request to block, or to
+        observe that two overlap, set it; nothing else has to know.
+        """
         self._replies: list[_Reply] = []
 
     def reply(
@@ -118,6 +129,8 @@ class FakeTransport:
                 request it did not set up.
         """
         self.requests.append(request)
+        if self.on_request is not None:
+            self.on_request(request)
         url = str(request.url)
         for reply in reversed(self._replies):
             if reply.match not in url:
