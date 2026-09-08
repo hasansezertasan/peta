@@ -8,8 +8,10 @@ the same field disagree loudly rather than silently overwriting each other.
 from __future__ import annotations
 
 import dataclasses
+from functools import partial
 from typing import TYPE_CHECKING, cast
 
+from peta.core.concurrency import gather
 from peta.core.models import EnrichmentFailure, ProviderConflict, ProviderWarning
 from peta.core.output import SourceRecord, utc_now
 from peta.core.providers import (
@@ -62,10 +64,17 @@ def _collect(
 ) -> list[ProviderResult]:
     """Ask every provider for its evidence, skipping disabled groups.
 
+    Providers answer at the same time rather than in turn — they query
+    unrelated services and have no dependency on each other. The results
+    still come back in consultation order, which the merge depends on: a
+    conflict between two sources is resolved by which was consulted first.
+
     Returns:
         One result per provider, in the order they were consulted.
     """
-    return [_consult(provider, pkg, disabled) for provider in providers]
+    return gather([
+        partial(_consult, provider, pkg, disabled) for provider in providers
+    ])
 
 
 def _consult(

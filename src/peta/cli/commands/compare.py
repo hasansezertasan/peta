@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING
 
 import typer
@@ -9,6 +10,7 @@ import typer
 from peta.cli.output.render import render_compare
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
+from peta.core.concurrency import gather
 from peta.core.enrich import enrich
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
@@ -55,12 +57,28 @@ def compare(
     }
     selected = resolve_or_fail("compare", arguments, output_format, use_json=use_json)
     try:
-        a_pkg = _resolve_and_enrich(
-            a, local=local, remote=remote, no_osv=no_osv, no_stats=no_stats
-        )
-        b_pkg = _resolve_and_enrich(
-            b, local=local, remote=remote, no_osv=no_osv, no_stats=no_stats
-        )
+        # Both sides at once: they are unrelated lookups, and waiting for the
+        # first before starting the second doubled the command's latency.
+        # ``gather`` returns them in the order asked for, so which package is
+        # rendered on which side never depends on which answered first.
+        a_pkg, b_pkg = gather([
+            partial(
+                _resolve_and_enrich,
+                a,
+                local=local,
+                remote=remote,
+                no_osv=no_osv,
+                no_stats=no_stats,
+            ),
+            partial(
+                _resolve_and_enrich,
+                b,
+                local=local,
+                remote=remote,
+                no_osv=no_osv,
+                no_stats=no_stats,
+            ),
+        ])
     except _NOT_FOUND as exc:
         version = getattr(exc, "version", None)
         target = f"{exc.name}=={version}" if version else exc.name

@@ -6,6 +6,8 @@ transport is irrelevant here and covered by its own client tests.
 
 from __future__ import annotations
 
+import threading
+import time
 from dataclasses import dataclass, field, replace
 from typing import TYPE_CHECKING, cast
 
@@ -20,6 +22,7 @@ from peta.core.models import (
     ProviderWarning,
     Vulnerability,
 )
+from peta.core.output import utc_now
 from peta.core.providers import (
     Capability,
     CountEvidence,
@@ -29,6 +32,8 @@ from peta.core.providers import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from peta.core.output import SourceState
 
 pytestmark = pytest.mark.unit
@@ -51,6 +56,13 @@ class FakeProvider:
     retrieved_at: str | None = "2026-09-04T12:00:00Z"
     warnings: list[ProviderWarning] = field(default_factory=list)
     calls: list[str] = field(default_factory=list)
+    fetch_impl: Callable[[PackageInfo], ProviderResult] | None = None
+    """Optional behaviour, for tests about *when* a provider runs.
+
+    The canned fields describe what a provider returns; a few tests need to
+    control how long it takes or observe that it overlaps another, which a
+    fixed value cannot express.
+    """
 
     def fetch(self, pkg: PackageInfo) -> ProviderResult:
         """Record the call and return the canned result.
@@ -59,6 +71,8 @@ class FakeProvider:
             The configured provider result.
         """
         self.calls.append(pkg.name)
+        if self.fetch_impl is not None:
+            return self.fetch_impl(pkg)
         return ProviderResult(
             provider=self.name,
             capability=self.capability,
@@ -768,3 +782,77 @@ class TestComposedPasses:
         # disagree with itself.
         assert second.download_count == 101
         assert second.enrichment_conflicts == []
+
+
+class TestConcurrentConsultation:
+    def test_providers_are_consulted_at_the_same_time(self) -> None:
+        # Three unrelated services, no dependency between them: waiting for
+        # each in turn was roughly 44% of a package's enrichment latency.
+        started = threading.Barrier(3, timeout=5)
+
+        def blocking(name: str, capability: Capability) -> FakeProvider:
+            def fetch(pkg: PackageInfo) -> ProviderResult:
+                _ = started.wait()
+                return ProviderResult(
+                    provider=name,
+                    capability=capability,
+                    state="empty",
+                    subject=pkg.name,
+                    retrieved_at=utc_now(),
+                )
+
+            return FakeProvider(name=name, capability=capability, fetch_impl=fetch)
+
+        providers = [
+            blocking("osv", "vulnerabilities"),
+            blocking("pypistats", "download_count"),
+            blocking("libraries.io", "dependent_count"),
+        ]
+
+        # The barrier can only clear if all three are in flight at once.
+        result = enrich(_pkg(), no_osv=False, no_stats=False, providers=providers)
+
+        assert [source.name for source in result.enrichment_sources] == [
+            "osv",
+            "pypistats",
+            "libraries.io",
+        ]
+
+    def test_the_first_provider_still_wins_a_conflict(self) -> None:
+        # Merge order is consultation order, so if a slow provider could be
+        # overtaken by a fast one the conflict resolution would become a race.
+        def slow_winner(pkg: PackageInfo) -> ProviderResult:
+            time.sleep(0.05)
+            return ProviderResult(
+                provider="slow",
+                capability="download_count",
+                state="success",
+                subject=pkg.name,
+                retrieved_at=utc_now(),
+                evidence=CountEvidence(111),
+            )
+
+        def fast_loser(pkg: PackageInfo) -> ProviderResult:
+            return ProviderResult(
+                provider="fast",
+                capability="download_count",
+                state="success",
+                subject=pkg.name,
+                retrieved_at=utc_now(),
+                evidence=CountEvidence(222),
+            )
+
+        providers = [
+            FakeProvider(
+                name="slow", capability="download_count", fetch_impl=slow_winner
+            ),
+            FakeProvider(
+                name="fast", capability="download_count", fetch_impl=fast_loser
+            ),
+        ]
+
+        result = enrich(_pkg(), no_osv=False, no_stats=False, providers=providers)
+
+        assert result.download_count == 111
+        assert result.enrichment_conflicts[0].kept == "slow"
+        assert result.enrichment_conflicts[0].discarded == "fast"

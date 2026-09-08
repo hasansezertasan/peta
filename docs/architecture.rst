@@ -33,6 +33,7 @@ Core (``peta.core``)
 * ``peta.core.local`` — reads installed metadata via ``importlib.metadata``.
 * ``peta.core.http`` — the one pooled ``httpx`` client every source shares.
 * ``peta.core.cache`` — on-disk response cache, TTL vocabulary, and offline mode.
+* ``peta.core.concurrency`` — runs independent lookups together, in order.
 * ``peta.core.remote`` — fetches from the PyPI JSON API.
 * ``peta.core.resolve`` — chooses local or remote package metadata.
 * ``peta.core.deptree`` — builds recursive declared-metadata dependency trees.
