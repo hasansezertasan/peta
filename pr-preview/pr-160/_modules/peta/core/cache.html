@@ -246,529 +246,538 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="128"><span class="sd">content type are needed to serve or revalidate an entry.</span>
 </span><span data-line="129"><span class="sd">"""</span>
 </span><span data-line="130">
-</span><span data-line="131"><span class="n">_UNREADABLE</span> <span class="o">=</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span>
-</span><span data-line="132"><span class="sd">"""Every way reading an entry can fail: absent, unopenable, or not JSON.</span>
+</span><span data-line="131"><span class="n">_UNDATABLE</span> <span class="o">=</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span>
+</span><span data-line="132"><span class="sd">"""Every way a stored timestamp can fail to convert into a date.</span>
 </span><span data-line="133">
-</span><span data-line="134"><span class="sd">A tuple constant rather than an inline ``except (OSError, ValueError)``,</span>
-</span><span data-line="135"><span class="sd">matching the convention elsewhere in this package: the formatter strips those</span>
-</span><span data-line="136"><span class="sd">parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but</span>
-</span><span data-line="137"><span class="sd">some of the project's other tools cannot yet parse.</span>
+</span><span data-line="134"><span class="sd">A tuple constant for the same reason as :data:`_UNREADABLE`: the formatter</span>
+</span><span data-line="135"><span class="sd">strips inline ``except (A, B)`` parentheses into the bare form PEP 758</span>
+</span><span data-line="136"><span class="sd">permits, which Python 3.14 accepts but some of the project's other tools</span>
+</span><span data-line="137"><span class="sd">cannot yet parse.</span>
 </span><span data-line="138"><span class="sd">"""</span>
 </span><span data-line="139">
-</span><span data-line="140"><span class="n">_ENTRY_DIR</span> <span class="o">=</span> <span class="s2">"entries"</span>
-</span><span data-line="141"><span class="sd">"""Subdirectory of the configured location that holds the entries.</span>
+</span><span data-line="140"><span class="n">_UNREADABLE</span> <span class="o">=</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span>
+</span><span data-line="141"><span class="sd">"""Every way reading an entry can fail: absent, unopenable, or not JSON.</span>
 </span><span data-line="142">
-</span><span data-line="143"><span class="sd">Peta writes and prunes only inside this, never in the directory it was</span>
-</span><span data-line="144"><span class="sd">pointed at. A name pattern alone is not proof of ownership: a shared</span>
-</span><span data-line="145"><span class="sd">content-addressed directory can hold foreign files named exactly like a</span>
-</span><span data-line="146"><span class="sd">SHA-256 digest, and pruning by name would delete them. Owning a subdirectory</span>
-</span><span data-line="147"><span class="sd">means nothing peta did not create is ever a candidate.</span>
-</span><span data-line="148"><span class="sd">"""</span>
-</span><span data-line="149">
-</span><span data-line="150"><span class="n">_KEY_PATTERN</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^[0-9a-f]</span><span class="si">{64}</span><span class="s2">\.json$"</span><span class="p">)</span>
-</span><span data-line="151"><span class="sd">"""Names :func:`key_for` can produce: a SHA-256 hex digest plus the suffix.</span>
-</span><span data-line="152">
-</span><span data-line="153"><span class="sd">A second check on top of :data:`_ENTRY_DIR`, so anything a user drops into</span>
-</span><span data-line="154"><span class="sd">peta's own subdirectory is still left alone.</span>
-</span><span data-line="155"><span class="sd">"""</span>
-</span><span data-line="156">
-</span><span data-line="157"><span class="n">_PRUNED</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="158"><span class="sd">"""Whether pruning has already run in this process.</span>
-</span><span data-line="159">
-</span><span data-line="160"><span class="sd">Once is enough: entries expire by age, not during a single invocation, so</span>
-</span><span data-line="161"><span class="sd">scanning again after every write would make a cold dependency tree do</span>
-</span><span data-line="162"><span class="sd">quadratic filesystem work for no benefit.</span>
-</span><span data-line="163"><span class="sd">"""</span>
-</span><span data-line="164">
-</span><span data-line="165"><span class="n">_SETTINGS</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CacheSettings</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="166"><span class="sd">"""Holds the active settings, resolved once per process.</span>
-</span><span data-line="167">
-</span><span data-line="168"><span class="sd">A list rather than a module-level ``None`` because rebinding a module global</span>
-</span><span data-line="169"><span class="sd">needs a ``global`` statement, which this project's lint rules reject. Empty</span>
-</span><span data-line="170"><span class="sd">means "not configured yet", which :func:`settings` reads as the defaults.</span>
-</span><span data-line="171"><span class="sd">"""</span>
-</span><span data-line="172">
+</span><span data-line="143"><span class="sd">A tuple constant rather than an inline ``except (OSError, ValueError)``,</span>
+</span><span data-line="144"><span class="sd">matching the convention elsewhere in this package: the formatter strips those</span>
+</span><span data-line="145"><span class="sd">parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but</span>
+</span><span data-line="146"><span class="sd">some of the project's other tools cannot yet parse.</span>
+</span><span data-line="147"><span class="sd">"""</span>
+</span><span data-line="148">
+</span><span data-line="149"><span class="n">_ENTRY_DIR</span> <span class="o">=</span> <span class="s2">"entries"</span>
+</span><span data-line="150"><span class="sd">"""Subdirectory of the configured location that holds the entries.</span>
+</span><span data-line="151">
+</span><span data-line="152"><span class="sd">Peta writes and prunes only inside this, never in the directory it was</span>
+</span><span data-line="153"><span class="sd">pointed at. A name pattern alone is not proof of ownership: a shared</span>
+</span><span data-line="154"><span class="sd">content-addressed directory can hold foreign files named exactly like a</span>
+</span><span data-line="155"><span class="sd">SHA-256 digest, and pruning by name would delete them. Owning a subdirectory</span>
+</span><span data-line="156"><span class="sd">means nothing peta did not create is ever a candidate.</span>
+</span><span data-line="157"><span class="sd">"""</span>
+</span><span data-line="158">
+</span><span data-line="159"><span class="n">_KEY_PATTERN</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^[0-9a-f]</span><span class="si">{64}</span><span class="s2">\.json$"</span><span class="p">)</span>
+</span><span data-line="160"><span class="sd">"""Names :func:`key_for` can produce: a SHA-256 hex digest plus the suffix.</span>
+</span><span data-line="161">
+</span><span data-line="162"><span class="sd">A second check on top of :data:`_ENTRY_DIR`, so anything a user drops into</span>
+</span><span data-line="163"><span class="sd">peta's own subdirectory is still left alone.</span>
+</span><span data-line="164"><span class="sd">"""</span>
+</span><span data-line="165">
+</span><span data-line="166"><span class="n">_PRUNED</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="167"><span class="sd">"""Whether pruning has already run in this process.</span>
+</span><span data-line="168">
+</span><span data-line="169"><span class="sd">Once is enough: entries expire by age, not during a single invocation, so</span>
+</span><span data-line="170"><span class="sd">scanning again after every write would make a cold dependency tree do</span>
+</span><span data-line="171"><span class="sd">quadratic filesystem work for no benefit.</span>
+</span><span data-line="172"><span class="sd">"""</span>
 </span><span data-line="173">
+</span><span data-line="174"><span class="n">_SETTINGS</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">CacheSettings</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="175"><span class="sd">"""Holds the active settings, resolved once per process.</span>
+</span><span data-line="176">
+</span><span data-line="177"><span class="sd">A list rather than a module-level ``None`` because rebinding a module global</span>
+</span><span data-line="178"><span class="sd">needs a ``global`` statement, which this project's lint rules reject. Empty</span>
+</span><span data-line="179"><span class="sd">means "not configured yet", which :func:`settings` reads as the defaults.</span>
+</span><span data-line="180"><span class="sd">"""</span>
+</span><span data-line="181">
+</span><span data-line="182">
 <div class="viewcode-block" id="now">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.now">[docs]</a>
-</span><span data-line="174"><span class="k">def</span><span class="w"> </span><span class="nf">now</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-</span><span data-line="175"><span class="w">    </span><span class="sd">"""Return the current wall-clock time as a Unix timestamp.</span>
-</span><span data-line="176">
-</span><span data-line="177"><span class="sd">    Indirected through a function so tests can drive expiry from a fixed</span>
-</span><span data-line="178"><span class="sd">    clock instead of sleeping.</span>
-</span><span data-line="179">
-</span><span data-line="180"><span class="sd">    Returns:</span>
-</span><span data-line="181"><span class="sd">        Seconds since the epoch.</span>
-</span><span data-line="182"><span class="sd">    """</span>
-</span><span data-line="183">    <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
-
-</span><span data-line="184">
+</span><span data-line="183"><span class="k">def</span><span class="w"> </span><span class="nf">now</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+</span><span data-line="184"><span class="w">    </span><span class="sd">"""Return the current wall-clock time as a Unix timestamp.</span>
 </span><span data-line="185">
+</span><span data-line="186"><span class="sd">    Indirected through a function so tests can drive expiry from a fixed</span>
+</span><span data-line="187"><span class="sd">    clock instead of sleeping.</span>
+</span><span data-line="188">
+</span><span data-line="189"><span class="sd">    Returns:</span>
+</span><span data-line="190"><span class="sd">        Seconds since the epoch.</span>
+</span><span data-line="191"><span class="sd">    """</span>
+</span><span data-line="192">    <span class="k">return</span> <span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span></div>
+
+</span><span data-line="193">
+</span><span data-line="194">
 <div class="viewcode-block" id="default_directory">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.default_directory">[docs]</a>
-</span><span data-line="186"><span class="k">def</span><span class="w"> </span><span class="nf">default_directory</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-</span><span data-line="187"><span class="w">    </span><span class="sd">"""Locate the cache directory for the current platform.</span>
-</span><span data-line="188">
-</span><span data-line="189"><span class="sd">    Resolved by hand rather than through ``platformdirs``: it is four</span>
-</span><span data-line="190"><span class="sd">    branches, and peta's runtime dependencies are deliberately few.</span>
-</span><span data-line="191">
-</span><span data-line="192"><span class="sd">    Returns:</span>
-</span><span data-line="193"><span class="sd">        The per-user cache directory for peta.</span>
-</span><span data-line="194"><span class="sd">    """</span>
-</span><span data-line="195">    <span class="n">override</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"PETA_CACHE_DIR"</span><span class="p">)</span>
-</span><span data-line="196">    <span class="k">if</span> <span class="n">override</span><span class="p">:</span>
-</span><span data-line="197">        <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">override</span><span class="p">)</span>
-</span><span data-line="198">    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span> <span class="o">==</span> <span class="s2">"win32"</span><span class="p">:</span>
-</span><span data-line="199">        <span class="n">local</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"LOCALAPPDATA"</span><span class="p">)</span>
-</span><span data-line="200">        <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
-</span><span data-line="201">            <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">local</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"peta"</span> <span class="o">/</span> <span class="s2">"Cache"</span>
-</span><span data-line="202">    <span class="n">xdg</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"XDG_CACHE_HOME"</span><span class="p">)</span>
-</span><span data-line="203">    <span class="k">if</span> <span class="n">xdg</span><span class="p">:</span>
-</span><span data-line="204">        <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">xdg</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"peta"</span>
-</span><span data-line="205">    <span class="k">return</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">".cache"</span> <span class="o">/</span> <span class="s2">"peta"</span></div>
+</span><span data-line="195"><span class="k">def</span><span class="w"> </span><span class="nf">default_directory</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+</span><span data-line="196"><span class="w">    </span><span class="sd">"""Locate the cache directory for the current platform.</span>
+</span><span data-line="197">
+</span><span data-line="198"><span class="sd">    Resolved by hand rather than through ``platformdirs``: it is four</span>
+</span><span data-line="199"><span class="sd">    branches, and peta's runtime dependencies are deliberately few.</span>
+</span><span data-line="200">
+</span><span data-line="201"><span class="sd">    Returns:</span>
+</span><span data-line="202"><span class="sd">        The per-user cache directory for peta.</span>
+</span><span data-line="203"><span class="sd">    """</span>
+</span><span data-line="204">    <span class="n">override</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"PETA_CACHE_DIR"</span><span class="p">)</span>
+</span><span data-line="205">    <span class="k">if</span> <span class="n">override</span><span class="p">:</span>
+</span><span data-line="206">        <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">override</span><span class="p">)</span>
+</span><span data-line="207">    <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">platform</span> <span class="o">==</span> <span class="s2">"win32"</span><span class="p">:</span>
+</span><span data-line="208">        <span class="n">local</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"LOCALAPPDATA"</span><span class="p">)</span>
+</span><span data-line="209">        <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+</span><span data-line="210">            <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">local</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"peta"</span> <span class="o">/</span> <span class="s2">"Cache"</span>
+</span><span data-line="211">    <span class="n">xdg</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"XDG_CACHE_HOME"</span><span class="p">)</span>
+</span><span data-line="212">    <span class="k">if</span> <span class="n">xdg</span><span class="p">:</span>
+</span><span data-line="213">        <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="n">xdg</span><span class="p">)</span> <span class="o">/</span> <span class="s2">"peta"</span>
+</span><span data-line="214">    <span class="k">return</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span> <span class="o">/</span> <span class="s2">".cache"</span> <span class="o">/</span> <span class="s2">"peta"</span></div>
 
-</span><span data-line="206">
-</span><span data-line="207">
+</span><span data-line="215">
+</span><span data-line="216">
 <div class="viewcode-block" id="CacheSettings">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.CacheSettings">[docs]</a>
-</span><span data-line="208"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="209"><span class="k">class</span><span class="w"> </span><span class="nc">CacheSettings</span><span class="p">:</span>
-</span><span data-line="210"><span class="w">    </span><span class="sd">"""How the cache behaves for this invocation."""</span>
-</span><span data-line="211">
-</span><span data-line="212">    <span class="n">directory</span><span class="p">:</span> <span class="n">Path</span>
-</span><span data-line="213">    <span class="n">offline</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-</span><span data-line="214"><span class="w">    </span><span class="sd">"""Never contact a source; serve from cache or fail."""</span>
-</span><span data-line="215">    <span class="n">refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
-</span><span data-line="216"><span class="w">    </span><span class="sd">"""Ignore stored entries and replace them with a fresh response."""</span>
-</span><span data-line="217">    <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-</span><span data-line="218"><span class="w">    </span><span class="sd">"""Whether to read or write the cache at all."""</span></div>
-
-</span><span data-line="219">
+</span><span data-line="217"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="218"><span class="k">class</span><span class="w"> </span><span class="nc">CacheSettings</span><span class="p">:</span>
+</span><span data-line="219"><span class="w">    </span><span class="sd">"""How the cache behaves for this invocation."""</span>
 </span><span data-line="220">
+</span><span data-line="221">    <span class="n">directory</span><span class="p">:</span> <span class="n">Path</span>
+</span><span data-line="222">    <span class="n">offline</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="223"><span class="w">    </span><span class="sd">"""Never contact a source; serve from cache or fail."""</span>
+</span><span data-line="224">    <span class="n">refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="225"><span class="w">    </span><span class="sd">"""Ignore stored entries and replace them with a fresh response."""</span>
+</span><span data-line="226">    <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
+</span><span data-line="227"><span class="w">    </span><span class="sd">"""Whether to read or write the cache at all."""</span></div>
+
+</span><span data-line="228">
+</span><span data-line="229">
 <div class="viewcode-block" id="settings">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.settings">[docs]</a>
-</span><span data-line="221"><span class="k">def</span><span class="w"> </span><span class="nf">settings</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">CacheSettings</span><span class="p">:</span>
-</span><span data-line="222"><span class="w">    </span><span class="sd">"""Return the active settings, defaulting until :func:`configure` runs.</span>
-</span><span data-line="223">
-</span><span data-line="224"><span class="sd">    Defaults apply so importing a source module and making a request works</span>
-</span><span data-line="225"><span class="sd">    without the CLI having wired anything up, which is what the unit tests</span>
-</span><span data-line="226"><span class="sd">    and any library use rely on.</span>
-</span><span data-line="227">
-</span><span data-line="228"><span class="sd">    Returns:</span>
-</span><span data-line="229"><span class="sd">        The active cache settings.</span>
-</span><span data-line="230"><span class="sd">    """</span>
-</span><span data-line="231">    <span class="k">if</span> <span class="ow">not</span> <span class="n">_SETTINGS</span><span class="p">:</span>
-</span><span data-line="232">        <span class="k">return</span> <span class="n">CacheSettings</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="n">default_directory</span><span class="p">())</span>
-</span><span data-line="233">    <span class="k">return</span> <span class="n">_SETTINGS</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+</span><span data-line="230"><span class="k">def</span><span class="w"> </span><span class="nf">settings</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">CacheSettings</span><span class="p">:</span>
+</span><span data-line="231"><span class="w">    </span><span class="sd">"""Return the active settings, defaulting until :func:`configure` runs.</span>
+</span><span data-line="232">
+</span><span data-line="233"><span class="sd">    Defaults apply so importing a source module and making a request works</span>
+</span><span data-line="234"><span class="sd">    without the CLI having wired anything up, which is what the unit tests</span>
+</span><span data-line="235"><span class="sd">    and any library use rely on.</span>
+</span><span data-line="236">
+</span><span data-line="237"><span class="sd">    Returns:</span>
+</span><span data-line="238"><span class="sd">        The active cache settings.</span>
+</span><span data-line="239"><span class="sd">    """</span>
+</span><span data-line="240">    <span class="k">if</span> <span class="ow">not</span> <span class="n">_SETTINGS</span><span class="p">:</span>
+</span><span data-line="241">        <span class="k">return</span> <span class="n">CacheSettings</span><span class="p">(</span><span class="n">directory</span><span class="o">=</span><span class="n">default_directory</span><span class="p">())</span>
+</span><span data-line="242">    <span class="k">return</span> <span class="n">_SETTINGS</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
 
-</span><span data-line="234">
-</span><span data-line="235">
+</span><span data-line="243">
+</span><span data-line="244">
 <div class="viewcode-block" id="configure">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.configure">[docs]</a>
-</span><span data-line="236"><span class="k">def</span><span class="w"> </span><span class="nf">configure</span><span class="p">(</span>
-</span><span data-line="237">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="238">    <span class="n">directory</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="239">    <span class="n">offline</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="240">    <span class="n">refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="241">    <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
-</span><span data-line="242"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="243"><span class="w">    </span><span class="sd">"""Install the settings for this process.</span>
-</span><span data-line="244">
-</span><span data-line="245"><span class="sd">    Held in module state rather than threaded through every signature: these</span>
-</span><span data-line="246"><span class="sd">    are one decision made once at startup, and passing them down would mean</span>
-</span><span data-line="247"><span class="sd">    adding parameters to every source, to the resolver, to the dependency</span>
-</span><span data-line="248"><span class="sd">    walker, and to the provider protocol — all of which would then carry</span>
-</span><span data-line="249"><span class="sd">    transport configuration they have no use for.</span>
-</span><span data-line="250">
-</span><span data-line="251"><span class="sd">    Args:</span>
-</span><span data-line="252"><span class="sd">        directory: Cache location; the platform default when ``None``.</span>
-</span><span data-line="253"><span class="sd">        offline: Refuse to contact any source.</span>
-</span><span data-line="254"><span class="sd">        refresh: Replace stored entries with fresh responses.</span>
-</span><span data-line="255"><span class="sd">        enabled: Whether the cache is consulted at all.</span>
-</span><span data-line="256"><span class="sd">    """</span>
-</span><span data-line="257">    <span class="n">_SETTINGS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</span><span data-line="258">    <span class="n">_PRUNED</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</span><span data-line="259">    <span class="n">_SETTINGS</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-</span><span data-line="260">        <span class="n">CacheSettings</span><span class="p">(</span>
-</span><span data-line="261">            <span class="n">directory</span><span class="o">=</span><span class="n">directory</span> <span class="ow">or</span> <span class="n">default_directory</span><span class="p">(),</span>
-</span><span data-line="262">            <span class="n">offline</span><span class="o">=</span><span class="n">offline</span><span class="p">,</span>
-</span><span data-line="263">            <span class="n">refresh</span><span class="o">=</span><span class="n">refresh</span><span class="p">,</span>
-</span><span data-line="264">            <span class="n">enabled</span><span class="o">=</span><span class="n">enabled</span><span class="p">,</span>
-</span><span data-line="265">        <span class="p">)</span>
-</span><span data-line="266">    <span class="p">)</span></div>
+</span><span data-line="245"><span class="k">def</span><span class="w"> </span><span class="nf">configure</span><span class="p">(</span>
+</span><span data-line="246">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="247">    <span class="n">directory</span><span class="p">:</span> <span class="n">Path</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="248">    <span class="n">offline</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="249">    <span class="n">refresh</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="250">    <span class="n">enabled</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+</span><span data-line="251"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="252"><span class="w">    </span><span class="sd">"""Install the settings for this process.</span>
+</span><span data-line="253">
+</span><span data-line="254"><span class="sd">    Held in module state rather than threaded through every signature: these</span>
+</span><span data-line="255"><span class="sd">    are one decision made once at startup, and passing them down would mean</span>
+</span><span data-line="256"><span class="sd">    adding parameters to every source, to the resolver, to the dependency</span>
+</span><span data-line="257"><span class="sd">    walker, and to the provider protocol — all of which would then carry</span>
+</span><span data-line="258"><span class="sd">    transport configuration they have no use for.</span>
+</span><span data-line="259">
+</span><span data-line="260"><span class="sd">    Args:</span>
+</span><span data-line="261"><span class="sd">        directory: Cache location; the platform default when ``None``.</span>
+</span><span data-line="262"><span class="sd">        offline: Refuse to contact any source.</span>
+</span><span data-line="263"><span class="sd">        refresh: Replace stored entries with fresh responses.</span>
+</span><span data-line="264"><span class="sd">        enabled: Whether the cache is consulted at all.</span>
+</span><span data-line="265"><span class="sd">    """</span>
+</span><span data-line="266">    <span class="n">_SETTINGS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span><span data-line="267">    <span class="n">_PRUNED</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span><span data-line="268">    <span class="n">_SETTINGS</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span><span data-line="269">        <span class="n">CacheSettings</span><span class="p">(</span>
+</span><span data-line="270">            <span class="n">directory</span><span class="o">=</span><span class="n">directory</span> <span class="ow">or</span> <span class="n">default_directory</span><span class="p">(),</span>
+</span><span data-line="271">            <span class="n">offline</span><span class="o">=</span><span class="n">offline</span><span class="p">,</span>
+</span><span data-line="272">            <span class="n">refresh</span><span class="o">=</span><span class="n">refresh</span><span class="p">,</span>
+</span><span data-line="273">            <span class="n">enabled</span><span class="o">=</span><span class="n">enabled</span><span class="p">,</span>
+</span><span data-line="274">        <span class="p">)</span>
+</span><span data-line="275">    <span class="p">)</span></div>
 
-</span><span data-line="267">
-</span><span data-line="268">
+</span><span data-line="276">
+</span><span data-line="277">
 <div class="viewcode-block" id="reset">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.reset">[docs]</a>
-</span><span data-line="269"><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="270"><span class="w">    </span><span class="sd">"""Discard configured settings, restoring the defaults."""</span>
-</span><span data-line="271">    <span class="n">_SETTINGS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-</span><span data-line="272">    <span class="n">_PRUNED</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
+</span><span data-line="278"><span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="279"><span class="w">    </span><span class="sd">"""Discard configured settings, restoring the defaults."""</span>
+</span><span data-line="280">    <span class="n">_SETTINGS</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+</span><span data-line="281">    <span class="n">_PRUNED</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span></div>
 
-</span><span data-line="273">
-</span><span data-line="274">
+</span><span data-line="282">
+</span><span data-line="283">
 <div class="viewcode-block" id="redacted">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.redacted">[docs]</a>
-</span><span data-line="275"><span class="k">def</span><span class="w"> </span><span class="nf">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="276"><span class="w">    </span><span class="sd">"""Rewrite a URL with credential-bearing query parameters removed.</span>
-</span><span data-line="277">
-</span><span data-line="278"><span class="sd">    Public because the cache is not the only place a request URL is retained:</span>
-</span><span data-line="279"><span class="sd">    an error that names the URL it could not answer would otherwise carry the</span>
-</span><span data-line="280"><span class="sd">    credential into a message, a log, or a traceback.</span>
-</span><span data-line="281">
-</span><span data-line="282"><span class="sd">    Args:</span>
-</span><span data-line="283"><span class="sd">        url: A request URL, possibly carrying a credential.</span>
-</span><span data-line="284">
-</span><span data-line="285"><span class="sd">    Returns:</span>
-</span><span data-line="286"><span class="sd">        The URL with any parameter named in :data:`_CREDENTIAL_PARAMS` dropped.</span>
-</span><span data-line="287"><span class="sd">    """</span>
-</span><span data-line="288">    <span class="n">parts</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="289">    <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">:</span>
-</span><span data-line="290">        <span class="k">return</span> <span class="n">url</span>
-</span><span data-line="291">    <span class="n">kept</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="292">        <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-</span><span data-line="293">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parse_qsl</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="n">keep_blank_values</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="294">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_CREDENTIAL_PARAMS</span>
-</span><span data-line="295">    <span class="p">]</span>
-</span><span data-line="296">    <span class="k">return</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">urlencode</span><span class="p">(</span><span class="n">kept</span><span class="p">)))</span></div>
+</span><span data-line="284"><span class="k">def</span><span class="w"> </span><span class="nf">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="285"><span class="w">    </span><span class="sd">"""Rewrite a URL with credential-bearing query parameters removed.</span>
+</span><span data-line="286">
+</span><span data-line="287"><span class="sd">    Public because the cache is not the only place a request URL is retained:</span>
+</span><span data-line="288"><span class="sd">    an error that names the URL it could not answer would otherwise carry the</span>
+</span><span data-line="289"><span class="sd">    credential into a message, a log, or a traceback.</span>
+</span><span data-line="290">
+</span><span data-line="291"><span class="sd">    Args:</span>
+</span><span data-line="292"><span class="sd">        url: A request URL, possibly carrying a credential.</span>
+</span><span data-line="293">
+</span><span data-line="294"><span class="sd">    Returns:</span>
+</span><span data-line="295"><span class="sd">        The URL with any parameter named in :data:`_CREDENTIAL_PARAMS` dropped.</span>
+</span><span data-line="296"><span class="sd">    """</span>
+</span><span data-line="297">    <span class="n">parts</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="298">    <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">:</span>
+</span><span data-line="299">        <span class="k">return</span> <span class="n">url</span>
+</span><span data-line="300">    <span class="n">kept</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="301">        <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="302">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">parse_qsl</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">,</span> <span class="n">keep_blank_values</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="303">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_CREDENTIAL_PARAMS</span>
+</span><span data-line="304">    <span class="p">]</span>
+</span><span data-line="305">    <span class="k">return</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">urlencode</span><span class="p">(</span><span class="n">kept</span><span class="p">)))</span></div>
 
-</span><span data-line="297">
-</span><span data-line="298">
+</span><span data-line="306">
+</span><span data-line="307">
 <div class="viewcode-block" id="key_for">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.key_for">[docs]</a>
-</span><span data-line="299"><span class="k">def</span><span class="w"> </span><span class="nf">key_for</span><span class="p">(</span><span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="300"><span class="w">    </span><span class="sd">"""Derive the cache key for one request.</span>
-</span><span data-line="301">
-</span><span data-line="302"><span class="sd">    ``scope`` separates consumers that fetch the same URL but validate</span>
-</span><span data-line="303"><span class="sd">    different parts of it. Nothing is stored until its caller confirms the</span>
-</span><span data-line="304"><span class="sd">    body was usable, and "usable" means usable *to that caller*: one command</span>
-</span><span data-line="305"><span class="sd">    accepting a payload whose other half is malformed must not hand it to a</span>
-</span><span data-line="306"><span class="sd">    command that reads that other half.</span>
-</span><span data-line="307">
-</span><span data-line="308"><span class="sd">    Args:</span>
-</span><span data-line="309"><span class="sd">        method: HTTP method, case-insensitive.</span>
-</span><span data-line="310"><span class="sd">        url: The full request URL, credentials included; they are redacted</span>
-</span><span data-line="311"><span class="sd">            before hashing.</span>
-</span><span data-line="312"><span class="sd">        scope: Which consumer's view of the response this entry holds.</span>
-</span><span data-line="313">
-</span><span data-line="314"><span class="sd">    Returns:</span>
-</span><span data-line="315"><span class="sd">        A hex digest usable as a file name.</span>
-</span><span data-line="316"><span class="sd">    """</span>
-</span><span data-line="317">    <span class="n">material</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">method</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">scope</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="318">    <span class="k">return</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">material</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span></div>
+</span><span data-line="308"><span class="k">def</span><span class="w"> </span><span class="nf">key_for</span><span class="p">(</span><span class="n">method</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="309"><span class="w">    </span><span class="sd">"""Derive the cache key for one request.</span>
+</span><span data-line="310">
+</span><span data-line="311"><span class="sd">    ``scope`` separates consumers that fetch the same URL but validate</span>
+</span><span data-line="312"><span class="sd">    different parts of it. Nothing is stored until its caller confirms the</span>
+</span><span data-line="313"><span class="sd">    body was usable, and "usable" means usable *to that caller*: one command</span>
+</span><span data-line="314"><span class="sd">    accepting a payload whose other half is malformed must not hand it to a</span>
+</span><span data-line="315"><span class="sd">    command that reads that other half.</span>
+</span><span data-line="316">
+</span><span data-line="317"><span class="sd">    Args:</span>
+</span><span data-line="318"><span class="sd">        method: HTTP method, case-insensitive.</span>
+</span><span data-line="319"><span class="sd">        url: The full request URL, credentials included; they are redacted</span>
+</span><span data-line="320"><span class="sd">            before hashing.</span>
+</span><span data-line="321"><span class="sd">        scope: Which consumer's view of the response this entry holds.</span>
+</span><span data-line="322">
+</span><span data-line="323"><span class="sd">    Returns:</span>
+</span><span data-line="324"><span class="sd">        A hex digest usable as a file name.</span>
+</span><span data-line="325"><span class="sd">    """</span>
+</span><span data-line="326">    <span class="n">material</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">method</span><span class="o">.</span><span class="n">upper</span><span class="p">()</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">scope</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="327">    <span class="k">return</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">material</span><span class="o">.</span><span class="n">encode</span><span class="p">())</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span></div>
 
-</span><span data-line="319">
-</span><span data-line="320">
+</span><span data-line="328">
+</span><span data-line="329">
 <div class="viewcode-block" id="Provenance">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.Provenance">[docs]</a>
-</span><span data-line="321"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="322"><span class="k">class</span><span class="w"> </span><span class="nc">Provenance</span><span class="p">:</span>
-</span><span data-line="323"><span class="w">    </span><span class="sd">"""Where a source's answer came from, and when it was retrieved.</span>
-</span><span data-line="324">
-</span><span data-line="325"><span class="sd">    Carried separately from the answer so a caller can report accurate</span>
-</span><span data-line="326"><span class="sd">    provenance without knowing whether the cache was involved. ``retrieved_at``</span>
-</span><span data-line="327"><span class="sd">    is the moment the *source* answered, not the moment it was replayed: a</span>
-</span><span data-line="328"><span class="sd">    response stored days ago and served from disk must not claim it was</span>
-</span><span data-line="329"><span class="sd">    retrieved just now, or the provenance is worse than useless.</span>
-</span><span data-line="330"><span class="sd">    """</span>
-</span><span data-line="331">
-</span><span data-line="332">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span>
-</span><span data-line="333">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span></div>
+</span><span data-line="330"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="331"><span class="k">class</span><span class="w"> </span><span class="nc">Provenance</span><span class="p">:</span>
+</span><span data-line="332"><span class="w">    </span><span class="sd">"""Where a source's answer came from, and when it was retrieved.</span>
+</span><span data-line="333">
+</span><span data-line="334"><span class="sd">    Carried separately from the answer so a caller can report accurate</span>
+</span><span data-line="335"><span class="sd">    provenance without knowing whether the cache was involved. ``retrieved_at``</span>
+</span><span data-line="336"><span class="sd">    is the moment the *source* answered, not the moment it was replayed: a</span>
+</span><span data-line="337"><span class="sd">    response stored days ago and served from disk must not claim it was</span>
+</span><span data-line="338"><span class="sd">    retrieved just now, or the provenance is worse than useless.</span>
+</span><span data-line="339"><span class="sd">    """</span>
+</span><span data-line="340">
+</span><span data-line="341">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span>
+</span><span data-line="342">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span></div>
 
-</span><span data-line="334">
-</span><span data-line="335">
+</span><span data-line="343">
+</span><span data-line="344">
 <div class="viewcode-block" id="CachedResponse">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.CachedResponse">[docs]</a>
-</span><span data-line="336"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="337"><span class="k">class</span><span class="w"> </span><span class="nc">CachedResponse</span><span class="p">:</span>
-</span><span data-line="338"><span class="w">    </span><span class="sd">"""A stored response and the moment it was stored."""</span>
-</span><span data-line="339">
-</span><span data-line="340">    <span class="n">status</span><span class="p">:</span> <span class="nb">int</span>
-</span><span data-line="341">    <span class="n">body</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="342">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
-</span><span data-line="343">    <span class="n">stored_at</span><span class="p">:</span> <span class="nb">float</span>
-</span><span data-line="344">
+</span><span data-line="345"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="346"><span class="k">class</span><span class="w"> </span><span class="nc">CachedResponse</span><span class="p">:</span>
+</span><span data-line="347"><span class="w">    </span><span class="sd">"""A stored response and the moment it was stored."""</span>
+</span><span data-line="348">
+</span><span data-line="349">    <span class="n">status</span><span class="p">:</span> <span class="nb">int</span>
+</span><span data-line="350">    <span class="n">body</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="351">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</span><span data-line="352">    <span class="n">stored_at</span><span class="p">:</span> <span class="nb">float</span>
+</span><span data-line="353">
 <div class="viewcode-block" id="CachedResponse.age">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.CachedResponse.age">[docs]</a>
-</span><span data-line="345">    <span class="k">def</span><span class="w"> </span><span class="nf">age</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
-</span><span data-line="346"><span class="w">        </span><span class="sd">"""Report how long ago this entry was stored.</span>
-</span><span data-line="347">
-</span><span data-line="348"><span class="sd">        Args:</span>
-</span><span data-line="349"><span class="sd">            at: The time to measure from.</span>
-</span><span data-line="350">
-</span><span data-line="351"><span class="sd">        Returns:</span>
-</span><span data-line="352"><span class="sd">            Age in seconds, never negative — a clock that moved backwards</span>
-</span><span data-line="353"><span class="sd">            reads as brand new rather than as expired long ago.</span>
-</span><span data-line="354"><span class="sd">        """</span>
-</span><span data-line="355">        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">at</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">stored_at</span><span class="p">)</span></div>
-
+</span><span data-line="354">    <span class="k">def</span><span class="w"> </span><span class="nf">age</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+</span><span data-line="355"><span class="w">        </span><span class="sd">"""Report how long ago this entry was stored.</span>
 </span><span data-line="356">
+</span><span data-line="357"><span class="sd">        Args:</span>
+</span><span data-line="358"><span class="sd">            at: The time to measure from.</span>
+</span><span data-line="359">
+</span><span data-line="360"><span class="sd">        Returns:</span>
+</span><span data-line="361"><span class="sd">            Age in seconds, never negative — a clock that moved backwards</span>
+</span><span data-line="362"><span class="sd">            reads as brand new rather than as expired long ago.</span>
+</span><span data-line="363"><span class="sd">        """</span>
+</span><span data-line="364">        <span class="k">return</span> <span class="nb">max</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">at</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">stored_at</span><span class="p">)</span></div>
+
+</span><span data-line="365">
 <div class="viewcode-block" id="CachedResponse.is_fresh">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.CachedResponse.is_fresh">[docs]</a>
-</span><span data-line="357">    <span class="k">def</span><span class="w"> </span><span class="nf">is_fresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="358"><span class="w">        </span><span class="sd">"""Whether this entry may still be served without asking the source.</span>
-</span><span data-line="359">
-</span><span data-line="360"><span class="sd">        Args:</span>
-</span><span data-line="361"><span class="sd">            ttl: How long entries of this kind stay usable, in seconds.</span>
-</span><span data-line="362"><span class="sd">            at: The time to judge freshness at.</span>
-</span><span data-line="363">
-</span><span data-line="364"><span class="sd">        Returns:</span>
-</span><span data-line="365"><span class="sd">            ``True`` while the entry is within ``ttl``.</span>
-</span><span data-line="366"><span class="sd">        """</span>
-</span><span data-line="367">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">age</span><span class="p">(</span><span class="n">at</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">ttl</span></div>
-
+</span><span data-line="366">    <span class="k">def</span><span class="w"> </span><span class="nf">is_fresh</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="367"><span class="w">        </span><span class="sd">"""Whether this entry may still be served without asking the source.</span>
 </span><span data-line="368">
-</span><span data-line="369">    <span class="nd">@property</span>
-</span><span data-line="370">    <span class="k">def</span><span class="w"> </span><span class="nf">validators</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="371"><span class="w">        </span><span class="sd">"""Conditional-request headers that would revalidate this entry.</span>
+</span><span data-line="369"><span class="sd">        Args:</span>
+</span><span data-line="370"><span class="sd">            ttl: How long entries of this kind stay usable, in seconds.</span>
+</span><span data-line="371"><span class="sd">            at: The time to judge freshness at.</span>
 </span><span data-line="372">
 </span><span data-line="373"><span class="sd">        Returns:</span>
-</span><span data-line="374"><span class="sd">            ``If-None-Match``/``If-Modified-Since`` headers, empty when the</span>
-</span><span data-line="375"><span class="sd">            source supplied no validator to revalidate against.</span>
-</span><span data-line="376"><span class="sd">        """</span>
-</span><span data-line="377">        <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-</span><span data-line="378">        <span class="n">etag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"etag"</span><span class="p">)</span>
-</span><span data-line="379">        <span class="k">if</span> <span class="n">etag</span><span class="p">:</span>
-</span><span data-line="380">            <span class="n">headers</span><span class="p">[</span><span class="s2">"if-none-match"</span><span class="p">]</span> <span class="o">=</span> <span class="n">etag</span>
-</span><span data-line="381">        <span class="n">modified</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"last-modified"</span><span class="p">)</span>
-</span><span data-line="382">        <span class="k">if</span> <span class="n">modified</span><span class="p">:</span>
-</span><span data-line="383">            <span class="n">headers</span><span class="p">[</span><span class="s2">"if-modified-since"</span><span class="p">]</span> <span class="o">=</span> <span class="n">modified</span>
-</span><span data-line="384">        <span class="k">return</span> <span class="n">headers</span></div>
+</span><span data-line="374"><span class="sd">            ``True`` while the entry is within ``ttl``.</span>
+</span><span data-line="375"><span class="sd">        """</span>
+</span><span data-line="376">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">age</span><span class="p">(</span><span class="n">at</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">ttl</span></div>
 
-</span><span data-line="385">
-</span><span data-line="386">
-<div class="viewcode-block" id="entries_directory">
-<a class="viewcode-back" href="../../../modules.html#peta.core.cache.entries_directory">[docs]</a>
-</span><span data-line="387"><span class="k">def</span><span class="w"> </span><span class="nf">entries_directory</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-</span><span data-line="388"><span class="w">    </span><span class="sd">"""Locate the directory the entries themselves live in.</span>
-</span><span data-line="389">
-</span><span data-line="390"><span class="sd">    Returns:</span>
-</span><span data-line="391"><span class="sd">        The subdirectory of the configured location that peta owns.</span>
-</span><span data-line="392"><span class="sd">    """</span>
-</span><span data-line="393">    <span class="k">return</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">directory</span> <span class="o">/</span> <span class="n">_ENTRY_DIR</span></div>
+</span><span data-line="377">
+</span><span data-line="378">    <span class="nd">@property</span>
+</span><span data-line="379">    <span class="k">def</span><span class="w"> </span><span class="nf">validators</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="380"><span class="w">        </span><span class="sd">"""Conditional-request headers that would revalidate this entry.</span>
+</span><span data-line="381">
+</span><span data-line="382"><span class="sd">        Returns:</span>
+</span><span data-line="383"><span class="sd">            ``If-None-Match``/``If-Modified-Since`` headers, empty when the</span>
+</span><span data-line="384"><span class="sd">            source supplied no validator to revalidate against.</span>
+</span><span data-line="385"><span class="sd">        """</span>
+</span><span data-line="386">        <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span data-line="387">        <span class="n">etag</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"etag"</span><span class="p">)</span>
+</span><span data-line="388">        <span class="k">if</span> <span class="n">etag</span><span class="p">:</span>
+</span><span data-line="389">            <span class="n">headers</span><span class="p">[</span><span class="s2">"if-none-match"</span><span class="p">]</span> <span class="o">=</span> <span class="n">etag</span>
+</span><span data-line="390">        <span class="n">modified</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"last-modified"</span><span class="p">)</span>
+</span><span data-line="391">        <span class="k">if</span> <span class="n">modified</span><span class="p">:</span>
+</span><span data-line="392">            <span class="n">headers</span><span class="p">[</span><span class="s2">"if-modified-since"</span><span class="p">]</span> <span class="o">=</span> <span class="n">modified</span>
+</span><span data-line="393">        <span class="k">return</span> <span class="n">headers</span></div>
 
 </span><span data-line="394">
 </span><span data-line="395">
-</span><span data-line="396"><span class="k">def</span><span class="w"> </span><span class="nf">_path_for</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-</span><span data-line="397">    <span class="k">return</span> <span class="n">entries_directory</span><span class="p">()</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.json"</span>
+<div class="viewcode-block" id="entries_directory">
+<a class="viewcode-back" href="../../../modules.html#peta.core.cache.entries_directory">[docs]</a>
+</span><span data-line="396"><span class="k">def</span><span class="w"> </span><span class="nf">entries_directory</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+</span><span data-line="397"><span class="w">    </span><span class="sd">"""Locate the directory the entries themselves live in.</span>
 </span><span data-line="398">
-</span><span data-line="399">
-</span><span data-line="400"><span class="k">def</span><span class="w"> </span><span class="nf">_is_string_map</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="401"><span class="w">    </span><span class="sd">"""Whether a decoded value is a mapping of strings to strings.</span>
-</span><span data-line="402">
-</span><span data-line="403"><span class="sd">    Returns:</span>
-</span><span data-line="404"><span class="sd">        ``True`` for a well-formed header mapping.</span>
-</span><span data-line="405"><span class="sd">    """</span>
-</span><span data-line="406">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-</span><span data-line="407">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="408">    <span class="n">pairs</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[object, object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-</span><span data-line="409">    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pairs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
-</span><span data-line="410">
+</span><span data-line="399"><span class="sd">    Returns:</span>
+</span><span data-line="400"><span class="sd">        The subdirectory of the configured location that peta owns.</span>
+</span><span data-line="401"><span class="sd">    """</span>
+</span><span data-line="402">    <span class="k">return</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">directory</span> <span class="o">/</span> <span class="n">_ENTRY_DIR</span></div>
+
+</span><span data-line="403">
+</span><span data-line="404">
+</span><span data-line="405"><span class="k">def</span><span class="w"> </span><span class="nf">_path_for</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+</span><span data-line="406">    <span class="k">return</span> <span class="n">entries_directory</span><span class="p">()</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.json"</span>
+</span><span data-line="407">
+</span><span data-line="408">
+</span><span data-line="409"><span class="k">def</span><span class="w"> </span><span class="nf">_is_string_map</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="410"><span class="w">    </span><span class="sd">"""Whether a decoded value is a mapping of strings to strings.</span>
 </span><span data-line="411">
-</span><span data-line="412"><span class="k">def</span><span class="w"> </span><span class="nf">_is_representable</span><span class="p">(</span><span class="n">stored_at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="413"><span class="w">    </span><span class="sd">"""Whether a timestamp can be turned back into a date.</span>
-</span><span data-line="414">
-</span><span data-line="415"><span class="sd">    A finiteness test is not enough: ``1e999`` decodes to ``inf`` but ``1e20``</span>
-</span><span data-line="416"><span class="sd">    is finite and still outside the range :func:`datetime.fromtimestamp`</span>
-</span><span data-line="417"><span class="sd">    accepts. Either would read as forever fresh — the age clamps to zero — and</span>
-</span><span data-line="418"><span class="sd">    then raise when the entry is dated for output, turning a damaged entry</span>
-</span><span data-line="419"><span class="sd">    into a crash instead of the refetch the corruption path promises.</span>
+</span><span data-line="412"><span class="sd">    Returns:</span>
+</span><span data-line="413"><span class="sd">        ``True`` for a well-formed header mapping.</span>
+</span><span data-line="414"><span class="sd">    """</span>
+</span><span data-line="415">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span data-line="416">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="417">    <span class="n">pairs</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[object, object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="418">    <span class="k">return</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">pairs</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+</span><span data-line="419">
 </span><span data-line="420">
-</span><span data-line="421"><span class="sd">    Tested by conversion rather than against hardcoded bounds, so the check</span>
-</span><span data-line="422"><span class="sd">    tracks whatever the platform actually supports.</span>
+</span><span data-line="421"><span class="k">def</span><span class="w"> </span><span class="nf">_is_representable</span><span class="p">(</span><span class="n">stored_at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="422"><span class="w">    </span><span class="sd">"""Whether a timestamp can be turned back into a date.</span>
 </span><span data-line="423">
-</span><span data-line="424"><span class="sd">    Returns:</span>
-</span><span data-line="425"><span class="sd">        ``True`` if the timestamp is a usable date.</span>
-</span><span data-line="426"><span class="sd">    """</span>
-</span><span data-line="427">    <span class="k">if</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">stored_at</span><span class="p">):</span>
-</span><span data-line="428">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="429">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="430">        <span class="n">_</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">stored_at</span><span class="p">,</span> <span class="n">UTC</span><span class="p">)</span>
-</span><span data-line="431">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">:</span>
-</span><span data-line="432">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="433">    <span class="k">return</span> <span class="kc">True</span>
-</span><span data-line="434">
-</span><span data-line="435">
-</span><span data-line="436"><span class="k">def</span><span class="w"> </span><span class="nf">_is_entry_shape</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">stored_at</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="437"><span class="w">    </span><span class="sd">"""Whether the scalar fields of a decoded entry have usable types.</span>
-</span><span data-line="438">
-</span><span data-line="439"><span class="sd">    ``bool`` is rejected as a status for the same reason</span>
-</span><span data-line="440"><span class="sd">    :func:`peta.core.validation.expect_int` rejects it: ``isinstance(True,</span>
-</span><span data-line="441"><span class="sd">    int)`` holds, but ``true`` is not a status code.</span>
-</span><span data-line="442">
-</span><span data-line="443"><span class="sd">    Returns:</span>
-</span><span data-line="444"><span class="sd">        ``True`` when every scalar field is of the expected type.</span>
-</span><span data-line="445"><span class="sd">    """</span>
-</span><span data-line="446">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
-</span><span data-line="447">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="448">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-</span><span data-line="449">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="450">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stored_at</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stored_at</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
-</span><span data-line="451">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="452">    <span class="k">return</span> <span class="n">_is_representable</span><span class="p">(</span><span class="n">stored_at</span><span class="p">)</span>
-</span><span data-line="453">
-</span><span data-line="454">
-</span><span data-line="455"><span class="k">def</span><span class="w"> </span><span class="nf">_decode</span><span class="p">(</span><span class="n">raw</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="456"><span class="w">    </span><span class="sd">"""Build an entry from decoded JSON, rejecting anything malformed.</span>
-</span><span data-line="457">
-</span><span data-line="458"><span class="sd">    Returns:</span>
-</span><span data-line="459"><span class="sd">        The entry, or ``None`` if the payload is not a well-formed one.</span>
-</span><span data-line="460"><span class="sd">    """</span>
-</span><span data-line="461">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-</span><span data-line="462">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="463">    <span class="n">entry</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, object]"</span><span class="p">,</span> <span class="n">raw</span><span class="p">)</span>
-</span><span data-line="464">    <span class="n">status</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">stored_at</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"status"</span><span class="p">),</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"body"</span><span class="p">),</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"at"</span><span class="p">)</span>
-</span><span data-line="465">    <span class="n">headers</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"headers"</span><span class="p">)</span>
-</span><span data-line="466">    <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_entry_shape</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">stored_at</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">_is_string_map</span><span class="p">(</span><span class="n">headers</span><span class="p">):</span>
-</span><span data-line="467">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="468">    <span class="k">return</span> <span class="n">CachedResponse</span><span class="p">(</span>
-</span><span data-line="469">        <span class="n">status</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"int"</span><span class="p">,</span> <span class="n">status</span><span class="p">),</span>
-</span><span data-line="470">        <span class="n">body</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"str"</span><span class="p">,</span> <span class="n">body</span><span class="p">),</span>
-</span><span data-line="471">        <span class="n">headers</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, str]"</span><span class="p">,</span> <span class="n">headers</span><span class="p">),</span>
-</span><span data-line="472">        <span class="n">stored_at</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"float"</span><span class="p">,</span> <span class="n">stored_at</span><span class="p">)),</span>
-</span><span data-line="473">    <span class="p">)</span>
-</span><span data-line="474">
-</span><span data-line="475">
+</span><span data-line="424"><span class="sd">    A finiteness test is not enough: ``1e999`` decodes to ``inf`` but ``1e20``</span>
+</span><span data-line="425"><span class="sd">    is finite and still outside the range :func:`datetime.fromtimestamp`</span>
+</span><span data-line="426"><span class="sd">    accepts. Either would read as forever fresh — the age clamps to zero — and</span>
+</span><span data-line="427"><span class="sd">    then raise when the entry is dated for output, turning a damaged entry</span>
+</span><span data-line="428"><span class="sd">    into a crash instead of the refetch the corruption path promises.</span>
+</span><span data-line="429">
+</span><span data-line="430"><span class="sd">    Tested by conversion rather than against hardcoded bounds, so the check</span>
+</span><span data-line="431"><span class="sd">    tracks whatever the platform actually supports.</span>
+</span><span data-line="432">
+</span><span data-line="433"><span class="sd">    Returns:</span>
+</span><span data-line="434"><span class="sd">        ``True`` if the timestamp is a usable date.</span>
+</span><span data-line="435"><span class="sd">    """</span>
+</span><span data-line="436">    <span class="k">if</span> <span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">stored_at</span><span class="p">):</span>
+</span><span data-line="437">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="438">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="439">        <span class="n">_</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">stored_at</span><span class="p">,</span> <span class="n">UTC</span><span class="p">)</span>
+</span><span data-line="440">    <span class="k">except</span> <span class="n">_UNDATABLE</span><span class="p">:</span>
+</span><span data-line="441">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="442">    <span class="k">return</span> <span class="kc">True</span>
+</span><span data-line="443">
+</span><span data-line="444">
+</span><span data-line="445"><span class="k">def</span><span class="w"> </span><span class="nf">_is_entry_shape</span><span class="p">(</span><span class="n">status</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">stored_at</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="446"><span class="w">    </span><span class="sd">"""Whether the scalar fields of a decoded entry have usable types.</span>
+</span><span data-line="447">
+</span><span data-line="448"><span class="sd">    ``bool`` is rejected as a status for the same reason</span>
+</span><span data-line="449"><span class="sd">    :func:`peta.core.validation.expect_int` rejects it: ``isinstance(True,</span>
+</span><span data-line="450"><span class="sd">    int)`` holds, but ``true`` is not a status code.</span>
+</span><span data-line="451">
+</span><span data-line="452"><span class="sd">    Returns:</span>
+</span><span data-line="453"><span class="sd">        ``True`` when every scalar field is of the expected type.</span>
+</span><span data-line="454"><span class="sd">    """</span>
+</span><span data-line="455">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+</span><span data-line="456">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="457">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">body</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+</span><span data-line="458">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="459">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stored_at</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">))</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">stored_at</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+</span><span data-line="460">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="461">    <span class="k">return</span> <span class="n">_is_representable</span><span class="p">(</span><span class="n">stored_at</span><span class="p">)</span>
+</span><span data-line="462">
+</span><span data-line="463">
+</span><span data-line="464"><span class="k">def</span><span class="w"> </span><span class="nf">_decode</span><span class="p">(</span><span class="n">raw</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="465"><span class="w">    </span><span class="sd">"""Build an entry from decoded JSON, rejecting anything malformed.</span>
+</span><span data-line="466">
+</span><span data-line="467"><span class="sd">    Returns:</span>
+</span><span data-line="468"><span class="sd">        The entry, or ``None`` if the payload is not a well-formed one.</span>
+</span><span data-line="469"><span class="sd">    """</span>
+</span><span data-line="470">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span data-line="471">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="472">    <span class="n">entry</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, object]"</span><span class="p">,</span> <span class="n">raw</span><span class="p">)</span>
+</span><span data-line="473">    <span class="n">status</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">stored_at</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"status"</span><span class="p">),</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"body"</span><span class="p">),</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"at"</span><span class="p">)</span>
+</span><span data-line="474">    <span class="n">headers</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"headers"</span><span class="p">)</span>
+</span><span data-line="475">    <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_entry_shape</span><span class="p">(</span><span class="n">status</span><span class="p">,</span> <span class="n">body</span><span class="p">,</span> <span class="n">stored_at</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">_is_string_map</span><span class="p">(</span><span class="n">headers</span><span class="p">):</span>
+</span><span data-line="476">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="477">    <span class="k">return</span> <span class="n">CachedResponse</span><span class="p">(</span>
+</span><span data-line="478">        <span class="n">status</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"int"</span><span class="p">,</span> <span class="n">status</span><span class="p">),</span>
+</span><span data-line="479">        <span class="n">body</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"str"</span><span class="p">,</span> <span class="n">body</span><span class="p">),</span>
+</span><span data-line="480">        <span class="n">headers</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, str]"</span><span class="p">,</span> <span class="n">headers</span><span class="p">),</span>
+</span><span data-line="481">        <span class="n">stored_at</span><span class="o">=</span><span class="nb">float</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"float"</span><span class="p">,</span> <span class="n">stored_at</span><span class="p">)),</span>
+</span><span data-line="482">    <span class="p">)</span>
+</span><span data-line="483">
+</span><span data-line="484">
 <div class="viewcode-block" id="load">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.load">[docs]</a>
-</span><span data-line="476"><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="477"><span class="w">    </span><span class="sd">"""Read one entry, treating any unreadable entry as absent.</span>
-</span><span data-line="478">
-</span><span data-line="479"><span class="sd">    A cache is disposable, so a truncated write, a partial disk, or a file</span>
-</span><span data-line="480"><span class="sd">    from a future format must degrade to a miss. Raising here would make a</span>
-</span><span data-line="481"><span class="sd">    corrupt byte on disk fatal to a command that could simply refetch.</span>
-</span><span data-line="482">
-</span><span data-line="483"><span class="sd">    Args:</span>
-</span><span data-line="484"><span class="sd">        key: The cache key.</span>
-</span><span data-line="485">
-</span><span data-line="486"><span class="sd">    Returns:</span>
-</span><span data-line="487"><span class="sd">        The stored entry, or ``None`` on a miss or a damaged entry.</span>
-</span><span data-line="488"><span class="sd">    """</span>
-</span><span data-line="489">    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
-</span><span data-line="490">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="491">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="492">        <span class="n">raw</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"object"</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_path_for</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)))</span>
-</span><span data-line="493">    <span class="k">except</span> <span class="n">_UNREADABLE</span><span class="p">:</span>
-</span><span data-line="494">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="495">    <span class="k">return</span> <span class="n">_decode</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span></div>
+</span><span data-line="485"><span class="k">def</span><span class="w"> </span><span class="nf">load</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="486"><span class="w">    </span><span class="sd">"""Read one entry, treating any unreadable entry as absent.</span>
+</span><span data-line="487">
+</span><span data-line="488"><span class="sd">    A cache is disposable, so a truncated write, a partial disk, or a file</span>
+</span><span data-line="489"><span class="sd">    from a future format must degrade to a miss. Raising here would make a</span>
+</span><span data-line="490"><span class="sd">    corrupt byte on disk fatal to a command that could simply refetch.</span>
+</span><span data-line="491">
+</span><span data-line="492"><span class="sd">    Args:</span>
+</span><span data-line="493"><span class="sd">        key: The cache key.</span>
+</span><span data-line="494">
+</span><span data-line="495"><span class="sd">    Returns:</span>
+</span><span data-line="496"><span class="sd">        The stored entry, or ``None`` on a miss or a damaged entry.</span>
+</span><span data-line="497"><span class="sd">    """</span>
+</span><span data-line="498">    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+</span><span data-line="499">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="500">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="501">        <span class="n">raw</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"object"</span><span class="p">,</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">_path_for</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)))</span>
+</span><span data-line="502">    <span class="k">except</span> <span class="n">_UNREADABLE</span><span class="p">:</span>
+</span><span data-line="503">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="504">    <span class="k">return</span> <span class="n">_decode</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span></div>
 
-</span><span data-line="496">
-</span><span data-line="497">
-</span><span data-line="498"><span class="k">def</span><span class="w"> </span><span class="nf">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="499">    <span class="k">return</span> <span class="p">{</span>
-</span><span data-line="500">        <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">value</span>
-</span><span data-line="501">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">headers</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-</span><span data-line="502">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">_STORED_HEADERS</span>
-</span><span data-line="503">    <span class="p">}</span>
-</span><span data-line="504">
 </span><span data-line="505">
-</span><span data-line="506"><span class="k">def</span><span class="w"> </span><span class="nf">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="507"><span class="w">    </span><span class="sd">"""Write one entry via a temporary file moved into place.</span>
-</span><span data-line="508">
-</span><span data-line="509"><span class="sd">    A reader therefore sees either the previous entry or the complete new</span>
-</span><span data-line="510"><span class="sd">    one, never a half-written file, however the process is interrupted.</span>
-</span><span data-line="511">
-</span><span data-line="512"><span class="sd">    Raises:</span>
-</span><span data-line="513"><span class="sd">        OSError: If the directory or the file cannot be written; the partial</span>
-</span><span data-line="514"><span class="sd">            temporary file is removed first.</span>
-</span><span data-line="515"><span class="sd">    """</span>
-</span><span data-line="516">    <span class="n">directory</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="517">    <span class="n">handle</span><span class="p">,</span> <span class="n">temporary</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">".tmp"</span><span class="p">)</span>
-</span><span data-line="518">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="519">        <span class="k">with</span> <span class="n">os</span><span class="o">.</span><span class="n">fdopen</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
-</span><span data-line="520">            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
-</span><span data-line="521">        <span class="n">_</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">temporary</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">directory</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.json"</span><span class="p">)</span>
-</span><span data-line="522">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-</span><span data-line="523">        <span class="n">Path</span><span class="p">(</span><span class="n">temporary</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="524">        <span class="k">raise</span>
-</span><span data-line="525">
-</span><span data-line="526">
-</span><span data-line="527"><span class="k">def</span><span class="w"> </span><span class="nf">_expired</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="528"><span class="w">    </span><span class="sd">"""Whether one directory member is an entry of ours past :data:`MAX_AGE`.</span>
-</span><span data-line="529">
-</span><span data-line="530"><span class="sd">    The name must be one :func:`key_for` could have produced, so nothing the</span>
-</span><span data-line="531"><span class="sd">    user happens to keep in the same directory is ever a candidate.</span>
-</span><span data-line="532">
-</span><span data-line="533"><span class="sd">    Returns:</span>
-</span><span data-line="534"><span class="sd">        ``True`` only for a stale entry this cache wrote itself.</span>
-</span><span data-line="535"><span class="sd">    """</span>
-</span><span data-line="536">    <span class="k">if</span> <span class="ow">not</span> <span class="n">_KEY_PATTERN</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
-</span><span data-line="537">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="538">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="539">        <span class="k">return</span> <span class="n">at</span> <span class="o">-</span> <span class="n">entry</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_mtime</span> <span class="o">&gt;</span> <span class="n">MAX_AGE</span>
-</span><span data-line="540">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-</span><span data-line="541">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="542">
-</span><span data-line="543">
-</span><span data-line="544"><span class="k">def</span><span class="w"> </span><span class="nf">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="545"><span class="w">    </span><span class="sd">"""Delete this cache's entries older than :data:`MAX_AGE`, once per process.</span>
-</span><span data-line="546">
-</span><span data-line="547"><span class="sd">    Judged by file modification time rather than the stored timestamp, so</span>
-</span><span data-line="548"><span class="sd">    pruning costs one directory scan instead of reading and parsing every</span>
-</span><span data-line="549"><span class="sd">    entry — which would make writes more expensive the more the cache holds,</span>
-</span><span data-line="550"><span class="sd">    the opposite of what a cache is for.</span>
-</span><span data-line="551"><span class="sd">    """</span>
-</span><span data-line="552">    <span class="k">if</span> <span class="n">_PRUNED</span><span class="p">:</span>
-</span><span data-line="553">        <span class="k">return</span>
-</span><span data-line="554">    <span class="n">_PRUNED</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="555">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="556">        <span class="n">entries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">directory</span><span class="o">.</span><span class="n">iterdir</span><span class="p">())</span>
-</span><span data-line="557">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-</span><span data-line="558">        <span class="k">return</span>
-</span><span data-line="559">    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
-</span><span data-line="560">        <span class="k">if</span> <span class="n">_expired</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">at</span><span class="p">):</span>
-</span><span data-line="561">            <span class="k">with</span> <span class="n">suppress</span><span class="p">(</span><span class="ne">OSError</span><span class="p">):</span>
-</span><span data-line="562">                <span class="n">entry</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="563">
-</span><span data-line="564">
-</span><span data-line="565"><span class="k">def</span><span class="w"> </span><span class="nf">_write</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="566"><span class="w">    </span><span class="sd">"""Store one entry, unless the cache is off or cannot be written.</span>
-</span><span data-line="567">
-</span><span data-line="568"><span class="sd">    The ``enabled`` check belongs here rather than only in :func:`load`: the</span>
-</span><span data-line="569"><span class="sd">    setting says whether the cache is used *at all*, so honouring it on the</span>
-</span><span data-line="570"><span class="sd">    read side alone would still leave files on disk for a caller that asked</span>
-</span><span data-line="571"><span class="sd">    for none. This is the single funnel for both :func:`store` and</span>
-</span><span data-line="572"><span class="sd">    :func:`touch`, so one guard covers every write.</span>
+</span><span data-line="506">
+</span><span data-line="507"><span class="k">def</span><span class="w"> </span><span class="nf">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="508">    <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="509">        <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">value</span>
+</span><span data-line="510">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">headers</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+</span><span data-line="511">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">in</span> <span class="n">_STORED_HEADERS</span>
+</span><span data-line="512">    <span class="p">}</span>
+</span><span data-line="513">
+</span><span data-line="514">
+</span><span data-line="515"><span class="k">def</span><span class="w"> </span><span class="nf">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="516"><span class="w">    </span><span class="sd">"""Write one entry via a temporary file moved into place.</span>
+</span><span data-line="517">
+</span><span data-line="518"><span class="sd">    A reader therefore sees either the previous entry or the complete new</span>
+</span><span data-line="519"><span class="sd">    one, never a half-written file, however the process is interrupted.</span>
+</span><span data-line="520">
+</span><span data-line="521"><span class="sd">    Raises:</span>
+</span><span data-line="522"><span class="sd">        OSError: If the directory or the file cannot be written; the partial</span>
+</span><span data-line="523"><span class="sd">            temporary file is removed first.</span>
+</span><span data-line="524"><span class="sd">    """</span>
+</span><span data-line="525">    <span class="n">directory</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="526">    <span class="n">handle</span><span class="p">,</span> <span class="n">temporary</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">".tmp"</span><span class="p">)</span>
+</span><span data-line="527">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="528">        <span class="k">with</span> <span class="n">os</span><span class="o">.</span><span class="n">fdopen</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+</span><span data-line="529">            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
+</span><span data-line="530">        <span class="n">_</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">temporary</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">directory</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.json"</span><span class="p">)</span>
+</span><span data-line="531">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+</span><span data-line="532">        <span class="n">Path</span><span class="p">(</span><span class="n">temporary</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="533">        <span class="k">raise</span>
+</span><span data-line="534">
+</span><span data-line="535">
+</span><span data-line="536"><span class="k">def</span><span class="w"> </span><span class="nf">_expired</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="537"><span class="w">    </span><span class="sd">"""Whether one directory member is an entry of ours past :data:`MAX_AGE`.</span>
+</span><span data-line="538">
+</span><span data-line="539"><span class="sd">    The name must be one :func:`key_for` could have produced, so nothing the</span>
+</span><span data-line="540"><span class="sd">    user happens to keep in the same directory is ever a candidate.</span>
+</span><span data-line="541">
+</span><span data-line="542"><span class="sd">    Returns:</span>
+</span><span data-line="543"><span class="sd">        ``True`` only for a stale entry this cache wrote itself.</span>
+</span><span data-line="544"><span class="sd">    """</span>
+</span><span data-line="545">    <span class="k">if</span> <span class="ow">not</span> <span class="n">_KEY_PATTERN</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">name</span><span class="p">):</span>
+</span><span data-line="546">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="547">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="548">        <span class="k">return</span> <span class="n">at</span> <span class="o">-</span> <span class="n">entry</span><span class="o">.</span><span class="n">stat</span><span class="p">()</span><span class="o">.</span><span class="n">st_mtime</span> <span class="o">&gt;</span> <span class="n">MAX_AGE</span>
+</span><span data-line="549">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+</span><span data-line="550">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="551">
+</span><span data-line="552">
+</span><span data-line="553"><span class="k">def</span><span class="w"> </span><span class="nf">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">at</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="554"><span class="w">    </span><span class="sd">"""Delete this cache's entries older than :data:`MAX_AGE`, once per process.</span>
+</span><span data-line="555">
+</span><span data-line="556"><span class="sd">    Judged by file modification time rather than the stored timestamp, so</span>
+</span><span data-line="557"><span class="sd">    pruning costs one directory scan instead of reading and parsing every</span>
+</span><span data-line="558"><span class="sd">    entry — which would make writes more expensive the more the cache holds,</span>
+</span><span data-line="559"><span class="sd">    the opposite of what a cache is for.</span>
+</span><span data-line="560"><span class="sd">    """</span>
+</span><span data-line="561">    <span class="k">if</span> <span class="n">_PRUNED</span><span class="p">:</span>
+</span><span data-line="562">        <span class="k">return</span>
+</span><span data-line="563">    <span class="n">_PRUNED</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="564">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="565">        <span class="n">entries</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">directory</span><span class="o">.</span><span class="n">iterdir</span><span class="p">())</span>
+</span><span data-line="566">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+</span><span data-line="567">        <span class="k">return</span>
+</span><span data-line="568">    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+</span><span data-line="569">        <span class="k">if</span> <span class="n">_expired</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">at</span><span class="p">):</span>
+</span><span data-line="570">            <span class="k">with</span> <span class="n">suppress</span><span class="p">(</span><span class="ne">OSError</span><span class="p">):</span>
+</span><span data-line="571">                <span class="n">entry</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="572">
 </span><span data-line="573">
-</span><span data-line="574"><span class="sd">    A read-only home directory, a full disk, or a missing permission is not a</span>
-</span><span data-line="575"><span class="sd">    reason to fail a command that already has its answer; the next run simply</span>
-</span><span data-line="576"><span class="sd">    fetches again.</span>
-</span><span data-line="577"><span class="sd">    """</span>
-</span><span data-line="578">    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
-</span><span data-line="579">        <span class="k">return</span>
-</span><span data-line="580">    <span class="n">directory</span> <span class="o">=</span> <span class="n">entries_directory</span><span class="p">()</span>
-</span><span data-line="581">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="582">        <span class="n">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
-</span><span data-line="583">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-</span><span data-line="584">        <span class="k">return</span>
-</span><span data-line="585">    <span class="n">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">now</span><span class="p">())</span>
-</span><span data-line="586">
-</span><span data-line="587">
+</span><span data-line="574"><span class="k">def</span><span class="w"> </span><span class="nf">_write</span><span class="p">(</span><span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="575"><span class="w">    </span><span class="sd">"""Store one entry, unless the cache is off or cannot be written.</span>
+</span><span data-line="576">
+</span><span data-line="577"><span class="sd">    The ``enabled`` check belongs here rather than only in :func:`load`: the</span>
+</span><span data-line="578"><span class="sd">    setting says whether the cache is used *at all*, so honouring it on the</span>
+</span><span data-line="579"><span class="sd">    read side alone would still leave files on disk for a caller that asked</span>
+</span><span data-line="580"><span class="sd">    for none. This is the single funnel for both :func:`store` and</span>
+</span><span data-line="581"><span class="sd">    :func:`touch`, so one guard covers every write.</span>
+</span><span data-line="582">
+</span><span data-line="583"><span class="sd">    A read-only home directory, a full disk, or a missing permission is not a</span>
+</span><span data-line="584"><span class="sd">    reason to fail a command that already has its answer; the next run simply</span>
+</span><span data-line="585"><span class="sd">    fetches again.</span>
+</span><span data-line="586"><span class="sd">    """</span>
+</span><span data-line="587">    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
+</span><span data-line="588">        <span class="k">return</span>
+</span><span data-line="589">    <span class="n">directory</span> <span class="o">=</span> <span class="n">entries_directory</span><span class="p">()</span>
+</span><span data-line="590">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="591">        <span class="n">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
+</span><span data-line="592">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+</span><span data-line="593">        <span class="k">return</span>
+</span><span data-line="594">    <span class="n">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">now</span><span class="p">())</span>
+</span><span data-line="595">
+</span><span data-line="596">
 <div class="viewcode-block" id="store">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.store">[docs]</a>
-</span><span data-line="588"><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span>
-</span><span data-line="589">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
-</span><span data-line="590"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="591"><span class="w">    </span><span class="sd">"""Store one successful response.</span>
-</span><span data-line="592">
-</span><span data-line="593"><span class="sd">    Args:</span>
-</span><span data-line="594"><span class="sd">        key: The cache key.</span>
-</span><span data-line="595"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
-</span><span data-line="596"><span class="sd">        status: The response status.</span>
-</span><span data-line="597"><span class="sd">        body: The decoded response body.</span>
-</span><span data-line="598"><span class="sd">        headers: Response headers; only an allowlist is kept.</span>
-</span><span data-line="599"><span class="sd">    """</span>
-</span><span data-line="600">    <span class="n">_write</span><span class="p">(</span>
-</span><span data-line="601">        <span class="n">key</span><span class="p">,</span>
-</span><span data-line="602">        <span class="p">{</span>
-</span><span data-line="603">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">),</span>
-</span><span data-line="604">            <span class="s2">"status"</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
-</span><span data-line="605">            <span class="s2">"body"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
-</span><span data-line="606">            <span class="s2">"headers"</span><span class="p">:</span> <span class="n">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span>
-</span><span data-line="607">            <span class="s2">"at"</span><span class="p">:</span> <span class="n">now</span><span class="p">(),</span>
-</span><span data-line="608">        <span class="p">},</span>
-</span><span data-line="609">    <span class="p">)</span></div>
+</span><span data-line="597"><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span>
+</span><span data-line="598">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</span><span data-line="599"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="600"><span class="w">    </span><span class="sd">"""Store one successful response.</span>
+</span><span data-line="601">
+</span><span data-line="602"><span class="sd">    Args:</span>
+</span><span data-line="603"><span class="sd">        key: The cache key.</span>
+</span><span data-line="604"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
+</span><span data-line="605"><span class="sd">        status: The response status.</span>
+</span><span data-line="606"><span class="sd">        body: The decoded response body.</span>
+</span><span data-line="607"><span class="sd">        headers: Response headers; only an allowlist is kept.</span>
+</span><span data-line="608"><span class="sd">    """</span>
+</span><span data-line="609">    <span class="n">_write</span><span class="p">(</span>
+</span><span data-line="610">        <span class="n">key</span><span class="p">,</span>
+</span><span data-line="611">        <span class="p">{</span>
+</span><span data-line="612">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">),</span>
+</span><span data-line="613">            <span class="s2">"status"</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+</span><span data-line="614">            <span class="s2">"body"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
+</span><span data-line="615">            <span class="s2">"headers"</span><span class="p">:</span> <span class="n">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span>
+</span><span data-line="616">            <span class="s2">"at"</span><span class="p">:</span> <span class="n">now</span><span class="p">(),</span>
+</span><span data-line="617">        <span class="p">},</span>
+</span><span data-line="618">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
