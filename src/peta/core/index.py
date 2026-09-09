@@ -142,19 +142,36 @@ def _validate_file(value: object, index: int) -> IndexFile:
     return result
 
 
+def _versions_from_files(files: list[IndexFile]) -> list[str]:
+    """Derive unique version strings from filenames (API 1.0 fallback).
+
+    Returns:
+        De-duplicated version strings extracted from distribution filenames.
+    """
+    seen: dict[Version, str] = {}
+    for f in files:
+        parsed = _version_from_filename(f["filename"])
+        if parsed is not None and parsed not in seen:
+            seen[parsed] = str(parsed)
+    return list(seen.values())
+
+
 def _validate_response(body: object) -> ProjectPage:
     root = expect_mapping(body, source=_SOURCE, path="$")
     name = expect_string(root.get("name"), source=_SOURCE, path="$.name")
-    raw_versions = expect_list(root.get("versions"), source=_SOURCE, path="$.versions")
-    versions: list[str] = [
-        expect_string(v, source=_SOURCE, path=f"$.versions[{i}]")
-        for i, v in enumerate(raw_versions)
-    ]
     raw_files = root.get("files")
     files: list[IndexFile] = []
     if raw_files is not None:
         for i, f in enumerate(expect_list(raw_files, source=_SOURCE, path="$.files")):
             files.append(_validate_file(f, i))
+    if "versions" in root:
+        validated = expect_list(root["versions"], source=_SOURCE, path="$.versions")
+        versions: list[str] = [
+            expect_string(v, source=_SOURCE, path=f"$.versions[{i}]")
+            for i, v in enumerate(validated)
+        ]
+    else:
+        versions = _versions_from_files(files)
     return ProjectPage(name=name, versions=versions, files=files)
 
 
@@ -168,12 +185,18 @@ def _version_from_filename(filename: str) -> Version | None:
         with contextlib.suppress(InvalidWheelFilename):
             _, version, _, _ = parse_wheel_filename(filename)
             return version
-        return None
-    if filename.endswith((".tar.gz", ".zip")):
+    elif filename.endswith((".tar.gz", ".zip")):
         with contextlib.suppress(InvalidSdistFilename):
             _, version = parse_sdist_filename(filename)
             return version
-        return None
+    else:
+        for suffix in (".tar.bz2", ".tar.xz", ".tgz", ".tar"):
+            if filename.endswith(suffix):
+                with contextlib.suppress(InvalidSdistFilename):
+                    _, version = parse_sdist_filename(
+                        filename[: -len(suffix)] + ".tar.gz"
+                    )
+                    return version
     return None
 
 

@@ -85,8 +85,40 @@ def test_non_dict_root_raises_network_error(fake_http: FakeTransport) -> None:
         _ = get_versions("pkg")
 
 
-def test_missing_versions_raises_network_error(fake_http: FakeTransport) -> None:
+def test_missing_versions_derives_from_files(fake_http: FakeTransport) -> None:
+    """API 1.0 responses omit ``versions``; derive them from filenames."""
+    fake_http.reply(
+        json={
+            "name": "pkg",
+            "files": [
+                {
+                    "filename": "pkg-2.0.0.tar.gz",
+                    "url": "https://example.invalid/pkg-2.0.0.tar.gz",
+                    "hashes": {},
+                    "upload-time": "2021-06-01T00:00:00Z",
+                },
+                {
+                    "filename": "pkg-1.0.0-py3-none-any.whl",
+                    "url": "https://example.invalid/pkg-1.0.0-py3-none-any.whl",
+                    "hashes": {},
+                    "upload-time": "2020-01-01T00:00:00Z",
+                },
+            ],
+        }
+    )
+    result, _ = get_versions("pkg")
+    assert [r["version"] for r in result] == ["2.0.0", "1.0.0"]
+    assert result[0]["upload_time"] == "2021-06-01"
+
+
+def test_missing_versions_and_no_files_returns_empty(fake_http: FakeTransport) -> None:
     fake_http.reply(json={"name": "pkg"})
+    result, _ = get_versions("pkg")
+    assert result == []
+
+
+def test_null_versions_raises_network_error(fake_http: FakeTransport) -> None:
+    fake_http.reply(json={"name": "pkg", "versions": None})
     with pytest.raises(NetworkError, match="malformed response from Simple API"):
         _ = get_versions("pkg")
 
@@ -277,13 +309,33 @@ def test_file_non_string_hash_value_raises_network_error(
         _ = get_versions("pkg")
 
 
-def test_unrecognized_extension_omits_upload_time(fake_http: FakeTransport) -> None:
+def test_legacy_archive_extension_resolves_upload_time(
+    fake_http: FakeTransport,
+) -> None:
+    """Legacy sdist extensions (.tar.bz2, .tar.xz, .tgz, .tar) are parsed."""
     payload = _simple_page(
         ["1.0.0"],
         [
             {
                 "filename": "pkg-1.0.0.tar.bz2",
                 "url": "https://example.invalid/pkg-1.0.0.tar.bz2",
+                "hashes": {},
+                "upload-time": "2020-01-01T00:00:00Z",
+            }
+        ],
+    )
+    fake_http.reply(json=payload)
+    result, _ = get_versions("pkg")
+    assert result == [{"version": "1.0.0", "upload_time": "2020-01-01"}]
+
+
+def test_unrecognized_extension_omits_upload_time(fake_http: FakeTransport) -> None:
+    payload = _simple_page(
+        ["1.0.0"],
+        [
+            {
+                "filename": "pkg-1.0.0.egg",
+                "url": "https://example.invalid/pkg-1.0.0.egg",
                 "hashes": {},
                 "upload-time": "2020-01-01T00:00:00Z",
             }
