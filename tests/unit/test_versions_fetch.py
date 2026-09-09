@@ -85,10 +85,36 @@ def test_non_dict_root_raises_network_error(fake_http: FakeTransport) -> None:
         _ = get_versions("pkg")
 
 
-def test_missing_versions_raises_network_error(fake_http: FakeTransport) -> None:
+def test_missing_versions_derives_from_files(fake_http: FakeTransport) -> None:
+    """API 1.0 responses omit ``versions``; derive them from filenames."""
+    fake_http.reply(
+        json={
+            "name": "pkg",
+            "files": [
+                {
+                    "filename": "pkg-2.0.0.tar.gz",
+                    "url": "https://example.invalid/pkg-2.0.0.tar.gz",
+                    "hashes": {},
+                    "upload-time": "2021-06-01T00:00:00Z",
+                },
+                {
+                    "filename": "pkg-1.0.0-py3-none-any.whl",
+                    "url": "https://example.invalid/pkg-1.0.0-py3-none-any.whl",
+                    "hashes": {},
+                    "upload-time": "2020-01-01T00:00:00Z",
+                },
+            ],
+        }
+    )
+    result, _ = get_versions("pkg")
+    assert [r["version"] for r in result] == ["2.0.0", "1.0.0"]
+    assert result[0]["upload_time"] == "2021-06-01"
+
+
+def test_missing_versions_and_no_files_returns_empty(fake_http: FakeTransport) -> None:
     fake_http.reply(json={"name": "pkg"})
-    with pytest.raises(NetworkError, match="malformed response from Simple API"):
-        _ = get_versions("pkg")
+    result, _ = get_versions("pkg")
+    assert result == []
 
 
 def test_missing_name_raises_network_error(fake_http: FakeTransport) -> None:

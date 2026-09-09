@@ -142,19 +142,37 @@ def _validate_file(value: object, index: int) -> IndexFile:
     return result
 
 
+def _versions_from_files(files: list[IndexFile]) -> list[str]:
+    """Derive unique version strings from filenames (API 1.0 fallback).
+
+    Returns:
+        De-duplicated version strings extracted from distribution filenames.
+    """
+    seen: dict[Version, str] = {}
+    for f in files:
+        parsed = _version_from_filename(f["filename"])
+        if parsed is not None and parsed not in seen:
+            seen[parsed] = str(parsed)
+    return list(seen.values())
+
+
 def _validate_response(body: object) -> ProjectPage:
     root = expect_mapping(body, source=_SOURCE, path="$")
     name = expect_string(root.get("name"), source=_SOURCE, path="$.name")
-    raw_versions = expect_list(root.get("versions"), source=_SOURCE, path="$.versions")
-    versions: list[str] = [
-        expect_string(v, source=_SOURCE, path=f"$.versions[{i}]")
-        for i, v in enumerate(raw_versions)
-    ]
     raw_files = root.get("files")
     files: list[IndexFile] = []
     if raw_files is not None:
         for i, f in enumerate(expect_list(raw_files, source=_SOURCE, path="$.files")):
             files.append(_validate_file(f, i))
+    raw_versions = root.get("versions")
+    if raw_versions is not None:
+        validated = expect_list(raw_versions, source=_SOURCE, path="$.versions")
+        versions: list[str] = [
+            expect_string(v, source=_SOURCE, path=f"$.versions[{i}]")
+            for i, v in enumerate(validated)
+        ]
+    else:
+        versions = _versions_from_files(files)
     return ProjectPage(name=name, versions=versions, files=files)
 
 
