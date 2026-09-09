@@ -1,0 +1,19 @@
+{
+  "meta": {"api-version": "1.1"},
+  "name": "example-package",
+  "versions": ["1.2.3"],
+  "files": [
+    {
+      "filename": "example_package-1.2.3-py3-none-any.whl",
+      "url": "https://files.pythonhosted.org/packages/example_package-1.2.3-py3-none-any.whl#sha256=abc123",
+      "hashes": {"sha256": "abc123"},
+      "requires-python": ">=3.10",
+      "yanked": false,
+      "size": 12345,
+      "upload-time": "2026-01-02T03:04:05.000000Z",
+      "core-metadata": {"sha256": "def456"},
+      "future-file-field": true
+    }
+  ],
+  "future-top-level-field": true
+}
