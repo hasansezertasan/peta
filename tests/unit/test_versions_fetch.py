@@ -309,13 +309,33 @@ def test_file_non_string_hash_value_raises_network_error(
         _ = get_versions("pkg")
 
 
-def test_unrecognized_extension_omits_upload_time(fake_http: FakeTransport) -> None:
+def test_legacy_archive_extension_resolves_upload_time(
+    fake_http: FakeTransport,
+) -> None:
+    """Legacy sdist extensions (.tar.bz2, .tar.xz, .tgz, .tar) are parsed."""
     payload = _simple_page(
         ["1.0.0"],
         [
             {
                 "filename": "pkg-1.0.0.tar.bz2",
                 "url": "https://example.invalid/pkg-1.0.0.tar.bz2",
+                "hashes": {},
+                "upload-time": "2020-01-01T00:00:00Z",
+            }
+        ],
+    )
+    fake_http.reply(json=payload)
+    result, _ = get_versions("pkg")
+    assert result == [{"version": "1.0.0", "upload_time": "2020-01-01"}]
+
+
+def test_unrecognized_extension_omits_upload_time(fake_http: FakeTransport) -> None:
+    payload = _simple_page(
+        ["1.0.0"],
+        [
+            {
+                "filename": "pkg-1.0.0.egg",
+                "url": "https://example.invalid/pkg-1.0.0.egg",
                 "hashes": {},
                 "upload-time": "2020-01-01T00:00:00Z",
             }

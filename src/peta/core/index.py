@@ -185,12 +185,18 @@ def _version_from_filename(filename: str) -> Version | None:
         with contextlib.suppress(InvalidWheelFilename):
             _, version, _, _ = parse_wheel_filename(filename)
             return version
-        return None
-    if filename.endswith((".tar.gz", ".zip")):
+    elif filename.endswith((".tar.gz", ".zip")):
         with contextlib.suppress(InvalidSdistFilename):
             _, version = parse_sdist_filename(filename)
             return version
-        return None
+    else:
+        for suffix in (".tar.bz2", ".tar.xz", ".tgz", ".tar"):
+            if filename.endswith(suffix):
+                with contextlib.suppress(InvalidSdistFilename):
+                    _, version = parse_sdist_filename(
+                        filename[: -len(suffix)] + ".tar.gz"
+                    )
+                    return version
     return None
 
 
