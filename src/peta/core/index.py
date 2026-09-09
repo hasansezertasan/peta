@@ -164,9 +164,8 @@ def _validate_response(body: object) -> ProjectPage:
     if raw_files is not None:
         for i, f in enumerate(expect_list(raw_files, source=_SOURCE, path="$.files")):
             files.append(_validate_file(f, i))
-    raw_versions = root.get("versions")
-    if raw_versions is not None:
-        validated = expect_list(raw_versions, source=_SOURCE, path="$.versions")
+    if "versions" in root:
+        validated = expect_list(root["versions"], source=_SOURCE, path="$.versions")
         versions: list[str] = [
             expect_string(v, source=_SOURCE, path=f"$.versions[{i}]")
             for i, v in enumerate(validated)

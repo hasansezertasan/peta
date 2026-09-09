@@ -117,6 +117,12 @@ def test_missing_versions_and_no_files_returns_empty(fake_http: FakeTransport) -
     assert result == []
 
 
+def test_null_versions_raises_network_error(fake_http: FakeTransport) -> None:
+    fake_http.reply(json={"name": "pkg", "versions": None})
+    with pytest.raises(NetworkError, match="malformed response from Simple API"):
+        _ = get_versions("pkg")
+
+
 def test_missing_name_raises_network_error(fake_http: FakeTransport) -> None:
     fake_http.reply(json={"versions": []})
     with pytest.raises(NetworkError, match="malformed response from Simple API"):
