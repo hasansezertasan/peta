@@ -6,6 +6,7 @@ PyPI JSON API and prints it with Rich formatting. Use ``--format`` with
 ``rich``, ``text``, ``json``, or ``markdown`` on any command. ``--json`` remains
 an alias for ``--format json``.
 
+<<<<<<< before updating
 Commands
 --------
 
@@ -14,6 +15,22 @@ always reflects the installed version of ``peta``. A bare ``peta <package>`` is
 shorthand for ``peta info <package>``.
 
 .. peta-cli::
+=======
+Look up the installed distribution version:
+
+.. literalinclude:: examples/version_lookup.py
+   :language: python
+   :caption: examples/version_lookup.py
+
+For short interactive snippets embedded in prose, the ``docs-doctest`` task
+executes ``>>>`` blocks too:
+
+.. doctest::
+
+   >>> from peta.__metadata__ import PROJECT_NAME
+   >>> PROJECT_NAME
+   'peta'
+>>>>>>> after updating
 
 Color
 -----

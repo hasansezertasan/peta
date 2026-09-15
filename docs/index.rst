@@ -9,11 +9,21 @@ Human-friendly Python package metadata viewer
 
    installation
    usage
+<<<<<<< before updating
    output-contract
    configuration
    architecture
+=======
+   cli-reference
+>>>>>>> after updating
    modules
    research-tooling-landscape
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Maintainer guide
+
+   maintaining/setup
 
 Indices and tables
 ==================
