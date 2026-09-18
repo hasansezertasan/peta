@@ -193,13 +193,16 @@ reported, with an empty <code class="docutils literal notranslate"><span class="
 the evidence, which is a different answer from <code class="docutils literal notranslate"><span class="pre">false</span></code>. <code class="docutils literal notranslate"><span class="pre">provenance.available</span></code>
 reports whether the index exposes a PEP 740 document, and <code class="docutils literal notranslate"><span class="pre">provenance.publisher</span></code>
 is the Trusted Publisher identity PyPI supplied — both are reports of published
-evidence, never verification results, and their absence is not a failure. A
-publisher names its <code class="docutils literal notranslate"><span class="pre">kind</span></code> plus a <code class="docutils literal notranslate"><span class="pre">claims</span></code> object carrying that kind’s own
-fields verbatim, since each publisher kind describes itself differently. With
-<code class="docutils literal notranslate"><span class="pre">--provenance</span></code>, a second <code class="docutils literal notranslate"><span class="pre">pypi-provenance</span></code> source record names the exact
-<code class="docutils literal notranslate"><span class="pre">result.files[i].provenance.publisher</span></code> paths it filled; any failed lookup
-leaves that record <code class="docutils literal notranslate"><span class="pre">failed</span></code> even when other files resolved, warns, and makes
-the envelope <code class="docutils literal notranslate"><span class="pre">partial</span></code> rather than discarding the artifact listing.</p>
+evidence, never verification results, and their absence is not a failure. <code class="docutils literal notranslate"><span class="pre">provenance.publishers</span></code> is an
+array because PEP 740 permits one attestation bundle per publisher, and each
+entry names its <code class="docutils literal notranslate"><span class="pre">kind</span></code> plus a <code class="docutils literal notranslate"><span class="pre">claims</span></code> object carrying that kind’s own fields
+verbatim, since each publisher kind describes itself differently. With
+<code class="docutils literal notranslate"><span class="pre">--provenance</span></code>, <code class="docutils literal notranslate"><span class="pre">pypi-provenance</span></code> source records name the exact
+<code class="docutils literal notranslate"><span class="pre">result.files[i].provenance.publishers</span></code> paths the lookup reached; completed
+lookups and failed ones are separate records, because one <code class="docutils literal notranslate"><span class="pre">state</span></code> cannot
+describe both and a consumer must be able to tell a path PyPI supplied nothing
+for from a path peta could not reach. A failure also warns and makes the
+envelope <code class="docutils literal notranslate"><span class="pre">partial</span></code> rather than discarding the artifact listing.</p>
 <p>Source names identify the provider, not the lookup strategy: packages read from
 the installed environment are <code class="docutils literal notranslate"><span class="pre">local</span></code> and packages read from PyPI are <code class="docutils literal notranslate"><span class="pre">pypi</span></code>,
 matching the names used by <code class="docutils literal notranslate"><span class="pre">versions</span></code> and by network failures. The legacy

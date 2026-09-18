@@ -154,7 +154,8 @@ that is not a wheel is decided by ``Requires-Python`` alone, which says a
 source distribution may be *built*, not that building it will succeed.
 ``--python 3.12`` evaluates against that interpreter version on this machine's
 platform, so the question answered is "can I install this here under that
-Python".
+Python", and it accepts exactly the tags the running-interpreter path would —
+naming your own version explicitly never narrows the answer.
 
 A verdict of ``unknown`` is deliberately distinct from ``no``: it means peta
 could not read the evidence — an unparsable ``Requires-Python``, say — not
@@ -162,7 +163,8 @@ that the file was ruled out. peta reports "no file is compatible" only when
 every file was actually ruled out, never when it simply could not tell.
 
 A ``name==version`` that the index does not list exits ``1`` like any other
-missing target. A version that *is* listed but ships no files is a real
+missing target, reported as a missing *release* rather than a missing package,
+since the project can exist while that release does not. A version that *is* listed but ships no files is a real
 release with an empty file list, and exits ``0``.
 
 .. list-table::

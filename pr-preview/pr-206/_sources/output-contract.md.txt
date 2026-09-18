@@ -82,13 +82,16 @@ reported, with an empty `fields` array because no result path identifies it.
 the evidence, which is a different answer from `false`. `provenance.available`
 reports whether the index exposes a PEP 740 document, and `provenance.publisher`
 is the Trusted Publisher identity PyPI supplied — both are reports of published
-evidence, never verification results, and their absence is not a failure. A
-publisher names its `kind` plus a `claims` object carrying that kind's own
-fields verbatim, since each publisher kind describes itself differently. With
-`--provenance`, a second `pypi-provenance` source record names the exact
-`result.files[i].provenance.publisher` paths it filled; any failed lookup
-leaves that record `failed` even when other files resolved, warns, and makes
-the envelope `partial` rather than discarding the artifact listing.
+evidence, never verification results, and their absence is not a failure. `provenance.publishers` is an
+array because PEP 740 permits one attestation bundle per publisher, and each
+entry names its `kind` plus a `claims` object carrying that kind's own fields
+verbatim, since each publisher kind describes itself differently. With
+`--provenance`, `pypi-provenance` source records name the exact
+`result.files[i].provenance.publishers` paths the lookup reached; completed
+lookups and failed ones are separate records, because one `state` cannot
+describe both and a consumer must be able to tell a path PyPI supplied nothing
+for from a path peta could not reach. A failure also warns and makes the
+envelope `partial` rather than discarding the artifact listing.
 
 Source names identify the provider, not the lookup strategy: packages read from
 the installed environment are `local` and packages read from PyPI are `pypi`,
