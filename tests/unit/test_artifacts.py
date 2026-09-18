@@ -117,7 +117,20 @@ class TestCompatibility:
         assert parse_target("3.13").version == "3.13"
 
     @pytest.mark.parametrize(
-        "value", ["3", "x.y", "", "3.13.", "3.13.bad", "3.13.4.5", "3..1"]
+        "value",
+        # "3.¹³" and "3.١٣" are ``str.isdigit()`` true but ``int()`` refuses
+        # them, so a digit check alone lets them through to a crash.
+        [
+            "3",
+            "x.y",
+            "",
+            "3.13.",
+            "3.13.bad",
+            "3.13.4.5",
+            "3..1",
+            "3.\u00b9\u00b3",
+            "3.\u0661\u0663",
+        ],
     )
     def test_parse_target_rejects_nonsense(self, value: str) -> None:
         with pytest.raises(ValueError, match="Invalid Python version"):

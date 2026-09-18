@@ -148,7 +148,12 @@ def parse_target(python: str | None) -> Target:
     # ``3.13.bad`` otherwise parses far enough to build a target, and then
     # answers every ``Requires-Python`` question with a silent ``False``
     # — a confident wrong answer, which is worse than the rejection here.
-    if len(parts) not in {2, 3} or not all(part.isdigit() for part in parts):
+    # ``isascii`` as well as ``isdigit``: the latter accepts superscripts and
+    # other numeric scripts that ``int`` then refuses, so "3.¹³" would pass
+    # validation and crash building the tag set.
+    if len(parts) not in {2, 3} or not all(
+        part.isascii() and part.isdigit() for part in parts
+    ):
         msg = f"Invalid Python version {python!r}; expected MAJOR.MINOR."
         raise ValueError(msg)
     return Target(python)
@@ -253,6 +258,14 @@ class ReleaseArtifacts:
     files: list[ArtifactFile]
     publisher_failures: tuple[PublisherFailure, ...] = ()
     """Files whose provenance lookup failed, so a gap is never read as absence."""
+    publisher_lookups: tuple[str, ...] = ()
+    """Files whose provenance lookup completed, whether or not it found one.
+
+    Kept separately from :attr:`publisher_failures` because "PyPI was asked and
+    supplies no publisher" and "peta never got an answer" are different facts,
+    and a file that produced no publisher is otherwise indistinguishable from
+    one that was never reached.
+    """
     publisher_retrieval: Provenance | None = None
     """Where the publisher evidence came from, when any lookup completed."""
 
@@ -546,7 +559,7 @@ def _publisher_for(file: ArtifactFile) -> _Lookup:
 
 
 _FRESHNESS_ORDER = {"live": 0, "revalidated": 1, "cached": 2}
-"""How to collapse many retrievals into one, most-recently-contacted first."""
+"""How directly each freshness value was answered by the source."""
 
 
 def _merged_retrieval(lookups: list[_Lookup]) -> Provenance | None:
@@ -568,22 +581,31 @@ def _merged_retrieval(lookups: list[_Lookup]) -> Provenance | None:
     return Provenance(freshest.freshness, min(item.retrieved_at for item in completed))
 
 
-def _with_publishers(
-    files: list[ArtifactFile],
-) -> tuple[list[ArtifactFile], tuple[PublisherFailure, ...], Provenance | None]:
+@dataclass(frozen=True)
+class _Outcome:
+    """What asking for a whole release's publishers produced."""
+
+    files: list[ArtifactFile]
+    failures: tuple[PublisherFailure, ...]
+    reached: tuple[str, ...]
+    retrieval: Provenance | None
+
+
+def _with_publishers(files: list[ArtifactFile]) -> _Outcome:
     """Attach each file's Trusted Publisher identities, fetched concurrently.
 
     Returns:
-        The files with publishers filled in, one record per failed lookup, and
-        where the completed lookups came from.
+        The files with publishers filled in, one record per failed lookup, the
+        files actually reached, and where the completed lookups came from.
     """
     lookups = gather([partial(_publisher_for, file) for file in files])
-    updated = [
-        replace(file, publishers=lookup.publishers)
-        for file, lookup in zip(files, lookups, strict=True)
-    ]
-    failures = tuple(lookup.failure for lookup in lookups if lookup.failure)
-    return updated, failures, _merged_retrieval(lookups)
+    pairs = list(zip(files, lookups, strict=True))
+    return _Outcome(
+        files=[replace(f, publishers=lookup.publishers) for f, lookup in pairs],
+        failures=tuple(lookup.failure for _, lookup in pairs if lookup.failure),
+        reached=tuple(f.filename for f, lookup in pairs if lookup.retrieval),
+        retrieval=_merged_retrieval(lookups),
+    )
 
 
 def get_release(
@@ -619,16 +641,14 @@ def get_release(
     selected = version or latest_version(page["versions"])
     evaluated = target or Target()
     files = [_artifact(entry, evaluated) for entry in files_for_version(page, selected)]
-    failures: tuple[PublisherFailure, ...] = ()
-    retrieval: Provenance | None = None
-    if publishers:
-        files, failures, retrieval = _with_publishers(files)
+    outcome = _with_publishers(files) if publishers else None
     release = ReleaseArtifacts(
         name=page["name"],
         version=selected,
         target=evaluated,
-        files=files,
-        publisher_failures=failures,
-        publisher_retrieval=retrieval,
+        files=outcome.files if outcome else files,
+        publisher_failures=outcome.failures if outcome else (),
+        publisher_lookups=outcome.reached if outcome else (),
+        publisher_retrieval=outcome.retrieval if outcome else None,
     )
     return release, provenance

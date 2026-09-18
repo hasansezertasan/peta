@@ -628,6 +628,7 @@ def _artifacts_result(release: ReleaseArtifacts) -> dict[str, object]:
             "sdists": len(release.sdists),
             "compatible": len(release.compatible),
             "total_size": release.total_size,
+            "unsized_files": sum(f.size is None for f in release.files),
             "yanked": release.yanked,
             "with_provenance": len(release.with_provenance),
         },
@@ -636,24 +637,27 @@ def _artifacts_result(release: ReleaseArtifacts) -> dict[str, object]:
 
 
 def _publisher_paths(release: ReleaseArtifacts) -> tuple[list[str], list[str]]:
-    """Name the result paths publisher evidence did and did not reach.
+    """Name the result paths the publisher lookup did and did not reach.
+
+    A reached path counts whether or not PyPI supplied a publisher for it:
+    "asked, and there is none" is evidence, and folding it in with the paths
+    that were never answered would lose the distinction.
 
     Returns:
-        The paths a publisher was written to, and the paths a failed lookup
-        left empty.
+        The paths the lookup completed for, and the paths it failed on.
     """
     index_of = {file.filename: index for index, file in enumerate(release.files)}
-    filled = [
-        f"result.files[{index}].provenance.publishers"
-        for index, file in enumerate(release.files)
-        if file.publishers
-    ]
+
+    def path(filename: str) -> str:
+        return f"result.files[{index_of[filename]}].provenance.publishers"
+
+    reached = [path(name) for name in release.publisher_lookups if name in index_of]
     missed = [
-        f"result.files[{index_of[failure.filename]}].provenance.publishers"
+        path(failure.filename)
         for failure in release.publisher_failures
         if failure.filename in index_of
     ]
-    return filled, missed
+    return reached, missed
 
 
 def _publisher_sources(release: ReleaseArtifacts, timestamp: str) -> list[SourceRecord]:
@@ -661,26 +665,30 @@ def _publisher_sources(release: ReleaseArtifacts, timestamp: str) -> list[Source
 
     A completed lookup and a failed one are separate records, because one
     ``state`` cannot describe both and a consumer must be able to tell the
-    paths PyPI supplied nothing for from the paths peta could not reach.
+    paths PyPI supplied nothing for from the paths peta could not reach. The
+    completed record survives a sibling failure: a file that was reached and
+    genuinely has no publisher must not disappear because another file's
+    request fell over.
 
     Returns:
         One record for the completed lookups, one for the failed ones, or
         whichever of the two actually happened.
     """
-    filled, missed = _publisher_paths(release)
+    reached, missed = _publisher_paths(release)
     failures = release.publisher_failures
     retrieval = release.publisher_retrieval
     target = f"{release.name} {release.version}"
+    found = any(file.publishers for file in release.files)
     records: list[SourceRecord] = []
-    if filled or not failures:
+    if reached or not failures:
         records.append(
             SourceRecord(
                 name="pypi-provenance",
-                state="success" if filled else "empty",
+                state="success" if found else "empty",
                 target=target,
                 retrieved_at=retrieval.retrieved_at if retrieval else timestamp,
                 freshness=retrieval.freshness if retrieval else None,
-                fields=filled,
+                fields=reached,
             )
         )
     if failures:
@@ -689,7 +697,7 @@ def _publisher_sources(release: ReleaseArtifacts, timestamp: str) -> list[Source
                 name="pypi-provenance",
                 state="failed",
                 target=target,
-                reason=failures[0].description,
+                reason="; ".join(failure.description for failure in failures),
                 fields=missed,
             )
         )

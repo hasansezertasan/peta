@@ -85,12 +85,18 @@ is the Trusted Publisher identity PyPI supplied — both are reports of publishe
 evidence, never verification results, and their absence is not a failure. `provenance.publishers` is an
 array because PEP 740 permits one attestation bundle per publisher, and each
 entry names its `kind` plus a `claims` object carrying that kind's own fields
-verbatim, since each publisher kind describes itself differently. With
+verbatim, since each publisher kind describes itself differently. `summary.total_size` sums the sizes the
+index reported, so `summary.unsized_files` says how many files contributed
+none — any value above zero makes the total a lower bound. With
 `--provenance`, `pypi-provenance` source records name the exact
 `result.files[i].provenance.publishers` paths the lookup reached; completed
 lookups and failed ones are separate records, because one `state` cannot
 describe both and a consumer must be able to tell a path PyPI supplied nothing
-for from a path peta could not reach. A failure also warns and makes the
+for from a path peta could not reach. A reached path is listed whether or not
+PyPI supplied a publisher for it, and survives a sibling file's failure. Where
+the per-file retrievals mix live and cached answers, the record reports the
+stalest of them, so it never describes any part of the evidence as fresher
+than it is. A failure also warns and makes the
 envelope `partial` rather than discarding the artifact listing.
 
 Source names identify the provider, not the lookup strategy: packages read from

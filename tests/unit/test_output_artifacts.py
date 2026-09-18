@@ -256,6 +256,7 @@ class TestJson:
             "sdists": 0,
             "compatible": 1,
             "total_size": 1024,
+            "unsized_files": 0,
             "yanked": False,
             "with_provenance": 1,
         }
@@ -273,7 +274,11 @@ class TestJson:
         assert files[0]["incompatibility"] == "unreadable"
 
     def test_sources_attribute_publishers_field_by_field(self) -> None:
-        release = _release(_wheel(publishers=(Publisher(kind="GitHub"),)), _sdist())
+        release = _release(
+            _wheel(publishers=(Publisher(kind="GitHub"),)),
+            _sdist(),
+            publisher_lookups=("pkg-1.0-py3-none-any.whl",),
+        )
         data = self._envelope(release, publishers=True)
         sources = cast("list[dict[str, object]]", data["sources"])
         provenance = next(s for s in sources if s["name"] == "pypi-provenance")
@@ -293,6 +298,7 @@ class TestJson:
         release = _release(
             _wheel(publishers=(Publisher(kind="GitHub"),)),
             _sdist(),
+            publisher_lookups=("pkg-1.0-py3-none-any.whl",),
             publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),),
         )
         data = self._envelope(release, publishers=True)
@@ -304,6 +310,45 @@ class TestJson:
         ]
         assert records[1]["reason"] == "pkg-1.0.tar.gz: HTTP 503"
         assert "retrieved_at" not in records[1]
+
+    def test_a_reached_file_survives_a_sibling_failure(self) -> None:
+        # The wheel was asked about and genuinely has no publisher. That is
+        # evidence, and it must not vanish because the sdist's request fell
+        # over — otherwise it is indistinguishable from never being reached.
+        release = _release(
+            _wheel(),
+            _sdist(),
+            publisher_lookups=("pkg-1.0-py3-none-any.whl",),
+            publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),),
+        )
+        data = self._envelope(release, publishers=True)
+        sources = cast("list[dict[str, object]]", data["sources"])
+        records = [s for s in sources if s["name"] == "pypi-provenance"]
+        assert [(r["state"], r["fields"]) for r in records] == [
+            ("empty", ["result.files[0].provenance.publishers"]),
+            ("failed", ["result.files[1].provenance.publishers"]),
+        ]
+
+    def test_every_failure_reason_reaches_the_source_record(self) -> None:
+        release = _release(
+            publisher_failures=(
+                PublisherFailure("a.whl", "HTTP 503"),
+                PublisherFailure("b.whl", "timed out"),
+            )
+        )
+        data = self._envelope(release, publishers=True)
+        sources = cast("list[dict[str, object]]", data["sources"])
+        failed = next(s for s in sources if s["state"] == "failed")
+        assert failed["reason"] == "a.whl: HTTP 503; b.whl: timed out"
+
+    def test_an_incomplete_size_total_is_marked_in_json(self) -> None:
+        # The human view says "at least"; machine output needs the same fact.
+        data = self._envelope(_release(_wheel(size=1024), _sdist(size=None)))
+        summary = cast(
+            "dict[str, object]", cast("dict[str, object]", data["result"])["summary"]
+        )
+        assert summary["total_size"] == 1024
+        assert summary["unsized_files"] == 1
 
     def test_a_failed_publisher_lookup_is_a_partial_envelope(self) -> None:
         release = _release(
