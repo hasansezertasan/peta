@@ -350,7 +350,6 @@ class TestPublishers:
     @pytest.mark.parametrize(
         "body",
         [
-            {"version": 1},
             {"version": 1, "attestation_bundles": []},
             {"version": 1, "attestation_bundles": [{"attestations": []}]},
             {"version": 1, "attestation_bundles": [{"publisher": {}}]},
@@ -382,17 +381,54 @@ class TestPublishers:
         assert release is not None
         assert [p.kind for p in release.files[0].publishers] == ["GitHub", "GitLab"]
 
-    @pytest.mark.parametrize("bundles", [{}, False, "", 0])
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"attestation_bundles": {}},
+            {"attestation_bundles": False},
+            {"attestation_bundles": ""},
+            {"version": 1},
+        ],
+    )
     def test_a_malformed_bundle_collection_is_a_failure_not_an_absence(
-        self, fake_http: FakeTransport, bundles: object
+        self, fake_http: FakeTransport, body: dict[str, object]
     ) -> None:
-        # ``or []`` would have swallowed each of these into "PyPI supplies
-        # none", which is the conflation this command exists to prevent.
+        # PEP 740 makes the array required, so none of these states that no
+        # publisher exists — they state that the document cannot be read.
         fake_http.reply(url="/simple/", json=self._page_with_provenance())
-        fake_http.reply(url="/integrity/", json={"attestation_bundles": bundles})
+        fake_http.reply(url="/integrity/", json=body)
         release, _ = get_release("pkg", publishers=True)
         assert release is not None
         assert len(release.publisher_failures) == 1
+
+    def test_claims_are_read_from_both_shapes_the_pep_allows(
+        self, fake_http: FakeTransport
+    ) -> None:
+        """PyPI serves the identity at the top level; the PEP also nests it."""
+        fake_http.reply(url="/simple/", json=self._page_with_provenance())
+        fake_http.reply(
+            url="/integrity/",
+            json={
+                "attestation_bundles": [
+                    {
+                        "publisher": {
+                            "kind": "important-ci-service",
+                            "claims": {"ref": "refs/tags/v1", "sha": "abc"},
+                            "vendor-property": "foo",
+                            "another-property": 123,
+                        }
+                    }
+                ]
+            },
+        )
+        release, _ = get_release("pkg", publishers=True)
+        assert release is not None
+        (publisher,) = release.files[0].publishers
+        assert publisher.claims == {
+            "vendor-property": "foo",
+            "ref": "refs/tags/v1",
+            "sha": "abc",
+        }
 
     @pytest.mark.parametrize(
         ("status", "body"), [(503, None), (200, "not json"), (200, [])]

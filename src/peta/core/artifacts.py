@@ -462,34 +462,51 @@ def _publisher_in(bundle: object, index: int) -> Publisher | None:
     kind = optional_string(raw, "kind", source=_PROVENANCE_SOURCE, path=path)
     if kind is None:
         return None
+    return Publisher(kind=kind, claims=_claims_in(raw, path))
+
+
+def _claims_in(raw: dict[str, object], path: str) -> dict[str, str]:
+    """Collect a publisher's identifying claims from both shapes PEP 740 allows.
+
+    The PEP defines a nested ``claims`` object, but PyPI serves the identity as
+    top-level publisher keys — ``repository``, ``workflow``, ``environment`` —
+    and emits no ``claims`` at all. Reading only one shape would report a bare
+    ``kind`` against the other, so both are merged.
+
+    Returns:
+        Every claim the publisher object carries, nested ones last.
+    """
     claims = {
         key: value
         for key, value in raw.items()
-        if key != "kind" and isinstance(value, str)
+        if key not in {"kind", "claims"} and isinstance(value, str)
     }
-    return Publisher(kind=kind, claims=claims)
+    nested = raw.get("claims")
+    if nested is None:
+        return claims
+    validated = expect_mapping(nested, source=_PROVENANCE_SOURCE, path=f"{path}.claims")
+    return claims | {
+        key: value for key, value in validated.items() if isinstance(value, str)
+    }
 
 
 def _publishers_from(body: object) -> tuple[Publisher, ...]:
     """Read every attestation bundle's publisher from a provenance document.
 
-    A missing ``attestation_bundles`` key means the document supplies no
-    publisher. A key that is present but is not an array is malformed, and is
-    rejected rather than quietly treated as absence — the distinction this
-    command exists to keep.
-
-    A document that does not match PEP 740's shape raises, which
-    :func:`_publisher_for` turns into a reported failure.
+    PEP 740 makes ``attestation_bundles`` a required array, so a document
+    without one is malformed rather than a document stating that no publisher
+    exists. Anything that does not match the shape raises, which
+    :func:`_publisher_for` turns into a reported failure — never into a
+    silent absence, which is the distinction this command exists to keep.
 
     Returns:
         One publisher per bundle that names one, in document order.
     """
     root = expect_mapping(body, source=_PROVENANCE_SOURCE, path="$")
-    raw_bundles = root.get("attestation_bundles")
-    if raw_bundles is None:
-        return ()
     bundles = expect_list(
-        raw_bundles, source=_PROVENANCE_SOURCE, path="$.attestation_bundles"
+        root.get("attestation_bundles"),
+        source=_PROVENANCE_SOURCE,
+        path="$.attestation_bundles",
     )
     found = (_publisher_in(bundle, index) for index, bundle in enumerate(bundles))
     return tuple(publisher for publisher in found if publisher is not None)
