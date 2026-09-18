@@ -18,11 +18,13 @@ from peta.core.output import (
 if TYPE_CHECKING:
     from collections.abc import Container, Iterator
 
+    from peta.core.artifacts import ArtifactFile, Publisher, ReleaseArtifacts
     from peta.core.cache import Freshness
     from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
     from peta.core.output import CommandName, MessageCode
 
 __all__ = [
+    "format_artifacts",
     "format_compare",
     "format_dep_tree",
     "format_error",
@@ -564,6 +566,147 @@ def format_versions(
                 fields=["result.versions"],
             )
         ],
+        generated_at=timestamp,
+    )
+    return _dump(envelope.to_dict())
+
+
+def _publisher_dict(publisher: Publisher | None) -> dict[str, object] | None:
+    """Represent a Trusted Publisher identity, or its absence.
+
+    Returns:
+        The publisher's fields, or ``None`` when PyPI supplied none.
+    """
+    if publisher is None:
+        return None
+    return {"kind": publisher.kind, "claims": publisher.claims}
+
+
+def _artifact_dict(file: ArtifactFile) -> dict[str, object]:
+    """Represent one distribution file as structured data.
+
+    ``compatible`` is nullable on purpose: ``null`` means peta could not read
+    the evidence, which is not the same answer as ``false``. ``provenance``
+    likewise reports what the index exposed, never a verification result.
+
+    Returns:
+        The file's JSON mapping.
+    """
+    return {
+        "filename": file.filename,
+        "url": file.url,
+        "kind": file.kind,
+        "size": file.size,
+        "upload_time": file.upload_time,
+        "sha256": file.sha256,
+        "requires_python": file.requires_python,
+        "yanked": file.yanked,
+        "yanked_reason": file.yanked_reason,
+        "core_metadata": file.core_metadata,
+        "tags": list(file.tags),
+        "compatible": file.compatibility.compatible,
+        "incompatibility": file.compatibility.reason,
+        "provenance": {
+            "available": file.provenance_url is not None,
+            "url": file.provenance_url,
+            "publisher": _publisher_dict(file.publisher),
+        },
+    }
+
+
+def _artifacts_result(release: ReleaseArtifacts) -> dict[str, object]:
+    """Build the ``result`` payload for a release's artifacts.
+
+    Returns:
+        The release summary and its file list.
+    """
+    return {
+        "name": release.name,
+        "version": release.version,
+        "target": {"python": release.target.version},
+        "summary": {
+            "files": len(release.files),
+            "wheels": len(release.wheels),
+            "sdists": len(release.sdists),
+            "compatible": len(release.compatible),
+            "total_size": release.total_size,
+            "yanked": release.yanked,
+            "with_provenance": len(release.with_provenance),
+        },
+        "files": [_artifact_dict(file) for file in release.files],
+    }
+
+
+def _publisher_source(release: ReleaseArtifacts, timestamp: str) -> SourceRecord:
+    """Record what the PEP 740 provenance lookup produced, field by field.
+
+    Returns:
+        One source record naming every result path a publisher was written to.
+    """
+    fields = [
+        f"result.files[{index}].provenance.publisher"
+        for index, file in enumerate(release.files)
+        if file.publisher is not None
+    ]
+    failures = release.publisher_failures
+    # A failure outranks a partial success: a consumer keying off ``state``
+    # must not read "success" and then treat the publishers that are missing
+    # because a lookup failed as publishers PyPI does not supply.
+    state: SourceState = "failed" if failures else ("success" if fields else "empty")
+    return SourceRecord(
+        name="pypi-provenance",
+        state=state,
+        target=f"{release.name} {release.version}",
+        retrieved_at=None if failures else timestamp,
+        reason=failures[0] if failures else None,
+        fields=fields,
+    )
+
+
+def format_artifacts(
+    release: ReleaseArtifacts,
+    *,
+    arguments: dict[str, object] | None = None,
+    generated_at: str | None = None,
+    retrieved_at: str | None = None,
+    freshness: Freshness | None = None,
+    publishers: bool = False,
+) -> str:
+    """Format a release's artifacts in the versioned JSON envelope.
+
+    Returns:
+        An indented JSON string.
+    """
+    timestamp = generated_at or utc_now()
+    files = release.files
+    sources = [
+        SourceRecord(
+            name="pypi",
+            state="success" if files else "empty",
+            target=f"{release.name} {release.version}",
+            retrieved_at=retrieved_at or timestamp,
+            freshness=freshness,
+            fields=["result.files"],
+        )
+    ]
+    if publishers:
+        sources.append(_publisher_source(release, timestamp))
+    warnings = [
+        OutputMessage(
+            code="enrichment_failed", message=reason, source="pypi-provenance"
+        )
+        for reason in release.publisher_failures
+    ]
+    status: EnvelopeStatus = (
+        "partial" if warnings else ("success" if files else "empty")
+    )
+    envelope = make_envelope(
+        "artifacts",
+        arguments=arguments,
+        status=status,
+        result=_artifacts_result(release),
+        sources=sources,
+        warnings=warnings,
         generated_at=timestamp,
     )
     return _dump(envelope.to_dict())

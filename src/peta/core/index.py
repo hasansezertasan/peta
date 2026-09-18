@@ -39,7 +39,15 @@ from peta.core.validation import (
 if TYPE_CHECKING:
     from peta.core.cache import Provenance
 
-__all__ = ["PYPI_SIMPLE_URL", "IndexFile", "ProjectPage", "get_project_page"]
+__all__ = [
+    "PYPI_SIMPLE_URL",
+    "IndexFile",
+    "ProjectPage",
+    "files_for_version",
+    "get_project_page",
+    "is_published",
+    "latest_version",
+]
 
 PYPI_SIMPLE_URL = "https://pypi.org/simple"
 
@@ -249,6 +257,73 @@ def upload_times(page: ProjectPage) -> dict[str, str]:
         if date < earliest.get(version, "\xff"):
             earliest[version] = date
     return earliest
+
+
+def files_for_version(page: ProjectPage, version: str) -> list[IndexFile]:
+    """Select the page's files belonging to one release.
+
+    Matching goes through the parsed filename rather than a string prefix, so
+    ``1.0`` and ``1.0.0`` name the same release and ``foo-1.0.1.tar.gz`` is
+    never mistaken for a file of ``foo 1.0``.
+
+    The cost of that safety is that a file whose name no PEP 427/625 parser
+    reads — a legacy egg, or a ``.win32-py2.7.exe`` installer — carries no
+    version peta can trust and is left out. PyPI stopped accepting both
+    formats years ago, so this only narrows the view of pre-2015 releases;
+    widening it would mean guessing a version from a prefix, which is the
+    mistake this deliberately avoids.
+
+    Returns:
+        The release's files in page order; empty when the version is not a
+        PEP 440 version or published no files.
+    """
+    try:
+        wanted = Version(version)
+    except InvalidVersion:
+        return []
+    return [f for f in page["files"] if _version_from_filename(f["filename"]) == wanted]
+
+
+def is_published(page: ProjectPage, version: str) -> bool:
+    """Report whether the page lists a release at all.
+
+    Compared as parsed versions where possible, so ``1.0`` finds a page that
+    spells the same release ``1.0.0``. A release that is listed but has no
+    files is still published — PyPI keeps the version after every file is
+    deleted — so this is a different question from having artifacts.
+
+    Returns:
+        ``True`` when the index knows this version.
+    """
+    if version in page["versions"]:
+        return True
+    try:
+        wanted = Version(version)
+    except InvalidVersion:
+        return False
+    return wanted in _version_originals(page["versions"])
+
+
+def latest_version(versions: list[str]) -> str:
+    """Pick the newest release, preferring a final version over a prerelease.
+
+    A project whose newest published version is a release candidate should
+    still report its latest *release* by default, since that is what an
+    unpinned install would get.
+
+    Args:
+        versions: A non-empty version list, in any order.
+
+    Returns:
+        The newest final version, or the newest version overall when every
+        one of them is a prerelease.
+    """
+    ordered = sorted_versions(versions)
+    for candidate in ordered:
+        with contextlib.suppress(InvalidVersion):
+            if not Version(candidate).is_prerelease:
+                return candidate
+    return ordered[0]
 
 
 def sorted_versions(versions: list[str]) -> list[str]:

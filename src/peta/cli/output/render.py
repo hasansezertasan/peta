@@ -8,10 +8,12 @@ from peta.cli.output import json, markdown, tables, text
 from peta.cli.output.selection import OutputFormat
 
 if TYPE_CHECKING:
+    from peta.core.artifacts import ReleaseArtifacts
     from peta.core.cache import Freshness
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
+    "render_artifacts",
     "render_compare",
     "render_dep_tree",
     "render_files",
@@ -157,3 +159,34 @@ def render_versions(
     if output_format == OutputFormat.TEXT:
         return text.format_versions(package, versions)
     return tables.render_versions(package, versions, color=color)
+
+
+def render_artifacts(
+    output_format: OutputFormat,
+    release: ReleaseArtifacts,
+    *,
+    arguments: dict[str, object],
+    color: bool,
+    detailed: bool,
+    retrieved_at: str,
+    freshness: Freshness | None = None,
+    publishers: bool = False,
+) -> str:
+    """Render a release's artifacts in the selected format.
+
+    Returns:
+        The rendered output.
+    """
+    if output_format == OutputFormat.JSON:
+        return json.format_artifacts(
+            release,
+            arguments=arguments,
+            retrieved_at=retrieved_at,
+            freshness=freshness,
+            publishers=publishers,
+        )
+    if output_format == OutputFormat.MARKDOWN:
+        return markdown.format_artifacts(release, detailed=detailed)
+    if output_format == OutputFormat.TEXT:
+        return text.format_artifacts(release, detailed=detailed)
+    return tables.render_artifacts(release, color=color, detailed=detailed)

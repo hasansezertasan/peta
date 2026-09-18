@@ -30,6 +30,7 @@ or from PyPI — with clean, Rich-formatted terminal output.
 - **Dependency listing** — see a package's declared dependencies
 - **File listing** — list files installed by a local package
 - **Version listing** — browse published versions from PyPI
+- **Release artifacts** — wheels, sdists, digests, compatibility, and provenance
 - **Structured output** — Rich, plain text, versioned JSON, or Markdown
 
 ## Installation
@@ -70,6 +71,8 @@ peta deps flask               # recursive dependency tree
 peta deps flask --why certifi # why is certifi pulled in?
 peta files rich               # files installed locally
 peta versions httpx           # published versions on PyPI
+peta artifacts cryptography   # what the latest release ships
+peta artifacts numpy==2.3.0 --files --python 3.12
 peta compare requests httpx   # side-by-side metadata comparison
 peta requests --format json   # versioned machine-readable output
 peta requests --json          # compatibility alias for --format json
@@ -84,6 +87,9 @@ peta requests --json          # compatibility alias for --format json
 | `--local` / `-l` | info, compare, deps | force local lookup |
 | `--remote` / `-r` | info, compare, deps | force PyPI lookup |
 | `--limit` / `-n` | versions | max versions to show (default 20) |
+| `--python <x.y>` | artifacts | target Python version for compatibility (default: running) |
+| `--files` | artifacts | list every distribution file |
+| `--provenance` | artifacts | fetch PEP 740 provenance for publisher identity |
 | `--why <target>` | deps | show why `<target>` is a dependency |
 | `--depth <n>` | deps | max recursion depth (default 10) |
 | `--no-osv` | info, compare | skip OSV vulnerability lookup |

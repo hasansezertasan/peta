@@ -76,6 +76,20 @@ failure; the successfully resolved portion of the tree remains available. For
 `deps --why`, a failure on a branch that no returned path covers is still
 reported, with an empty `fields` array because no result path identifies it.
 
+`artifacts` represents a release's files as structured data under
+`result.files`, each with its digest, size, upload time, wheel tags, and a
+`provenance` object. `compatible` is nullable: `null` means peta could not read
+the evidence, which is a different answer from `false`. `provenance.available`
+reports whether the index exposes a PEP 740 document, and `provenance.publisher`
+is the Trusted Publisher identity PyPI supplied — both are reports of published
+evidence, never verification results, and their absence is not a failure. A
+publisher names its `kind` plus a `claims` object carrying that kind's own
+fields verbatim, since each publisher kind describes itself differently. With
+`--provenance`, a second `pypi-provenance` source record names the exact
+`result.files[i].provenance.publisher` paths it filled; any failed lookup
+leaves that record `failed` even when other files resolved, warns, and makes
+the envelope `partial` rather than discarding the artifact listing.
+
 Source names identify the provider, not the lookup strategy: packages read from
 the installed environment are `local` and packages read from PyPI are `pypi`,
 matching the names used by `versions` and by network failures. The legacy

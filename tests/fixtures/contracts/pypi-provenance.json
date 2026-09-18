@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "attestation_bundles": [
+    {
+      "publisher": {
+        "kind": "GitHub",
+        "repository": "example-org/example-package",
+        "workflow": "publish.yml",
+        "environment": "release",
+        "future-publisher-field": true
+      },
+      "attestations": [{"version": 1}]
+    }
+  ],
+  "future-top-level-field": true
+}

@@ -137,6 +137,57 @@ Pass ``--why <target>`` to show every chain of dependencies that pulls
 --why certifi``. If ``<target>`` is not present anywhere in the tree, ``peta``
 prints a message to stderr and exits with code 1.
 
+Release artifacts
+------------------
+
+``peta artifacts <package>`` answers what a release actually ships before you
+depend on it: which wheels and source distributions exist, how large they are,
+their SHA-256 digests and upload times, whether any of them is installable on
+your target, whether any are yanked, and what publication evidence PyPI
+exposes. Without a version it inspects the newest release, preferring a final
+version over a prerelease; ``name==version`` inspects that release instead.
+
+Compatibility is evaluated with packaging's own tag and specifier rules — the
+same ones an installer applies — not by matching substrings in filenames. A
+wheel fits when one of its platform tags is one the target accepts; anything
+that is not a wheel is decided by ``Requires-Python`` alone, which says a
+source distribution may be *built*, not that building it will succeed.
+``--python 3.12`` evaluates against that interpreter version on this machine's
+platform, so the question answered is "can I install this here under that
+Python".
+
+A verdict of ``unknown`` is deliberately distinct from ``no``: it means peta
+could not read the evidence — an unparsable ``Requires-Python``, say — not
+that the file was ruled out. peta reports "no file is compatible" only when
+every file was actually ruled out, never when it simply could not tell.
+
+A ``name==version`` that the index does not list exits ``1`` like any other
+missing target. A version that *is* listed but ships no files is a real
+release with an empty file list, and exits ``0``.
+
+.. list-table::
+   :header-rows: 1
+
+   * - Flag
+     - Effect
+   * - ``--python <x.y>``
+     - Judge compatibility against this Python version instead of the running
+       interpreter.
+   * - ``--files``
+     - List every distribution file, not just the summary. The Rich view
+       shortens digests to a recognizable prefix; ``--format text`` and JSON
+       carry them in full.
+   * - ``--provenance``
+     - Also fetch each file's `PEP 740 <https://peps.python.org/pep-0740/>`_
+       provenance document for its Trusted Publisher identity. Off by default
+       because it costs one extra request per file that has one.
+
+peta reports publication evidence; it does not verify it. A file with no
+provenance has not failed verification, and a Trusted Publisher identity is
+reported as PyPI supplied it, not as a checked cryptographic claim. A
+provenance lookup that fails is reported as a failure rather than silently
+read as an absence, and never fails the command.
+
 Resolution
 ----------
 
@@ -144,7 +195,8 @@ For ``info``, ``deps``, and ``compare``, ``peta`` checks the local
 environment first and falls back to PyPI. Force a source with
 ``--local``/``-l`` or ``--remote``/``-r``. A ``name==version`` argument is
 supported by ``info`` only and always queries PyPI (it cannot be combined
-with ``--local``). ``files`` is local-only; ``versions`` is PyPI-only.
+with ``--local``). ``files`` is local-only; ``versions`` and ``artifacts`` are
+PyPI-only.
 ``compare`` resolves and enriches both packages the same way ``info`` does,
 including the ``--no-osv``/``--no-stats`` flags.
 

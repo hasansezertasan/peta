@@ -4,10 +4,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.summary import file_flags, file_size, summary_rows, verdict
+
 if TYPE_CHECKING:
+    from peta.core.artifacts import ReleaseArtifacts
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
+    "format_artifacts",
     "format_compare",
     "format_dep_tree",
     "format_files",
@@ -169,3 +173,69 @@ def format_versions(name: str, versions: list[dict[str, str]]) -> str:
     lines = [f"Versions for {name}", "Version\tUploaded"]
     lines.extend(f"{item['version']}\t{item['upload_time']}" for item in versions)
     return "\n".join(lines)
+
+
+_ARTIFACT_COLUMNS = (
+    "File",
+    "Kind",
+    "Size",
+    "Uploaded",
+    "Requires",
+    "Compatible",
+    "SHA-256",
+    "Flags",
+    "Published by",
+)
+
+
+def format_artifacts(release: ReleaseArtifacts, *, detailed: bool = False) -> str:
+    """Format a release's artifacts as plain text.
+
+    Unlike the Rich view this carries the full SHA-256 of every file, since
+    plain text is what a script or a reviewer pipes somewhere else.
+
+    Returns:
+        A summary block, an optional tab-separated file table, and any notes.
+    """
+    lines = [f"Artifacts for {release.name} {release.version}"]
+    lines.extend(f"{label}: {value}" for label, value in summary_rows(release))
+    if detailed and release.files:
+        lines.extend(["", "\t".join(_ARTIFACT_COLUMNS)])
+        lines.extend(
+            "\t".join([
+                file.filename,
+                file.kind,
+                file_size(file),
+                file.upload_time or "-",
+                file.requires_python or "-",
+                verdict(file),
+                file.sha256 or "-",
+                file_flags(file),
+                file.publisher.description if file.publisher else "-",
+            ])
+            for file in release.files
+        )
+    lines.extend(_artifact_notes(release))
+    return "\n".join(lines)
+
+
+def _artifact_notes(release: ReleaseArtifacts) -> list[str]:
+    """Report incompatibility reasons, yanks, and failed provenance lookups.
+
+    Returns:
+        Trailing note lines, empty when there is nothing to report.
+    """
+    notes = [
+        f"- {file.filename}: {file.compatibility.reason}"
+        for file in release.files
+        if file.compatibility.reason
+    ]
+    notes.extend(
+        f"- {file.filename} yanked: {file.yanked_reason or 'no reason given'}"
+        for file in release.files
+        if file.yanked
+    )
+    notes.extend(f"- provenance lookup failed: {r}" for r in release.publisher_failures)
+    if not notes:
+        return []
+    return ["", "Notes:", *notes]

@@ -1,0 +1,298 @@
+"""Unit tests for the four artifact renderers."""
+
+import json as jsonlib
+from dataclasses import replace
+from typing import cast
+
+import pytest
+
+from peta.cli.output import json as json_output, markdown, tables, text
+from peta.core.artifacts import (
+    ArtifactFile,
+    Compatibility,
+    Publisher,
+    ReleaseArtifacts,
+    Target,
+)
+
+pytestmark = pytest.mark.unit
+
+GENERATED_AT = "2026-09-04T12:00:00Z"
+
+
+def _wheel(**over: object) -> ArtifactFile:
+    base = ArtifactFile(
+        filename="pkg-1.0-py3-none-any.whl",
+        url="https://files.invalid/pkg-1.0-py3-none-any.whl",
+        kind="wheel",
+        compatibility=Compatibility(compatible=True),
+        size=1024,
+        upload_time="2026-01-02T03:04:05Z",
+        sha256="a" * 64,
+        requires_python=">=3.8",
+        core_metadata=True,
+        tags=("py3-none-any",),
+    )
+    return replace(base, **over)
+
+
+def _sdist(**over: object) -> ArtifactFile:
+    base = ArtifactFile(
+        filename="pkg-1.0.tar.gz",
+        url="https://files.invalid/pkg-1.0.tar.gz",
+        kind="sdist",
+        compatibility=Compatibility(compatible=True),
+        size=2048,
+        upload_time="2026-01-02T03:04:05Z",
+        sha256="b" * 64,
+        requires_python=">=3.8",
+    )
+    return replace(base, **over)
+
+
+def _release(*files: ArtifactFile, **over: object) -> ReleaseArtifacts:
+    base = ReleaseArtifacts(
+        name="pkg",
+        version="1.0",
+        target=Target("3.13"),
+        files=list(files) or [_wheel(), _sdist()],
+    )
+    return replace(base, **over)
+
+
+class TestRich:
+    def test_summary_answers_the_headline_questions(self) -> None:
+        out = tables.render_artifacts(_release(), color=False)
+        assert "pkg 1.0" in out
+        assert "Compatible (Python 3.13)" in out
+        assert "2 of 2" in out
+        assert "3.1 kB" in out
+
+    def test_detail_lists_every_file(self) -> None:
+        out = tables.render_artifacts(_release(), color=False, detailed=True)
+        assert "pkg-1.0-py3-none-any.whl" in out
+        assert "pkg-1.0.tar.gz" in out
+        assert "sha256:aaaaaaaaaaaa…" in out
+        assert "metadata" in out
+
+    def test_a_release_with_no_files_says_so(self) -> None:
+        out = tables.render_artifacts(_release(*[], files=[]), color=False)
+        assert out == "No distribution files published for pkg 1.0."
+
+    def test_notes_explain_yanks_and_total_incompatibility(self) -> None:
+        release = _release(
+            _wheel(
+                compatibility=Compatibility(compatible=False, reason="no tag matches"),
+                yanked=True,
+                yanked_reason="bad build",
+            )
+        )
+        out = tables.render_artifacts(release, color=False)
+        assert "No file is compatible with Python 3.13" in out
+        assert "no tag matches" in out
+        assert "Yanked: pkg-1.0-py3-none-any.whl (bad build)" in out
+
+    def test_unknown_verdicts_are_never_reported_as_incompatible(self) -> None:
+        # "unknown" means peta could not read the evidence. Announcing that
+        # nothing is compatible would assert a verdict it never reached.
+        release = _release(
+            _wheel(compatibility=Compatibility(compatible=None, reason="unreadable"))
+        )
+        out = tables.render_artifacts(release, color=False)
+        assert "No file is compatible" not in out
+
+    def test_a_publisher_identity_is_visible_in_the_default_format(self) -> None:
+        release = _release(
+            _wheel(
+                provenance_url="https://pypi.org/integrity/x/provenance",
+                publisher=Publisher(kind="GitHub", claims={"repository": "a/b"}),
+            )
+        )
+        summary = tables.render_artifacts(release, color=False)
+        assert "GitHub repository=a/b" in summary
+        detail = tables.render_artifacts(release, color=False, detailed=True)
+        assert "published by GitHub repository=a/b" in detail
+
+    def test_a_yank_without_a_reason_still_reports_the_yank(self) -> None:
+        out = tables.render_artifacts(_release(_wheel(yanked=True)), color=False)
+        assert "no reason given" in out
+
+    def test_a_failed_provenance_lookup_is_visible(self) -> None:
+        release = _release(publisher_failures=("pkg-1.0.tar.gz: HTTP 503",))
+        assert "Provenance lookup failed" in tables.render_artifacts(
+            release, color=False
+        )
+
+    def test_missing_digest_size_and_upload_time_render_as_gaps(self) -> None:
+        release = _release(_wheel(sha256=None, size=None, upload_time=None))
+        out = tables.render_artifacts(release, color=False, detailed=True)
+        assert "no digest" in out
+        assert "unknown" in out
+
+    def test_an_unknown_verdict_carries_its_reason(self) -> None:
+        release = _release(
+            _wheel(compatibility=Compatibility(compatible=None, reason="unreadable"))
+        )
+        out = tables.render_artifacts(release, color=False, detailed=True)
+        assert "compatible: unknown (unreadable)" in out
+
+    def test_a_file_with_no_flags_renders_a_dash(self) -> None:
+        release = _release(_sdist(core_metadata=False))
+        out = tables.render_artifacts(release, color=False, detailed=True)
+        assert " · -" in out
+
+
+class TestText:
+    def test_summary_and_full_digests(self) -> None:
+        out = text.format_artifacts(_release(), detailed=True)
+        assert "Artifacts for pkg 1.0" in out
+        assert "Requires-Python: >=3.8" in out
+        assert "a" * 64 in out
+
+    def test_notes_name_the_affected_file(self) -> None:
+        release = _release(
+            _wheel(
+                compatibility=Compatibility(compatible=None, reason="unreadable"),
+                yanked=True,
+            ),
+            publisher_failures=("pkg-1.0.tar.gz: HTTP 503",),
+        )
+        out = text.format_artifacts(release, detailed=True)
+        assert "unknown" in out
+        assert "- pkg-1.0-py3-none-any.whl: unreadable" in out
+        assert "yanked: no reason given" in out
+        assert "provenance lookup failed" in out
+
+    def test_an_empty_release_still_summarizes(self) -> None:
+        out = text.format_artifacts(_release(files=[]), detailed=True)
+        assert "Files: 0" in out
+        assert "Requires-Python: -" in out
+
+
+class TestMarkdown:
+    def test_summary_and_file_tables(self) -> None:
+        out = markdown.format_artifacts(_release(), detailed=True)
+        assert out.startswith("# Artifacts for pkg 1.0")
+        assert "| Field | Value |" in out
+        assert "`pkg-1.0-py3-none-any.whl`" in out
+
+    def test_notes_section(self) -> None:
+        release = _release(
+            _wheel(
+                compatibility=Compatibility(compatible=False, reason="no tag matches"),
+                yanked=True,
+                yanked_reason="bad build",
+                sha256=None,
+            ),
+            publisher_failures=("pkg-1.0.tar.gz: HTTP 503",),
+        )
+        out = markdown.format_artifacts(release, detailed=True)
+        assert "## Notes" in out
+        assert "**yanked:** bad build" in out
+        assert "**provenance lookup failed:**" in out
+
+    def test_no_notes_section_when_nothing_is_wrong(self) -> None:
+        assert "## Notes" not in markdown.format_artifacts(_release())
+
+
+class TestJson:
+    def _envelope(
+        self, release: ReleaseArtifacts, *, publishers: bool = False
+    ) -> dict[str, object]:
+        raw = json_output.format_artifacts(
+            release, generated_at=GENERATED_AT, publishers=publishers
+        )
+        return cast("dict[str, object]", jsonlib.loads(raw))
+
+    def test_files_and_provenance_are_structured(self) -> None:
+        release = _release(
+            _wheel(
+                provenance_url="https://pypi.org/integrity/x/provenance",
+                publisher=Publisher(
+                    kind="GitHub", claims={"repository": "a/b", "workflow": "p.yml"}
+                ),
+            )
+        )
+        data = self._envelope(release, publishers=True)
+        result = cast("dict[str, object]", data["result"])
+        files = cast("list[dict[str, object]]", result["files"])
+        provenance = cast("dict[str, object]", files[0]["provenance"])
+        assert provenance["available"] is True
+        publisher = cast("dict[str, object]", provenance["publisher"])
+        assert publisher["kind"] == "GitHub"
+        assert publisher["claims"] == {"repository": "a/b", "workflow": "p.yml"}
+        assert files[0]["tags"] == ["py3-none-any"]
+        assert files[0]["compatible"] is True
+        assert result["summary"] == {
+            "files": 1,
+            "wheels": 1,
+            "sdists": 0,
+            "compatible": 1,
+            "total_size": 1024,
+            "yanked": False,
+            "with_provenance": 1,
+        }
+
+    def test_unknown_compatibility_is_null_not_false(self) -> None:
+        release = _release(
+            _wheel(compatibility=Compatibility(compatible=None, reason="unreadable"))
+        )
+        data = self._envelope(release)
+        files = cast(
+            "list[dict[str, object]]",
+            cast("dict[str, object]", data["result"])["files"],
+        )
+        assert files[0]["compatible"] is None
+        assert files[0]["incompatibility"] == "unreadable"
+
+    def test_sources_attribute_publishers_field_by_field(self) -> None:
+        release = _release(_wheel(publisher=Publisher(kind="GitHub")), _sdist())
+        data = self._envelope(release, publishers=True)
+        sources = cast("list[dict[str, object]]", data["sources"])
+        provenance = next(s for s in sources if s["name"] == "pypi-provenance")
+        assert provenance["state"] == "success"
+        assert provenance["fields"] == ["result.files[0].provenance.publisher"]
+
+    def test_no_publisher_anywhere_is_empty_not_failed(self) -> None:
+        data = self._envelope(_release(), publishers=True)
+        sources = cast("list[dict[str, object]]", data["sources"])
+        provenance = next(s for s in sources if s["name"] == "pypi-provenance")
+        assert provenance["state"] == "empty"
+
+    def test_one_failure_among_successes_still_states_failed(self) -> None:
+        # Otherwise a consumer reading ``state`` sees success and treats the
+        # publisher missing from the failed file as one PyPI does not supply.
+        release = _release(
+            _wheel(publisher=Publisher(kind="GitHub")),
+            _sdist(),
+            publisher_failures=("pkg-1.0.tar.gz: HTTP 503",),
+        )
+        data = self._envelope(release, publishers=True)
+        sources = cast("list[dict[str, object]]", data["sources"])
+        provenance = next(s for s in sources if s["name"] == "pypi-provenance")
+        assert provenance["state"] == "failed"
+        assert provenance["fields"] == ["result.files[0].provenance.publisher"]
+
+    def test_a_failed_publisher_lookup_is_a_partial_envelope(self) -> None:
+        release = _release(publisher_failures=("pkg-1.0.tar.gz: HTTP 503",))
+        data = self._envelope(release, publishers=True)
+        assert data["status"] == "partial"
+        sources = cast("list[dict[str, object]]", data["sources"])
+        provenance = next(s for s in sources if s["name"] == "pypi-provenance")
+        assert provenance["state"] == "failed"
+        assert provenance["reason"] == "pkg-1.0.tar.gz: HTTP 503"
+        assert "retrieved_at" not in provenance
+        warnings = cast("list[dict[str, object]]", data["warnings"])
+        assert warnings[0]["code"] == "enrichment_failed"
+
+    def test_a_release_with_no_files_is_empty_not_failed(self) -> None:
+        data = self._envelope(_release(files=[]))
+        assert data["status"] == "empty"
+        sources = cast("list[dict[str, object]]", data["sources"])
+        assert sources[0]["state"] == "empty"
+
+    def test_provenance_source_is_omitted_unless_asked_for(self) -> None:
+        data = self._envelope(_release())
+        sources = cast("list[dict[str, object]]", data["sources"])
+        assert [s["name"] for s in sources] == ["pypi"]
+        assert sources[0]["fields"] == ["result.files"]

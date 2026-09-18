@@ -591,6 +591,107 @@ class TestVersions:
         assert result.exit_code != 0
 
 
+class TestArtifacts:
+    def _release(self, **over: object) -> object:
+        from peta.core.artifacts import (
+            ArtifactFile,
+            Compatibility,
+            ReleaseArtifacts,
+            Target,
+        )
+
+        wheel = ArtifactFile(
+            filename="requests-2.31.0-py3-none-any.whl",
+            url="https://files.invalid/requests-2.31.0-py3-none-any.whl",
+            kind="wheel",
+            compatibility=Compatibility(compatible=True),
+            size=64000,
+            sha256="c" * 64,
+        )
+        base = ReleaseArtifacts(
+            name="requests", version="2.31.0", target=Target(), files=[wheel]
+        )
+        return replace(base, **over)
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_summary(self, m: MagicMock) -> None:
+        m.return_value = (self._release(), _LIVE)
+        result = runner.invoke(app, ["artifacts", "requests"])
+        assert result.exit_code == 0
+        assert "requests 2.31.0" in result.output
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_json(self, m: MagicMock) -> None:
+        m.return_value = (self._release(), _LIVE)
+        result = runner.invoke(app, ["artifacts", "requests", "--json"])
+        data = json.loads(result.output)
+        assert data["query"]["command"] == "artifacts"
+        assert data["result"]["summary"]["wheels"] == 1
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_files_and_version_specifier(self, m: MagicMock) -> None:
+        m.return_value = (self._release(), _LIVE)
+        result = runner.invoke(app, ["artifacts", "requests==2.31.0", "--files"])
+        assert result.exit_code == 0
+        assert "requests-2.31.0-py3-none-any.whl" in result.output
+        assert m.call_args.args == ("requests", "2.31.0")
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_provenance_flag_is_passed_through(self, m: MagicMock) -> None:
+        m.return_value = (self._release(), _LIVE)
+        result = runner.invoke(app, ["artifacts", "requests", "--provenance"])
+        assert result.exit_code == 0
+        assert m.call_args.kwargs["publishers"] is True
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_python_target_reaches_the_lookup(self, m: MagicMock) -> None:
+        m.return_value = (self._release(), _LIVE)
+        result = runner.invoke(app, ["artifacts", "requests", "--python", "3.13"])
+        assert result.exit_code == 0
+        assert m.call_args.kwargs["target"].python == "3.13"
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    @pytest.mark.parametrize(
+        ("fmt", "expected"),
+        [("markdown", "# Artifacts for requests 2.31.0"), ("text", "Artifacts for")],
+    )
+    def test_other_formats(self, m: MagicMock, fmt: str, expected: str) -> None:
+        m.return_value = (self._release(), _LIVE)
+        result = runner.invoke(app, ["artifacts", "requests", "--format", fmt])
+        assert expected in result.output
+
+    def test_invalid_python_target_exits_2(self) -> None:
+        result = runner.invoke(app, ["artifacts", "requests", "--python", "nope"])
+        assert result.exit_code == 2
+        assert "Invalid Python version" in result.output
+
+    def test_invalid_package_argument_exits_2(self) -> None:
+        assert runner.invoke(app, ["artifacts", "requests=="]).exit_code == 2
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_unknown_package_exits_1(self, m: MagicMock) -> None:
+        m.return_value = (None, _LIVE)
+        result = runner.invoke(app, ["artifacts", "nope-xyz"])
+        assert result.exit_code == 1
+        assert "not found" in result.output
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_network_error_exits_2(self, m: MagicMock) -> None:
+        from peta.core.remote import NetworkError
+
+        m.side_effect = NetworkError("down")
+        assert runner.invoke(app, ["artifacts", "requests"]).exit_code == 2
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_offline_miss_exits_2(self, m: MagicMock) -> None:
+        from peta.core.http import OfflineError
+
+        m.side_effect = OfflineError("https://pypi.org/simple/requests/")
+        result = runner.invoke(app, ["artifacts", "requests", "--json"])
+        assert result.exit_code == 2
+        assert json.loads(result.output)["errors"][0]["code"] == "offline_unavailable"
+
+
 class TestShorthandPosition:
     """Where ``info`` is inserted for the ``peta <package>`` shorthand."""
 

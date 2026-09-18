@@ -36,7 +36,7 @@ SCHEMA_VERSION = "1"
 # CodeQL does not yet recognize PEP 695 ``type`` statements as definitions when
 # checking ``__all__``. Keep these runtime-visible assignments until it does.
 CommandName = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "CommandName", Literal["info", "compare", "deps", "files", "versions"]
+    "CommandName", Literal["info", "compare", "deps", "files", "versions", "artifacts"]
 )
 EnvelopeStatus = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
     "EnvelopeStatus", Literal["success", "partial", "empty", "failed"]

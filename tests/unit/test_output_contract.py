@@ -9,6 +9,7 @@ from typing import cast, get_args
 import pytest
 
 from peta.cli.output.json import (
+    format_artifacts,
     format_compare,
     format_dep_tree,
     format_error,
@@ -17,6 +18,7 @@ from peta.cli.output.json import (
     format_versions,
     format_why,
 )
+from peta.core.artifacts import ArtifactFile, Compatibility, ReleaseArtifacts, Target
 from peta.core.models import (
     VULNERABILITY_FIELD,
     DependencyNode,
@@ -35,6 +37,18 @@ def _pkg(**over: object) -> PackageInfo:
         name="requests", version="2.31.0", source="local", dependencies=["urllib3"]
     )
     return replace(base, **over)
+
+
+def _release() -> ReleaseArtifacts:
+    wheel = ArtifactFile(
+        filename="requests-2.31.0-py3-none-any.whl",
+        url="https://files.invalid/requests-2.31.0-py3-none-any.whl",
+        kind="wheel",
+        compatibility=Compatibility(compatible=True),
+    )
+    return ReleaseArtifacts(
+        name="requests", version="2.31.0", target=Target(), files=[wheel]
+    )
 
 
 def _assert_envelope(raw: str, command: str) -> dict[str, object]:
@@ -94,6 +108,7 @@ def test_all_success_envelopes() -> None:
             ),
             "versions",
         ),
+        (format_artifacts(_release(), generated_at=GENERATED_AT), "artifacts"),
     ]
     for raw, command in outputs:
         assert _assert_envelope(raw, command)["status"] == "success"
