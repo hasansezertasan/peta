@@ -1,7 +1,7 @@
 """Unit tests for release artifact inspection and compatibility evaluation."""
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import httpx
 import pytest
@@ -10,14 +10,18 @@ from packaging.tags import sys_tags
 from peta.core.artifacts import (
     Target,
     _artifact,
+    _Lookup,
+    _merged_retrieval,
     evaluate_compatibility,
     get_release,
     parse_target,
 )
+from peta.core.cache import Provenance
 from peta.core.index import files_for_version, latest_version
 from tests.contract_fixtures import load_contract
 
 if TYPE_CHECKING:
+    from peta.core.cache import Freshness
     from peta.core.index import IndexFile, ProjectPage
     from tests.transport import FakeTransport
 
@@ -459,6 +463,34 @@ class TestPublishers:
         assert release.files[0].publishers == ()
         assert len(release.publisher_failures) == 1
         assert release.publisher_failures[0].filename == "pkg-1.0-py3-none-any.whl"
+
+    @pytest.mark.parametrize(
+        ("freshness", "expected"),
+        [
+            (("live", "cached"), "cached"),
+            (("cached", "live"), "cached"),
+            (("live", "revalidated"), "revalidated"),
+            (("live", "live"), "live"),
+        ],
+    )
+    def test_mixed_freshness_is_reported_as_the_stalest_part(
+        self, freshness: tuple[str, str], expected: str
+    ) -> None:
+        # One record covers one request per file. If any was served from
+        # disk, describing the whole of it as "live" overstates the
+        # provenance this field exists to make honest.
+        merged = _merged_retrieval([
+            _Lookup(retrieval=Provenance(cast("Freshness", state), stamp))
+            for state, stamp in zip(
+                freshness, ("2026-01-02T00:00:00Z", "2026-01-01T00:00:00Z"), strict=True
+            )
+        ])
+        assert merged is not None
+        assert merged.freshness == expected
+        assert merged.retrieved_at == "2026-01-01T00:00:00Z"
+
+    def test_no_completed_lookup_has_no_provenance(self) -> None:
+        assert _merged_retrieval([_Lookup()]) is None
 
     def test_a_transport_failure_does_not_abort_the_listing(
         self, fake_http: FakeTransport

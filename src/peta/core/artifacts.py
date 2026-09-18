@@ -566,10 +566,11 @@ def _merged_retrieval(lookups: list[_Lookup]) -> Provenance | None:
     """Summarize many per-file retrievals as one source-level provenance.
 
     A release is one source record, but its publisher evidence comes from one
-    request per file, which can mix live answers with cached ones. The
-    reported freshness is the strongest contact made and the timestamp the
-    oldest, so the record never claims the whole of it is fresher than its
-    stalest part.
+    request per file, which can mix live answers with cached ones. Both the
+    freshness and the timestamp report the *stalest* part, because one record
+    covering a mixture must not describe any of it as fresher than it is:
+    calling a half-cached answer ``live`` would overstate exactly the
+    provenance this field exists to make honest.
 
     Returns:
         The merged provenance, or ``None`` when no lookup completed.
@@ -577,8 +578,8 @@ def _merged_retrieval(lookups: list[_Lookup]) -> Provenance | None:
     completed = [lookup.retrieval for lookup in lookups if lookup.retrieval]
     if not completed:
         return None
-    freshest = min(completed, key=lambda item: _FRESHNESS_ORDER[item.freshness])
-    return Provenance(freshest.freshness, min(item.retrieved_at for item in completed))
+    stalest = max(completed, key=lambda item: _FRESHNESS_ORDER[item.freshness])
+    return Provenance(stalest.freshness, min(item.retrieved_at for item in completed))
 
 
 @dataclass(frozen=True)
