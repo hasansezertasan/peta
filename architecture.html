@@ -66,9 +66,11 @@ data-aria-dark="Switch to auto color mode">
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="usage.html">Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="output-contract.html">Output contract</a></li>
 <li class="toctree-l1"><a class="reference internal" href="configuration.html">Configuration</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
+<li class="toctree-l1"><a class="reference internal" href="research-tooling-landscape.html">Python package-inspection tooling landscape</a></li>
 </ul>
 
         </div>
@@ -125,8 +127,13 @@ data-aria-dark="Switch to auto color mode">
 Each command in <code class="docutils literal notranslate"><span class="pre">peta.cli.commands</span></code> orchestrates a fetch and a render.</p>
 <p>Rendering lives under this same layer, in <code class="docutils literal notranslate"><span class="pre">peta.cli.output</span></code>:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.tables</span></code> — Rich renderers returning strings.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.json</span></code> — JSON string formatters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.tables</span></code> — Rich table and tree renderers returning strings.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.json</span></code> — versioned JSON envelope formatters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.markdown</span></code> — Markdown string formatters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.text</span></code> — plain-text string formatters.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.render</span></code> — central format dispatch for command results.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.errors</span></code> — structured parser-validation error rendering.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.selection</span></code> — format selection and handler failure rendering.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.cli.output.console</span></code> — shared console/color helpers.</p></li>
 </ul>
 <p>These renderers are typer-free (plain string builders); <code class="docutils literal notranslate"><span class="pre">peta.cli</span></code>
@@ -136,11 +143,16 @@ commands call them and print/echo the result.</p>
 <h2>Core (<code class="docutils literal notranslate"><span class="pre">peta.core</span></code>)<a class="headerlink" href="#core-peta-core" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.models</span></code> — package, vulnerability, and dependency-tree models.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.core.output</span></code> — typed output-envelope, query, source, and message models.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.local</span></code> — reads installed metadata via <code class="docutils literal notranslate"><span class="pre">importlib.metadata</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">peta.core.remote</span></code> — fetches from the PyPI JSON API with <code class="docutils literal notranslate"><span class="pre">httpx</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.core.http</span></code> — the one pooled <code class="docutils literal notranslate"><span class="pre">httpx</span></code> client every source shares.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.core.cache</span></code> — on-disk response cache, TTL vocabulary, and offline mode.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.core.concurrency</span></code> — runs independent lookups together, in order.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.core.remote</span></code> — fetches from the PyPI JSON API.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.resolve</span></code> — chooses local or remote package metadata.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.deptree</span></code> — builds recursive declared-metadata dependency trees.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.enrich</span></code> — coordinates optional vulnerability and statistics data.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">peta.core.providers</span></code> — the provider seam and built-in source adapters.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.osv</span></code> — queries the OSV vulnerability API.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.stats</span></code> — queries download and dependent-count APIs.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">peta.core.vulns</span></code> — merges and deduplicates vulnerability records.</p></li>
@@ -149,8 +161,12 @@ commands call them and print/echo the result.</p>
 </section>
 <section id="error-model">
 <h2>Error model<a class="headerlink" href="#error-model" title="Link to this heading">#</a></h2>
-<p><code class="docutils literal notranslate"><span class="pre">PackageNotFoundError</span></code> (exit 1) and <code class="docutils literal notranslate"><span class="pre">NetworkError</span></code> (exit 2) are raised
-by the core layer and mapped to exit codes by the command handlers.</p>
+<p><code class="docutils literal notranslate"><span class="pre">PackageNotFoundError</span></code> (exit 1), <code class="docutils literal notranslate"><span class="pre">NetworkError</span></code> (exit 2), and
+<code class="docutils literal notranslate"><span class="pre">OfflineError</span></code> (exit 2) are raised by the core layer and mapped to exit codes
+by the command handlers. <code class="docutils literal notranslate"><span class="pre">OfflineError</span></code> is kept separate from
+<code class="docutils literal notranslate"><span class="pre">NetworkError</span></code>: under <code class="docutils literal notranslate"><span class="pre">--offline</span></code> nothing failed, peta was told not to use
+the network and does not hold the answer. JSON output
+also renders these failures as structured, versioned envelopes.</p>
 </section>
 </section>
 

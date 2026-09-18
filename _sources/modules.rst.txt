@@ -13,6 +13,14 @@ Core (``peta.core``)
 
 .. automodule:: peta.core.models
 
+.. automodule:: peta.core.output
+
+.. automodule:: peta.core.http
+
+.. automodule:: peta.core.cache
+
+.. automodule:: peta.core.concurrency
+
 .. automodule:: peta.core.local
 
 .. automodule:: peta.core.remote
@@ -22,6 +30,10 @@ Core (``peta.core``)
 .. automodule:: peta.core.deptree
 
 .. automodule:: peta.core.enrich
+
+.. automodule:: peta.core.providers.base
+
+.. automodule:: peta.core.providers.builtin
 
 .. automodule:: peta.core.osv
 
@@ -43,6 +55,16 @@ CLI (``peta.cli``)
 .. automodule:: peta.cli.output.tables
 
 .. automodule:: peta.cli.output.json
+
+.. automodule:: peta.cli.output.markdown
+
+.. automodule:: peta.cli.output.text
+
+.. automodule:: peta.cli.output.render
+
+.. automodule:: peta.cli.output.errors
+
+.. automodule:: peta.cli.output.selection
 
 .. automodule:: peta.cli.commands.info
 
