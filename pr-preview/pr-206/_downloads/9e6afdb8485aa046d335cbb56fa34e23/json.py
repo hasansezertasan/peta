@@ -660,6 +660,38 @@ def _publisher_paths(release: ReleaseArtifacts) -> tuple[list[str], list[str]]:
     return reached, missed
 
 
+def _completed_record(
+    release: ReleaseArtifacts, reached: list[str], target: str
+) -> SourceRecord:
+    """Describe the provenance lookup that did complete, or its absence.
+
+    When no file in the release exposes provenance there is nothing to look
+    up, so the record says ``skipped`` and carries no retrieval time. Dating
+    it with the envelope's own timestamp would assert that the source answered
+    at a moment no request was made — the kind of claim the provenance fields
+    exist to prevent.
+
+    Returns:
+        The record for the completed side of the lookup.
+    """
+    retrieval = release.publisher_retrieval
+    if retrieval is None:
+        return SourceRecord(
+            name="pypi-provenance",
+            state="skipped",
+            target=target,
+            reason="no file exposes provenance",
+        )
+    return SourceRecord(
+        name="pypi-provenance",
+        state="success" if any(f.publishers for f in release.files) else "empty",
+        target=target,
+        retrieved_at=retrieval.retrieved_at,
+        freshness=retrieval.freshness,
+        fields=reached,
+    )
+
+
 def _publisher_sources(release: ReleaseArtifacts, timestamp: str) -> list[SourceRecord]:
     """Record what the PEP 740 provenance lookup produced, field by field.
 
@@ -674,23 +706,13 @@ def _publisher_sources(release: ReleaseArtifacts, timestamp: str) -> list[Source
         One record for the completed lookups, one for the failed ones, or
         whichever of the two actually happened.
     """
+    del timestamp
     reached, missed = _publisher_paths(release)
     failures = release.publisher_failures
-    retrieval = release.publisher_retrieval
     target = f"{release.name} {release.version}"
-    found = any(file.publishers for file in release.files)
     records: list[SourceRecord] = []
     if reached or not failures:
-        records.append(
-            SourceRecord(
-                name="pypi-provenance",
-                state="success" if found else "empty",
-                target=target,
-                retrieved_at=retrieval.retrieved_at if retrieval else timestamp,
-                freshness=retrieval.freshness if retrieval else None,
-                fields=reached,
-            )
-        )
+        records.append(_completed_record(release, reached, target))
     if failures:
         records.append(
             SourceRecord(
