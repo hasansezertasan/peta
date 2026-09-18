@@ -1,5 +1,6 @@
 """Unit tests for release artifact inspection and compatibility evaluation."""
 
+import sys
 from typing import TYPE_CHECKING
 
 import httpx
@@ -97,6 +98,17 @@ class TestCompatibility:
         assert result.compatible is None
         assert "unreadable wheel filename" in (result.reason or "")
 
+    def test_an_explicit_target_is_not_stricter_than_the_running_one(self) -> None:
+        # ``cpXY-none-any`` is in sys_tags but in neither cpython_tags nor a
+        # plain compatible_tags, so the same wheel used to be installable
+        # under the default target and rejected under --python <same version>.
+        running = f"{sys.version_info.major}.{sys.version_info.minor}"
+        wheel = (
+            f"pkg-1.0-cp{sys.version_info.major}{sys.version_info.minor}-none-any.whl"
+        )
+        assert evaluate_compatibility(wheel, None, _HERE).compatible is True
+        assert evaluate_compatibility(wheel, None, Target(running)).compatible is True
+
     def test_target_defaults_to_the_running_interpreter(self) -> None:
         assert Target().version == __import__("platform").python_version()
 
@@ -104,7 +116,9 @@ class TestCompatibility:
         assert parse_target(None) == Target()
         assert parse_target("3.13").version == "3.13"
 
-    @pytest.mark.parametrize("value", ["3", "x.y", ""])
+    @pytest.mark.parametrize(
+        "value", ["3", "x.y", "", "3.13.", "3.13.bad", "3.13.4.5", "3..1"]
+    )
     def test_parse_target_rejects_nonsense(self, value: str) -> None:
         with pytest.raises(ValueError, match="Invalid Python version"):
             _ = parse_target(value)
@@ -222,7 +236,7 @@ class TestGetRelease:
         assert file.core_metadata is True
         assert file.tags == ("py3-none-any",)
         assert file.provenance_url is not None
-        assert file.publisher is None
+        assert file.publishers == ()
 
     def test_summarizes_wheels_sdists_sizes_and_yanks(
         self, fake_http: FakeTransport
@@ -302,8 +316,7 @@ class TestPublishers:
         )
         release, _ = get_release("pkg", publishers=True)
         assert release is not None
-        publisher = release.files[0].publisher
-        assert publisher is not None
+        (publisher,) = release.files[0].publishers
         assert publisher.claims["workflow_filepath"] == ".gitlab-ci.yml"
         assert release.publishers == [
             "GitLab repository=group/project workflow_filepath=.gitlab-ci.yml"
@@ -322,16 +335,17 @@ class TestPublishers:
         fake_http.reply(url="/integrity/", json=load_contract("pypi-provenance.json"))
         release, _ = get_release("pkg", publishers=True)
         assert release is not None
-        publisher = release.files[0].publisher
-        assert publisher is not None
+        (publisher,) = release.files[0].publishers
         assert publisher.kind == "GitHub"
         assert publisher.claims == {
             "repository": "example-org/example-package",
             "workflow": "publish.yml",
             "environment": "release",
         }
-        assert release.files[1].publisher is None
+        assert release.files[1].publishers == ()
         assert release.publisher_failures == ()
+        assert release.publisher_retrieval is not None
+        assert release.publisher_retrieval.freshness == "live"
 
     @pytest.mark.parametrize(
         "body",
@@ -349,8 +363,36 @@ class TestPublishers:
         fake_http.reply(url="/integrity/", json=body)
         release, _ = get_release("pkg", publishers=True)
         assert release is not None
-        assert release.files[0].publisher is None
+        assert release.files[0].publishers == ()
         assert release.publisher_failures == ()
+
+    def test_every_attestation_bundle_is_read(self, fake_http: FakeTransport) -> None:
+        """PEP 740 groups bundles by publisher and permits several."""
+        fake_http.reply(url="/simple/", json=self._page_with_provenance())
+        fake_http.reply(
+            url="/integrity/",
+            json={
+                "attestation_bundles": [
+                    {"publisher": {"kind": "GitHub", "repository": "a/b"}},
+                    {"publisher": {"kind": "GitLab", "repository": "c/d"}},
+                ]
+            },
+        )
+        release, _ = get_release("pkg", publishers=True)
+        assert release is not None
+        assert [p.kind for p in release.files[0].publishers] == ["GitHub", "GitLab"]
+
+    @pytest.mark.parametrize("bundles", [{}, False, "", 0])
+    def test_a_malformed_bundle_collection_is_a_failure_not_an_absence(
+        self, fake_http: FakeTransport, bundles: object
+    ) -> None:
+        # ``or []`` would have swallowed each of these into "PyPI supplies
+        # none", which is the conflation this command exists to prevent.
+        fake_http.reply(url="/simple/", json=self._page_with_provenance())
+        fake_http.reply(url="/integrity/", json={"attestation_bundles": bundles})
+        release, _ = get_release("pkg", publishers=True)
+        assert release is not None
+        assert len(release.publisher_failures) == 1
 
     @pytest.mark.parametrize(
         ("status", "body"), [(503, None), (200, "not json"), (200, [])]
@@ -365,9 +407,9 @@ class TestPublishers:
             fake_http.reply(url="/integrity/", status=status, json=body)
         release, _ = get_release("pkg", publishers=True)
         assert release is not None
-        assert release.files[0].publisher is None
+        assert release.files[0].publishers == ()
         assert len(release.publisher_failures) == 1
-        assert release.publisher_failures[0].startswith("pkg-1.0-py3-none-any.whl:")
+        assert release.publisher_failures[0].filename == "pkg-1.0-py3-none-any.whl"
 
     def test_a_transport_failure_does_not_abort_the_listing(
         self, fake_http: FakeTransport

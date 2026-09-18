@@ -30,6 +30,7 @@ from packaging.tags import compatible_tags, cpython_tags, sys_tags
 from packaging.utils import InvalidWheelFilename, parse_wheel_filename
 
 from peta.core import cache, http
+from peta.core.cache import Provenance
 from peta.core.concurrency import gather
 from peta.core.index import (
     files_for_version,
@@ -42,13 +43,13 @@ from peta.core.validation import expect_list, expect_mapping, optional_string
 if TYPE_CHECKING:
     from packaging.tags import Tag
 
-    from peta.core.cache import Provenance
     from peta.core.index import IndexFile
 
 __all__ = [
     "ArtifactFile",
     "Compatibility",
     "Publisher",
+    "PublisherFailure",
     "ReleaseArtifacts",
     "Target",
     "evaluate_compatibility",
@@ -80,13 +81,21 @@ def _target_tags(python: str | None) -> frozenset[Tag]:
     if python is None:
         return frozenset(sys_tags())
     version = _python_tuple(python)
+    interpreter = f"cp{version[0]}{version[1]}"
+    # ``compatible_tags`` is called twice on purpose. Without an interpreter it
+    # yields the ``pyXY`` tags; with one it also yields ``cpXY-none-any``, which
+    # ``cpython_tags`` never emits and ``sys_tags`` does include. Omitting it
+    # made an explicit target stricter than the running one, so the same wheel
+    # was installable under ``peta artifacts`` and not under
+    # ``peta artifacts --python <this same version>``.
     return frozenset(cpython_tags(python_version=version)).union(
-        compatible_tags(python_version=version)
+        compatible_tags(python_version=version),
+        compatible_tags(python_version=version, interpreter=interpreter),
     )
 
 
 def _python_tuple(python: str) -> tuple[int, int]:
-    """Split a ``MAJOR.MINOR[.MICRO]`` version into the pair tags need.
+    """Split a validated ``MAJOR.MINOR[.MICRO]`` version into the pair tags need.
 
     Returns:
         The major and minor version numbers.
@@ -134,11 +143,14 @@ def parse_target(python: str | None) -> Target:
     """
     if python is None:
         return Target()
-    try:
-        _ = _python_tuple(python)
-    except (IndexError, ValueError) as exc:
+    parts = python.split(".")
+    # Every component is checked, not just the first two. A value like
+    # ``3.13.bad`` otherwise parses far enough to build a target, and then
+    # answers every ``Requires-Python`` question with a silent ``False``
+    # — a confident wrong answer, which is worse than the rejection here.
+    if len(parts) not in {2, 3} or not all(part.isdigit() for part in parts):
         msg = f"Invalid Python version {python!r}; expected MAJOR.MINOR."
-        raise ValueError(msg) from exc
+        raise ValueError(msg)
     return Target(python)
 
 
@@ -183,6 +195,28 @@ class Publisher:
 
 
 @dataclass(frozen=True)
+class PublisherFailure:
+    """A provenance lookup that did not complete, and the file it was for.
+
+    The filename is kept separately from the reason so machine output can
+    attribute the gap to a real result path, rather than leaving a consumer
+    to parse a filename back out of a warning message.
+    """
+
+    filename: str
+    reason: str
+
+    @property
+    def description(self) -> str:
+        """Summarize the failure in one line for human output.
+
+        Returns:
+            The filename followed by why its lookup failed.
+        """
+        return f"{self.filename}: {self.reason}"
+
+
+@dataclass(frozen=True)
 class ArtifactFile:
     """One distribution file of a release, with its compatibility verdict."""
 
@@ -200,8 +234,13 @@ class ArtifactFile:
     provenance_url: str | None = None
     """Where PyPI serves this file's PEP 740 provenance, when it has one."""
     tags: tuple[str, ...] = ()
-    publisher: Publisher | None = None
-    """Filled only when publisher lookup was asked for and PyPI supplied one."""
+    publishers: tuple[Publisher, ...] = ()
+    """Filled only when publisher lookup was asked for and PyPI supplied any.
+
+    Plural because PEP 740 groups attestations into one bundle per publisher
+    and permits several, so reporting only the first would silently drop
+    evidence this command exists to surface.
+    """
 
 
 @dataclass(frozen=True)
@@ -212,8 +251,10 @@ class ReleaseArtifacts:
     version: str
     target: Target
     files: list[ArtifactFile]
-    publisher_failures: tuple[str, ...] = ()
+    publisher_failures: tuple[PublisherFailure, ...] = ()
     """Files whose provenance lookup failed, so a gap is never read as absence."""
+    publisher_retrieval: Provenance | None = None
+    """Where the publisher evidence came from, when any lookup completed."""
 
     @property
     def wheels(self) -> list[ArtifactFile]:
@@ -271,7 +312,9 @@ class ReleaseArtifacts:
         Returns:
             One description per distinct publisher, in a stable order.
         """
-        return sorted({f.publisher.description for f in self.files if f.publisher})
+        return sorted({
+            publisher.description for f in self.files for publisher in f.publishers
+        })
 
     @property
     def with_provenance(self) -> list[ArtifactFile]:
@@ -404,27 +447,18 @@ def _artifact(entry: IndexFile, target: Target) -> ArtifactFile:
     )
 
 
-def _publisher_from(body: object) -> Publisher | None:
-    """Read the first attestation bundle's publisher from a provenance document.
+def _publisher_in(bundle: object, index: int) -> Publisher | None:
+    """Read one attestation bundle's publisher.
 
     Returns:
-        The publisher, or ``None`` when the document supplies none.
+        The publisher, or ``None`` when the bundle names none.
     """
-    root = expect_mapping(body, source=_PROVENANCE_SOURCE, path="$")
-    bundles = expect_list(
-        root.get("attestation_bundles") or [],
-        source=_PROVENANCE_SOURCE,
-        path="$.attestation_bundles",
-    )
-    if not bundles:
+    path = f"$.attestation_bundles[{index}]"
+    raw_bundle = expect_mapping(bundle, source=_PROVENANCE_SOURCE, path=path)
+    if raw_bundle.get("publisher") is None:
         return None
-    bundle = expect_mapping(
-        bundles[0], source=_PROVENANCE_SOURCE, path="$.attestation_bundles[0]"
-    )
-    path = "$.attestation_bundles[0].publisher"
-    if bundle.get("publisher") is None:
-        return None
-    raw = expect_mapping(bundle["publisher"], source=_PROVENANCE_SOURCE, path=path)
+    path = f"{path}.publisher"
+    raw = expect_mapping(raw_bundle["publisher"], source=_PROVENANCE_SOURCE, path=path)
     kind = optional_string(raw, "kind", source=_PROVENANCE_SOURCE, path=path)
     if kind is None:
         return None
@@ -436,45 +470,103 @@ def _publisher_from(body: object) -> Publisher | None:
     return Publisher(kind=kind, claims=claims)
 
 
-def _publisher_for(file: ArtifactFile) -> tuple[Publisher | None, str | None]:
-    """Fetch one file's PEP 740 provenance document and read its publisher.
+def _publishers_from(body: object) -> tuple[Publisher, ...]:
+    """Read every attestation bundle's publisher from a provenance document.
+
+    A missing ``attestation_bundles`` key means the document supplies no
+    publisher. A key that is present but is not an array is malformed, and is
+    rejected rather than quietly treated as absence — the distinction this
+    command exists to keep.
+
+    A document that does not match PEP 740's shape raises, which
+    :func:`_publisher_for` turns into a reported failure.
+
+    Returns:
+        One publisher per bundle that names one, in document order.
+    """
+    root = expect_mapping(body, source=_PROVENANCE_SOURCE, path="$")
+    raw_bundles = root.get("attestation_bundles")
+    if raw_bundles is None:
+        return ()
+    bundles = expect_list(
+        raw_bundles, source=_PROVENANCE_SOURCE, path="$.attestation_bundles"
+    )
+    found = (_publisher_in(bundle, index) for index, bundle in enumerate(bundles))
+    return tuple(publisher for publisher in found if publisher is not None)
+
+
+@dataclass(frozen=True)
+class _Lookup:
+    """What one file's provenance lookup produced."""
+
+    publishers: tuple[Publisher, ...] = ()
+    failure: PublisherFailure | None = None
+    retrieval: Provenance | None = None
+
+
+def _publisher_for(file: ArtifactFile) -> _Lookup:
+    """Fetch one file's PEP 740 provenance document and read its publishers.
 
     Every failure is returned rather than raised: this evidence is optional,
     and a provenance document peta could not retrieve or parse must not turn
     an otherwise complete artifact listing into a failed command.
 
     Returns:
-        The publisher — ``None`` when PyPI supplies none — and the reason the
-        lookup failed, ``None`` when it completed.
+        The publishers PyPI supplied, the reason the lookup failed, and where
+        the answer came from.
     """
     url = file.provenance_url
     if url is None:
-        return None, None
+        return _Lookup()
     try:
         fetched = http.get(url, ttl=cache.DAILY, scope="provenance")
         _ = fetched.response.raise_for_status()
-        publisher = _publisher_from(cast("object", fetched.response.json()))
+        publishers = _publishers_from(cast("object", fetched.response.json()))
     except (httpx.HTTPError, http.OfflineError, ValueError) as exc:
-        return None, f"{file.filename}: {exc}"
+        return _Lookup(failure=PublisherFailure(file.filename, str(exc)))
     http.keep(fetched)
-    return publisher, None
+    return _Lookup(publishers=publishers, retrieval=fetched.provenance)
+
+
+_FRESHNESS_ORDER = {"live": 0, "revalidated": 1, "cached": 2}
+"""How to collapse many retrievals into one, most-recently-contacted first."""
+
+
+def _merged_retrieval(lookups: list[_Lookup]) -> Provenance | None:
+    """Summarize many per-file retrievals as one source-level provenance.
+
+    A release is one source record, but its publisher evidence comes from one
+    request per file, which can mix live answers with cached ones. The
+    reported freshness is the strongest contact made and the timestamp the
+    oldest, so the record never claims the whole of it is fresher than its
+    stalest part.
+
+    Returns:
+        The merged provenance, or ``None`` when no lookup completed.
+    """
+    completed = [lookup.retrieval for lookup in lookups if lookup.retrieval]
+    if not completed:
+        return None
+    freshest = min(completed, key=lambda item: _FRESHNESS_ORDER[item.freshness])
+    return Provenance(freshest.freshness, min(item.retrieved_at for item in completed))
 
 
 def _with_publishers(
     files: list[ArtifactFile],
-) -> tuple[list[ArtifactFile], tuple[str, ...]]:
-    """Attach each file's Trusted Publisher identity, fetched concurrently.
+) -> tuple[list[ArtifactFile], tuple[PublisherFailure, ...], Provenance | None]:
+    """Attach each file's Trusted Publisher identities, fetched concurrently.
 
     Returns:
-        The files with publishers filled in, and one reason per failed lookup.
+        The files with publishers filled in, one record per failed lookup, and
+        where the completed lookups came from.
     """
-    outcomes = gather([partial(_publisher_for, file) for file in files])
+    lookups = gather([partial(_publisher_for, file) for file in files])
     updated = [
-        replace(file, publisher=publisher)
-        for file, (publisher, _) in zip(files, outcomes, strict=True)
+        replace(file, publishers=lookup.publishers)
+        for file, lookup in zip(files, lookups, strict=True)
     ]
-    failures = tuple(reason for _, reason in outcomes if reason is not None)
-    return updated, failures
+    failures = tuple(lookup.failure for lookup in lookups if lookup.failure)
+    return updated, failures, _merged_retrieval(lookups)
 
 
 def get_release(
@@ -510,14 +602,16 @@ def get_release(
     selected = version or latest_version(page["versions"])
     evaluated = target or Target()
     files = [_artifact(entry, evaluated) for entry in files_for_version(page, selected)]
-    failures: tuple[str, ...] = ()
+    failures: tuple[PublisherFailure, ...] = ()
+    retrieval: Provenance | None = None
     if publishers:
-        files, failures = _with_publishers(files)
+        files, failures, retrieval = _with_publishers(files)
     release = ReleaseArtifacts(
         name=page["name"],
         version=selected,
         target=evaluated,
         files=files,
         publisher_failures=failures,
+        publisher_retrieval=retrieval,
     )
     return release, provenance

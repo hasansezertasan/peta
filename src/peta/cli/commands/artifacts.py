@@ -89,11 +89,14 @@ def artifacts(
             source="pypi",
         )
     if release is None:
+        # A project can exist while the pinned release does not, so the
+        # message names whichever of the two was actually asked for.
+        missing = f"Release '{name}=={version}'" if version else f"Package '{name}'"
         fail(
             "artifacts",
             arguments=arguments,
             code="package_not_found",
-            message=f"Package '{package}' not found on PyPI.",
+            message=f"{missing} not found on PyPI.",
             output_format=selected,
             exit_code=1,
             source="pypi",

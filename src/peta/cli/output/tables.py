@@ -9,7 +9,13 @@ from rich.table import Table
 from rich.tree import Tree
 
 from peta.cli.output.console import render as _render
-from peta.cli.output.summary import file_flags, file_size, summary_rows, verdict
+from peta.cli.output.summary import (
+    file_flags,
+    file_publishers,
+    file_size,
+    summary_rows,
+    verdict,
+)
 
 if TYPE_CHECKING:
     from peta.core.artifacts import ReleaseArtifacts
@@ -276,8 +282,8 @@ def _artifact_lines(release: ReleaseArtifacts) -> str:
             f" · compatible: {verdict_text}"
         )
         lines.extend([file.filename, detail, f"  {digest} · {file_flags(file)}"])
-        if file.publisher is not None:
-            lines.append(f"  published by {file.publisher.description}")
+        if file.publishers:
+            lines.append(f"  published by {file_publishers(file)}")
     return "\n".join(lines)
 
 
@@ -308,7 +314,10 @@ def _artifact_notes(release: ReleaseArtifacts) -> str:
         for f in release.files
         if f.yanked
     )
-    lines.extend(f"⚠ Provenance lookup failed: {r}" for r in release.publisher_failures)
+    lines.extend(
+        f"⚠ Provenance lookup failed: {f.description}"
+        for f in release.publisher_failures
+    )
     if not lines:
         return ""
     return "\n\n" + "\n".join(lines)

@@ -12,6 +12,7 @@ import pytest
 from typer.testing import CliRunner
 
 from peta.cli.app import _SUBCOMMANDS, _shorthand_position, app, run
+from peta.core.artifacts import ArtifactFile, Compatibility, ReleaseArtifacts, Target
 from peta.core.cache import Provenance
 from peta.core.local import PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo, Vulnerability
@@ -592,14 +593,7 @@ class TestVersions:
 
 
 class TestArtifacts:
-    def _release(self, **over: object) -> object:
-        from peta.core.artifacts import (
-            ArtifactFile,
-            Compatibility,
-            ReleaseArtifacts,
-            Target,
-        )
-
+    def _release(self, **over: object) -> ReleaseArtifacts:
         wheel = ArtifactFile(
             filename="requests-2.31.0-py3-none-any.whl",
             url="https://files.invalid/requests-2.31.0-py3-none-any.whl",
@@ -673,7 +667,17 @@ class TestArtifacts:
         m.return_value = (None, _LIVE)
         result = runner.invoke(app, ["artifacts", "nope-xyz"])
         assert result.exit_code == 1
-        assert "not found" in result.output
+        assert "Package 'nope-xyz' not found" in result.output
+
+    @patch("peta.cli.commands.artifacts.get_release")
+    def test_a_missing_release_is_not_reported_as_a_missing_package(
+        self, m: MagicMock
+    ) -> None:
+        # The project can exist while the pinned release does not.
+        m.return_value = (None, _LIVE)
+        result = runner.invoke(app, ["artifacts", "requests==99.0"])
+        assert result.exit_code == 1
+        assert "Release 'requests==99.0' not found" in result.output
 
     @patch("peta.cli.commands.artifacts.get_release")
     def test_network_error_exits_2(self, m: MagicMock) -> None:

@@ -4,7 +4,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from peta.cli.output.summary import file_flags, file_size, summary_rows, verdict
+from peta.cli.output.summary import (
+    file_flags,
+    file_publishers,
+    file_size,
+    summary_rows,
+    verdict,
+)
 
 if TYPE_CHECKING:
     from peta.core.artifacts import ReleaseArtifacts
@@ -211,7 +217,7 @@ def format_artifacts(release: ReleaseArtifacts, *, detailed: bool = False) -> st
                 verdict(file),
                 file.sha256 or "-",
                 file_flags(file),
-                file.publisher.description if file.publisher else "-",
+                file_publishers(file),
             ])
             for file in release.files
         )
@@ -235,7 +241,10 @@ def _artifact_notes(release: ReleaseArtifacts) -> list[str]:
         for file in release.files
         if file.yanked
     )
-    notes.extend(f"- provenance lookup failed: {r}" for r in release.publisher_failures)
+    notes.extend(
+        f"- provenance lookup failed: {f.description}"
+        for f in release.publisher_failures
+    )
     if not notes:
         return []
     return ["", "Notes:", *notes]

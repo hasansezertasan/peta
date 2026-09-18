@@ -571,14 +571,12 @@ def format_versions(
     return _dump(envelope.to_dict())
 
 
-def _publisher_dict(publisher: Publisher | None) -> dict[str, object] | None:
-    """Represent a Trusted Publisher identity, or its absence.
+def _publisher_dict(publisher: Publisher) -> dict[str, object]:
+    """Represent one Trusted Publisher identity.
 
     Returns:
-        The publisher's fields, or ``None`` when PyPI supplied none.
+        The publisher's kind and its kind-specific claims.
     """
-    if publisher is None:
-        return None
     return {"kind": publisher.kind, "claims": publisher.claims}
 
 
@@ -609,7 +607,7 @@ def _artifact_dict(file: ArtifactFile) -> dict[str, object]:
         "provenance": {
             "available": file.provenance_url is not None,
             "url": file.provenance_url,
-            "publisher": _publisher_dict(file.publisher),
+            "publishers": [_publisher_dict(p) for p in file.publishers],
         },
     }
 
@@ -637,30 +635,65 @@ def _artifacts_result(release: ReleaseArtifacts) -> dict[str, object]:
     }
 
 
-def _publisher_source(release: ReleaseArtifacts, timestamp: str) -> SourceRecord:
-    """Record what the PEP 740 provenance lookup produced, field by field.
+def _publisher_paths(release: ReleaseArtifacts) -> tuple[list[str], list[str]]:
+    """Name the result paths publisher evidence did and did not reach.
 
     Returns:
-        One source record naming every result path a publisher was written to.
+        The paths a publisher was written to, and the paths a failed lookup
+        left empty.
     """
-    fields = [
-        f"result.files[{index}].provenance.publisher"
+    index_of = {file.filename: index for index, file in enumerate(release.files)}
+    filled = [
+        f"result.files[{index}].provenance.publishers"
         for index, file in enumerate(release.files)
-        if file.publisher is not None
+        if file.publishers
     ]
+    missed = [
+        f"result.files[{index_of[failure.filename]}].provenance.publishers"
+        for failure in release.publisher_failures
+        if failure.filename in index_of
+    ]
+    return filled, missed
+
+
+def _publisher_sources(release: ReleaseArtifacts, timestamp: str) -> list[SourceRecord]:
+    """Record what the PEP 740 provenance lookup produced, field by field.
+
+    A completed lookup and a failed one are separate records, because one
+    ``state`` cannot describe both and a consumer must be able to tell the
+    paths PyPI supplied nothing for from the paths peta could not reach.
+
+    Returns:
+        One record for the completed lookups, one for the failed ones, or
+        whichever of the two actually happened.
+    """
+    filled, missed = _publisher_paths(release)
     failures = release.publisher_failures
-    # A failure outranks a partial success: a consumer keying off ``state``
-    # must not read "success" and then treat the publishers that are missing
-    # because a lookup failed as publishers PyPI does not supply.
-    state: SourceState = "failed" if failures else ("success" if fields else "empty")
-    return SourceRecord(
-        name="pypi-provenance",
-        state=state,
-        target=f"{release.name} {release.version}",
-        retrieved_at=None if failures else timestamp,
-        reason=failures[0] if failures else None,
-        fields=fields,
-    )
+    retrieval = release.publisher_retrieval
+    target = f"{release.name} {release.version}"
+    records: list[SourceRecord] = []
+    if filled or not failures:
+        records.append(
+            SourceRecord(
+                name="pypi-provenance",
+                state="success" if filled else "empty",
+                target=target,
+                retrieved_at=retrieval.retrieved_at if retrieval else timestamp,
+                freshness=retrieval.freshness if retrieval else None,
+                fields=filled,
+            )
+        )
+    if failures:
+        records.append(
+            SourceRecord(
+                name="pypi-provenance",
+                state="failed",
+                target=target,
+                reason=failures[0].description,
+                fields=missed,
+            )
+        )
+    return records
 
 
 def format_artifacts(
@@ -690,12 +723,14 @@ def format_artifacts(
         )
     ]
     if publishers:
-        sources.append(_publisher_source(release, timestamp))
+        sources.extend(_publisher_sources(release, timestamp))
     warnings = [
         OutputMessage(
-            code="enrichment_failed", message=reason, source="pypi-provenance"
+            code="enrichment_failed",
+            message=failure.description,
+            source="pypi-provenance",
         )
-        for reason in release.publisher_failures
+        for failure in release.publisher_failures
     ]
     status: EnvelopeStatus = (
         "partial" if warnings else ("success" if files else "empty")

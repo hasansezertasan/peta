@@ -11,6 +11,7 @@ from peta.core.artifacts import (
     ArtifactFile,
     Compatibility,
     Publisher,
+    PublisherFailure,
     ReleaseArtifacts,
     Target,
 )
@@ -105,7 +106,7 @@ class TestRich:
         release = _release(
             _wheel(
                 provenance_url="https://pypi.org/integrity/x/provenance",
-                publisher=Publisher(kind="GitHub", claims={"repository": "a/b"}),
+                publishers=(Publisher(kind="GitHub", claims={"repository": "a/b"}),),
             )
         )
         summary = tables.render_artifacts(release, color=False)
@@ -118,7 +119,9 @@ class TestRich:
         assert "no reason given" in out
 
     def test_a_failed_provenance_lookup_is_visible(self) -> None:
-        release = _release(publisher_failures=("pkg-1.0.tar.gz: HTTP 503",))
+        release = _release(
+            publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),)
+        )
         assert "Provenance lookup failed" in tables.render_artifacts(
             release, color=False
         )
@@ -142,6 +145,28 @@ class TestRich:
         assert " · -" in out
 
 
+class TestSummaryRows:
+    def test_unknown_verdicts_are_counted_not_hidden(self) -> None:
+        # "0 of 1" alone reads as a ruled-out file.
+        release = _release(
+            _wheel(compatibility=Compatibility(compatible=None, reason="unreadable"))
+        )
+        assert "0 of 1 (1 unknown)" in tables.render_artifacts(release, color=False)
+
+    def test_an_aggregate_over_unsized_files_is_not_presented_as_exact(self) -> None:
+        release = _release(_wheel(size=1024), _sdist(size=None))
+        assert "at least 1.0 kB" in tables.render_artifacts(release, color=False)
+
+    def test_a_partly_yanked_release_is_not_reported_as_unyanked(self) -> None:
+        release = _release(_wheel(yanked=True), _sdist())
+        out = tables.render_artifacts(release, color=False)
+        assert "1 of 2 files" in out
+
+    def test_a_fully_yanked_release_still_says_so(self) -> None:
+        release = _release(_wheel(yanked=True), _sdist(yanked=True))
+        assert "entire release" in tables.render_artifacts(release, color=False)
+
+
 class TestText:
     def test_summary_and_full_digests(self) -> None:
         out = text.format_artifacts(_release(), detailed=True)
@@ -155,7 +180,7 @@ class TestText:
                 compatibility=Compatibility(compatible=None, reason="unreadable"),
                 yanked=True,
             ),
-            publisher_failures=("pkg-1.0.tar.gz: HTTP 503",),
+            publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),),
         )
         out = text.format_artifacts(release, detailed=True)
         assert "unknown" in out
@@ -184,7 +209,7 @@ class TestMarkdown:
                 yanked_reason="bad build",
                 sha256=None,
             ),
-            publisher_failures=("pkg-1.0.tar.gz: HTTP 503",),
+            publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),),
         )
         out = markdown.format_artifacts(release, detailed=True)
         assert "## Notes" in out
@@ -208,8 +233,10 @@ class TestJson:
         release = _release(
             _wheel(
                 provenance_url="https://pypi.org/integrity/x/provenance",
-                publisher=Publisher(
-                    kind="GitHub", claims={"repository": "a/b", "workflow": "p.yml"}
+                publishers=(
+                    Publisher(
+                        kind="GitHub", claims={"repository": "a/b", "workflow": "p.yml"}
+                    ),
                 ),
             )
         )
@@ -218,9 +245,9 @@ class TestJson:
         files = cast("list[dict[str, object]]", result["files"])
         provenance = cast("dict[str, object]", files[0]["provenance"])
         assert provenance["available"] is True
-        publisher = cast("dict[str, object]", provenance["publisher"])
-        assert publisher["kind"] == "GitHub"
-        assert publisher["claims"] == {"repository": "a/b", "workflow": "p.yml"}
+        publishers = cast("list[dict[str, object]]", provenance["publishers"])
+        assert publishers[0]["kind"] == "GitHub"
+        assert publishers[0]["claims"] == {"repository": "a/b", "workflow": "p.yml"}
         assert files[0]["tags"] == ["py3-none-any"]
         assert files[0]["compatible"] is True
         assert result["summary"] == {
@@ -246,12 +273,12 @@ class TestJson:
         assert files[0]["incompatibility"] == "unreadable"
 
     def test_sources_attribute_publishers_field_by_field(self) -> None:
-        release = _release(_wheel(publisher=Publisher(kind="GitHub")), _sdist())
+        release = _release(_wheel(publishers=(Publisher(kind="GitHub"),)), _sdist())
         data = self._envelope(release, publishers=True)
         sources = cast("list[dict[str, object]]", data["sources"])
         provenance = next(s for s in sources if s["name"] == "pypi-provenance")
         assert provenance["state"] == "success"
-        assert provenance["fields"] == ["result.files[0].provenance.publisher"]
+        assert provenance["fields"] == ["result.files[0].provenance.publishers"]
 
     def test_no_publisher_anywhere_is_empty_not_failed(self) -> None:
         data = self._envelope(_release(), publishers=True)
@@ -259,29 +286,36 @@ class TestJson:
         provenance = next(s for s in sources if s["name"] == "pypi-provenance")
         assert provenance["state"] == "empty"
 
-    def test_one_failure_among_successes_still_states_failed(self) -> None:
-        # Otherwise a consumer reading ``state`` sees success and treats the
-        # publisher missing from the failed file as one PyPI does not supply.
+    def test_a_mixed_lookup_attributes_both_outcomes_to_real_paths(self) -> None:
+        # One state cannot describe both outcomes, and a consumer must be able
+        # to tell the path PyPI supplied nothing for from the path peta could
+        # not reach — without parsing a filename back out of a warning.
         release = _release(
-            _wheel(publisher=Publisher(kind="GitHub")),
+            _wheel(publishers=(Publisher(kind="GitHub"),)),
             _sdist(),
-            publisher_failures=("pkg-1.0.tar.gz: HTTP 503",),
+            publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),),
         )
         data = self._envelope(release, publishers=True)
         sources = cast("list[dict[str, object]]", data["sources"])
-        provenance = next(s for s in sources if s["name"] == "pypi-provenance")
-        assert provenance["state"] == "failed"
-        assert provenance["fields"] == ["result.files[0].provenance.publisher"]
+        records = [s for s in sources if s["name"] == "pypi-provenance"]
+        assert [(r["state"], r["fields"]) for r in records] == [
+            ("success", ["result.files[0].provenance.publishers"]),
+            ("failed", ["result.files[1].provenance.publishers"]),
+        ]
+        assert records[1]["reason"] == "pkg-1.0.tar.gz: HTTP 503"
+        assert "retrieved_at" not in records[1]
 
     def test_a_failed_publisher_lookup_is_a_partial_envelope(self) -> None:
-        release = _release(publisher_failures=("pkg-1.0.tar.gz: HTTP 503",))
+        release = _release(
+            publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),)
+        )
         data = self._envelope(release, publishers=True)
         assert data["status"] == "partial"
         sources = cast("list[dict[str, object]]", data["sources"])
-        provenance = next(s for s in sources if s["name"] == "pypi-provenance")
-        assert provenance["state"] == "failed"
-        assert provenance["reason"] == "pkg-1.0.tar.gz: HTTP 503"
-        assert "retrieved_at" not in provenance
+        records = [s for s in sources if s["name"] == "pypi-provenance"]
+        assert [r["state"] for r in records] == ["failed"]
+        assert records[0]["reason"] == "pkg-1.0.tar.gz: HTTP 503"
+        assert "retrieved_at" not in records[0]
         warnings = cast("list[dict[str, object]]", data["warnings"])
         assert warnings[0]["code"] == "enrichment_failed"
 

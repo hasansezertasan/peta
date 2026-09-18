@@ -15,7 +15,7 @@ from rich.filesize import decimal
 if TYPE_CHECKING:
     from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
 
-__all__ = ["file_flags", "file_size", "summary_rows", "verdict"]
+__all__ = ["file_flags", "file_publishers", "file_size", "summary_rows", "verdict"]
 
 
 def verdict(file: ArtifactFile) -> str:
@@ -61,6 +61,56 @@ def file_size(file: ArtifactFile) -> str:
     return decimal(file.size)
 
 
+def file_publishers(file: ArtifactFile) -> str:
+    """Name every Trusted Publisher recorded for one file.
+
+    Returns:
+        The publishers, or ``"-"`` when none was supplied.
+    """
+    return "; ".join(p.description for p in file.publishers) or "-"
+
+
+def _compatible_value(release: ReleaseArtifacts) -> str:
+    """State how many files fit, keeping unestablished verdicts visible.
+
+    A file peta could not judge belongs in neither the numerator nor silence:
+    counting it only in the denominator reads as "ruled out", which is the
+    answer the unknown verdict exists to avoid giving.
+
+    Returns:
+        The compatible count, with any unknown verdicts named.
+    """
+    unknown = sum(f.compatibility.compatible is None for f in release.files)
+    value = f"{len(release.compatible)} of {len(release.files)}"
+    return f"{value} ({unknown} unknown)" if unknown else value
+
+
+def _size_value(release: ReleaseArtifacts) -> str:
+    """Report the aggregate size without implying a missing one is zero.
+
+    Returns:
+        The total, qualified when the index did not size every file.
+    """
+    total = decimal(release.total_size)
+    if all(f.size is not None for f in release.files):
+        return total
+    return f"at least {total}"
+
+
+def _yanked_value(release: ReleaseArtifacts) -> str:
+    """Describe the release's yank state, including a partial one.
+
+    Returns:
+        Whether the whole release, some of it, or none of it is yanked.
+    """
+    yanked = sum(f.yanked for f in release.files)
+    if not yanked:
+        return "no"
+    if yanked == len(release.files):
+        return "entire release"
+    return f"{yanked} of {len(release.files)} files"
+
+
 def summary_rows(release: ReleaseArtifacts) -> list[tuple[str, str]]:
     """Build the labeled release summary every human renderer shows.
 
@@ -73,14 +123,11 @@ def summary_rows(release: ReleaseArtifacts) -> list[tuple[str, str]]:
         ("Files", str(total)),
         ("Wheels", str(len(release.wheels))),
         ("Sdists", str(len(release.sdists))),
-        (
-            f"Compatible (Python {release.target.version})",
-            f"{len(release.compatible)} of {total}",
-        ),
-        ("Total size", decimal(release.total_size)),
+        (f"Compatible (Python {release.target.version})", _compatible_value(release)),
+        ("Total size", _size_value(release)),
         ("Requires-Python", ", ".join(requires) or "-"),
         ("Provenance", f"{len(release.with_provenance)} of {total} files"),
-        ("Yanked", "entire release" if release.yanked else "no"),
+        ("Yanked", _yanked_value(release)),
     ]
     if release.publishers:
         rows.append(("Published by", "; ".join(release.publishers)))
