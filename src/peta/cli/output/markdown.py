@@ -4,10 +4,20 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.summary import (
+    file_flags,
+    file_publishers,
+    file_size,
+    summary_rows,
+    verdict,
+)
+
 if TYPE_CHECKING:
+    from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
+    "format_artifacts",
     "format_compare",
     "format_dep_tree",
     "format_files",
@@ -185,4 +195,92 @@ def format_versions(name: str, versions: list[dict[str, str]]) -> str:
         f"| {_cell(item['version'])} | {_cell(item['upload_time'])} |"
         for item in versions
     )
+    return "\n".join(lines)
+
+
+_ARTIFACT_HEADER = (
+    (
+        "| File | Kind | Size | Uploaded | Requires | Compatible | SHA-256 | Flags"
+        " | Published by |"
+    ),
+    "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+)
+
+
+def _artifact_rows(release: ReleaseArtifacts) -> list[str]:
+    """Render the per-file table body.
+
+    Returns:
+        One Markdown table row per file.
+    """
+    return [
+        "| "
+        + " | ".join([
+            f"`{_cell(file.filename)}`",
+            file.kind,
+            _cell(file_size(file)),
+            _cell(file.upload_time),
+            _cell(file.requires_python),
+            verdict(file),
+            f"`{_cell(file.sha256)}`" if file.sha256 else "—",
+            _cell(file_flags(file)),
+            _cell(file_publishers(file)),
+        ])
+        + " |"
+        for file in release.files
+    ]
+
+
+def _yanked_reason(file: ArtifactFile) -> str:
+    """Render a yank reason, naming the absence of one explicitly.
+
+    Returns:
+        The reason PyPI recorded, or a stand-in when it recorded none.
+    """
+    return _cell(file.yanked_reason or "no reason given")
+
+
+def _artifact_notes(release: ReleaseArtifacts) -> list[str]:
+    """Report incompatibility reasons, yanks, and failed provenance lookups.
+
+    Returns:
+        A trailing Markdown section, empty when there is nothing to report.
+    """
+    notes = [
+        f"- `{_cell(file.filename)}`: {_cell(file.compatibility.reason)}"
+        for file in release.files
+        if file.compatibility.reason
+    ]
+    notes.extend(
+        f"- `{_cell(file.filename)}` **yanked:** {_yanked_reason(file)}"
+        for file in release.files
+        if file.yanked
+    )
+    notes.extend(
+        f"- **provenance lookup failed:** {_cell(failure.description)}"
+        for failure in release.publisher_failures
+    )
+    if not notes:
+        return []
+    return ["", "## Notes", "", *notes]
+
+
+def format_artifacts(release: ReleaseArtifacts, *, detailed: bool = False) -> str:
+    """Format a release's artifacts as Markdown.
+
+    Returns:
+        A summary table, an optional per-file table, and any notes.
+    """
+    lines = [
+        f"# Artifacts for {release.name} {release.version}",
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+    ]
+    lines.extend(
+        f"| {label} | {_cell(value)} |" for label, value in summary_rows(release)
+    )
+    if detailed and release.files:
+        lines.extend(["", "## Files", "", *_ARTIFACT_HEADER, *_artifact_rows(release)])
+    lines.extend(_artifact_notes(release))
     return "\n".join(lines)

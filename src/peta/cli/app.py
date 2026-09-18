@@ -15,6 +15,7 @@ import typer
 
 from peta.__metadata__ import PROJECT_NAME
 from peta.cli.commands import (
+    artifacts as artifacts_mod,
     compare as compare_mod,
     deps as deps_mod,
     files as files_mod,
@@ -27,11 +28,12 @@ from peta.cli.output.selection import OutputFormat
 from peta.cli.state import CliState
 from peta.core import cache
 
-__all__ = ["compare", "deps", "files", "info", "main", "run", "versions"]
+__all__ = ["artifacts", "compare", "deps", "files", "info", "main", "run", "versions"]
 
 
 _SUBCOMMANDS = {
     "info",
+    "artifacts",
     "deps",
     "files",
     "versions",
@@ -298,6 +300,41 @@ def versions(
         use_json=use_json,
         output_format=_explicit_format(ctx, output_format),
         limit=limit,
+        color=_color_from_ctx(ctx),
+    )
+
+
+@app.command()
+def artifacts(
+    ctx: typer.Context,
+    package: Annotated[
+        str, typer.Argument(help="Package name (optionally name==version).")
+    ],
+    use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
+    ] = OutputFormat.RICH,
+    python: Annotated[
+        str | None, typer.Option("--python", help="Target Python version (e.g. 3.13).")
+    ] = None,
+    detailed: Annotated[
+        bool, typer.Option("--files", help="List every distribution file.")
+    ] = False,
+    provenance: Annotated[
+        bool,
+        typer.Option(
+            "--provenance", help="Fetch PEP 740 provenance for publisher identity."
+        ),
+    ] = False,
+) -> None:
+    """Show a release's distribution files, compatibility, and provenance."""
+    artifacts_mod.artifacts(
+        package,
+        use_json=use_json,
+        output_format=_explicit_format(ctx, output_format),
+        python=python,
+        detailed=detailed,
+        provenance=provenance,
         color=_color_from_ctx(ctx),
     )
 

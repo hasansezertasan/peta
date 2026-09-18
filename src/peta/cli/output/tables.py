@@ -9,11 +9,20 @@ from rich.table import Table
 from rich.tree import Tree
 
 from peta.cli.output.console import render as _render
+from peta.cli.output.summary import (
+    file_flags,
+    file_publishers,
+    file_size,
+    summary_rows,
+    verdict,
+)
 
 if TYPE_CHECKING:
+    from peta.core.artifacts import ReleaseArtifacts
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
+    "render_artifacts",
     "render_compare",
     "render_dep_tree",
     "render_files",
@@ -248,3 +257,91 @@ def render_versions(name: str, versions: list[dict[str, str]], *, color: bool) -
     for v in versions:
         table.add_row(v["version"], v.get("upload_time", ""))
     return _to_string(table, color=color)
+
+
+def _artifact_lines(release: ReleaseArtifacts) -> str:
+    """List every file as a name line plus an indented detail line.
+
+    Two lines per file rather than a table: distribution filenames run past 60
+    characters, so a seven-column table folds every one of them into an
+    unreadable stack at terminal width.
+
+    Returns:
+        The file listing, with digests shortened to a recognizable prefix.
+    """
+    lines: list[str] = []
+    for file in release.files:
+        verdict_text = verdict(file)
+        if file.compatibility.reason:
+            verdict_text += f" ({file.compatibility.reason})"
+        digest = f"sha256:{file.sha256[:12]}…" if file.sha256 else "no digest"
+        uploaded = (file.upload_time or "unknown")[:10]
+        requires = file.requires_python or "any"
+        detail = (
+            f"  {file_size(file)} · {uploaded} · requires {requires}"
+            f" · compatible: {verdict_text}"
+        )
+        lines.extend([file.filename, detail, f"  {digest} · {file_flags(file)}"])
+        if file.publishers:
+            lines.append(f"  published by {file_publishers(file)}")
+    return "\n".join(lines)
+
+
+def _artifact_notes(release: ReleaseArtifacts) -> str:
+    """Explain the things a summary count alone leaves a user guessing at.
+
+    Returns:
+        A trailing block naming why nothing is installable and which files
+        are yanked, or an empty string when neither applies.
+    """
+    lines: list[str] = []
+    # Ruled out, not merely unestablished: a release whose verdicts are all
+    # ``unknown`` has had nothing ruled out, and claiming otherwise would
+    # assert an incompatibility peta never determined.
+    ruled_out = release.files and all(
+        f.compatibility.compatible is False for f in release.files
+    )
+    if ruled_out:
+        reasons = sorted({
+            f.compatibility.reason for f in release.files if f.compatibility.reason
+        })
+        lines.extend([
+            f"⚠ No file is compatible with Python {release.target.version}:",
+            *(f"  {reason}" for reason in reasons),
+        ])
+    lines.extend(
+        f"⚠ Yanked: {f.filename} ({f.yanked_reason or 'no reason given'})"
+        for f in release.files
+        if f.yanked
+    )
+    lines.extend(
+        f"⚠ Provenance lookup failed: {f.description}"
+        for f in release.publisher_failures
+    )
+    if not lines:
+        return ""
+    return "\n\n" + "\n".join(lines)
+
+
+def render_artifacts(
+    release: ReleaseArtifacts, *, color: bool, detailed: bool = False
+) -> str:
+    """Render a release's artifacts as a Rich summary, optionally per file.
+
+    Returns:
+        The summary panel, the file table when asked for, and any notes.
+    """
+    if not release.files:
+        return f"No distribution files published for {release.name} {release.version}."
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Field", style="bold cyan")
+    table.add_column("Value")
+    for label, value in summary_rows(release):
+        table.add_row(label, value)
+    panel = Panel(
+        table, title=f"{release.name} {release.version}", subtitle="artifacts"
+    )
+    rendered = _to_string(panel, color=color)
+    if detailed:
+        rendered += "\n\n" + _artifact_lines(release)
+    return rendered + _artifact_notes(release)
