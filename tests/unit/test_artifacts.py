@@ -134,6 +134,10 @@ class TestCompatibility:
             "3..1",
             "3.\u00b9\u00b3",
             "3.\u0661\u0663",
+            # Unbounded digits exceed CPython's integer-string limit, and a
+            # merely huge minor walks a tag range big enough to hang.
+            "3." + "9" * 5000,
+            "3.1000",
         ],
     )
     def test_parse_target_rejects_nonsense(self, value: str) -> None:
@@ -491,6 +495,19 @@ class TestPublishers:
 
     def test_no_completed_lookup_has_no_provenance(self) -> None:
         assert _merged_retrieval([_Lookup()]) is None
+
+    def test_an_unusable_provenance_url_does_not_abort_the_listing(
+        self, fake_http: FakeTransport
+    ) -> None:
+        # httpx.InvalidURL subclasses neither HTTPError nor ValueError, so it
+        # escaped the failure conversion and took the whole listing with it.
+        fake_http.reply(
+            url="/simple/", json=_page(_file(provenance="https://pypi.org:notaport/p"))
+        )
+        release, _ = get_release("pkg", publishers=True)
+        assert release is not None
+        assert len(release.files) == 1
+        assert len(release.publisher_failures) == 1
 
     def test_a_transport_failure_does_not_abort_the_listing(
         self, fake_http: FakeTransport

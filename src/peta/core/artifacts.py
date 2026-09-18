@@ -132,6 +132,14 @@ class Target:
         return _target_tags(self.python)
 
 
+_MAX_VERSION_DIGITS = 3
+"""Digits allowed per version component, so ``3.999`` is the widest target.
+
+Far past any real interpreter, and short enough that a component can always
+be converted and turned into a tag set without hanging.
+"""
+
+
 def parse_target(python: str | None) -> Target:
     """Build a target from a ``MAJOR.MINOR`` Python version string.
 
@@ -148,11 +156,14 @@ def parse_target(python: str | None) -> Target:
     # ``3.13.bad`` otherwise parses far enough to build a target, and then
     # answers every ``Requires-Python`` question with a silent ``False``
     # — a confident wrong answer, which is worse than the rejection here.
-    # ``isascii`` as well as ``isdigit``: the latter accepts superscripts and
-    # other numeric scripts that ``int`` then refuses, so "3.¹³" would pass
-    # validation and crash building the tag set.
+    # Three separate guards, each for a different way a component can be
+    # digits and still unusable: ``isdigit`` alone accepts superscripts and
+    # other numeric scripts that ``int`` refuses, and an unbounded run of
+    # digits either exceeds CPython's integer-string limit or asks
+    # ``cpython_tags`` to walk a range large enough to hang the process.
     if len(parts) not in {2, 3} or not all(
-        part.isascii() and part.isdigit() for part in parts
+        part.isascii() and part.isdigit() and len(part) <= _MAX_VERSION_DIGITS
+        for part in parts
     ):
         msg = f"Invalid Python version {python!r}; expected MAJOR.MINOR."
         raise ValueError(msg)
@@ -552,7 +563,7 @@ def _publisher_for(file: ArtifactFile) -> _Lookup:
         fetched = http.get(url, ttl=cache.DAILY, scope="provenance")
         _ = fetched.response.raise_for_status()
         publishers = _publishers_from(cast("object", fetched.response.json()))
-    except (httpx.HTTPError, http.OfflineError, ValueError) as exc:
+    except (httpx.HTTPError, httpx.InvalidURL, http.OfflineError, ValueError) as exc:
         return _Lookup(failure=PublisherFailure(file.filename, str(exc)))
     http.keep(fetched)
     return _Lookup(publishers=publishers, retrieval=fetched.provenance)

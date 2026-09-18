@@ -80,11 +80,11 @@ reported, with an empty `fields` array because no result path identifies it.
 `result.files`, each with its digest, size, upload time, wheel tags, and a
 `provenance` object. `compatible` is nullable: `null` means peta could not read
 the evidence, which is a different answer from `false`. `provenance.available`
-reports whether the index exposes a PEP 740 document, and `provenance.publisher`
-is the Trusted Publisher identity PyPI supplied — both are reports of published
-evidence, never verification results, and their absence is not a failure. `provenance.publishers` is an
-array because PEP 740 permits one attestation bundle per publisher, and each
-entry names its `kind` plus a `claims` object carrying that kind's own fields
+reports whether the index exposes a PEP 740 document, and
+`provenance.publishers` carries the Trusted Publisher identities PyPI supplied
+— both are reports of published evidence, never verification results, and their
+absence is not a failure. It is an array because PEP 740 permits one
+attestation bundle per publisher, and each entry names its `kind` plus a `claims` object carrying that kind's own fields
 verbatim, since each publisher kind describes itself differently. `summary.total_size` sums the sizes the
 index reported, so `summary.unsized_files` says how many files contributed
 none — any value above zero makes the total a lower bound. With
@@ -96,7 +96,8 @@ for from a path peta could not reach. A reached path is listed whether or not
 PyPI supplied a publisher for it, and survives a sibling file's failure. Where
 the per-file retrievals mix live and cached answers, the record reports the
 stalest of them, so it never describes any part of the evidence as fresher
-than it is. A failure also warns and makes the
+than it is. A release whose files expose no provenance at all is recorded as
+`skipped` with no `retrieved_at`, since nothing was requested. A failure also warns and makes the
 envelope `partial` rather than discarding the artifact listing.
 
 Source names identify the provider, not the lookup strategy: packages read from

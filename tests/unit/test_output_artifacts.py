@@ -15,10 +15,12 @@ from peta.core.artifacts import (
     ReleaseArtifacts,
     Target,
 )
+from peta.core.cache import Provenance
 
 pytestmark = pytest.mark.unit
 
 GENERATED_AT = "2026-09-04T12:00:00Z"
+_RETRIEVAL = Provenance("live", "2026-09-04T11:59:00Z")
 
 
 def _wheel(**over: object) -> ArtifactFile:
@@ -278,6 +280,7 @@ class TestJson:
             _wheel(publishers=(Publisher(kind="GitHub"),)),
             _sdist(),
             publisher_lookups=("pkg-1.0-py3-none-any.whl",),
+            publisher_retrieval=_RETRIEVAL,
         )
         data = self._envelope(release, publishers=True)
         sources = cast("list[dict[str, object]]", data["sources"])
@@ -285,11 +288,28 @@ class TestJson:
         assert provenance["state"] == "success"
         assert provenance["fields"] == ["result.files[0].provenance.publishers"]
 
-    def test_no_publisher_anywhere_is_empty_not_failed(self) -> None:
+    def test_a_release_with_no_provenance_is_skipped_not_timestamped(self) -> None:
+        # Nothing was requested, so claiming the source answered at the
+        # envelope'"'"'s own generation time would be an invented retrieval.
         data = self._envelope(_release(), publishers=True)
         sources = cast("list[dict[str, object]]", data["sources"])
         provenance = next(s for s in sources if s["name"] == "pypi-provenance")
+        assert provenance["state"] == "skipped"
+        assert provenance["reason"] == "no file exposes provenance"
+        assert "retrieved_at" not in provenance
+        assert "freshness" not in provenance
+
+    def test_a_reached_release_with_no_publishers_is_empty(self) -> None:
+        release = _release(
+            _wheel(),
+            publisher_lookups=("pkg-1.0-py3-none-any.whl",),
+            publisher_retrieval=_RETRIEVAL,
+        )
+        data = self._envelope(release, publishers=True)
+        sources = cast("list[dict[str, object]]", data["sources"])
+        provenance = next(s for s in sources if s["name"] == "pypi-provenance")
         assert provenance["state"] == "empty"
+        assert provenance["retrieved_at"] == "2026-09-04T11:59:00Z"
 
     def test_a_mixed_lookup_attributes_both_outcomes_to_real_paths(self) -> None:
         # One state cannot describe both outcomes, and a consumer must be able
@@ -299,6 +319,7 @@ class TestJson:
             _wheel(publishers=(Publisher(kind="GitHub"),)),
             _sdist(),
             publisher_lookups=("pkg-1.0-py3-none-any.whl",),
+            publisher_retrieval=_RETRIEVAL,
             publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),),
         )
         data = self._envelope(release, publishers=True)
@@ -319,6 +340,7 @@ class TestJson:
             _wheel(),
             _sdist(),
             publisher_lookups=("pkg-1.0-py3-none-any.whl",),
+            publisher_retrieval=_RETRIEVAL,
             publisher_failures=(PublisherFailure("pkg-1.0.tar.gz", "HTTP 503"),),
         )
         data = self._envelope(release, publishers=True)
