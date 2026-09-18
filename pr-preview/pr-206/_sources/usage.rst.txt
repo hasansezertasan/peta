@@ -154,8 +154,9 @@ that is not a wheel is decided by ``Requires-Python`` alone, which says a
 source distribution may be *built*, not that building it will succeed.
 ``--python 3.12`` evaluates against that interpreter version on this machine's
 platform, so the question answered is "can I install this here under that
-Python", and it accepts exactly the tags the running-interpreter path would —
-naming your own version explicitly never narrows the answer.
+Python". Naming the version you are already running gives the same verdicts as
+omitting the flag; naming a different one evaluates that interpreter's tags,
+which is the point of the flag.
 
 A verdict of ``unknown`` is deliberately distinct from ``no``: it means peta
 could not read the evidence — an unparsable ``Requires-Python``, say — not
