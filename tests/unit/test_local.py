@@ -1,13 +1,28 @@
 """Unit tests for the local metadata fetcher (importlib.metadata mocked)."""
 
+import sys
 from email.message import Message
 from unittest.mock import MagicMock, patch
 
 import pytest
+from packaging.markers import default_environment
 
-from peta.core.local import PackageNotFoundError, get_package
+from peta.core.local import LocalTarget, PackageNotFoundError, get_package
 
 pytestmark = pytest.mark.unit
+
+
+def test_interpreter_target_marker_environment_matches_packaging() -> None:
+    target = LocalTarget.create(sys.executable)
+    expected = default_environment()
+    assert (
+        target.marker_environment["implementation_name"]
+        == expected["implementation_name"]
+    )
+    assert (
+        target.marker_environment["implementation_version"]
+        == expected["implementation_version"]
+    )
 
 
 def _msg(**headers: str) -> Message:

@@ -125,9 +125,18 @@ import platform
 import sys
 
 version = platform.python_version()
+implementation = sys.implementation
+implementation_version = (
+    f"{implementation.version.major}.{implementation.version.minor}."
+    f"{implementation.version.micro}"
+)
+if implementation.version.releaselevel != "final":
+    implementation_version += (
+        implementation.version.releaselevel[0] + str(implementation.version.serial)
+    )
 marker_environment = {
-    "implementation_name": platform.python_implementation().lower(),
-    "implementation_version": version,
+    "implementation_name": implementation.name,
+    "implementation_version": implementation_version,
     "os_name": os.name,
     "platform_machine": platform.machine(),
     "platform_release": platform.release(),
