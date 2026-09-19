@@ -10,7 +10,7 @@ from peta.cli.output.render import render_dep_tree, render_why
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
 from peta.core.deptree import build_tree, find_why
-from peta.core.local import PackageNotFoundError as LocalNotFound
+from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import not_found_source
 
@@ -74,6 +74,7 @@ def _build_or_fail(
     depth: int,
     selected: OutputFormat,
     arguments: dict[str, object],
+    target: LocalTarget | None,
 ) -> DependencyNode:
     """Resolve the tree, or render the failure and exit.
 
@@ -84,7 +85,9 @@ def _build_or_fail(
         The resolved dependency tree.
     """
     try:
-        return build_tree(package, local=local, remote=remote, max_depth=depth)
+        return build_tree(
+            package, local=local, remote=remote, target=target, max_depth=depth
+        )
     except _NOT_FOUND as exc:
         fail(
             "deps",
@@ -126,7 +129,7 @@ def _build_or_fail(
         )
 
 
-def deps(
+def deps(  # ruff: ignore[complex-structure, too-many-arguments]
     package: str,
     *,
     use_json: bool = False,
@@ -136,6 +139,8 @@ def deps(
     color: bool = False,
     why: str | None = None,
     depth: int = 10,
+    python: str | None = None,
+    paths: tuple[str, ...] = (),
 ) -> None:
     """Show a package's recursive dependency tree, or why a target is pulled in."""
     arguments: dict[str, object] = {
@@ -145,6 +150,21 @@ def deps(
         "why": why,
         "depth": depth,
     }
+    try:
+        target = LocalTarget.create(python, paths) if python or paths else None
+    except ValueError as exc:
+        fail(
+            "deps",
+            arguments=arguments,
+            code="invalid_arguments",
+            message=str(exc),
+            output_format=resolve_or_fail(
+                "deps", arguments, output_format, use_json=use_json
+            ),
+            exit_code=2,
+        )
+    if target:
+        arguments["target_environment"] = target.output_environment()
     selected = resolve_or_fail("deps", arguments, output_format, use_json=use_json)
     tree = _build_or_fail(
         package,
@@ -153,9 +173,12 @@ def deps(
         depth=depth,
         selected=selected,
         arguments=arguments,
+        target=target,
     )
 
     if why is not None:
+        if target and selected != OutputFormat.JSON:
+            typer.echo(target.describe())
         _print_why(
             package,
             why,
@@ -167,4 +190,9 @@ def deps(
             arguments=arguments,
         )
         return
+    rendered_target = (
+        target.describe() if target and selected != OutputFormat.JSON else ""
+    )
+    if rendered_target:
+        typer.echo(rendered_target)
     _print_tree(tree, output_format=selected, arguments=arguments, color=color)

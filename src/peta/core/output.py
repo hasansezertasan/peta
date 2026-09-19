@@ -6,7 +6,7 @@ import platform
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Literal, TypeAliasType
+from typing import TYPE_CHECKING, Literal, TypeAliasType, cast
 
 from peta._version import __version__
 
@@ -83,6 +83,9 @@ class TargetEnvironment:
     implementation: str
     python_version: str
     platform: str
+    interpreter: str | None = None
+    paths: tuple[str, ...] = ()
+    markers: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def current(cls) -> TargetEnvironment:
@@ -162,6 +165,9 @@ class OutputEnvelope:
                 "implementation": environment.implementation,
                 "python_version": environment.python_version,
                 "platform": environment.platform,
+                "interpreter": environment.interpreter,
+                "paths": list(environment.paths),
+                "markers": environment.markers,
             },
         }
         return {
@@ -225,11 +231,21 @@ def make_envelope(
     Returns:
         A populated, typed output envelope.
     """
+    supplied = (arguments or {}).get("target_environment")
+    target = TargetEnvironment.current()
+    if isinstance(supplied, dict):
+        supplied = cast("dict[str, object]", supplied)
+        target = TargetEnvironment(
+            implementation=str(supplied["implementation"]),
+            python_version=str(supplied["python_version"]),
+            platform=str(supplied["platform"]),
+            interpreter=cast("str | None", supplied.get("interpreter")),
+            paths=tuple(cast("list[str]", supplied.get("paths", []))),
+            markers=cast("dict[str, str]", supplied.get("markers", {})),
+        )
     return OutputEnvelope(
         query=OutputQuery(
-            command=command,
-            arguments=arguments or {},
-            target_environment=TargetEnvironment.current(),
+            command=command, arguments=arguments or {}, target_environment=target
         ),
         status=status,
         result=result,

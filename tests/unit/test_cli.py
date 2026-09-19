@@ -66,6 +66,13 @@ class TestInfo:
         assert r.exit_code == 0
         mr.assert_called_once_with("requests", "2.28.0")
 
+    def test_target_with_version_specifier_rejected(self) -> None:
+        result = runner.invoke(
+            app, ["info", "requests==2.28.0", "--python", sys.executable]
+        )
+        assert result.exit_code == 2
+        assert "version specifier" in result.output
+
     @patch("peta.core.resolve.local_get_package")
     def test_json(self, m: MagicMock) -> None:
         m.return_value = _pkg()

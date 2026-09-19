@@ -63,6 +63,24 @@ scoop install peta
 
 ## Usage
 
+### Inspect another Python environment
+
+Local commands normally inspect the environment running `peta`. Pass
+`--python PATH` to inspect an explicit interpreter, or repeat `--path` to
+search explicit metadata directories:
+
+```shell
+peta info django --local --python .venv/bin/python
+peta deps django --local --path .venv/lib/python3.14/site-packages
+peta files django --python .venv/bin/python
+```
+
+`--path` selects the metadata search directories. `--python` selects both the
+interpreter's search path and its marker environment; when both are supplied,
+the paths come from `--path` and markers come from `--python`. With only
+`--path`, markers come from the running interpreter. Peta never guesses a
+nearby `.venv`; human output and JSON identify the target and marker values.
+
 ```bash
 peta requests                 # info (local first, falls back to PyPI)
 peta info requests            # explicit info

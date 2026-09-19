@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 
-from peta.core.local import PackageNotFoundError as LocalNotFound
+from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo
 from peta.core.resolve import parse_package_arg, resolve_package
 
@@ -79,4 +79,15 @@ class TestResolvePackage:
     def test_local_with_version_rejected(self, mr: MagicMock) -> None:
         with pytest.raises(typer.BadParameter):
             resolve_package("requests==2.28.0", local=True, remote=False)
+        mr.assert_not_called()
+
+    @patch("peta.core.resolve.remote_get_package")
+    def test_target_with_version_rejected(self, mr: MagicMock) -> None:
+        target = LocalTarget(
+            paths=("/site-packages",), interpreter=None, marker_environment={}
+        )
+        with pytest.raises(typer.BadParameter, match="version specifier"):
+            resolve_package(
+                "requests==2.28.0", local=False, remote=False, target=target
+            )
         mr.assert_not_called()
