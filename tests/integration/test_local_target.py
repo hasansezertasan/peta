@@ -208,3 +208,54 @@ class TestInvalidTargets:
         result = runner.invoke(app, ["info", "probe", "--python", str(not_python)])
         assert result.exit_code == 2
         assert "could not inspect it" in result.output
+
+
+class TestBlankTargets:
+    """An explicitly empty option must be rejected, never silently ignored."""
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            pytest.param(["info", "probe", "--local"], id="info"),
+            pytest.param(["compare", "probe", "probe-dep", "--local"], id="compare"),
+            pytest.param(["deps", "probe", "--local"], id="deps"),
+            pytest.param(["files", "probe"], id="files"),
+        ],
+    )
+    def test_empty_python_does_not_fall_back_to_the_running_environment(
+        self, argv: list[str]
+    ) -> None:
+        """``--python ""`` (an unset shell variable) must not retarget the query."""
+        result = runner.invoke(app, [*argv, "--python", ""])
+        assert result.exit_code == 2
+        assert "no interpreter path given" in result.output
+
+    def test_empty_path_is_not_the_working_directory(self) -> None:
+        """``Path("").resolve()`` is the cwd, so an empty --path must be rejected."""
+        result = runner.invoke(app, ["info", "probe", "--local", "--path", ""])
+        assert result.exit_code == 2
+        assert "expected an existing directory" in result.output
+
+
+class TestArgumentsMapping:
+    """``query.arguments`` records the invocation, nothing else."""
+
+    def test_target_environment_is_not_duplicated_into_arguments(
+        self, site_packages: Path
+    ) -> None:
+        result = runner.invoke(
+            app, ["info", "probe", "--local", "--path", str(site_packages), "--json"]
+        )
+        query = json.loads(result.output)["query"]
+        assert "target_environment" not in query["arguments"]
+        assert query["arguments"]["paths"] == [str(site_packages)]
+        # The environment is still published, once, in its documented place.
+        assert query["target_environment"]["paths"] == [str(site_packages)]
+
+    def test_absent_from_arguments_on_an_error_envelope_too(self) -> None:
+        result = runner.invoke(
+            app, ["info", "probe", "--json", "--path", "/no/such/dir"]
+        )
+        query = json.loads(result.output)["query"]
+        assert "target_environment" not in query["arguments"]
+        assert query["arguments"]["paths"] == ["/no/such/dir"]

@@ -11,6 +11,7 @@ from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
 from peta.core.enrich import enrich
 from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
+from peta.core.output import TARGET_ENVIRONMENT_KEY
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import not_found_source, resolve_package
 
@@ -67,9 +68,14 @@ def info(  # ruff: ignore[complex-structure, too-many-arguments]
     }
     selected = resolve_or_fail("info", arguments, output_format, use_json=use_json)
     try:
-        target = LocalTarget.create(python, paths) if python or paths else None
+        # ``python is not None`` rather than a truthiness test: ``--python ""``
+        # must be rejected as an unusable interpreter, not silently fall back
+        # to the environment running peta.
+        target = (
+            LocalTarget.create(python, paths) if python is not None or paths else None
+        )
         if target:
-            arguments["target_environment"] = target.output_environment()
+            arguments[TARGET_ENVIRONMENT_KEY] = target.output_environment()
         pkg = _resolve_and_enrich(
             package,
             local=local,

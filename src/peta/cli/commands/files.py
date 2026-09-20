@@ -11,6 +11,7 @@ from peta.core.local import (
     PackageNotFoundError as LocalNotFound,
     get_package as local_get_package,
 )
+from peta.core.output import TARGET_ENVIRONMENT_KEY
 
 __all__ = ["files"]
 
@@ -34,9 +35,14 @@ def files(
     }
     selected = resolve_or_fail("files", arguments, output_format, use_json=use_json)
     try:
-        target = LocalTarget.create(python, paths) if python or paths else None
+        # ``python is not None`` rather than a truthiness test: ``--python ""``
+        # must be rejected as an unusable interpreter, not silently fall back
+        # to the environment running peta.
+        target = (
+            LocalTarget.create(python, paths) if python is not None or paths else None
+        )
         if target:
-            arguments["target_environment"] = target.output_environment()
+            arguments[TARGET_ENVIRONMENT_KEY] = target.output_environment()
         pkg = (
             local_get_package(package, target=target)
             if target

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 __all__ = [
     "SCHEMA_VERSION",
     "SOURCE_STATES",
+    "TARGET_ENVIRONMENT_KEY",
     "CommandName",
     "EnvelopeStatus",
     "MessageCode",
@@ -35,6 +36,17 @@ __all__ = [
 ]
 
 SCHEMA_VERSION = "1"
+
+TARGET_ENVIRONMENT_KEY = "target_environment"
+"""How a command hands :func:`make_envelope` its resolved target.
+
+Transport only. It travels in the ``arguments`` mapping because that is the
+one channel every command already threads through to the envelope, and
+:func:`make_envelope` removes it again before serialization: ``arguments`` is
+the contract's record of the CLI invocation, so publishing the environment
+there as well would both duplicate ``query.target_environment`` and put an
+undocumented nested object in front of exact consumers.
+"""
 # CodeQL does not yet recognize PEP 695 ``type`` statements as definitions when
 # checking ``__all__``. Keep these runtime-visible assignments until it does.
 CommandName = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
@@ -239,7 +251,13 @@ def make_envelope(
     Returns:
         A populated, typed output envelope.
     """
-    supplied = (arguments or {}).get("target_environment")
+    supplied = (arguments or {}).get(TARGET_ENVIRONMENT_KEY)
+    # Stripped rather than passed through: see TARGET_ENVIRONMENT_KEY.
+    recorded = {
+        key: value
+        for key, value in (arguments or {}).items()
+        if key != TARGET_ENVIRONMENT_KEY
+    }
     target = TargetEnvironment.current()
     if isinstance(supplied, dict):
         supplied = cast("dict[str, object]", supplied)
@@ -253,7 +271,7 @@ def make_envelope(
         )
     return OutputEnvelope(
         query=OutputQuery(
-            command=command, arguments=arguments or {}, target_environment=target
+            command=command, arguments=recorded, target_environment=target
         ),
         status=status,
         result=result,

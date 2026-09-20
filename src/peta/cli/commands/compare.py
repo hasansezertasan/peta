@@ -13,6 +13,7 @@ from peta.core import http
 from peta.core.concurrency import gather
 from peta.core.enrich import enrich
 from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
+from peta.core.output import TARGET_ENVIRONMENT_KEY
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import not_found_source, resolve_package
 
@@ -71,9 +72,14 @@ def compare(  # ruff: ignore[complex-structure, too-many-arguments]
     try:
         # Built before ``gather`` so an unusable target fails once, here,
         # rather than racing as the same error out of two worker threads.
-        target = LocalTarget.create(python, paths) if python or paths else None
+        # ``python is not None`` rather than a truthiness test: ``--python ""``
+        # must be rejected as an unusable interpreter, not silently fall back
+        # to the environment running peta.
+        target = (
+            LocalTarget.create(python, paths) if python is not None or paths else None
+        )
         if target:
-            arguments["target_environment"] = target.output_environment()
+            arguments[TARGET_ENVIRONMENT_KEY] = target.output_environment()
         # Both sides at once: they are unrelated lookups, and waiting for the
         # first before starting the second doubled the command's latency.
         # ``gather`` returns them in the order asked for, so which package is
