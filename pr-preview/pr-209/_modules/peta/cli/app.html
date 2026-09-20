@@ -332,7 +332,7 @@ data-aria-dark="Switch to auto color mode">
 <div class="viewcode-block" id="compare">
 <a class="viewcode-back" href="../../../modules.html#peta.cli.app.compare">[docs]</a>
 </span><span data-line="208"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
-</span><span data-line="209"><span class="k">def</span><span class="w"> </span><span class="nf">compare</span><span class="p">(</span>
+</span><span data-line="209"><span class="k">def</span><span class="w"> </span><span class="nf">compare</span><span class="p">(</span>  <span class="c1"># ruff: ignore[too-many-arguments, too-many-positional-arguments]</span>
 </span><span data-line="210">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
 </span><span data-line="211">    <span class="n">a</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"First package name."</span><span class="p">)],</span>
 </span><span data-line="212">    <span class="n">b</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Second package name."</span><span class="p">)],</span>
@@ -352,197 +352,208 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="226">    <span class="n">no_stats</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
 </span><span data-line="227">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--no-stats"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Skip download/dependent count lookups."</span><span class="p">)</span>
 </span><span data-line="228">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="229"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="230"><span class="w">    </span><span class="sd">"""Compare two packages' metadata side by side."""</span>
-</span><span data-line="231">    <span class="n">compare_mod</span><span class="o">.</span><span class="n">compare</span><span class="p">(</span>
-</span><span data-line="232">        <span class="n">a</span><span class="p">,</span>
-</span><span data-line="233">        <span class="n">b</span><span class="p">,</span>
-</span><span data-line="234">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
-</span><span data-line="235">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
-</span><span data-line="236">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
-</span><span data-line="237">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
-</span><span data-line="238">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
-</span><span data-line="239">        <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
-</span><span data-line="240">        <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
-</span><span data-line="241">    <span class="p">)</span></div>
+</span><span data-line="229">    <span class="n">python</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="230">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--python"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Target Python interpreter."</span><span class="p">)</span>
+</span><span data-line="231">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="232">    <span class="n">path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="233">        <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="234">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--path"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Metadata search path; repeatable."</span><span class="p">),</span>
+</span><span data-line="235">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="236"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="237"><span class="w">    </span><span class="sd">"""Compare two packages' metadata side by side."""</span>
+</span><span data-line="238">    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="239">        <span class="n">path</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="240">    <span class="n">compare_mod</span><span class="o">.</span><span class="n">compare</span><span class="p">(</span>
+</span><span data-line="241">        <span class="n">a</span><span class="p">,</span>
+</span><span data-line="242">        <span class="n">b</span><span class="p">,</span>
+</span><span data-line="243">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="244">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
+</span><span data-line="245">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="246">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="247">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="248">        <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
+</span><span data-line="249">        <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
+</span><span data-line="250">        <span class="n">python</span><span class="o">=</span><span class="n">python</span><span class="p">,</span>
+</span><span data-line="251">        <span class="n">paths</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+</span><span data-line="252">    <span class="p">)</span></div>
 
-</span><span data-line="242">
-</span><span data-line="243">
+</span><span data-line="253">
+</span><span data-line="254">
 <div class="viewcode-block" id="deps">
 <a class="viewcode-back" href="../../../modules.html#peta.cli.app.deps">[docs]</a>
-</span><span data-line="244"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
-</span><span data-line="245"><span class="k">def</span><span class="w"> </span><span class="nf">deps</span><span class="p">(</span>  <span class="c1"># ruff: ignore[too-many-arguments, too-many-positional-arguments]</span>
-</span><span data-line="246">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
-</span><span data-line="247">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name."</span><span class="p">)],</span>
-</span><span data-line="248">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="249">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="250">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
-</span><span data-line="251">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
-</span><span data-line="252">    <span class="n">local</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="253">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--local"</span><span class="p">,</span> <span class="s2">"-l"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Force local lookup."</span><span class="p">)</span>
-</span><span data-line="254">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="255">    <span class="n">remote</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="256">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--remote"</span><span class="p">,</span> <span class="s2">"-r"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Force PyPI lookup."</span><span class="p">)</span>
-</span><span data-line="257">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="258">    <span class="n">why</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="259">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--why"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Show why TARGET is a dependency."</span><span class="p">)</span>
-</span><span data-line="260">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="261">    <span class="n">depth</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="262">        <span class="nb">int</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--depth"</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Max recursion depth."</span><span class="p">)</span>
-</span><span data-line="263">    <span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
-</span><span data-line="264">    <span class="n">python</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="265">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--python"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Target Python interpreter."</span><span class="p">)</span>
-</span><span data-line="266">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="267">    <span class="n">path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="268">        <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="269">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--path"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Metadata search path; repeatable."</span><span class="p">),</span>
-</span><span data-line="270">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="271"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="272"><span class="w">    </span><span class="sd">"""Show a package's recursive dependency tree."""</span>
-</span><span data-line="273">    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="274">        <span class="n">path</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="275">    <span class="n">deps_mod</span><span class="o">.</span><span class="n">deps</span><span class="p">(</span>
-</span><span data-line="276">        <span class="n">package</span><span class="p">,</span>
-</span><span data-line="277">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
-</span><span data-line="278">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
-</span><span data-line="279">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
-</span><span data-line="280">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
-</span><span data-line="281">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
-</span><span data-line="282">        <span class="n">why</span><span class="o">=</span><span class="n">why</span><span class="p">,</span>
-</span><span data-line="283">        <span class="n">depth</span><span class="o">=</span><span class="n">depth</span><span class="p">,</span>
-</span><span data-line="284">        <span class="n">python</span><span class="o">=</span><span class="n">python</span><span class="p">,</span>
-</span><span data-line="285">        <span class="n">paths</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
-</span><span data-line="286">    <span class="p">)</span></div>
+</span><span data-line="255"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="256"><span class="k">def</span><span class="w"> </span><span class="nf">deps</span><span class="p">(</span>  <span class="c1"># ruff: ignore[too-many-arguments, too-many-positional-arguments]</span>
+</span><span data-line="257">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="258">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name."</span><span class="p">)],</span>
+</span><span data-line="259">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="260">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="261">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
+</span><span data-line="262">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
+</span><span data-line="263">    <span class="n">local</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="264">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--local"</span><span class="p">,</span> <span class="s2">"-l"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Force local lookup."</span><span class="p">)</span>
+</span><span data-line="265">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="266">    <span class="n">remote</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="267">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--remote"</span><span class="p">,</span> <span class="s2">"-r"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Force PyPI lookup."</span><span class="p">)</span>
+</span><span data-line="268">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="269">    <span class="n">why</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="270">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--why"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Show why TARGET is a dependency."</span><span class="p">)</span>
+</span><span data-line="271">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="272">    <span class="n">depth</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="273">        <span class="nb">int</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--depth"</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Max recursion depth."</span><span class="p">)</span>
+</span><span data-line="274">    <span class="p">]</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+</span><span data-line="275">    <span class="n">python</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="276">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--python"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Target Python interpreter."</span><span class="p">)</span>
+</span><span data-line="277">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="278">    <span class="n">path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="279">        <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="280">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--path"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Metadata search path; repeatable."</span><span class="p">),</span>
+</span><span data-line="281">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="282"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="283"><span class="w">    </span><span class="sd">"""Show a package's recursive dependency tree."""</span>
+</span><span data-line="284">    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="285">        <span class="n">path</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="286">    <span class="n">deps_mod</span><span class="o">.</span><span class="n">deps</span><span class="p">(</span>
+</span><span data-line="287">        <span class="n">package</span><span class="p">,</span>
+</span><span data-line="288">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="289">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
+</span><span data-line="290">        <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="291">        <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="292">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="293">        <span class="n">why</span><span class="o">=</span><span class="n">why</span><span class="p">,</span>
+</span><span data-line="294">        <span class="n">depth</span><span class="o">=</span><span class="n">depth</span><span class="p">,</span>
+</span><span data-line="295">        <span class="n">python</span><span class="o">=</span><span class="n">python</span><span class="p">,</span>
+</span><span data-line="296">        <span class="n">paths</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+</span><span data-line="297">    <span class="p">)</span></div>
 
-</span><span data-line="287">
-</span><span data-line="288">
+</span><span data-line="298">
+</span><span data-line="299">
 <div class="viewcode-block" id="files">
 <a class="viewcode-back" href="../../../modules.html#peta.cli.app.files">[docs]</a>
-</span><span data-line="289"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
-</span><span data-line="290"><span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span>
-</span><span data-line="291">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
-</span><span data-line="292">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name."</span><span class="p">)],</span>
-</span><span data-line="293">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="294">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="295">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
-</span><span data-line="296">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
-</span><span data-line="297">    <span class="n">python</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="298">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--python"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Target Python interpreter."</span><span class="p">)</span>
-</span><span data-line="299">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="300">    <span class="n">path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="301">        <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="302">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--path"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Metadata search path; repeatable."</span><span class="p">),</span>
-</span><span data-line="303">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="304"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="305"><span class="w">    </span><span class="sd">"""List files installed by a local package."""</span>
-</span><span data-line="306">    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="307">        <span class="n">path</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="308">    <span class="n">files_mod</span><span class="o">.</span><span class="n">files</span><span class="p">(</span>
-</span><span data-line="309">        <span class="n">package</span><span class="p">,</span>
-</span><span data-line="310">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
-</span><span data-line="311">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
-</span><span data-line="312">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
-</span><span data-line="313">        <span class="n">python</span><span class="o">=</span><span class="n">python</span><span class="p">,</span>
-</span><span data-line="314">        <span class="n">paths</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
-</span><span data-line="315">    <span class="p">)</span></div>
+</span><span data-line="300"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="301"><span class="k">def</span><span class="w"> </span><span class="nf">files</span><span class="p">(</span>
+</span><span data-line="302">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="303">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name."</span><span class="p">)],</span>
+</span><span data-line="304">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="305">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="306">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
+</span><span data-line="307">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
+</span><span data-line="308">    <span class="n">python</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="309">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--python"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Target Python interpreter."</span><span class="p">)</span>
+</span><span data-line="310">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="311">    <span class="n">path</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="312">        <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="313">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--path"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Metadata search path; repeatable."</span><span class="p">),</span>
+</span><span data-line="314">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="315"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="316"><span class="w">    </span><span class="sd">"""List files installed by a local package."""</span>
+</span><span data-line="317">    <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="318">        <span class="n">path</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="319">    <span class="n">files_mod</span><span class="o">.</span><span class="n">files</span><span class="p">(</span>
+</span><span data-line="320">        <span class="n">package</span><span class="p">,</span>
+</span><span data-line="321">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="322">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
+</span><span data-line="323">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="324">        <span class="n">python</span><span class="o">=</span><span class="n">python</span><span class="p">,</span>
+</span><span data-line="325">        <span class="n">paths</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">path</span><span class="p">),</span>
+</span><span data-line="326">    <span class="p">)</span></div>
 
-</span><span data-line="316">
-</span><span data-line="317">
+</span><span data-line="327">
+</span><span data-line="328">
 <div class="viewcode-block" id="versions">
 <a class="viewcode-back" href="../../../modules.html#peta.cli.app.versions">[docs]</a>
-</span><span data-line="318"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
-</span><span data-line="319"><span class="k">def</span><span class="w"> </span><span class="nf">versions</span><span class="p">(</span>
-</span><span data-line="320">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
-</span><span data-line="321">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name."</span><span class="p">)],</span>
-</span><span data-line="322">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="323">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="324">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
-</span><span data-line="325">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
-</span><span data-line="326">    <span class="n">limit</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="327">        <span class="nb">int</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--limit"</span><span class="p">,</span> <span class="s2">"-n"</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Max versions to show."</span><span class="p">)</span>
-</span><span data-line="328">    <span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
-</span><span data-line="329"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="330"><span class="w">    </span><span class="sd">"""Show published versions of a package from PyPI."""</span>
-</span><span data-line="331">    <span class="n">versions_mod</span><span class="o">.</span><span class="n">versions</span><span class="p">(</span>
-</span><span data-line="332">        <span class="n">package</span><span class="p">,</span>
-</span><span data-line="333">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
-</span><span data-line="334">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
-</span><span data-line="335">        <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
-</span><span data-line="336">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
-</span><span data-line="337">    <span class="p">)</span></div>
+</span><span data-line="329"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="330"><span class="k">def</span><span class="w"> </span><span class="nf">versions</span><span class="p">(</span>
+</span><span data-line="331">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="332">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name."</span><span class="p">)],</span>
+</span><span data-line="333">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="334">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="335">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
+</span><span data-line="336">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
+</span><span data-line="337">    <span class="n">limit</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="338">        <span class="nb">int</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--limit"</span><span class="p">,</span> <span class="s2">"-n"</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Max versions to show."</span><span class="p">)</span>
+</span><span data-line="339">    <span class="p">]</span> <span class="o">=</span> <span class="mi">20</span><span class="p">,</span>
+</span><span data-line="340"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="341"><span class="w">    </span><span class="sd">"""Show published versions of a package from PyPI."""</span>
+</span><span data-line="342">    <span class="n">versions_mod</span><span class="o">.</span><span class="n">versions</span><span class="p">(</span>
+</span><span data-line="343">        <span class="n">package</span><span class="p">,</span>
+</span><span data-line="344">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="345">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
+</span><span data-line="346">        <span class="n">limit</span><span class="o">=</span><span class="n">limit</span><span class="p">,</span>
+</span><span data-line="347">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="348">    <span class="p">)</span></div>
 
-</span><span data-line="338">
-</span><span data-line="339">
+</span><span data-line="349">
+</span><span data-line="350">
 <div class="viewcode-block" id="artifacts">
 <a class="viewcode-back" href="../../../modules.html#peta.cli.app.artifacts">[docs]</a>
-</span><span data-line="340"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
-</span><span data-line="341"><span class="k">def</span><span class="w"> </span><span class="nf">artifacts</span><span class="p">(</span>
-</span><span data-line="342">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
-</span><span data-line="343">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="344">        <span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name (optionally name==version)."</span><span class="p">)</span>
-</span><span data-line="345">    <span class="p">],</span>
-</span><span data-line="346">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="347">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="348">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
-</span><span data-line="349">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
-</span><span data-line="350">    <span class="n">python</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="351">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--python"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Target Python version (e.g. 3.13)."</span><span class="p">)</span>
-</span><span data-line="352">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="353">    <span class="n">detailed</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="354">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--files"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"List every distribution file."</span><span class="p">)</span>
-</span><span data-line="355">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="356">    <span class="n">provenance</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
-</span><span data-line="357">        <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="358">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
-</span><span data-line="359">            <span class="s2">"--provenance"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Fetch PEP 740 provenance for publisher identity."</span>
-</span><span data-line="360">        <span class="p">),</span>
-</span><span data-line="361">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="362"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="363"><span class="w">    </span><span class="sd">"""Show a release's distribution files, compatibility, and provenance."""</span>
-</span><span data-line="364">    <span class="n">artifacts_mod</span><span class="o">.</span><span class="n">artifacts</span><span class="p">(</span>
-</span><span data-line="365">        <span class="n">package</span><span class="p">,</span>
-</span><span data-line="366">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
-</span><span data-line="367">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
-</span><span data-line="368">        <span class="n">python</span><span class="o">=</span><span class="n">python</span><span class="p">,</span>
-</span><span data-line="369">        <span class="n">detailed</span><span class="o">=</span><span class="n">detailed</span><span class="p">,</span>
-</span><span data-line="370">        <span class="n">provenance</span><span class="o">=</span><span class="n">provenance</span><span class="p">,</span>
-</span><span data-line="371">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
-</span><span data-line="372">    <span class="p">)</span></div>
+</span><span data-line="351"><span class="nd">@app</span><span class="o">.</span><span class="n">command</span><span class="p">()</span>
+</span><span data-line="352"><span class="k">def</span><span class="w"> </span><span class="nf">artifacts</span><span class="p">(</span>
+</span><span data-line="353">    <span class="n">ctx</span><span class="p">:</span> <span class="n">typer</span><span class="o">.</span><span class="n">Context</span><span class="p">,</span>
+</span><span data-line="354">    <span class="n">package</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="355">        <span class="nb">str</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Argument</span><span class="p">(</span><span class="n">help</span><span class="o">=</span><span class="s2">"Package name (optionally name==version)."</span><span class="p">)</span>
+</span><span data-line="356">    <span class="p">],</span>
+</span><span data-line="357">    <span class="n">use_json</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--json"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Output as JSON."</span><span class="p">)]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="358">    <span class="n">output_format</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="359">        <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--format"</span><span class="p">,</span> <span class="n">case_sensitive</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="n">_FORMAT_HELP</span><span class="p">)</span>
+</span><span data-line="360">    <span class="p">]</span> <span class="o">=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">RICH</span><span class="p">,</span>
+</span><span data-line="361">    <span class="n">python</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="362">        <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--python"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Target Python version (e.g. 3.13)."</span><span class="p">)</span>
+</span><span data-line="363">    <span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="364">    <span class="n">detailed</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="365">        <span class="nb">bool</span><span class="p">,</span> <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span><span class="s2">"--files"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"List every distribution file."</span><span class="p">)</span>
+</span><span data-line="366">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="367">    <span class="n">provenance</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+</span><span data-line="368">        <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="369">        <span class="n">typer</span><span class="o">.</span><span class="n">Option</span><span class="p">(</span>
+</span><span data-line="370">            <span class="s2">"--provenance"</span><span class="p">,</span> <span class="n">help</span><span class="o">=</span><span class="s2">"Fetch PEP 740 provenance for publisher identity."</span>
+</span><span data-line="371">        <span class="p">),</span>
+</span><span data-line="372">    <span class="p">]</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="373"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="374"><span class="w">    </span><span class="sd">"""Show a release's distribution files, compatibility, and provenance."""</span>
+</span><span data-line="375">    <span class="n">artifacts_mod</span><span class="o">.</span><span class="n">artifacts</span><span class="p">(</span>
+</span><span data-line="376">        <span class="n">package</span><span class="p">,</span>
+</span><span data-line="377">        <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">,</span>
+</span><span data-line="378">        <span class="n">output_format</span><span class="o">=</span><span class="n">_explicit_format</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">output_format</span><span class="p">),</span>
+</span><span data-line="379">        <span class="n">python</span><span class="o">=</span><span class="n">python</span><span class="p">,</span>
+</span><span data-line="380">        <span class="n">detailed</span><span class="o">=</span><span class="n">detailed</span><span class="p">,</span>
+</span><span data-line="381">        <span class="n">provenance</span><span class="o">=</span><span class="n">provenance</span><span class="p">,</span>
+</span><span data-line="382">        <span class="n">color</span><span class="o">=</span><span class="n">_color_from_ctx</span><span class="p">(</span><span class="n">ctx</span><span class="p">),</span>
+</span><span data-line="383">    <span class="p">)</span></div>
 
-</span><span data-line="373">
-</span><span data-line="374">
-</span><span data-line="375"><span class="k">def</span><span class="w"> </span><span class="nf">_shorthand_position</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="376"><span class="w">    </span><span class="sd">"""Find where ``info`` belongs, skipping any root options first.</span>
-</span><span data-line="377">
-</span><span data-line="378"><span class="sd">    Root options precede the subcommand, as they do in any Click application,</span>
-</span><span data-line="379"><span class="sd">    so ``peta --offline requests`` has to skip ``--offline`` before it can</span>
-</span><span data-line="380"><span class="sd">    tell that ``requests`` is a package rather than a command. Without this</span>
-</span><span data-line="381"><span class="sd">    the shorthand works only when nothing precedes the package, which the</span>
-</span><span data-line="382"><span class="sd">    cache flags would have quietly broken.</span>
-</span><span data-line="383">
-</span><span data-line="384"><span class="sd">    Returns:</span>
-</span><span data-line="385"><span class="sd">        The index in ``sys.argv`` to insert ``info`` at, or ``None`` when the</span>
-</span><span data-line="386"><span class="sd">        arguments already name a command, name nothing, or use ``--opt=value``</span>
-</span><span data-line="387"><span class="sd">        forms this does not need to interpret.</span>
-</span><span data-line="388"><span class="sd">    """</span>
-</span><span data-line="389">    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
-</span><span data-line="390">    <span class="k">while</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="ow">and</span> <span class="n">args</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"-"</span><span class="p">):</span>
-</span><span data-line="391">        <span class="n">option</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
-</span><span data-line="392">        <span class="n">index</span> <span class="o">+=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">option</span> <span class="ow">in</span> <span class="n">_ROOT_OPTIONS_WITH_VALUES</span> <span class="k">else</span> <span class="mi">1</span>
-</span><span data-line="393">    <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="ow">in</span> <span class="n">_SUBCOMMANDS</span><span class="p">:</span>
-</span><span data-line="394">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="395">    <span class="c1"># +1 for the program name that `args` was sliced from.</span>
-</span><span data-line="396">    <span class="k">return</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span>
-</span><span data-line="397">
-</span><span data-line="398">
+</span><span data-line="384">
+</span><span data-line="385">
+</span><span data-line="386"><span class="k">def</span><span class="w"> </span><span class="nf">_shorthand_position</span><span class="p">(</span><span class="n">args</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="387"><span class="w">    </span><span class="sd">"""Find where ``info`` belongs, skipping any root options first.</span>
+</span><span data-line="388">
+</span><span data-line="389"><span class="sd">    Root options precede the subcommand, as they do in any Click application,</span>
+</span><span data-line="390"><span class="sd">    so ``peta --offline requests`` has to skip ``--offline`` before it can</span>
+</span><span data-line="391"><span class="sd">    tell that ``requests`` is a package rather than a command. Without this</span>
+</span><span data-line="392"><span class="sd">    the shorthand works only when nothing precedes the package, which the</span>
+</span><span data-line="393"><span class="sd">    cache flags would have quietly broken.</span>
+</span><span data-line="394">
+</span><span data-line="395"><span class="sd">    Returns:</span>
+</span><span data-line="396"><span class="sd">        The index in ``sys.argv`` to insert ``info`` at, or ``None`` when the</span>
+</span><span data-line="397"><span class="sd">        arguments already name a command, name nothing, or use ``--opt=value``</span>
+</span><span data-line="398"><span class="sd">        forms this does not need to interpret.</span>
+</span><span data-line="399"><span class="sd">    """</span>
+</span><span data-line="400">    <span class="n">index</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span data-line="401">    <span class="k">while</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="ow">and</span> <span class="n">args</span><span class="p">[</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"-"</span><span class="p">):</span>
+</span><span data-line="402">        <span class="n">option</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+</span><span data-line="403">        <span class="n">index</span> <span class="o">+=</span> <span class="mi">2</span> <span class="k">if</span> <span class="n">option</span> <span class="ow">in</span> <span class="n">_ROOT_OPTIONS_WITH_VALUES</span> <span class="k">else</span> <span class="mi">1</span>
+</span><span data-line="404">    <span class="k">if</span> <span class="n">index</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)</span> <span class="ow">or</span> <span class="n">args</span><span class="p">[</span><span class="n">index</span><span class="p">]</span> <span class="ow">in</span> <span class="n">_SUBCOMMANDS</span><span class="p">:</span>
+</span><span data-line="405">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="406">    <span class="c1"># +1 for the program name that `args` was sliced from.</span>
+</span><span data-line="407">    <span class="k">return</span> <span class="n">index</span> <span class="o">+</span> <span class="mi">1</span>
+</span><span data-line="408">
+</span><span data-line="409">
 <div class="viewcode-block" id="run">
 <a class="viewcode-back" href="../../../modules.html#peta.cli.app.run">[docs]</a>
-</span><span data-line="399"><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="400"><span class="w">    </span><span class="sd">"""Entry point; ``peta &lt;package&gt;`` is shorthand for ``peta info &lt;package&gt;``."""</span>
-</span><span data-line="401">    <span class="n">position</span> <span class="o">=</span> <span class="n">_shorthand_position</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-</span><span data-line="402">    <span class="k">if</span> <span class="n">position</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="403">        <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="s2">"info"</span><span class="p">)</span>
-</span><span data-line="404">    <span class="n">app</span><span class="p">()</span></div>
+</span><span data-line="410"><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="411"><span class="w">    </span><span class="sd">"""Entry point; ``peta &lt;package&gt;`` is shorthand for ``peta info &lt;package&gt;``."""</span>
+</span><span data-line="412">    <span class="n">position</span> <span class="o">=</span> <span class="n">_shorthand_position</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+</span><span data-line="413">    <span class="k">if</span> <span class="n">position</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="414">        <span class="n">sys</span><span class="o">.</span><span class="n">argv</span><span class="o">.</span><span class="n">insert</span><span class="p">(</span><span class="n">position</span><span class="p">,</span> <span class="s2">"info"</span><span class="p">)</span>
+</span><span data-line="415">    <span class="n">app</span><span class="p">()</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

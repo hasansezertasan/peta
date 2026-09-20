@@ -206,7 +206,7 @@ def info(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
 
 
 @app.command()
-def compare(
+def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     ctx: typer.Context,
     a: Annotated[str, typer.Argument(help="First package name.")],
     b: Annotated[str, typer.Argument(help="Second package name.")],
@@ -226,8 +226,17 @@ def compare(
     no_stats: Annotated[
         bool, typer.Option("--no-stats", help="Skip download/dependent count lookups.")
     ] = False,
+    python: Annotated[
+        str | None, typer.Option("--python", help="Target Python interpreter.")
+    ] = None,
+    path: Annotated[
+        list[str] | None,
+        typer.Option("--path", help="Metadata search path; repeatable."),
+    ] = None,
 ) -> None:
     """Compare two packages' metadata side by side."""
+    if path is None:
+        path = []
     compare_mod.compare(
         a,
         b,
@@ -238,6 +247,8 @@ def compare(
         color=_color_from_ctx(ctx),
         no_osv=no_osv,
         no_stats=no_stats,
+        python=python,
+        paths=tuple(path),
     )
 
 
