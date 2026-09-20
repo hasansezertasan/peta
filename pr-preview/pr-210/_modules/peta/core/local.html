@@ -307,235 +307,244 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="183"><span class="sd">    Raises:</span>
 </span><span data-line="184"><span class="sd">        InvalidTargetError: If a path does not name an existing directory.</span>
 </span><span data-line="185"><span class="sd">    """</span>
-</span><span data-line="186">    <span class="n">resolved</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">())</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">)</span>
-</span><span data-line="187">    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">resolved</span><span class="p">:</span>
-</span><span data-line="188">        <span class="k">if</span> <span class="ow">not</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
-</span><span data-line="189">            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Invalid metadata path </span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">: expected an existing directory."</span>
-</span><span data-line="190">            <span class="k">raise</span> <span class="n">InvalidTargetError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="191">    <span class="k">return</span> <span class="n">resolved</span>
-</span><span data-line="192">
-</span><span data-line="193">
+</span><span data-line="186">    <span class="n">checked</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="187">    <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
+</span><span data-line="188">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Invalid metadata path </span><span class="si">{</span><span class="n">path</span><span class="si">!r}</span><span class="s2">: expected an existing directory."</span>
+</span><span data-line="189">        <span class="c1"># Emptiness is rejected before resolving, because ``Path("").resolve()``</span>
+</span><span data-line="190">        <span class="c1"># is the working directory: an empty --path would silently mean "here".</span>
+</span><span data-line="191">        <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+</span><span data-line="192">            <span class="k">raise</span> <span class="n">InvalidTargetError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="193">        <span class="n">resolved</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+</span><span data-line="194">        <span class="k">if</span> <span class="ow">not</span> <span class="n">resolved</span><span class="o">.</span><span class="n">is_dir</span><span class="p">():</span>
+</span><span data-line="195">            <span class="k">raise</span> <span class="n">InvalidTargetError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="196">        <span class="n">checked</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">resolved</span><span class="p">))</span>
+</span><span data-line="197">    <span class="k">return</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">checked</span><span class="p">)</span>
+</span><span data-line="198">
+</span><span data-line="199">
 <div class="viewcode-block" id="LocalTarget">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.LocalTarget">[docs]</a>
-</span><span data-line="194"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="195"><span class="k">class</span><span class="w"> </span><span class="nc">LocalTarget</span><span class="p">:</span>
-</span><span data-line="196"><span class="w">    </span><span class="sd">"""Metadata paths and marker values used for a local inspection."""</span>
-</span><span data-line="197">
-</span><span data-line="198">    <span class="n">paths</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
-</span><span data-line="199">    <span class="n">interpreter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
-</span><span data-line="200">    <span class="n">marker_environment</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
-</span><span data-line="201">
+</span><span data-line="200"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="201"><span class="k">class</span><span class="w"> </span><span class="nc">LocalTarget</span><span class="p">:</span>
+</span><span data-line="202"><span class="w">    </span><span class="sd">"""Metadata paths and marker values used for a local inspection."""</span>
+</span><span data-line="203">
+</span><span data-line="204">    <span class="n">paths</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+</span><span data-line="205">    <span class="n">interpreter</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
+</span><span data-line="206">    <span class="n">marker_environment</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</span><span data-line="207">
 <div class="viewcode-block" id="LocalTarget.create">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.LocalTarget.create">[docs]</a>
-</span><span data-line="202">    <span class="nd">@classmethod</span>
-</span><span data-line="203">    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
-</span><span data-line="204">        <span class="bp">cls</span><span class="p">,</span> <span class="n">python</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
-</span><span data-line="205">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LocalTarget</span><span class="p">:</span>
-</span><span data-line="206"><span class="w">        </span><span class="sd">"""Build a target without implicitly discovering a virtual environment.</span>
-</span><span data-line="207">
-</span><span data-line="208"><span class="sd">        Returns:</span>
-</span><span data-line="209"><span class="sd">            The selected metadata paths and marker environment.</span>
-</span><span data-line="210">
-</span><span data-line="211"><span class="sd">        Raises:</span>
-</span><span data-line="212"><span class="sd">            InvalidTargetError: If a path or interpreter cannot be inspected.</span>
-</span><span data-line="213"><span class="sd">        """</span>
-</span><span data-line="214">        <span class="n">checked</span> <span class="o">=</span> <span class="n">_checked_paths</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
-</span><span data-line="215">        <span class="k">if</span> <span class="n">python</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="216">            <span class="n">marker_environment</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="217">                <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">default_environment</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-</span><span data-line="218">            <span class="p">}</span>
-</span><span data-line="219">            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">checked</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">)</span>
-</span><span data-line="220">        <span class="c1"># Do not resolve symlinks: a virtualenv's ``bin/python`` commonly</span>
-</span><span data-line="221">        <span class="c1"># points at its base interpreter, and resolving it loses the venv.</span>
-</span><span data-line="222">        <span class="n">interpreter</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">python</span><span class="p">)</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
-</span><span data-line="223">        <span class="k">if</span> <span class="ow">not</span> <span class="n">interpreter</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
-</span><span data-line="224">            <span class="n">msg</span> <span class="o">=</span> <span class="n">_interpreter_problem</span><span class="p">(</span><span class="n">python</span><span class="p">,</span> <span class="s2">"file does not exist."</span><span class="p">)</span>
-</span><span data-line="225">            <span class="k">raise</span> <span class="n">InvalidTargetError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="226">        <span class="n">inspected</span><span class="p">,</span> <span class="n">marker_environment</span> <span class="o">=</span> <span class="n">_validated_inspection</span><span class="p">(</span>
-</span><span data-line="227">            <span class="n">_run_inspection</span><span class="p">(</span><span class="n">interpreter</span><span class="p">,</span> <span class="n">python</span><span class="p">),</span> <span class="n">python</span>
-</span><span data-line="228">        <span class="p">)</span>
-</span><span data-line="229">        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">checked</span> <span class="ow">or</span> <span class="n">inspected</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">interpreter</span><span class="p">),</span> <span class="n">marker_environment</span><span class="p">)</span></div>
+</span><span data-line="208">    <span class="nd">@classmethod</span>
+</span><span data-line="209">    <span class="k">def</span><span class="w"> </span><span class="nf">create</span><span class="p">(</span>
+</span><span data-line="210">        <span class="bp">cls</span><span class="p">,</span> <span class="n">python</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+</span><span data-line="211">    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">LocalTarget</span><span class="p">:</span>
+</span><span data-line="212"><span class="w">        </span><span class="sd">"""Build a target without implicitly discovering a virtual environment.</span>
+</span><span data-line="213">
+</span><span data-line="214"><span class="sd">        Returns:</span>
+</span><span data-line="215"><span class="sd">            The selected metadata paths and marker environment.</span>
+</span><span data-line="216">
+</span><span data-line="217"><span class="sd">        Raises:</span>
+</span><span data-line="218"><span class="sd">            InvalidTargetError: If a path or interpreter cannot be inspected.</span>
+</span><span data-line="219"><span class="sd">        """</span>
+</span><span data-line="220">        <span class="n">checked</span> <span class="o">=</span> <span class="n">_checked_paths</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
+</span><span data-line="221">        <span class="k">if</span> <span class="n">python</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="222">            <span class="n">marker_environment</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="223">                <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">default_environment</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+</span><span data-line="224">            <span class="p">}</span>
+</span><span data-line="225">            <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">checked</span> <span class="ow">or</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">)</span>
+</span><span data-line="226">        <span class="k">if</span> <span class="ow">not</span> <span class="n">python</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+</span><span data-line="227">            <span class="n">msg</span> <span class="o">=</span> <span class="n">_interpreter_problem</span><span class="p">(</span><span class="n">python</span><span class="p">,</span> <span class="s2">"no interpreter path given."</span><span class="p">)</span>
+</span><span data-line="228">            <span class="k">raise</span> <span class="n">InvalidTargetError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="229">        <span class="c1"># Do not resolve symlinks: a virtualenv's ``bin/python`` commonly</span>
+</span><span data-line="230">        <span class="c1"># points at its base interpreter, and resolving it loses the venv.</span>
+</span><span data-line="231">        <span class="n">interpreter</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">python</span><span class="p">)</span><span class="o">.</span><span class="n">absolute</span><span class="p">()</span>
+</span><span data-line="232">        <span class="k">if</span> <span class="ow">not</span> <span class="n">interpreter</span><span class="o">.</span><span class="n">is_file</span><span class="p">():</span>
+</span><span data-line="233">            <span class="n">msg</span> <span class="o">=</span> <span class="n">_interpreter_problem</span><span class="p">(</span><span class="n">python</span><span class="p">,</span> <span class="s2">"file does not exist."</span><span class="p">)</span>
+</span><span data-line="234">            <span class="k">raise</span> <span class="n">InvalidTargetError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="235">        <span class="n">inspected</span><span class="p">,</span> <span class="n">marker_environment</span> <span class="o">=</span> <span class="n">_validated_inspection</span><span class="p">(</span>
+</span><span data-line="236">            <span class="n">_run_inspection</span><span class="p">(</span><span class="n">interpreter</span><span class="p">,</span> <span class="n">python</span><span class="p">),</span> <span class="n">python</span>
+</span><span data-line="237">        <span class="p">)</span>
+</span><span data-line="238">        <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">checked</span> <span class="ow">or</span> <span class="n">inspected</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">interpreter</span><span class="p">),</span> <span class="n">marker_environment</span><span class="p">)</span></div>
 
-</span><span data-line="230">
+</span><span data-line="239">
 <div class="viewcode-block" id="LocalTarget.describe">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.LocalTarget.describe">[docs]</a>
-</span><span data-line="231">    <span class="k">def</span><span class="w"> </span><span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="232"><span class="w">        </span><span class="sd">"""Return a concise human-readable target description.</span>
-</span><span data-line="233">
-</span><span data-line="234"><span class="sd">        Includes the marker values that decide which dependencies a tree</span>
-</span><span data-line="235"><span class="sd">        contains, since with ``--path`` alone they come from the running</span>
-</span><span data-line="236"><span class="sd">        interpreter rather than from anything named on the command line.</span>
-</span><span data-line="237">
-</span><span data-line="238"><span class="sd">        Returns:</span>
-</span><span data-line="239"><span class="sd">            A one-line target summary.</span>
-</span><span data-line="240"><span class="sd">        """</span>
-</span><span data-line="241">        <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">or</span> <span class="s2">"current interpreter"</span>
-</span><span data-line="242">        <span class="n">paths</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">paths</span> <span class="ow">or</span> <span class="p">())</span> <span class="ow">or</span> <span class="s2">"runtime search path"</span>
-</span><span data-line="243">        <span class="n">markers</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="244">            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s1">'platform_python_implementation'</span><span class="p">]</span><span class="si">}</span><span class="s2"> "</span>
-</span><span data-line="245">            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s1">'python_full_version'</span><span class="p">]</span><span class="si">}</span><span class="s2"> "</span>
-</span><span data-line="246">            <span class="sa">f</span><span class="s2">"on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s1">'sys_platform'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="247">        <span class="p">)</span>
-</span><span data-line="248">        <span class="k">return</span> <span class="p">(</span>
-</span><span data-line="249">            <span class="sa">f</span><span class="s2">"Target environment: </span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">; metadata paths: </span><span class="si">{</span><span class="n">paths</span><span class="si">}</span><span class="s2">; markers: </span><span class="si">{</span><span class="n">markers</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="250">        <span class="p">)</span></div>
+</span><span data-line="240">    <span class="k">def</span><span class="w"> </span><span class="nf">describe</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="241"><span class="w">        </span><span class="sd">"""Return a concise human-readable target description.</span>
+</span><span data-line="242">
+</span><span data-line="243"><span class="sd">        Includes the marker values that decide which dependencies a tree</span>
+</span><span data-line="244"><span class="sd">        contains, since with ``--path`` alone they come from the running</span>
+</span><span data-line="245"><span class="sd">        interpreter rather than from anything named on the command line.</span>
+</span><span data-line="246">
+</span><span data-line="247"><span class="sd">        Returns:</span>
+</span><span data-line="248"><span class="sd">            A one-line target summary.</span>
+</span><span data-line="249"><span class="sd">        """</span>
+</span><span data-line="250">        <span class="n">source</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">or</span> <span class="s2">"current interpreter"</span>
+</span><span data-line="251">        <span class="n">paths</span> <span class="o">=</span> <span class="s2">", "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">paths</span> <span class="ow">or</span> <span class="p">())</span> <span class="ow">or</span> <span class="s2">"runtime search path"</span>
+</span><span data-line="252">        <span class="n">markers</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="253">            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s1">'platform_python_implementation'</span><span class="p">]</span><span class="si">}</span><span class="s2"> "</span>
+</span><span data-line="254">            <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s1">'python_full_version'</span><span class="p">]</span><span class="si">}</span><span class="s2"> "</span>
+</span><span data-line="255">            <span class="sa">f</span><span class="s2">"on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s1">'sys_platform'</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="256">        <span class="p">)</span>
+</span><span data-line="257">        <span class="k">return</span> <span class="p">(</span>
+</span><span data-line="258">            <span class="sa">f</span><span class="s2">"Target environment: </span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">; metadata paths: </span><span class="si">{</span><span class="n">paths</span><span class="si">}</span><span class="s2">; markers: </span><span class="si">{</span><span class="n">markers</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="259">        <span class="p">)</span></div>
 
-</span><span data-line="251">
+</span><span data-line="260">
 <div class="viewcode-block" id="LocalTarget.output_environment">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.LocalTarget.output_environment">[docs]</a>
-</span><span data-line="252">    <span class="k">def</span><span class="w"> </span><span class="nf">output_environment</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="253"><span class="w">        </span><span class="sd">"""Return the target details stored in machine-readable output.</span>
-</span><span data-line="254">
-</span><span data-line="255"><span class="sd">        Returns:</span>
-</span><span data-line="256"><span class="sd">            JSON-compatible target details.</span>
-</span><span data-line="257"><span class="sd">        """</span>
-</span><span data-line="258">        <span class="k">return</span> <span class="p">{</span>
-</span><span data-line="259">            <span class="s2">"implementation"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s2">"platform_python_implementation"</span><span class="p">],</span>
-</span><span data-line="260">            <span class="s2">"python_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s2">"python_full_version"</span><span class="p">],</span>
-</span><span data-line="261">            <span class="s2">"platform"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s2">"sys_platform"</span><span class="p">],</span>
-</span><span data-line="262">            <span class="s2">"interpreter"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpreter</span><span class="p">,</span>
-</span><span data-line="263">            <span class="s2">"paths"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">paths</span> <span class="ow">or</span> <span class="p">()),</span>
-</span><span data-line="264">            <span class="s2">"markers"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">,</span>
-</span><span data-line="265">        <span class="p">}</span></div>
+</span><span data-line="261">    <span class="k">def</span><span class="w"> </span><span class="nf">output_environment</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="262"><span class="w">        </span><span class="sd">"""Return the target details stored in machine-readable output.</span>
+</span><span data-line="263">
+</span><span data-line="264"><span class="sd">        Returns:</span>
+</span><span data-line="265"><span class="sd">            JSON-compatible target details.</span>
+</span><span data-line="266"><span class="sd">        """</span>
+</span><span data-line="267">        <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="268">            <span class="s2">"implementation"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s2">"platform_python_implementation"</span><span class="p">],</span>
+</span><span data-line="269">            <span class="s2">"python_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s2">"python_full_version"</span><span class="p">],</span>
+</span><span data-line="270">            <span class="s2">"platform"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">[</span><span class="s2">"sys_platform"</span><span class="p">],</span>
+</span><span data-line="271">            <span class="s2">"interpreter"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">interpreter</span><span class="p">,</span>
+</span><span data-line="272">            <span class="s2">"paths"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">paths</span> <span class="ow">or</span> <span class="p">()),</span>
+</span><span data-line="273">            <span class="s2">"markers"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">marker_environment</span><span class="p">,</span>
+</span><span data-line="274">        <span class="p">}</span></div>
 </div>
 
-</span><span data-line="266">
-</span><span data-line="267">
-</span><span data-line="268"><span class="n">_TARGET_SCRIPT</span> <span class="o">=</span> <span class="s2">"""</span>
-</span><span data-line="269"><span class="s2">import json</span>
-</span><span data-line="270"><span class="s2">import os</span>
-</span><span data-line="271"><span class="s2">import platform</span>
-</span><span data-line="272"><span class="s2">import sys</span>
-</span><span data-line="273">
-</span><span data-line="274"><span class="s2">version = platform.python_version()</span>
-</span><span data-line="275"><span class="s2">implementation = sys.implementation</span>
-</span><span data-line="276"><span class="s2">implementation_version = (</span>
-</span><span data-line="277"><span class="s2">    f"</span><span class="si">{implementation.version.major}</span><span class="s2">.</span><span class="si">{implementation.version.minor}</span><span class="s2">."</span>
-</span><span data-line="278"><span class="s2">    f"</span><span class="si">{implementation.version.micro}</span><span class="s2">"</span>
-</span><span data-line="279"><span class="s2">)</span>
-</span><span data-line="280"><span class="s2">if implementation.version.releaselevel != "final":</span>
-</span><span data-line="281"><span class="s2">    implementation_version += (</span>
-</span><span data-line="282"><span class="s2">        implementation.version.releaselevel[0] + str(implementation.version.serial)</span>
-</span><span data-line="283"><span class="s2">    )</span>
-</span><span data-line="284"><span class="s2">marker_environment = {</span>
-</span><span data-line="285"><span class="s2">    "implementation_name": implementation.name,</span>
-</span><span data-line="286"><span class="s2">    "implementation_version": implementation_version,</span>
-</span><span data-line="287"><span class="s2">    "os_name": os.name,</span>
-</span><span data-line="288"><span class="s2">    "platform_machine": platform.machine(),</span>
-</span><span data-line="289"><span class="s2">    "platform_release": platform.release(),</span>
-</span><span data-line="290"><span class="s2">    "platform_system": platform.system(),</span>
-</span><span data-line="291"><span class="s2">    "platform_version": platform.version(),</span>
-</span><span data-line="292"><span class="s2">    "python_full_version": version,</span>
-</span><span data-line="293"><span class="s2">    "platform_python_implementation": platform.python_implementation(),</span>
-</span><span data-line="294"><span class="s2">    "python_version": ".".join(version.split(".")[:2]),</span>
-</span><span data-line="295"><span class="s2">    "sys_platform": sys.platform,</span>
-</span><span data-line="296"><span class="s2">}</span>
-</span><span data-line="297"><span class="s2">print(json.dumps({"paths": sys.path, "marker_environment": marker_environment}))</span>
-</span><span data-line="298"><span class="s2">"""</span>
-</span><span data-line="299">
-</span><span data-line="300">
-</span><span data-line="301"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_project_urls</span><span class="p">(</span><span class="n">meta</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="302">    <span class="n">urls</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
-</span><span data-line="303">    <span class="c1"># importlib.metadata's PackageMetadata is untyped (email.Message based), so</span>
-</span><span data-line="304">    <span class="c1"># get_all yields Any; cast the headers we read into the typed world.</span>
-</span><span data-line="305">    <span class="n">entries</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"list[str]"</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">get_all</span><span class="p">(</span><span class="s2">"Project-URL"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span>
-</span><span data-line="306">    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
-</span><span data-line="307">        <span class="k">if</span> <span class="s2">", "</span> <span class="ow">in</span> <span class="n">entry</span><span class="p">:</span>
-</span><span data-line="308">            <span class="n">label</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">", "</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
-</span><span data-line="309">            <span class="n">urls</span><span class="p">[</span><span class="n">label</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-</span><span data-line="310">    <span class="k">return</span> <span class="n">urls</span>
-</span><span data-line="311">
-</span><span data-line="312">
-</span><span data-line="313"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_keywords</span><span class="p">(</span><span class="n">meta</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="314">    <span class="n">raw</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Keywords"</span><span class="p">)</span>
-</span><span data-line="315">    <span class="k">if</span> <span class="ow">not</span> <span class="n">raw</span><span class="p">:</span>
-</span><span data-line="316">        <span class="k">return</span> <span class="p">[]</span>
-</span><span data-line="317">    <span class="k">return</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">raw</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
-</span><span data-line="318">
-</span><span data-line="319">
-</span><span data-line="320"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_license</span><span class="p">(</span>
-</span><span data-line="321">    <span class="n">meta</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageMetadata</span><span class="p">,</span>
-</span><span data-line="322"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"expression"</span><span class="p">,</span> <span class="s2">"legacy"</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span data-line="323">    <span class="n">expression</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"License-Expression"</span><span class="p">)</span>
-</span><span data-line="324">    <span class="k">if</span> <span class="n">expression</span><span class="p">:</span>
-</span><span data-line="325">        <span class="k">return</span> <span class="n">expression</span><span class="p">,</span> <span class="s2">"expression"</span>
-</span><span data-line="326">    <span class="n">legacy</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"License"</span><span class="p">)</span>
-</span><span data-line="327">    <span class="k">return</span> <span class="n">legacy</span><span class="p">,</span> <span class="s2">"legacy"</span> <span class="k">if</span> <span class="n">legacy</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="275">
+</span><span data-line="276">
+</span><span data-line="277"><span class="n">_TARGET_SCRIPT</span> <span class="o">=</span> <span class="s2">"""</span>
+</span><span data-line="278"><span class="s2">import json</span>
+</span><span data-line="279"><span class="s2">import os</span>
+</span><span data-line="280"><span class="s2">import platform</span>
+</span><span data-line="281"><span class="s2">import sys</span>
+</span><span data-line="282">
+</span><span data-line="283"><span class="s2">version = platform.python_version()</span>
+</span><span data-line="284"><span class="s2">implementation = sys.implementation</span>
+</span><span data-line="285"><span class="s2">implementation_version = (</span>
+</span><span data-line="286"><span class="s2">    f"</span><span class="si">{implementation.version.major}</span><span class="s2">.</span><span class="si">{implementation.version.minor}</span><span class="s2">."</span>
+</span><span data-line="287"><span class="s2">    f"</span><span class="si">{implementation.version.micro}</span><span class="s2">"</span>
+</span><span data-line="288"><span class="s2">)</span>
+</span><span data-line="289"><span class="s2">if implementation.version.releaselevel != "final":</span>
+</span><span data-line="290"><span class="s2">    implementation_version += (</span>
+</span><span data-line="291"><span class="s2">        implementation.version.releaselevel[0] + str(implementation.version.serial)</span>
+</span><span data-line="292"><span class="s2">    )</span>
+</span><span data-line="293"><span class="s2">marker_environment = {</span>
+</span><span data-line="294"><span class="s2">    "implementation_name": implementation.name,</span>
+</span><span data-line="295"><span class="s2">    "implementation_version": implementation_version,</span>
+</span><span data-line="296"><span class="s2">    "os_name": os.name,</span>
+</span><span data-line="297"><span class="s2">    "platform_machine": platform.machine(),</span>
+</span><span data-line="298"><span class="s2">    "platform_release": platform.release(),</span>
+</span><span data-line="299"><span class="s2">    "platform_system": platform.system(),</span>
+</span><span data-line="300"><span class="s2">    "platform_version": platform.version(),</span>
+</span><span data-line="301"><span class="s2">    "python_full_version": version,</span>
+</span><span data-line="302"><span class="s2">    "platform_python_implementation": platform.python_implementation(),</span>
+</span><span data-line="303"><span class="s2">    "python_version": ".".join(version.split(".")[:2]),</span>
+</span><span data-line="304"><span class="s2">    "sys_platform": sys.platform,</span>
+</span><span data-line="305"><span class="s2">}</span>
+</span><span data-line="306"><span class="s2">print(json.dumps({"paths": sys.path, "marker_environment": marker_environment}))</span>
+</span><span data-line="307"><span class="s2">"""</span>
+</span><span data-line="308">
+</span><span data-line="309">
+</span><span data-line="310"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_project_urls</span><span class="p">(</span><span class="n">meta</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="311">    <span class="n">urls</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+</span><span data-line="312">    <span class="c1"># importlib.metadata's PackageMetadata is untyped (email.Message based), so</span>
+</span><span data-line="313">    <span class="c1"># get_all yields Any; cast the headers we read into the typed world.</span>
+</span><span data-line="314">    <span class="n">entries</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"list[str]"</span><span class="p">,</span> <span class="n">meta</span><span class="o">.</span><span class="n">get_all</span><span class="p">(</span><span class="s2">"Project-URL"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[])</span>
+</span><span data-line="315">    <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+</span><span data-line="316">        <span class="k">if</span> <span class="s2">", "</span> <span class="ow">in</span> <span class="n">entry</span><span class="p">:</span>
+</span><span data-line="317">            <span class="n">label</span><span class="p">,</span> <span class="n">url</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">", "</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+</span><span data-line="318">            <span class="n">urls</span><span class="p">[</span><span class="n">label</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span> <span class="o">=</span> <span class="n">url</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</span><span data-line="319">    <span class="k">return</span> <span class="n">urls</span>
+</span><span data-line="320">
+</span><span data-line="321">
+</span><span data-line="322"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_keywords</span><span class="p">(</span><span class="n">meta</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageMetadata</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="323">    <span class="n">raw</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Keywords"</span><span class="p">)</span>
+</span><span data-line="324">    <span class="k">if</span> <span class="ow">not</span> <span class="n">raw</span><span class="p">:</span>
+</span><span data-line="325">        <span class="k">return</span> <span class="p">[]</span>
+</span><span data-line="326">    <span class="k">return</span> <span class="p">[</span><span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">raw</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">)</span> <span class="k">if</span> <span class="n">k</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+</span><span data-line="327">
 </span><span data-line="328">
-</span><span data-line="329">
-</span><span data-line="330"><span class="k">def</span><span class="w"> </span><span class="nf">_is_named</span><span class="p">(</span><span class="n">candidate</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">,</span> <span class="n">canonical</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="331"><span class="w">    </span><span class="sd">"""Match one enumerated distribution against a canonical package name.</span>
-</span><span data-line="332">
-</span><span data-line="333"><span class="sd">    A directory on the search path can hold a ``.dist-info`` whose metadata</span>
-</span><span data-line="334"><span class="sd">    carries no ``Name``. Skipping it keeps a single corrupt entry from hiding</span>
-</span><span data-line="335"><span class="sd">    every package enumerated after it.</span>
-</span><span data-line="336">
-</span><span data-line="337"><span class="sd">    Returns:</span>
-</span><span data-line="338"><span class="sd">        Whether this candidate is the requested distribution.</span>
-</span><span data-line="339"><span class="sd">    """</span>
-</span><span data-line="340">    <span class="n">found</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">candidate</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">])</span>
-</span><span data-line="341">    <span class="k">return</span> <span class="n">found</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">found</span><span class="p">)</span> <span class="o">==</span> <span class="n">canonical</span>
-</span><span data-line="342">
-</span><span data-line="343">
+</span><span data-line="329"><span class="k">def</span><span class="w"> </span><span class="nf">_parse_license</span><span class="p">(</span>
+</span><span data-line="330">    <span class="n">meta</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageMetadata</span><span class="p">,</span>
+</span><span data-line="331"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">"expression"</span><span class="p">,</span> <span class="s2">"legacy"</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="332">    <span class="n">expression</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"License-Expression"</span><span class="p">)</span>
+</span><span data-line="333">    <span class="k">if</span> <span class="n">expression</span><span class="p">:</span>
+</span><span data-line="334">        <span class="k">return</span> <span class="n">expression</span><span class="p">,</span> <span class="s2">"expression"</span>
+</span><span data-line="335">    <span class="n">legacy</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"License"</span><span class="p">)</span>
+</span><span data-line="336">    <span class="k">return</span> <span class="n">legacy</span><span class="p">,</span> <span class="s2">"legacy"</span> <span class="k">if</span> <span class="n">legacy</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="337">
+</span><span data-line="338">
+</span><span data-line="339"><span class="k">def</span><span class="w"> </span><span class="nf">_is_named</span><span class="p">(</span><span class="n">candidate</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">,</span> <span class="n">canonical</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="340"><span class="w">    </span><span class="sd">"""Match one enumerated distribution against a canonical package name.</span>
+</span><span data-line="341">
+</span><span data-line="342"><span class="sd">    A directory on the search path can hold a ``.dist-info`` whose metadata</span>
+</span><span data-line="343"><span class="sd">    carries no ``Name``. Skipping it keeps a single corrupt entry from hiding</span>
+</span><span data-line="344"><span class="sd">    every package enumerated after it.</span>
+</span><span data-line="345">
+</span><span data-line="346"><span class="sd">    Returns:</span>
+</span><span data-line="347"><span class="sd">        Whether this candidate is the requested distribution.</span>
+</span><span data-line="348"><span class="sd">    """</span>
+</span><span data-line="349">    <span class="n">found</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">candidate</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">])</span>
+</span><span data-line="350">    <span class="k">return</span> <span class="n">found</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">found</span><span class="p">)</span> <span class="o">==</span> <span class="n">canonical</span>
+</span><span data-line="351">
+</span><span data-line="352">
 <div class="viewcode-block" id="get_package">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.get_package">[docs]</a>
-</span><span data-line="344"><span class="k">def</span><span class="w"> </span><span class="nf">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="345"><span class="w">    </span><span class="sd">"""Get metadata for a locally installed package.</span>
-</span><span data-line="346">
-</span><span data-line="347"><span class="sd">    Args:</span>
-</span><span data-line="348"><span class="sd">        name: Package name to look up.</span>
-</span><span data-line="349">
-</span><span data-line="350"><span class="sd">    Returns:</span>
-</span><span data-line="351"><span class="sd">        A :class:`PackageInfo` with ``source="local"``.</span>
-</span><span data-line="352">
-</span><span data-line="353"><span class="sd">    Raises:</span>
-</span><span data-line="354"><span class="sd">        PackageNotFoundError: If the package is not installed.</span>
-</span><span data-line="355"><span class="sd">    """</span>
-</span><span data-line="356">    <span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span>
-</span><span data-line="357">    <span class="k">try</span><span class="p">:</span>  <span class="c1"># ruff: ignore[too-many-statements-in-try-clause]</span>
-</span><span data-line="358">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="359">            <span class="n">dist</span> <span class="o">=</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distribution</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="360">        <span class="k">else</span><span class="p">:</span>
-</span><span data-line="361">            <span class="n">canonical</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="362">            <span class="n">found</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
-</span><span data-line="363">                <span class="p">(</span>
-</span><span data-line="364">                    <span class="n">candidate</span>
-</span><span data-line="365">                    <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distributions</span><span class="p">(</span>
-</span><span data-line="366">                        <span class="n">path</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">)</span>
-</span><span data-line="367">                    <span class="p">)</span>
-</span><span data-line="368">                    <span class="k">if</span> <span class="n">_is_named</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">canonical</span><span class="p">)</span>
-</span><span data-line="369">                <span class="p">),</span>
-</span><span data-line="370">                <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="371">            <span class="p">)</span>
-</span><span data-line="372">            <span class="k">if</span> <span class="n">found</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="373">                <span class="k">raise</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># ruff: ignore[raise-within-try]</span>
-</span><span data-line="374">            <span class="n">dist</span> <span class="o">=</span> <span class="n">found</span>
-</span><span data-line="375">    <span class="k">except</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="376">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-</span><span data-line="377">
-</span><span data-line="378">    <span class="n">meta</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">metadata</span>
-</span><span data-line="379">    <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span><span class="p">]</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="380">    <span class="n">license_value</span><span class="p">,</span> <span class="n">license_source</span> <span class="o">=</span> <span class="n">_parse_license</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
-</span><span data-line="381">    <span class="k">return</span> <span class="n">PackageInfo</span><span class="p">(</span>
-</span><span data-line="382">        <span class="n">name</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">],</span>
-</span><span data-line="383">        <span class="n">version</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Version"</span><span class="p">],</span>
-</span><span data-line="384">        <span class="n">summary</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Summary"</span><span class="p">),</span>
-</span><span data-line="385">        <span class="n">author</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Author"</span><span class="p">),</span>
-</span><span data-line="386">        <span class="n">author_email</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Author-email"</span><span class="p">),</span>
-</span><span data-line="387">        <span class="n">maintainer</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Maintainer"</span><span class="p">),</span>
-</span><span data-line="388">        <span class="n">license</span><span class="o">=</span><span class="n">license_value</span><span class="p">,</span>
-</span><span data-line="389">        <span class="n">license_source</span><span class="o">=</span><span class="n">license_source</span><span class="p">,</span>
-</span><span data-line="390">        <span class="n">python_requires</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Requires-Python"</span><span class="p">),</span>
-</span><span data-line="391">        <span class="n">homepage</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Home-page"</span><span class="p">),</span>
-</span><span data-line="392">        <span class="n">project_urls</span><span class="o">=</span><span class="n">_parse_project_urls</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
-</span><span data-line="393">        <span class="n">dependencies</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">requires</span><span class="p">)</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">requires</span> <span class="k">else</span> <span class="p">[],</span>
-</span><span data-line="394">        <span class="n">classifiers</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get_all</span><span class="p">(</span><span class="s2">"Classifier"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="395">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
-</span><span data-line="396">        <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span>
-</span><span data-line="397">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="p">[],</span>
-</span><span data-line="398">        <span class="n">source</span><span class="o">=</span><span class="s2">"local"</span><span class="p">,</span>
-</span><span data-line="399">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">(),</span>
-</span><span data-line="400">    <span class="p">)</span></div>
+</span><span data-line="353"><span class="k">def</span><span class="w"> </span><span class="nf">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="354"><span class="w">    </span><span class="sd">"""Get metadata for a locally installed package.</span>
+</span><span data-line="355">
+</span><span data-line="356"><span class="sd">    Args:</span>
+</span><span data-line="357"><span class="sd">        name: Package name to look up.</span>
+</span><span data-line="358">
+</span><span data-line="359"><span class="sd">    Returns:</span>
+</span><span data-line="360"><span class="sd">        A :class:`PackageInfo` with ``source="local"``.</span>
+</span><span data-line="361">
+</span><span data-line="362"><span class="sd">    Raises:</span>
+</span><span data-line="363"><span class="sd">        PackageNotFoundError: If the package is not installed.</span>
+</span><span data-line="364"><span class="sd">    """</span>
+</span><span data-line="365">    <span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span>
+</span><span data-line="366">    <span class="k">try</span><span class="p">:</span>  <span class="c1"># ruff: ignore[too-many-statements-in-try-clause]</span>
+</span><span data-line="367">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="368">            <span class="n">dist</span> <span class="o">=</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distribution</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="369">        <span class="k">else</span><span class="p">:</span>
+</span><span data-line="370">            <span class="n">canonical</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="371">            <span class="n">found</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+</span><span data-line="372">                <span class="p">(</span>
+</span><span data-line="373">                    <span class="n">candidate</span>
+</span><span data-line="374">                    <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distributions</span><span class="p">(</span>
+</span><span data-line="375">                        <span class="n">path</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">)</span>
+</span><span data-line="376">                    <span class="p">)</span>
+</span><span data-line="377">                    <span class="k">if</span> <span class="n">_is_named</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">canonical</span><span class="p">)</span>
+</span><span data-line="378">                <span class="p">),</span>
+</span><span data-line="379">                <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="380">            <span class="p">)</span>
+</span><span data-line="381">            <span class="k">if</span> <span class="n">found</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="382">                <span class="k">raise</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># ruff: ignore[raise-within-try]</span>
+</span><span data-line="383">            <span class="n">dist</span> <span class="o">=</span> <span class="n">found</span>
+</span><span data-line="384">    <span class="k">except</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="385">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</span><span data-line="386">
+</span><span data-line="387">    <span class="n">meta</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">metadata</span>
+</span><span data-line="388">    <span class="n">files</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span><span class="p">]</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="389">    <span class="n">license_value</span><span class="p">,</span> <span class="n">license_source</span> <span class="o">=</span> <span class="n">_parse_license</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+</span><span data-line="390">    <span class="k">return</span> <span class="n">PackageInfo</span><span class="p">(</span>
+</span><span data-line="391">        <span class="n">name</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">],</span>
+</span><span data-line="392">        <span class="n">version</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Version"</span><span class="p">],</span>
+</span><span data-line="393">        <span class="n">summary</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Summary"</span><span class="p">),</span>
+</span><span data-line="394">        <span class="n">author</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Author"</span><span class="p">),</span>
+</span><span data-line="395">        <span class="n">author_email</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Author-email"</span><span class="p">),</span>
+</span><span data-line="396">        <span class="n">maintainer</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Maintainer"</span><span class="p">),</span>
+</span><span data-line="397">        <span class="n">license</span><span class="o">=</span><span class="n">license_value</span><span class="p">,</span>
+</span><span data-line="398">        <span class="n">license_source</span><span class="o">=</span><span class="n">license_source</span><span class="p">,</span>
+</span><span data-line="399">        <span class="n">python_requires</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Requires-Python"</span><span class="p">),</span>
+</span><span data-line="400">        <span class="n">homepage</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"Home-page"</span><span class="p">),</span>
+</span><span data-line="401">        <span class="n">project_urls</span><span class="o">=</span><span class="n">_parse_project_urls</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
+</span><span data-line="402">        <span class="n">dependencies</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">requires</span><span class="p">)</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">requires</span> <span class="k">else</span> <span class="p">[],</span>
+</span><span data-line="403">        <span class="n">classifiers</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get_all</span><span class="p">(</span><span class="s2">"Classifier"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="404">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
+</span><span data-line="405">        <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span>
+</span><span data-line="406">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="p">[],</span>
+</span><span data-line="407">        <span class="n">source</span><span class="o">=</span><span class="s2">"local"</span><span class="p">,</span>
+</span><span data-line="408">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">(),</span>
+</span><span data-line="409">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

@@ -183,12 +183,18 @@ def _checked_paths(paths: tuple[str, ...]) -> tuple[str, ...]:
     Raises:
         InvalidTargetError: If a path does not name an existing directory.
     """
-    resolved = tuple(str(Path(path).resolve()) for path in paths)
-    for path in resolved:
-        if not Path(path).is_dir():
-            msg = f"Invalid metadata path {path!r}: expected an existing directory."
+    checked: list[str] = []
+    for path in paths:
+        msg = f"Invalid metadata path {path!r}: expected an existing directory."
+        # Emptiness is rejected before resolving, because ``Path("").resolve()``
+        # is the working directory: an empty --path would silently mean "here".
+        if not path.strip():
             raise InvalidTargetError(msg)
-    return resolved
+        resolved = Path(path).resolve()
+        if not resolved.is_dir():
+            raise InvalidTargetError(msg)
+        checked.append(str(resolved))
+    return tuple(checked)
 
 
 @dataclass(frozen=True)
@@ -217,6 +223,9 @@ class LocalTarget:
                 key: str(value) for key, value in default_environment().items()
             }
             return cls(checked or None, None, marker_environment)
+        if not python.strip():
+            msg = _interpreter_problem(python, "no interpreter path given.")
+            raise InvalidTargetError(msg)
         # Do not resolve symlinks: a virtualenv's ``bin/python`` commonly
         # points at its base interpreter, and resolving it loses the venv.
         interpreter = Path(python).absolute()
