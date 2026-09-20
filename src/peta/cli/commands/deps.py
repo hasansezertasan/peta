@@ -143,12 +143,16 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
     paths: tuple[str, ...] = (),
 ) -> None:
     """Show a package's recursive dependency tree, or why a target is pulled in."""
+    # Recorded before the target is built so a rejected ``--python``/``--path``
+    # still appears in the error envelope; see the note in ``info``.
     arguments: dict[str, object] = {
         "package": package,
         "local": local,
         "remote": remote,
         "why": why,
         "depth": depth,
+        "python": python,
+        "paths": list(paths),
     }
     try:
         target = LocalTarget.create(python, paths) if python or paths else None

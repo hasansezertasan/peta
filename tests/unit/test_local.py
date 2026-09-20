@@ -1,13 +1,24 @@
 """Unit tests for the local metadata fetcher (importlib.metadata mocked)."""
 
+import json
+import subprocess  # ruff: ignore[suspicious-subprocess-import] # Only for TimeoutExpired/CompletedProcess.
 import sys
 from email.message import Message
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 from packaging.markers import default_environment
 
-from peta.core.local import LocalTarget, PackageNotFoundError, get_package
+from peta.core.local import (
+    InvalidTargetError,
+    LocalTarget,
+    PackageNotFoundError,
+    get_package,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 pytestmark = pytest.mark.unit
 
@@ -23,6 +34,83 @@ def test_interpreter_target_marker_environment_matches_packaging() -> None:
         target.marker_environment["implementation_version"]
         == expected["implementation_version"]
     )
+
+
+def test_interpreter_inspection_uses_a_timeout() -> None:
+    """A hung interpreter must fail the command, not block it forever."""
+    with patch("peta.core.local.subprocess.run") as run:
+        run.side_effect = subprocess.TimeoutExpired(cmd="python", timeout=15.0)
+        with pytest.raises(InvalidTargetError, match="did not respond"):
+            LocalTarget.create(sys.executable)
+        assert run.call_args.kwargs["timeout"] > 0
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        pytest.param("[]", id="list-payload"),
+        pytest.param("42", id="scalar-payload"),
+        pytest.param('{"paths": [], "marker_environment": []}', id="marker-not-a-map"),
+        pytest.param('{"paths": {}, "marker_environment": {}}', id="paths-not-a-list"),
+        pytest.param(
+            '{"paths": [1], "marker_environment": {"sys_platform": "linux"}}',
+            id="non-string-path",
+        ),
+        pytest.param(
+            '{"paths": [], "marker_environment": {"sys_platform": 1}}',
+            id="non-string-marker-value",
+        ),
+        pytest.param(
+            '{"paths": [], "marker_environment": {"sys_platform": "linux"}}',
+            id="missing-required-markers",
+        ),
+    ],
+)
+def test_malformed_inspection_payload_rejected(payload: str) -> None:
+    """Every layer of the payload is checked before any of it is used."""
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=payload)
+    with (
+        patch("peta.core.local.subprocess.run", return_value=completed),
+        pytest.raises(InvalidTargetError, match="invalid environment data"),
+    ):
+        LocalTarget.create(sys.executable)
+
+
+def test_valid_payload_is_accepted() -> None:
+    markers = {
+        "platform_python_implementation": "CPython",
+        "python_full_version": "3.14.0",
+        "sys_platform": "linux",
+    }
+    stdout = json.dumps({"paths": ["/site-packages"], "marker_environment": markers})
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout)
+    with patch("peta.core.local.subprocess.run", return_value=completed):
+        target = LocalTarget.create(sys.executable)
+    assert target.paths == ("/site-packages",)
+    assert target.marker_environment == markers
+    assert target.output_environment()["markers"] == markers
+
+
+def test_describe_reports_the_marker_values() -> None:
+    target = LocalTarget(
+        paths=("/site-packages",),
+        interpreter=None,
+        marker_environment={
+            "platform_python_implementation": "PyPy",
+            "python_full_version": "3.11.9",
+            "sys_platform": "darwin",
+        },
+    )
+    described = target.describe()
+    assert "PyPy" in described
+    assert "3.11.9" in described
+    assert "darwin" in described
+
+
+def test_invalid_metadata_path_rejected(tmp_path: Path) -> None:
+    missing = tmp_path / "nope"
+    with pytest.raises(InvalidTargetError, match="expected an existing directory"):
+        LocalTarget.create(None, (str(missing),))
 
 
 def _msg(**headers: str) -> Message:
@@ -117,3 +205,43 @@ def test_not_found_raises(mock_meta: MagicMock) -> None:
     mock_meta.distribution.side_effect = real.PackageNotFoundError("x")
     with pytest.raises(PackageNotFoundError):
         get_package("nope-xyz")
+
+
+@patch("peta.core.local.importlib_metadata")
+def test_nameless_distribution_does_not_hide_later_packages(
+    mock_meta: MagicMock,
+) -> None:
+    """A corrupt .dist-info enumerated first must be skipped, not crash the scan."""
+    import importlib.metadata as real
+
+    mock_meta.PackageNotFoundError = real.PackageNotFoundError
+    corrupt = MagicMock()
+    corrupt.metadata = _msg(Version="0.0.0")
+    wanted = MagicMock()
+    wanted.metadata = _msg(Name="wanted-pkg", Version="2.0.0")
+    wanted.requires = None
+    wanted.files = None
+    mock_meta.distributions.return_value = iter([corrupt, wanted])
+
+    target = LocalTarget(
+        paths=("/site-packages",), interpreter=None, marker_environment={}
+    )
+    result = get_package("wanted-pkg", target=target)
+    assert result.name == "wanted-pkg"
+    assert result.version == "2.0.0"
+
+
+@patch("peta.core.local.importlib_metadata")
+def test_nameless_distribution_alone_reports_not_found(mock_meta: MagicMock) -> None:
+    import importlib.metadata as real
+
+    mock_meta.PackageNotFoundError = real.PackageNotFoundError
+    corrupt = MagicMock()
+    corrupt.metadata = _msg(Version="0.0.0")
+    mock_meta.distributions.return_value = iter([corrupt])
+
+    target = LocalTarget(
+        paths=("/site-packages",), interpreter=None, marker_environment={}
+    )
+    with pytest.raises(PackageNotFoundError):
+        get_package("wanted-pkg", target=target)

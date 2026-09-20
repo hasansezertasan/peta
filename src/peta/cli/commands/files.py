@@ -25,7 +25,13 @@ def files(
     paths: tuple[str, ...] = (),
 ) -> None:
     """List files installed by a local package."""
-    arguments: dict[str, object] = {"package": package}
+    # Recorded before the target is built so a rejected ``--python``/``--path``
+    # still appears in the error envelope; see the note in ``info``.
+    arguments: dict[str, object] = {
+        "package": package,
+        "python": python,
+        "paths": list(paths),
+    }
     selected = resolve_or_fail("files", arguments, output_format, use_json=use_json)
     try:
         target = LocalTarget.create(python, paths) if python or paths else None

@@ -65,14 +65,15 @@ scoop install peta
 
 ### Inspect another Python environment
 
-Local commands normally inspect the environment running `peta`. Pass
-`--python PATH` to inspect an explicit interpreter, or repeat `--path` to
-search explicit metadata directories:
+`info`, `compare`, `deps`, and `files` normally inspect the environment running
+`peta`. Pass `--python PATH` to inspect an explicit interpreter, or repeat
+`--path` to search explicit metadata directories:
 
 ```shell
 peta info django --local --python .venv/bin/python
 peta deps django --local --path .venv/lib/python3.14/site-packages
 peta files django --python .venv/bin/python
+peta compare django flask --local --python .venv/bin/python
 ```
 
 `--path` selects the metadata search directories. `--python` selects both the
@@ -105,7 +106,9 @@ peta requests --json          # compatibility alias for --format json
 | `--local` / `-l` | info, compare, deps | force local lookup |
 | `--remote` / `-r` | info, compare, deps | force PyPI lookup |
 | `--limit` / `-n` | versions | max versions to show (default 20) |
-| `--python <x.y>` | artifacts | target Python version for compatibility (default: running) |
+| `--python <path>` | info, compare, deps, files | interpreter whose search path and markers to inspect |
+| `--path <dir>` | info, compare, deps, files | metadata search directory; repeatable |
+| `--python <x.y>` | artifacts | target Python **version** for compatibility (default: running) |
 | `--files` | artifacts | list every distribution file |
 | `--provenance` | artifacts | fetch PEP 740 provenance for publisher identity |
 | `--why <target>` | deps | show why `<target>` is a dependency |

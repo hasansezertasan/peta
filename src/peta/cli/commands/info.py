@@ -52,12 +52,18 @@ def info(  # ruff: ignore[complex-structure, too-many-arguments]
     paths: tuple[str, ...] = (),
 ) -> None:
     """Show detailed package metadata."""
+    # ``python``/``paths`` are recorded before the target is built: when
+    # ``LocalTarget.create`` rejects them there is no ``target_environment`` to
+    # add, and an error envelope that named neither would describe the running
+    # interpreter as the target of a query that never ran against it.
     arguments: dict[str, object] = {
         "package": package,
         "local": local,
         "remote": remote,
         "no_osv": no_osv,
         "no_stats": no_stats,
+        "python": python,
+        "paths": list(paths),
     }
     selected = resolve_or_fail("info", arguments, output_format, use_json=use_json)
     try:

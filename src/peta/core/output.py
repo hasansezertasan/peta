@@ -8,6 +8,8 @@ from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Literal, TypeAliasType, cast
 
+from packaging.markers import default_environment
+
 from peta._version import __version__
 
 if TYPE_CHECKING:
@@ -91,6 +93,11 @@ class TargetEnvironment:
     def current(cls) -> TargetEnvironment:
         """Describe the current runtime.
 
+        ``markers`` is populated even though no target was named: an
+        untargeted run still evaluates dependency markers against the running
+        interpreter, and leaving the field empty would hide from consumers
+        which values actually decided what the result contains.
+
         Returns:
             The active interpreter and operating-system platform.
         """
@@ -98,6 +105,7 @@ class TargetEnvironment:
             implementation=platform.python_implementation(),
             python_version=platform.python_version(),
             platform=sys.platform,
+            markers={key: str(value) for key, value in default_environment().items()},
         )
 
 
