@@ -31,7 +31,9 @@ the rest of the document.
 The envelope `status` is one of:
 
 - `success`: the query completed with a result;
-- `partial`: the primary result is usable, but optional enrichment failed;
+- `partial`: the primary result is usable, but optional enrichment failed or a
+  dependency tree is incomplete because of a conflict, depth limit, or
+  transitive resolution failure;
 - `empty`: the query succeeded and returned no items; or
 - `failed`: the command failed and `result` is `null`.
 

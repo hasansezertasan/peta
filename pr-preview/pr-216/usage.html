@@ -442,10 +442,11 @@ and mark the overall result <code class="docutils literal notranslate"><span cla
 (not just its direct requirements), resolving each dependency the same way
 <code class="docutils literal notranslate"><span class="pre">info</span></code> does. Requirements whose environment marker is not satisfied (e.g.
 an <code class="docutils literal notranslate"><span class="pre">extra</span></code> that is not requested, or a <code class="docutils literal notranslate"><span class="pre">python_version</span></code> constraint that
-excludes the running interpreter) are skipped. A dependency that reappears
-on its own ancestor path is shown once more and marked <code class="docutils literal notranslate"><span class="pre">(circular)</span></code> rather
-than being expanded again. Recursion stops at <code class="docutils literal notranslate"><span class="pre">--depth</span></code> (default <code class="docutils literal notranslate"><span class="pre">10</span></code>)
-levels; deeper dependencies are omitted.</p>
+excludes the target selected by <code class="docutils literal notranslate"><span class="pre">--python-version</span></code> or <code class="docutils literal notranslate"><span class="pre">--platform</span></code>) are
+skipped. Without those options, markers use the running environment. A
+dependency that reappears on its own ancestor path is shown once more and
+marked <code class="docutils literal notranslate"><span class="pre">(circular)</span></code> rather than being expanded again. Recursion stops at
+<code class="docutils literal notranslate"><span class="pre">--depth</span></code> (default <code class="docutils literal notranslate"><span class="pre">10</span></code>) levels; deeper dependencies are omitted.</p>
 <p>The tree is a metadata view, not a full dependency resolution. A local selected
 release is used when it satisfies the incoming requirement; otherwise peta
 selects the newest compatible PyPI release. If no selected release satisfies a

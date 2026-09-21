@@ -120,10 +120,11 @@ Dependency tree
 (not just its direct requirements), resolving each dependency the same way
 ``info`` does. Requirements whose environment marker is not satisfied (e.g.
 an ``extra`` that is not requested, or a ``python_version`` constraint that
-excludes the running interpreter) are skipped. A dependency that reappears
-on its own ancestor path is shown once more and marked ``(circular)`` rather
-than being expanded again. Recursion stops at ``--depth`` (default ``10``)
-levels; deeper dependencies are omitted.
+excludes the target selected by ``--python-version`` or ``--platform``) are
+skipped. Without those options, markers use the running environment. A
+dependency that reappears on its own ancestor path is shown once more and
+marked ``(circular)`` rather than being expanded again. Recursion stops at
+``--depth`` (default ``10``) levels; deeper dependencies are omitted.
 
 The tree is a metadata view, not a full dependency resolution. A local selected
 release is used when it satisfies the incoming requirement; otherwise peta

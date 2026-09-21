@@ -146,7 +146,9 @@ the rest of the document.</p>
 <p>The envelope <code class="docutils literal notranslate"><span class="pre">status</span></code> is one of:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">success</span></code>: the query completed with a result;</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">partial</span></code>: the primary result is usable, but optional enrichment failed;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">partial</span></code>: the primary result is usable, but optional enrichment failed or a
+dependency tree is incomplete because of a conflict, depth limit, or
+transitive resolution failure;</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">empty</span></code>: the query succeeded and returned no items; or</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">failed</span></code>: the command failed and <code class="docutils literal notranslate"><span class="pre">result</span></code> is <code class="docutils literal notranslate"><span class="pre">null</span></code>.</p></li>
 </ul>
