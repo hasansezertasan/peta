@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
+from packaging.specifiers import SpecifierSet
 
 from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo
@@ -89,6 +90,35 @@ class TestResolvePackage:
         pkg = resolve_package("x", local=False, remote=False, target=target)
 
         assert pkg.source == "remote"
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_ordinary_requirement_rejects_local_prerelease(
+        self, ml: MagicMock, mr: MagicMock
+    ) -> None:
+        ml.return_value = _pkg(name="x", version="1.9rc1")
+        mr.return_value = _pkg(name="x", version="1.8", source="remote")
+
+        pkg = resolve_package(
+            "x", local=False, remote=False, specifier=SpecifierSet("<2")
+        )
+
+        assert pkg.version == "1.8"
+        assert pkg.source == "remote"
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_explicit_prerelease_requirement_accepts_local_prerelease(
+        self, ml: MagicMock, mr: MagicMock
+    ) -> None:
+        ml.return_value = _pkg(name="x", version="1.9rc1")
+
+        pkg = resolve_package(
+            "x", local=False, remote=False, specifier=SpecifierSet(">=1.9rc1,<2")
+        )
+
+        assert pkg.version == "1.9rc1"
+        mr.assert_not_called()
 
     @patch("peta.core.resolve.remote_get_package")
     def test_version_specifier_queries_remote(self, mr: MagicMock) -> None:

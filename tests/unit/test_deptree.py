@@ -189,6 +189,21 @@ class TestBuildTree:
         assert [c.name for c in tree.children] == ["d"]
 
     @patch("peta.core.deptree.resolve_package")
+    def test_python_override_updates_cpython_implementation_marker(
+        self, m: MagicMock
+    ) -> None:
+        pkgs = {
+            "a": _pkg("a", ['b; implementation_version < "3.13"']),
+            "b": _pkg("b", []),
+        }
+        m.side_effect = lambda name, **_kw: pkgs[name]
+        target = LocalTarget.create(python_version="3.12")
+
+        tree = build_tree("a", local=False, remote=False, target=target)
+
+        assert [child.name for child in tree.children] == ["b"]
+
+    @patch("peta.core.deptree.resolve_package")
     def test_root_extra_does_not_leak_to_transitive_packages(
         self, m: MagicMock
     ) -> None:

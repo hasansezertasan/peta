@@ -322,17 +322,18 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     data, _ = _fetch(name, None)
     candidates: list[Version] = []
     releases = data.get("releases") or {}
+    allows_prereleases = not specifier or specifier.prereleases is True
     for raw in releases:
         try:
             version = Version(raw)
         except InvalidVersion:
             continue
-        if specifier.contains(version, prereleases=specifier.prereleases):
+        if specifier.contains(version, prereleases=allows_prereleases):
             candidates.append(version)
     stable_candidates = [
         candidate for candidate in candidates if not candidate.is_prerelease
     ]
-    if stable_candidates and not specifier.prereleases:
+    if stable_candidates and not allows_prereleases:
         candidates = stable_candidates
     for version in sorted(candidates, reverse=True):
         package = get_package(name, str(version))

@@ -102,6 +102,36 @@ def test_matching_release_prefers_stable_versions(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_matching_release_excludes_implicit_prerelease(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"1.9rc1": []}}, MagicMock())
+    current = PackageInfo(name="dep", version="2.0", source="remote")
+    get.return_value = current
+
+    result = get_package_matching("dep", SpecifierSet("<2"), None)
+
+    assert result is current
+    get.assert_called_once_with("dep")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_accepts_explicit_prerelease(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"1.9rc1": []}}, MagicMock())
+    prerelease = PackageInfo(name="dep", version="1.9rc1", source="remote")
+    get.return_value = prerelease
+
+    result = get_package_matching("dep", SpecifierSet(">=1.9rc1,<2"), None)
+
+    assert result is prerelease
+    get.assert_called_once_with("dep", "1.9rc1")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_release_skips_releases_incompatible_with_running_python(
     fetch: MagicMock, get: MagicMock
 ) -> None:

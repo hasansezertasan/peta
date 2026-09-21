@@ -270,6 +270,19 @@ def test_local_target_python_version_override(
 
     assert target.marker_environment["python_version"] == short
     assert target.marker_environment["python_full_version"] == full
+    assert target.marker_environment["implementation_version"] == full
+
+
+def test_non_cpython_implementation_version_is_not_overridden() -> None:
+    markers = {
+        **default_environment(),
+        "platform_python_implementation": "PyPy",
+        "implementation_version": "7.3.19",
+    }
+    with patch("peta.core.local.default_environment", return_value=markers):
+        target = LocalTarget.create(python_version="3.12")
+
+    assert target.marker_environment["implementation_version"] == "7.3.19"
 
 
 @pytest.mark.parametrize("requested", ["3", "3.12.4.5", "3.x"])

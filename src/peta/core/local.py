@@ -306,6 +306,8 @@ def _override_python_version(target: dict[str, str], python_version: str) -> Non
         if len(parts) == _VERSION_PARTS_WITH_PATCH
         else f"{python_version}.0"
     )
+    if target.get("platform_python_implementation") == "CPython":
+        target["implementation_version"] = target["python_full_version"]
 
 
 def _override_platform(target: dict[str, str], platform: str) -> None:
