@@ -322,6 +322,27 @@ def test_matching_preserves_arbitrary_version_pin(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_matching_preserves_noncanonical_arbitrary_version_pin(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "2.0"},
+            "releases": {"01.0": [{"yanked": False}], "2.0": [{"yanked": False}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+    arbitrary = PackageInfo(name="legacy", version="01.0", source="remote")
+    get.return_value = arbitrary
+
+    result = get_package_matching("legacy", SpecifierSet("===01.0"), None)
+
+    assert result is arbitrary
+    get.assert_called_once_with("legacy", "01.0")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_rejects_case_variant_filtered_arbitrary_current_release(
     fetch: MagicMock, get: MagicMock
 ) -> None:
@@ -335,6 +356,25 @@ def test_matching_rejects_case_variant_filtered_arbitrary_current_release(
 
     with pytest.raises(PackageNotFoundError, match=re.escape("legacy==foobar")):
         _ = get_package_matching("legacy", SpecifierSet("===foobar"), None)
+
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_rejects_filtered_noncanonical_arbitrary_current_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "01.0"},
+            "releases": {"01.0": []},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("legacy==01.0")):
+        _ = get_package_matching("legacy", SpecifierSet("===01.0"), None)
 
     get.assert_not_called()
 

@@ -343,15 +343,15 @@ def _release_candidates(  # ruff: ignore[complex-structure]
     filtered_arbitrary_candidates: set[str] = set()
     allows_prereleases = not specifier or specifier.prereleases is True
     for raw, files in releases.items():
-        try:
-            version = Version(raw)
-        except InvalidVersion:
-            if not _is_arbitrary_pin(specifier, raw):
-                continue
+        if _is_arbitrary_pin(specifier, raw):
             if not files:
                 filtered_arbitrary_candidates.add(raw.casefold())
                 continue
             arbitrary_candidates.append(raw)
+            continue
+        try:
+            version = Version(raw)
+        except InvalidVersion:
             continue
         if not specifier.contains(version, prereleases=allows_prereleases):
             continue
@@ -421,13 +421,13 @@ def get_package_matching(  # ruff: ignore[complex-structure]
         if data.get("info") is not None  # pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.
         else get_package(name)
     )
+    if fallback.version.casefold() in filtered_arbitrary_candidates:
+        if best_incompatible is not None:
+            return best_incompatible
+        raise PackageNotFoundError(name, fallback.version)
     try:
         fallback_version = Version(fallback.version)
     except InvalidVersion:
-        if fallback.version.casefold() in filtered_arbitrary_candidates:
-            if best_incompatible is not None:
-                return best_incompatible
-            raise PackageNotFoundError(name, fallback.version) from None
         return best_incompatible or fallback
     if fallback_version in filtered_candidates:
         if best_incompatible is not None:
