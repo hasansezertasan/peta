@@ -220,6 +220,11 @@ matching the names used by <code class="docutils literal notranslate"><span clas
 <p>Schema version <code class="docutils literal notranslate"><span class="pre">1</span></code> replaces the original unversioned command-specific JSON.
 The previous top-level payload is now under <code class="docutils literal notranslate"><span class="pre">result</span></code>; for example, migrate
 <code class="docutils literal notranslate"><span class="pre">output[&quot;name&quot;]</span></code> to <code class="docutils literal notranslate"><span class="pre">output[&quot;result&quot;][&quot;name&quot;]</span></code>.</p>
+<p>Schema version <code class="docutils literal notranslate"><span class="pre">2</span></code> updates dependency nodes for declared-metadata resolution.
+Consumers should migrate <code class="docutils literal notranslate"><span class="pre">installed_version</span></code> to <code class="docutils literal notranslate"><span class="pre">selected_version</span></code> and replace
+the <code class="docutils literal notranslate"><span class="pre">circular</span></code> boolean check with the <code class="docutils literal notranslate"><span class="pre">state</span></code> field, whose <code class="docutils literal notranslate"><span class="pre">&quot;circular&quot;</span></code> value
+represents the former <code class="docutils literal notranslate"><span class="pre">true</span></code> case and whose other values describe additional
+resolution outcomes.</p>
 <p>Within a schema version, consumers must tolerate new object fields and new
 warning/error codes. Existing fields will not be removed or change meaning.
 A backward-incompatible shape or semantic change increments <code class="docutils literal notranslate"><span class="pre">schema_version</span></code>.
