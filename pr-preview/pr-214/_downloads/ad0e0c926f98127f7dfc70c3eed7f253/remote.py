@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING, Literal, Required, TypedDict, cast
 
 import httpx
-from packaging.specifiers import SpecifierSet
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
@@ -212,6 +213,8 @@ def _validate_info(value: object) -> None:
 def _validate_response(body: object) -> PyPIResponse:
     root = expect_mapping(body, source="PyPI", path="$")
     _validate_info(root.get("info"))
+    if "releases" in root:
+        _ = expect_mapping(root["releases"], source="PyPI", path="$.releases")
     raw_vulnerabilities = root.get("vulnerabilities", [])
     vulnerabilities = expect_list(
         raw_vulnerabilities, source="PyPI", path="$.vulnerabilities"
@@ -289,11 +292,18 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
 def _compatible_with_target(
     package: PackageInfo, marker_environment: dict[str, str] | None
 ) -> bool:
-    if not package.python_requires or marker_environment is None:
+    if not package.python_requires:
         return True
-    return SpecifierSet(package.python_requires).contains(
-        marker_environment["python_full_version"]
-    )
+    try:
+        spec = SpecifierSet(package.python_requires)
+    except InvalidSpecifier:
+        return False
+    if marker_environment is not None:
+        python_version = marker_environment.get("python_full_version", "")
+    else:
+        info = sys.version_info
+        python_version = f"{info.major}.{info.minor}.{info.micro}"
+    return bool(spec.contains(python_version))
 
 
 def get_package_matching(  # ruff: ignore[complex-structure]
@@ -311,7 +321,8 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     """
     data, _ = _fetch(name, None)
     candidates: list[Version] = []
-    for raw in data.get("releases", {}):
+    releases = data.get("releases") or {}
+    for raw in releases:
         try:
             version = Version(raw)
         except InvalidVersion:

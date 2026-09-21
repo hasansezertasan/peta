@@ -131,7 +131,9 @@ selects the newest compatible PyPI release. If no selected release satisfies a
 requirement, the node is marked ``conflicting`` and is not expanded. Nodes also
 record whether they are ``unresolved``, ``circular``, or ``depth_limited``. A
 future resolver-backed mode would be a separate command mode. Dependencies
-gated behind an extra are not activated. ``--why`` searches only the tree built at the current
+gated behind an extra remain inactive unless requested through the repeatable
+``--extra`` option, which activates matching root requirements.
+``--why`` searches only the tree built at the current
 ``--depth``, so raise ``--depth`` if a target is deeper than the default.
 
 Pass ``--why <target>`` to show every chain of dependencies that pulls

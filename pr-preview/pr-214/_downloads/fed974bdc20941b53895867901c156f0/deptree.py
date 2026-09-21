@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from packaging.markers import UndefinedEnvironmentName
 from packaging.requirements import InvalidRequirement, Requirement
-from packaging.specifiers import SpecifierSet
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import canonicalize_name
 
 from peta.core import http
@@ -147,8 +147,49 @@ def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
     """
     if target is None or not pkg.python_requires:
         return True
-    return SpecifierSet(pkg.python_requires).contains(
-        target.marker_environment["python_full_version"]
+    try:
+        specifier = SpecifierSet(pkg.python_requires)
+    except InvalidSpecifier:
+        return False
+    python_version = target.marker_environment.get("python_full_version", "")
+    return bool(specifier.contains(python_version))
+
+
+def _conflict_node(
+    req: Requirement, child_pkg: PackageInfo, target: LocalTarget | None
+) -> DependencyNode | None:
+    spec_ok = req.specifier.contains(child_pkg.version)
+    target_ok = _supports_target(child_pkg, target)
+    if spec_ok and target_ok:
+        return None
+    return DependencyNode(
+        name=req.name,
+        version_spec=str(req.specifier),
+        selected_version=child_pkg.version,
+        state="conflicting",
+        conflict_reason="version" if not spec_ok else "target",
+        source=child_pkg.source,
+        retrieved_at=child_pkg.retrieved_at,
+        freshness=child_pkg.freshness,
+    )
+
+
+def _depth_limited_node(
+    req: Requirement,
+    child_pkg: PackageInfo,
+    target: LocalTarget | None,
+    extras: tuple[str, ...],
+) -> DependencyNode:
+    env = target.marker_environment if target else None
+    has_active_deps = bool(_kept_requirements(child_pkg, env, extras))
+    return DependencyNode(
+        name=req.name,
+        version_spec=str(req.specifier),
+        selected_version=child_pkg.version,
+        state="depth_limited" if has_active_deps else "satisfied",
+        source=child_pkg.source,
+        retrieved_at=child_pkg.retrieved_at,
+        freshness=child_pkg.freshness,
     )
 
 
@@ -183,29 +224,13 @@ def _child_node(
             state="unresolved",
             resolution_failure=resolved,
         )
+    conflict = _conflict_node(req, resolved, target)
+    if conflict is not None:
+        return conflict
     child_pkg = resolved
-    if not req.specifier.contains(child_pkg.version) or not _supports_target(
-        child_pkg, target
-    ):
-        return DependencyNode(
-            name=req.name,
-            version_spec=version_spec,
-            selected_version=child_pkg.version,
-            state="conflicting",
-            source=child_pkg.source,
-            retrieved_at=child_pkg.retrieved_at,
-            freshness=child_pkg.freshness,
-        )
+    extras = tuple(sorted(req.extras))
     if depth >= max_depth:
-        return DependencyNode(
-            name=req.name,
-            version_spec=version_spec,
-            selected_version=child_pkg.version,
-            state="depth_limited",
-            source=child_pkg.source,
-            retrieved_at=child_pkg.retrieved_at,
-            freshness=child_pkg.freshness,
-        )
+        return _depth_limited_node(req, child_pkg, target, extras)
     children = _expand(
         child_pkg,
         path | {canon},
@@ -215,7 +240,7 @@ def _child_node(
         target=target,
         depth=depth + 1,
         max_depth=max_depth,
-        extras=tuple(sorted(req.extras)),
+        extras=extras,
     )
     return DependencyNode(
         name=req.name,
@@ -304,6 +329,7 @@ def build_tree(
         version_spec="",
         selected_version=root_pkg.version,
         state="satisfied" if target_compatible else "conflicting",
+        conflict_reason=None if target_compatible else "target",
         children=children,
         source=root_pkg.source,
         retrieved_at=root_pkg.retrieved_at,
