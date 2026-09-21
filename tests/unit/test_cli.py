@@ -52,7 +52,7 @@ class TestInfo:
         assert r.exit_code == 0
         assert "requests" in r.output
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     @patch("peta.core.resolve.local_get_package")
     def test_fallback_to_remote(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
@@ -528,11 +528,11 @@ class TestDeps:
         result = runner.invoke(app, ["deps", "requests", "--format", "markdown"])
         assert result.output.startswith("# Declared metadata tree for requests")
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     def test_deps_remote_flag(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["deps", "requests", "-r"]).exit_code == 0
-        assert mr.call_args_list[0].args == ("requests",)
+        assert mr.call_args_list[0].args[0] == "requests"
 
     @patch("peta.core.resolve.local_get_package")
     def test_deps_local_flag(self, ml: MagicMock) -> None:
@@ -540,21 +540,21 @@ class TestDeps:
         assert runner.invoke(app, ["deps", "requests", "-l"]).exit_code == 0
         assert ml.call_args_list[0].args == ("requests",)
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     @patch("peta.core.resolve.local_get_package")
     def test_deps_fallback_to_remote(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["deps", "x"]).exit_code == 0
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     @patch("peta.core.resolve.local_get_package")
     def test_deps_not_found(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
         mr.side_effect = RemoteNotFound("x")
         assert runner.invoke(app, ["deps", "x"]).exit_code == 1
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     def test_deps_network_error_exit_2(self, mr: MagicMock) -> None:
         from peta.core.remote import NetworkError
 

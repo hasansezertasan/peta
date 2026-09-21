@@ -68,10 +68,24 @@ class TestResolvePackage:
             source="remote", version="2.30.0", python_requires=">=3.10"
         )
 
-        package = resolve_package("requests", local=False, remote=True)
+        package = resolve_package(
+            "requests", local=False, remote=True, select_compatible=True
+        )
 
         assert package.version == "2.30.0"
         matching.assert_called_once_with("requests", SpecifierSet(), None)
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_top_level_remote_preserves_latest_release(
+        self, latest: MagicMock, matching: MagicMock
+    ) -> None:
+        latest.return_value = _pkg(source="remote", python_requires=">=999")
+
+        package = resolve_package("requests", local=False, remote=True)
+
+        assert package.python_requires == ">=999"
+        matching.assert_not_called()
 
     @pytest.mark.parametrize(
         ("paths", "interpreter"),
@@ -113,6 +127,30 @@ class TestResolvePackage:
         pkg = resolve_package("x", local=False, remote=False, target=target)
         assert pkg.version == "1.0.0"
         assert pkg.source == "remote"
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_explicit_target_keeps_incompatible_local_package(
+        self, local_package: MagicMock, remote_package: MagicMock
+    ) -> None:
+        local_package.return_value = _pkg(name="x", version="1.0.0")
+        target = LocalTarget(
+            paths=("/site-packages",),
+            interpreter=None,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        package = resolve_package(
+            "x",
+            local=False,
+            remote=False,
+            target=target,
+            specifier=SpecifierSet(">=2"),
+            select_compatible=True,
+        )
+
+        assert package.version == "1.0.0"
+        remote_package.assert_not_called()
 
     @patch("peta.core.resolve.remote_get_package_matching")
     @patch("peta.core.resolve.local_get_package")

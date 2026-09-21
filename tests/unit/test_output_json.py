@@ -133,7 +133,7 @@ def test_dep_tree_reports_a_root_target_conflict() -> None:
             "message": (
                 "requests: selected 3.0.0 is incompatible with the target environment"
             ),
-            "source": "remote",
+            "source": "pypi",
         }
     ]
 
@@ -164,7 +164,7 @@ def test_dep_tree_reports_child_target_conflict_with_version_spec() -> None:
             "message": (
                 "urllib3: selected 2.0.0 is incompatible with the target environment"
             ),
-            "source": "remote",
+            "source": "pypi",
         }
     ]
 

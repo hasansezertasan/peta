@@ -78,7 +78,12 @@ def _resolve_cached(
         return cache[canon]
     try:
         pkg = resolve_package(
-            req.name, local=local, remote=remote, target=target, specifier=req.specifier
+            req.name,
+            local=local,
+            remote=remote,
+            target=target,
+            specifier=req.specifier,
+            select_compatible=True,
         )
     except _UNRESOLVABLE as exc:
         result: PackageInfo | DependencyResolutionFailure = _resolution_failure(exc)
@@ -323,7 +328,9 @@ def build_tree(
     Returns:
         The root :class:`DependencyNode`, with children expanded recursively.
     """
-    root_pkg = resolve_package(name, local=local, remote=remote, target=target)
+    root_pkg = resolve_package(
+        name, local=local, remote=remote, target=target, select_compatible=True
+    )
     canon = canonicalize_name(root_pkg.name)
     cache: dict[str, PackageInfo | DependencyResolutionFailure] = {canon: root_pkg}
     target_compatible = _supports_target(root_pkg, target)

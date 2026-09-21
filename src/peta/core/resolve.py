@@ -74,17 +74,19 @@ def _resolve_versioned(name: str, version: str, *, local: bool) -> PackageInfo:
 
 
 def _remote_package(
-    name: str, specifier: SpecifierSet, target: LocalTarget | None
+    name: str,
+    specifier: SpecifierSet,
+    target: LocalTarget | None,
+    *,
+    select_compatible: bool,
 ) -> PackageInfo:
     """Get the newest remote release that meets the dependency requirement.
 
     Returns:
         The selected remote package metadata.
     """
-    if not specifier and target is None:
-        package = remote_get_package(name)
-        if _supports_target(package, None):
-            return package
+    if not specifier and target is None and not select_compatible:
+        return remote_get_package(name)
     return remote_get_package_matching(
         name, specifier, target.marker_environment if target else None
     )
@@ -106,7 +108,11 @@ def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
 
 
 def _resolve_default(
-    name: str, requirement: SpecifierSet, target: LocalTarget | None
+    name: str,
+    requirement: SpecifierSet,
+    target: LocalTarget | None,
+    *,
+    select_compatible: bool,
 ) -> PackageInfo:
     try:
         local_pkg = (
@@ -117,14 +123,20 @@ def _resolve_default(
     except LocalNotFound:
         if target is not None and (target.interpreter is not None or target.paths):
             raise
-        return _remote_package(name, requirement, target)
+        return _remote_package(
+            name, requirement, target, select_compatible=select_compatible
+        )
 
     allows_prereleases = not requirement or requirement.prereleases is True
     if requirement.contains(
         local_pkg.version, prereleases=allows_prereleases
     ) and _supports_target(local_pkg, target):
         return local_pkg
-    return _remote_package(name, requirement, target)
+    if target is not None and (target.interpreter is not None or target.paths):
+        return local_pkg
+    return _remote_package(
+        name, requirement, target, select_compatible=select_compatible
+    )
 
 
 def _reject_remote_metadata_target(target: LocalTarget | None) -> None:
@@ -140,6 +152,7 @@ def resolve_package(
     remote: bool,
     target: LocalTarget | None = None,
     specifier: SpecifierSet | None = None,
+    select_compatible: bool = False,
 ) -> PackageInfo:
     """Resolve a package argument to its metadata.
 
@@ -162,11 +175,15 @@ def resolve_package(
         return _resolve_versioned(name, version, local=local)
     if remote:
         _reject_remote_metadata_target(target)
-        return _remote_package(name, requirement, target)
+        return _remote_package(
+            name, requirement, target, select_compatible=select_compatible
+        )
     if local:
         return (
             local_get_package(name, target=target)
             if target
             else local_get_package(name)
         )
-    return _resolve_default(name, requirement, target)
+    return _resolve_default(
+        name, requirement, target, select_compatible=select_compatible
+    )
