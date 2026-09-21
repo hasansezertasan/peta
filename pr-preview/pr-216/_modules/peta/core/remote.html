@@ -453,7 +453,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="314">
 </span><span data-line="315"><span class="k">def</span><span class="w"> </span><span class="nf">_matches_exact_pin</span><span class="p">(</span><span class="n">item</span><span class="p">:</span> <span class="n">Specifier</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">version</span><span class="p">:</span> <span class="n">Version</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
 </span><span data-line="316">    <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">operator</span> <span class="o">==</span> <span class="s2">"==="</span><span class="p">:</span>
-</span><span data-line="317">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">raw</span><span class="p">)</span>
+</span><span data-line="317">        <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span> <span class="o">==</span> <span class="n">raw</span><span class="o">.</span><span class="n">casefold</span><span class="p">())</span>
 </span><span data-line="318">    <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">operator</span> <span class="o">!=</span> <span class="s2">"=="</span> <span class="ow">or</span> <span class="n">item</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">".*"</span><span class="p">):</span>
 </span><span data-line="319">        <span class="k">return</span> <span class="kc">False</span>
 </span><span data-line="320">    <span class="k">try</span><span class="p">:</span>
@@ -467,104 +467,111 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="328">
 </span><span data-line="329">
 </span><span data-line="330"><span class="k">def</span><span class="w"> </span><span class="nf">_is_arbitrary_pin</span><span class="p">(</span><span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span><span class="p">,</span> <span class="n">raw</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="331">    <span class="k">return</span> <span class="nb">any</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">operator</span> <span class="o">==</span> <span class="s2">"==="</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">version</span> <span class="o">==</span> <span class="n">raw</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">specifier</span><span class="p">)</span>
-</span><span data-line="332">
-</span><span data-line="333">
-</span><span data-line="334"><span class="k">def</span><span class="w"> </span><span class="nf">_release_candidates</span><span class="p">(</span>  <span class="c1"># ruff: ignore[complex-structure]</span>
-</span><span data-line="335">    <span class="n">releases</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">PyPIReleaseFile</span><span class="p">]],</span> <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span>
-</span><span data-line="336"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">set</span><span class="p">[</span><span class="n">Version</span><span class="p">],</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
-</span><span data-line="337">    <span class="n">candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Version</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="338">    <span class="n">arbitrary_candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="339">    <span class="n">filtered_candidates</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="n">Version</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-</span><span data-line="340">    <span class="n">filtered_arbitrary_candidates</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
-</span><span data-line="341">    <span class="n">allows_prereleases</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">specifier</span> <span class="ow">or</span> <span class="n">specifier</span><span class="o">.</span><span class="n">prereleases</span> <span class="ow">is</span> <span class="kc">True</span>
-</span><span data-line="342">    <span class="k">for</span> <span class="n">raw</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">releases</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span data-line="343">        <span class="k">try</span><span class="p">:</span>
-</span><span data-line="344">            <span class="n">version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
-</span><span data-line="345">        <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
-</span><span data-line="346">            <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_arbitrary_pin</span><span class="p">(</span><span class="n">specifier</span><span class="p">,</span> <span class="n">raw</span><span class="p">):</span>
-</span><span data-line="347">                <span class="k">continue</span>
-</span><span data-line="348">            <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
-</span><span data-line="349">                <span class="n">filtered_arbitrary_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</span><span data-line="331">    <span class="k">return</span> <span class="nb">any</span><span class="p">(</span>
+</span><span data-line="332">        <span class="n">item</span><span class="o">.</span><span class="n">operator</span> <span class="o">==</span> <span class="s2">"==="</span> <span class="ow">and</span> <span class="n">item</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span> <span class="o">==</span> <span class="n">raw</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span>
+</span><span data-line="333">        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">specifier</span>
+</span><span data-line="334">    <span class="p">)</span>
+</span><span data-line="335">
+</span><span data-line="336">
+</span><span data-line="337"><span class="k">def</span><span class="w"> </span><span class="nf">_release_candidates</span><span class="p">(</span>  <span class="c1"># ruff: ignore[complex-structure]</span>
+</span><span data-line="338">    <span class="n">releases</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">PyPIReleaseFile</span><span class="p">]],</span> <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span>
+</span><span data-line="339"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">set</span><span class="p">[</span><span class="n">Version</span><span class="p">],</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+</span><span data-line="340">    <span class="n">candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Version</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="341">    <span class="n">arbitrary_candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="342">    <span class="n">filtered_candidates</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="n">Version</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+</span><span data-line="343">    <span class="n">filtered_arbitrary_candidates</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+</span><span data-line="344">    <span class="n">allows_prereleases</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">specifier</span> <span class="ow">or</span> <span class="n">specifier</span><span class="o">.</span><span class="n">prereleases</span> <span class="ow">is</span> <span class="kc">True</span>
+</span><span data-line="345">    <span class="k">for</span> <span class="n">raw</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">releases</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span data-line="346">        <span class="k">try</span><span class="p">:</span>
+</span><span data-line="347">            <span class="n">version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</span><span data-line="348">        <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
+</span><span data-line="349">            <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_arbitrary_pin</span><span class="p">(</span><span class="n">specifier</span><span class="p">,</span> <span class="n">raw</span><span class="p">):</span>
 </span><span data-line="350">                <span class="k">continue</span>
-</span><span data-line="351">            <span class="n">arbitrary_candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
-</span><span data-line="352">            <span class="k">continue</span>
-</span><span data-line="353">        <span class="k">if</span> <span class="ow">not</span> <span class="n">specifier</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="n">allows_prereleases</span><span class="p">):</span>
-</span><span data-line="354">            <span class="k">continue</span>
-</span><span data-line="355">        <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
-</span><span data-line="356">            <span class="n">filtered_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="351">            <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+</span><span data-line="352">                <span class="n">filtered_arbitrary_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</span><span data-line="353">                <span class="k">continue</span>
+</span><span data-line="354">            <span class="n">arbitrary_candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</span><span data-line="355">            <span class="k">continue</span>
+</span><span data-line="356">        <span class="k">if</span> <span class="ow">not</span> <span class="n">specifier</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="n">allows_prereleases</span><span class="p">):</span>
 </span><span data-line="357">            <span class="k">continue</span>
-</span><span data-line="358">        <span class="n">exact_pin</span> <span class="o">=</span> <span class="n">_is_exact_pin</span><span class="p">(</span><span class="n">specifier</span><span class="p">,</span> <span class="n">raw</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-</span><span data-line="359">        <span class="n">fully_yanked</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"yanked"</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">)</span>
-</span><span data-line="360">        <span class="k">if</span> <span class="n">fully_yanked</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">exact_pin</span><span class="p">:</span>
-</span><span data-line="361">            <span class="n">filtered_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
-</span><span data-line="362">            <span class="k">continue</span>
-</span><span data-line="363">        <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
-</span><span data-line="364">    <span class="n">stable_candidates</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
-</span><span data-line="365">        <span class="p">(</span><span class="n">candidate</span> <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_prerelease</span><span class="p">),</span>
-</span><span data-line="366">        <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span data-line="367">    <span class="p">)</span>
-</span><span data-line="368">    <span class="n">prerelease_candidates</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
-</span><span data-line="369">        <span class="p">(</span><span class="n">candidate</span> <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_prerelease</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span>
+</span><span data-line="358">        <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
+</span><span data-line="359">            <span class="n">filtered_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="360">            <span class="k">continue</span>
+</span><span data-line="361">        <span class="n">exact_pin</span> <span class="o">=</span> <span class="n">_is_exact_pin</span><span class="p">(</span><span class="n">specifier</span><span class="p">,</span> <span class="n">raw</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+</span><span data-line="362">        <span class="n">fully_yanked</span> <span class="o">=</span> <span class="nb">all</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"yanked"</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span> <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">files</span><span class="p">)</span>
+</span><span data-line="363">        <span class="k">if</span> <span class="n">fully_yanked</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">exact_pin</span><span class="p">:</span>
+</span><span data-line="364">            <span class="n">filtered_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="365">            <span class="k">continue</span>
+</span><span data-line="366">        <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="367">    <span class="n">stable_candidates</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+</span><span data-line="368">        <span class="p">(</span><span class="n">candidate</span> <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_prerelease</span><span class="p">),</span>
+</span><span data-line="369">        <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span data-line="370">    <span class="p">)</span>
-</span><span data-line="371">    <span class="n">ordered_candidates</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="372">        <span class="o">*</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">version</span><span class="p">)</span> <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">stable_candidates</span><span class="p">),</span>
-</span><span data-line="373">        <span class="o">*</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">version</span><span class="p">)</span> <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">prerelease_candidates</span><span class="p">),</span>
-</span><span data-line="374">        <span class="o">*</span><span class="n">arbitrary_candidates</span><span class="p">,</span>
-</span><span data-line="375">    <span class="p">]</span>
-</span><span data-line="376">    <span class="k">return</span> <span class="n">ordered_candidates</span><span class="p">,</span> <span class="n">filtered_candidates</span><span class="p">,</span> <span class="n">filtered_arbitrary_candidates</span>
-</span><span data-line="377">
-</span><span data-line="378">
+</span><span data-line="371">    <span class="n">prerelease_candidates</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span>
+</span><span data-line="372">        <span class="p">(</span><span class="n">candidate</span> <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_prerelease</span><span class="p">),</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span>
+</span><span data-line="373">    <span class="p">)</span>
+</span><span data-line="374">    <span class="n">version_candidates</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="375">        <span class="nb">sorted</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="376">        <span class="k">if</span> <span class="n">specifier</span><span class="o">.</span><span class="n">prereleases</span> <span class="ow">is</span> <span class="kc">True</span>
+</span><span data-line="377">        <span class="k">else</span> <span class="p">[</span><span class="o">*</span><span class="n">stable_candidates</span><span class="p">,</span> <span class="o">*</span><span class="n">prerelease_candidates</span><span class="p">]</span>
+</span><span data-line="378">    <span class="p">)</span>
+</span><span data-line="379">    <span class="n">ordered_candidates</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="380">        <span class="o">*</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">version</span><span class="p">)</span> <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">version_candidates</span><span class="p">),</span>
+</span><span data-line="381">        <span class="o">*</span><span class="n">arbitrary_candidates</span><span class="p">,</span>
+</span><span data-line="382">    <span class="p">]</span>
+</span><span data-line="383">    <span class="k">return</span> <span class="n">ordered_candidates</span><span class="p">,</span> <span class="n">filtered_candidates</span><span class="p">,</span> <span class="n">filtered_arbitrary_candidates</span>
+</span><span data-line="384">
+</span><span data-line="385">
 <div class="viewcode-block" id="get_package_matching">
 <a class="viewcode-back" href="../../../modules.html#peta.core.remote.get_package_matching">[docs]</a>
-</span><span data-line="379"><span class="k">def</span><span class="w"> </span><span class="nf">get_package_matching</span><span class="p">(</span>  <span class="c1"># ruff: ignore[complex-structure]</span>
-</span><span data-line="380">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
-</span><span data-line="381"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="382"><span class="w">    </span><span class="sd">"""Get the newest PyPI release satisfying a dependency requirement.</span>
-</span><span data-line="383">
-</span><span data-line="384"><span class="sd">    The project endpoint lists releases but only a version endpoint supplies</span>
-</span><span data-line="385"><span class="sd">    historical ``Requires-Python`` and dependency metadata, so candidates are</span>
-</span><span data-line="386"><span class="sd">    checked newest-first until one also supports the requested target.</span>
-</span><span data-line="387">
-</span><span data-line="388"><span class="sd">    Returns:</span>
-</span><span data-line="389"><span class="sd">        The newest compatible package, or the current release when no release</span>
-</span><span data-line="390"><span class="sd">        satisfies the requirement so callers can surface a conflict.</span>
-</span><span data-line="391">
-</span><span data-line="392"><span class="sd">    Raises:</span>
-</span><span data-line="393"><span class="sd">        PackageNotFoundError: If a matching current release has no usable files.</span>
-</span><span data-line="394"><span class="sd">    """</span>
-</span><span data-line="395">    <span class="n">data</span><span class="p">,</span> <span class="n">provenance</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-</span><span data-line="396">    <span class="n">releases</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"releases"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
-</span><span data-line="397">    <span class="n">ordered_candidates</span><span class="p">,</span> <span class="n">filtered_candidates</span><span class="p">,</span> <span class="n">filtered_arbitrary_candidates</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="398">        <span class="n">_release_candidates</span><span class="p">(</span><span class="n">releases</span><span class="p">,</span> <span class="n">specifier</span><span class="p">)</span>
-</span><span data-line="399">    <span class="p">)</span>
-</span><span data-line="400">    <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">ordered_candidates</span><span class="p">:</span>
-</span><span data-line="401">        <span class="n">package</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="402">            <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
-</span><span data-line="403">            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
-</span><span data-line="404">            <span class="ow">and</span> <span class="n">version</span> <span class="o">==</span> <span class="n">data</span><span class="p">[</span><span class="s2">"info"</span><span class="p">][</span><span class="s2">"version"</span><span class="p">]</span>
-</span><span data-line="405">            <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-</span><span data-line="406">        <span class="p">)</span>
-</span><span data-line="407">        <span class="k">if</span> <span class="n">supports_python</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">):</span>
-</span><span data-line="408">            <span class="k">return</span> <span class="n">package</span>
-</span><span data-line="409">    <span class="n">fallback</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="410">        <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
-</span><span data-line="411">        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
-</span><span data-line="412">        <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="413">    <span class="p">)</span>
-</span><span data-line="414">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="415">        <span class="n">fallback_version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
-</span><span data-line="416">    <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
-</span><span data-line="417">        <span class="k">if</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span> <span class="ow">in</span> <span class="n">filtered_arbitrary_candidates</span> <span class="ow">and</span> <span class="n">supports_python</span><span class="p">(</span>
-</span><span data-line="418">            <span class="n">fallback</span><span class="p">,</span> <span class="n">marker_environment</span>
-</span><span data-line="419">        <span class="p">):</span>
-</span><span data-line="420">            <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="421">        <span class="k">return</span> <span class="n">fallback</span>
-</span><span data-line="422">    <span class="k">if</span> <span class="n">fallback_version</span> <span class="ow">in</span> <span class="n">filtered_candidates</span> <span class="ow">and</span> <span class="n">supports_python</span><span class="p">(</span>
-</span><span data-line="423">        <span class="n">fallback</span><span class="p">,</span> <span class="n">marker_environment</span>
-</span><span data-line="424">    <span class="p">):</span>
-</span><span data-line="425">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
-</span><span data-line="426">    <span class="k">return</span> <span class="n">fallback</span></div>
+</span><span data-line="386"><span class="k">def</span><span class="w"> </span><span class="nf">get_package_matching</span><span class="p">(</span>  <span class="c1"># ruff: ignore[complex-structure]</span>
+</span><span data-line="387">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span>
+</span><span data-line="388"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="389"><span class="w">    </span><span class="sd">"""Get the newest PyPI release satisfying a dependency requirement.</span>
+</span><span data-line="390">
+</span><span data-line="391"><span class="sd">    The project endpoint lists releases but only a version endpoint supplies</span>
+</span><span data-line="392"><span class="sd">    historical ``Requires-Python`` and dependency metadata, so candidates are</span>
+</span><span data-line="393"><span class="sd">    checked newest-first until one also supports the requested target.</span>
+</span><span data-line="394">
+</span><span data-line="395"><span class="sd">    Returns:</span>
+</span><span data-line="396"><span class="sd">        The newest compatible package, or the current release when no release</span>
+</span><span data-line="397"><span class="sd">        satisfies the requirement so callers can surface a conflict.</span>
+</span><span data-line="398">
+</span><span data-line="399"><span class="sd">    Raises:</span>
+</span><span data-line="400"><span class="sd">        PackageNotFoundError: If a matching current release has no usable files.</span>
+</span><span data-line="401"><span class="sd">    """</span>
+</span><span data-line="402">    <span class="n">data</span><span class="p">,</span> <span class="n">provenance</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span><span data-line="403">    <span class="n">releases</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"releases"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+</span><span data-line="404">    <span class="n">ordered_candidates</span><span class="p">,</span> <span class="n">filtered_candidates</span><span class="p">,</span> <span class="n">filtered_arbitrary_candidates</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="405">        <span class="n">_release_candidates</span><span class="p">(</span><span class="n">releases</span><span class="p">,</span> <span class="n">specifier</span><span class="p">)</span>
+</span><span data-line="406">    <span class="p">)</span>
+</span><span data-line="407">    <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">ordered_candidates</span><span class="p">:</span>
+</span><span data-line="408">        <span class="n">package</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="409">            <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
+</span><span data-line="410">            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
+</span><span data-line="411">            <span class="ow">and</span> <span class="n">version</span> <span class="o">==</span> <span class="n">data</span><span class="p">[</span><span class="s2">"info"</span><span class="p">][</span><span class="s2">"version"</span><span class="p">]</span>
+</span><span data-line="412">            <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+</span><span data-line="413">        <span class="p">)</span>
+</span><span data-line="414">        <span class="k">if</span> <span class="n">supports_python</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">):</span>
+</span><span data-line="415">            <span class="k">return</span> <span class="n">package</span>
+</span><span data-line="416">    <span class="n">fallback</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="417">        <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
+</span><span data-line="418">        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
+</span><span data-line="419">        <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="420">    <span class="p">)</span>
+</span><span data-line="421">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="422">        <span class="n">fallback_version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="423">    <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
+</span><span data-line="424">        <span class="k">if</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span> <span class="ow">in</span> <span class="n">filtered_arbitrary_candidates</span> <span class="ow">and</span> <span class="n">supports_python</span><span class="p">(</span>
+</span><span data-line="425">            <span class="n">fallback</span><span class="p">,</span> <span class="n">marker_environment</span>
+</span><span data-line="426">        <span class="p">):</span>
+</span><span data-line="427">            <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="428">        <span class="k">return</span> <span class="n">fallback</span>
+</span><span data-line="429">    <span class="k">if</span> <span class="n">fallback_version</span> <span class="ow">in</span> <span class="n">filtered_candidates</span> <span class="ow">and</span> <span class="n">supports_python</span><span class="p">(</span>
+</span><span data-line="430">        <span class="n">fallback</span><span class="p">,</span> <span class="n">marker_environment</span>
+</span><span data-line="431">    <span class="p">):</span>
+</span><span data-line="432">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="433">    <span class="k">return</span> <span class="n">fallback</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
