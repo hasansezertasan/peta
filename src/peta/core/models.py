@@ -194,3 +194,5 @@ class DependencyNode:
         """Keep the former constructor argument source-compatible."""
         if self.selected_version is None:
             self.selected_version = self.installed_version
+        elif self.installed_version is None:
+            self.installed_version = self.selected_version
