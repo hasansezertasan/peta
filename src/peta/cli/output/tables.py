@@ -158,6 +158,8 @@ def render_dep_tree(node: DependencyNode, *, color: bool) -> str:
         The dependency tree rendered as text.
     """
     root_label = f"Declared metadata tree: {node.name} {node.selected_version}".rstrip()
+    if node.state != "satisfied":
+        root_label += f" ({node.state.replace('_', ' ')})"
     tree = Tree(root_label)
     _add_children(tree, node)
     return _to_string(tree, color=color)

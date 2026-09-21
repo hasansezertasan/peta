@@ -411,7 +411,10 @@ def _conflict_warning(node: DependencyNode) -> OutputMessage:
     Returns:
         The warning for the node's version or target-environment conflict.
     """
-    if not node.version_spec:
+    is_target_conflict = node.conflict_reason == "target" or (
+        node.conflict_reason is None and not node.version_spec
+    )
+    if is_target_conflict:
         message = (
             f"{node.name}: selected {node.selected_version} is incompatible "
             "with the target environment"

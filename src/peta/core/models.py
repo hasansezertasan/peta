@@ -184,15 +184,51 @@ class DependencyNode:
     whole command would be a fiction.
     """
     resolution_failure: DependencyResolutionFailure | None = None
+    conflict_reason: Literal["version", "target"] | None = None
+
+    def __init__(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
+        self,
+        name: str,
+        version_spec: str,
+        selected_version: str | None = None,
+        installed_version: str | None = None,
+        children: list[DependencyNode] | None = None,
+        state: Literal[
+            "satisfied", "conflicting", "unresolved", "circular", "depth_limited"
+        ] = "satisfied",
+        source: str | None = None,
+        retrieved_at: str | None = None,
+        freshness: Freshness | None = None,
+        resolution_failure: DependencyResolutionFailure | None = None,
+        *,
+        conflict_reason: Literal["version", "target"] | None = None,
+        circular: bool | None = None,
+    ) -> None:
+        """Initialize a DependencyNode.
+
+        Explicit ``state`` takes precedence over the deprecated ``circular``
+        constructor argument.
+        """
+        self.name = name
+        self.version_spec = version_spec
+        if circular is True and state == "satisfied":
+            self.state = "circular"
+        else:
+            self.state = state
+        if selected_version is None:
+            self.selected_version = installed_version
+            self.installed_version = installed_version
+        else:
+            self.selected_version = selected_version
+            self.installed_version = installed_version or selected_version
+        self.children = children if children is not None else []
+        self.source = source
+        self.retrieved_at = retrieved_at
+        self.freshness = freshness
+        self.resolution_failure = resolution_failure
+        self.conflict_reason = conflict_reason
 
     @property
     def circular(self) -> bool:
         """Whether this is a cycle leaf (deprecated; use :attr:`state`)."""
         return self.state == "circular"
-
-    def __post_init__(self) -> None:
-        """Keep the former constructor argument source-compatible."""
-        if self.selected_version is None:
-            self.selected_version = self.installed_version
-        elif self.installed_version is None:
-            self.installed_version = self.selected_version

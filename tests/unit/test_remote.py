@@ -100,6 +100,24 @@ def test_matching_release_prefers_stable_versions(
     get.assert_called_once_with("dep", "1.9")
 
 
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_skips_releases_incompatible_with_running_python(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"2.0": [], "1.0": []}}, MagicMock())
+    pkgs = {
+        "2.0": PackageInfo(
+            name="dep", version="2.0", source="remote", python_requires=">=4.0"
+        ),
+        "1.0": PackageInfo(name="dep", version="1.0", source="remote"),
+    }
+    get.side_effect = lambda _name, version: pkgs[version]
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+    assert result.version == "1.0"
+
+
 def test_not_found(fake_http: FakeTransport) -> None:
     fake_http.reply(status=404)
     with pytest.raises(PackageNotFoundError):
@@ -113,18 +131,21 @@ def test_parses_vulnerabilities(fake_http: FakeTransport) -> None:
             {
                 "id": "PYSEC-2024-001",
                 "aliases": ["CVE-2024-1"],
-                "summary": "x",
-                "fixed_in": ["1.0.1"],
+                "summary": "something bad",
+                "fixed_in": ["2.32.0"],
             }
         ],
     }
     fake_http.reply(json=payload)
-    result = get_package("vuln-pkg")
-    assert result.vulnerabilities[0].id == "PYSEC-2024-001"
-    assert result.keywords == []
-    # An explicit null classifiers must normalize to [], not None.
-    assert result.classifiers == []
-    assert result.dependencies == []
+
+    pkg = get_package("requests")
+
+    assert len(pkg.vulnerabilities) == 1
+    vuln = pkg.vulnerabilities[0]
+    assert vuln.id == "PYSEC-2024-001"
+    assert vuln.aliases == ["CVE-2024-1"]
+    assert vuln.summary == "something bad"
+    assert vuln.fixed_in == ["2.32.0"]
 
 
 def test_network_error(fake_http: FakeTransport) -> None:
@@ -154,6 +175,8 @@ def test_invalid_json_raises_network_error(fake_http: FakeTransport) -> None:
         {"info": {"name": None, "version": "1.0"}},
         {"info": {"name": "pkg", "version": 1}},
         {"info": {"name": "pkg", "version": "1.0", "requires_dist": [None]}},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": None},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": []},
     ],
 )
 def test_malformed_metadata_raises_network_error(

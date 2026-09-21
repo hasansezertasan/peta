@@ -193,6 +193,14 @@ def test_render_dep_tree_circular() -> None:
     assert "(circular)" in out
 
 
+def test_render_dep_tree_root_conflicting() -> None:
+    root = DependencyNode(
+        name="requests", version_spec="", selected_version="3.0.0", state="conflicting"
+    )
+    out = render_dep_tree(root, color=False)
+    assert "Declared metadata tree: requests 3.0.0 (conflicting)" in out
+
+
 def test_render_why() -> None:
     out = render_why("certifi", [["flask", "requests", "certifi"]], color=False)
     assert "flask" in out

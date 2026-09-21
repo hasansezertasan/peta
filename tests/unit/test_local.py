@@ -245,3 +245,15 @@ def test_nameless_distribution_alone_reports_not_found(mock_meta: MagicMock) -> 
     )
     with pytest.raises(PackageNotFoundError):
         get_package("wanted-pkg", target=target)
+
+
+def test_local_target_platform_override_updates_platform_family() -> None:
+    target = LocalTarget.create(platform="win32")
+    assert target.marker_environment["sys_platform"] == "win32"
+    assert target.marker_environment["os_name"] == "nt"
+    assert target.marker_environment["platform_system"] == "Windows"
+
+    target_linux = LocalTarget.create(platform="linux")
+    assert target_linux.marker_environment["sys_platform"] == "linux"
+    assert target_linux.marker_environment["os_name"] == "posix"
+    assert target_linux.marker_environment["platform_system"] == "Linux"

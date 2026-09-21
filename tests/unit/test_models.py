@@ -79,3 +79,20 @@ class TestDependencyNode:
             state="satisfied",
         )
         assert node.children == [child]
+
+    def test_legacy_circular_argument_translates_to_state(self) -> None:
+        node = DependencyNode(name="x", version_spec="", circular=True)
+        assert node.state == "circular"
+        assert node.circular is True
+
+    def test_state_precedence_over_circular(self) -> None:
+        node = DependencyNode(
+            name="x", version_spec="", state="conflicting", circular=True
+        )
+        assert node.state == "conflicting"
+        assert node.circular is False
+
+    def test_circular_false_keeps_satisfied(self) -> None:
+        node = DependencyNode(name="x", version_spec="", circular=False)
+        assert node.state == "satisfied"
+        assert node.circular is False

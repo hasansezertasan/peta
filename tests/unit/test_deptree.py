@@ -23,7 +23,7 @@ def _raise(exc: Exception) -> PackageInfo:
     raise exc
 
 
-class TestBuildTree:
+class TestBuildTreeConflicts:
     @patch("peta.core.deptree.resolve_package")
     def test_target_incompatible_root_is_conflicting(self, m: MagicMock) -> None:
         m.return_value = replace(_pkg("root", ["child"]), python_requires=">=4")
@@ -36,8 +36,62 @@ class TestBuildTree:
         tree = build_tree("root", local=False, remote=True, target=target)
 
         assert tree.state == "conflicting"
+        assert tree.conflict_reason == "target"
         assert tree.children == []
 
+    @patch("peta.core.deptree.resolve_package")
+    def test_invalid_requires_python_does_not_crash(self, m: MagicMock) -> None:
+        m.return_value = replace(
+            _pkg("root", ["child"]), python_requires="invalid specifier !!!"
+        )
+        target = LocalTarget(
+            paths=None,
+            interpreter=None,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+        tree = build_tree("root", local=False, remote=True, target=target)
+        assert tree.state == "conflicting"
+        assert tree.conflict_reason == "target"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_leaf_at_max_depth_is_not_depth_limited(self, m: MagicMock) -> None:
+        pkgs = {"a": _pkg("a", ["b"]), "b": _pkg("b", [])}
+        m.side_effect = lambda name, **_kw: pkgs[name]
+        tree = build_tree("a", local=False, remote=False, max_depth=1)
+        assert tree.children[0].name == "b"
+        assert tree.children[0].state == "satisfied"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_non_leaf_at_max_depth_is_depth_limited(self, m: MagicMock) -> None:
+        pkgs = {"a": _pkg("a", ["b"]), "b": _pkg("b", ["c"]), "c": _pkg("c", [])}
+        m.side_effect = lambda name, **_kw: pkgs[name]
+        tree = build_tree("a", local=False, remote=False, max_depth=1)
+        assert tree.children[0].name == "b"
+        assert tree.children[0].state == "depth_limited"
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_child_conflict_reason_version_vs_target(self, m: MagicMock) -> None:
+        pkgs = {
+            "a": _pkg("a", ["b>=2.0", "c"]),
+            "b": replace(_pkg("b", []), version="1.0"),
+            "c": replace(_pkg("c", []), python_requires=">=3.14"),
+        }
+        m.side_effect = lambda name, **_kw: pkgs[name]
+        target = LocalTarget(
+            paths=None,
+            interpreter=None,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+        tree = build_tree("a", local=False, remote=False, target=target)
+        assert tree.children[0].name == "b"
+        assert tree.children[0].state == "conflicting"
+        assert tree.children[0].conflict_reason == "version"
+        assert tree.children[1].name == "c"
+        assert tree.children[1].state == "conflicting"
+        assert tree.children[1].conflict_reason == "target"
+
+
+class TestBuildTree:
     @patch("peta.core.deptree.resolve_package")
     def test_linear_chain(self, m: MagicMock) -> None:
         pkgs = {"a": _pkg("a", ["b"]), "b": _pkg("b", ["c"]), "c": _pkg("c", [])}

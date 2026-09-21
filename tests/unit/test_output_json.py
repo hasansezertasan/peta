@@ -138,6 +138,37 @@ def test_dep_tree_reports_a_root_target_conflict() -> None:
     ]
 
 
+def test_dep_tree_reports_child_target_conflict_with_version_spec() -> None:
+    child = DependencyNode(
+        name="urllib3",
+        version_spec=">=2.0",
+        selected_version="2.0.0",
+        state="conflicting",
+        conflict_reason="target",
+        source="remote",
+    )
+    root = DependencyNode(
+        name="requests",
+        version_spec="",
+        selected_version="2.31.0",
+        children=[child],
+        source="remote",
+    )
+
+    data = json.loads(format_dep_tree(root))
+
+    assert data["status"] == "partial"
+    assert data["warnings"] == [
+        {
+            "code": "dependency_target_incompatible",
+            "message": (
+                "urllib3: selected 2.0.0 is incompatible with the target environment"
+            ),
+            "source": "remote",
+        }
+    ]
+
+
 def test_dep_tree_reports_transitive_resolution_failure_as_partial() -> None:
     leaf = DependencyNode(
         name="unreachable",

@@ -6,7 +6,7 @@ the rest of the document.
 
 ```json
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "peta_version": "<installed version>",
   "generated_at": "2026-09-04T12:00:00Z",
   "query": {

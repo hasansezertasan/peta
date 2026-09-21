@@ -7,7 +7,7 @@ import json
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Final, Literal, cast
 
 from packaging.markers import default_environment
 from packaging.utils import canonicalize_name
@@ -288,6 +288,35 @@ class LocalTarget:
         }
 
 
+_PLATFORM_MARKERS: Final[dict[str, dict[str, str]]] = {
+    "win32": {"os_name": "nt", "platform_system": "Windows"},
+    "linux": {"os_name": "posix", "platform_system": "Linux"},
+    "darwin": {"os_name": "posix", "platform_system": "Darwin"},
+}
+
+
+def _override_python_version(target: dict[str, str], python_version: str) -> None:
+    parts = python_version.split(".")
+    if len(parts) not in {2, 3} or not all(part.isdigit() for part in parts):
+        msg = f"Invalid Python version {python_version!r}: expected X.Y or X.Y.Z."
+        raise InvalidTargetError(msg)
+    target["python_version"] = ".".join(parts[:2])
+    target["python_full_version"] = (
+        python_version
+        if len(parts) == _VERSION_PARTS_WITH_PATCH
+        else f"{python_version}.0"
+    )
+
+
+def _override_platform(target: dict[str, str], platform: str) -> None:
+    if not platform.strip():
+        msg = "Invalid platform '': expected a marker platform."
+        raise InvalidTargetError(msg)
+    target["sys_platform"] = platform
+    if platform in _PLATFORM_MARKERS:
+        target.update(_PLATFORM_MARKERS[platform])
+
+
 def _target_markers(
     marker_environment: dict[str, str], python_version: str | None, platform: str | None
 ) -> dict[str, str]:
@@ -295,27 +324,12 @@ def _target_markers(
 
     Returns:
         The adjusted marker environment.
-
-    Raises:
-        InvalidTargetError: If an override is not a usable marker value.
     """
     target = dict(marker_environment)
     if python_version is not None:
-        parts = python_version.split(".")
-        if len(parts) not in {2, 3} or not all(part.isdigit() for part in parts):
-            msg = f"Invalid Python version {python_version!r}: expected X.Y or X.Y.Z."
-            raise InvalidTargetError(msg)
-        target["python_version"] = ".".join(parts[:2])
-        target["python_full_version"] = (
-            python_version
-            if len(parts) == _VERSION_PARTS_WITH_PATCH
-            else f"{python_version}.0"
-        )
+        _override_python_version(target, python_version)
     if platform is not None:
-        if not platform.strip():
-            msg = "Invalid platform '': expected a marker platform."
-            raise InvalidTargetError(msg)
-        target["sys_platform"] = platform
+        _override_platform(target, platform)
     return target
 
 

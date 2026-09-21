@@ -78,7 +78,7 @@ class TestInfo:
         m.return_value = _pkg()
         r = runner.invoke(app, ["info", "requests", "--json"])
         data = json.loads(r.output)
-        assert data["schema_version"] == "1"
+        assert data["schema_version"] == "2"
         assert data["result"]["name"] == "requests"
 
     @patch("peta.core.resolve.local_get_package")
@@ -382,7 +382,7 @@ class TestOutputContract:
         r = runner.invoke(app, ["info", "==", "--format", "json"])
         assert r.exit_code == 2
         data = json.loads(r.output)
-        assert data["schema_version"] == "1"
+        assert data["schema_version"] == "2"
         assert data["errors"][0]["code"] == "invalid_arguments"
 
     def test_conflicting_json_formats_are_structured(self) -> None:
@@ -409,7 +409,7 @@ class TestOutputContract:
         result = runner.invoke(app, arguments)
         assert result.exit_code == 2
         data = json.loads(result.output)
-        assert data["schema_version"] == "1"
+        assert data["schema_version"] == "2"
         assert data["status"] == "failed"
         assert data["errors"][0]["code"] == "invalid_arguments"
 

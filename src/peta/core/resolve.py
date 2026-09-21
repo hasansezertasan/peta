@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import typer
-from packaging.specifiers import SpecifierSet
+from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from peta.core.local import (
     LocalTarget,
@@ -87,7 +87,37 @@ def _remote_package(
     )
 
 
-def resolve_package(  # ruff: ignore[complex-structure, too-many-return-statements]
+def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
+    if target is None or not pkg.python_requires:
+        return True
+    try:
+        spec = SpecifierSet(pkg.python_requires)
+    except InvalidSpecifier:
+        return False
+    python_version = target.marker_environment.get("python_full_version", "")
+    return bool(spec.contains(python_version))
+
+
+def _resolve_default(
+    name: str, requirement: SpecifierSet, target: LocalTarget | None
+) -> PackageInfo:
+    try:
+        local_pkg = (
+            local_get_package(name, target=target)
+            if target
+            else local_get_package(name)
+        )
+    except LocalNotFound:
+        return _remote_package(name, requirement, target)
+
+    if requirement.contains(local_pkg.version, prereleases=True) and _supports_target(
+        local_pkg, target
+    ):
+        return local_pkg
+    return _remote_package(name, requirement, target)
+
+
+def resolve_package(
     package: str,
     *,
     local: bool,
@@ -117,23 +147,9 @@ def resolve_package(  # ruff: ignore[complex-structure, too-many-return-statemen
     if remote:
         return _remote_package(name, requirement, target)
     if local:
-        local_pkg = local_get_package(name, target=target)
-    else:
-        try:
-            local_pkg = local_get_package(name, target=target)
-        except LocalNotFound:
-            return _remote_package(name, requirement, target)
-
-    if local or target is not None:
-        if requirement.contains(local_pkg.version, prereleases=True):
-            return local_pkg
-        if local:
-            return local_pkg
-        return _remote_package(name, requirement, target)
-    try:
-        local_pkg = local_get_package(name)
-    except LocalNotFound:
-        return _remote_package(name, requirement, target)
-    if requirement.contains(local_pkg.version, prereleases=True):
-        return local_pkg
-    return _remote_package(name, requirement, target)
+        return (
+            local_get_package(name, target=target)
+            if target
+            else local_get_package(name)
+        )
+    return _resolve_default(name, requirement, target)
