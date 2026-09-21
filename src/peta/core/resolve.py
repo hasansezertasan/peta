@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 import typer
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
+from packaging.specifiers import SpecifierSet
 
+from peta.core.compatibility import supports_python
 from peta.core.local import (
     LocalTarget,
     PackageNotFoundError as LocalNotFound,
@@ -92,21 +92,6 @@ def _remote_package(
     )
 
 
-def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
-    if not pkg.python_requires:
-        return True
-    try:
-        spec = SpecifierSet(pkg.python_requires)
-    except InvalidSpecifier:
-        return False
-    if target is None:
-        version = sys.version_info
-        python_version = f"{version.major}.{version.minor}.{version.micro}"
-    else:
-        python_version = target.marker_environment.get("python_full_version", "")
-    return bool(spec.contains(python_version))
-
-
 def _resolve_default(
     name: str,
     requirement: SpecifierSet,
@@ -130,7 +115,9 @@ def _resolve_default(
     allows_prereleases = not requirement or requirement.prereleases is True
     if requirement.contains(
         local_pkg.version, prereleases=allows_prereleases
-    ) and _supports_target(local_pkg, target):
+    ) and supports_python(
+        local_pkg, target.marker_environment if target is not None else None
+    ):
         return local_pkg
     if target is not None and (target.interpreter is not None or target.paths):
         return local_pkg

@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING
 
 from packaging.markers import UndefinedEnvironmentName
 from packaging.requirements import InvalidRequirement, Requirement
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import canonicalize_name
 
 from peta.core import http
+from peta.core.compatibility import supports_python
 from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
 from peta.core.models import DependencyNode, DependencyResolutionFailure
 from peta.core.output import utc_now
@@ -145,31 +144,13 @@ def _kept_requirements(
     return kept
 
 
-def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
-    """Whether package metadata permits the selected Python target.
-
-    Returns:
-        ``True`` when no target restriction excludes the package.
-    """
-    if not pkg.python_requires:
-        return True
-    try:
-        specifier = SpecifierSet(pkg.python_requires)
-    except InvalidSpecifier:
-        return False
-    if target is None:
-        version = sys.version_info
-        python_version = f"{version.major}.{version.minor}.{version.micro}"
-    else:
-        python_version = target.marker_environment.get("python_full_version", "")
-    return bool(specifier.contains(python_version))
-
-
 def _conflict_node(
     req: Requirement, child_pkg: PackageInfo, target: LocalTarget | None
 ) -> DependencyNode | None:
     spec_ok = req.specifier.contains(child_pkg.version)
-    target_ok = _supports_target(child_pkg, target)
+    target_ok = supports_python(
+        child_pkg, target.marker_environment if target is not None else None
+    )
     if spec_ok and target_ok:
         return None
     return DependencyNode(
@@ -333,7 +314,9 @@ def build_tree(
     )
     canon = canonicalize_name(root_pkg.name)
     cache: dict[str, PackageInfo | DependencyResolutionFailure] = {canon: root_pkg}
-    target_compatible = _supports_target(root_pkg, target)
+    target_compatible = supports_python(
+        root_pkg, target.marker_environment if target is not None else None
+    )
     children = (
         _expand(
             root_pkg,

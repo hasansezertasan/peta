@@ -2,15 +2,14 @@
 
 from __future__ import annotations
 
-import sys
 from typing import TYPE_CHECKING, Literal, Required, TypedDict, cast
 
 import httpx
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
 from peta.core import cache, http
+from peta.core.compatibility import supports_python
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.validation import (
     ResponseValidationError,
@@ -23,6 +22,8 @@ from peta.core.validation import (
 )
 
 if TYPE_CHECKING:
+    from packaging.specifiers import SpecifierSet
+
     from peta.core.cache import Provenance
 
 __all__ = [
@@ -294,23 +295,6 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
     return _package_from_response(data, provenance)
 
 
-def _compatible_with_target(
-    package: PackageInfo, marker_environment: dict[str, str] | None
-) -> bool:
-    if not package.python_requires:
-        return True
-    try:
-        spec = SpecifierSet(package.python_requires)
-    except InvalidSpecifier:
-        return False
-    if marker_environment is not None:
-        python_version = marker_environment.get("python_full_version", "")
-    else:
-        info = sys.version_info
-        python_version = f"{info.major}.{info.minor}.{info.micro}"
-    return bool(spec.contains(python_version))
-
-
 def get_package_matching(  # ruff: ignore[complex-structure]
     name: str, specifier: SpecifierSet, marker_environment: dict[str, str] | None
 ) -> PackageInfo:
@@ -353,6 +337,6 @@ def get_package_matching(  # ruff: ignore[complex-structure]
             and str(version) == data["info"]["version"]
             else get_package(name, str(version))
         )
-        if _compatible_with_target(package, marker_environment):
+        if supports_python(package, marker_environment):
             return package
     return get_package(name)
