@@ -160,15 +160,9 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="37"><span class="sd">        supply exactly one.</span>
 </span><span data-line="38"><span class="sd">    """</span>
 </span><span data-line="39">    <span class="n">buf</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
-</span><span data-line="40">    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">(</span>
-</span><span data-line="41">        <span class="n">file</span><span class="o">=</span><span class="n">buf</span><span class="p">,</span>
-</span><span data-line="42">        <span class="n">force_terminal</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
-</span><span data-line="43">        <span class="n">no_color</span><span class="o">=</span><span class="ow">not</span> <span class="n">color</span><span class="p">,</span>
-</span><span data-line="44">        <span class="n">color_system</span><span class="o">=</span><span class="s2">"standard"</span> <span class="k">if</span> <span class="n">color</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="45">        <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
-</span><span data-line="46">    <span class="p">)</span>
-</span><span data-line="47">    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">renderable</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
-</span><span data-line="48">    <span class="k">return</span> <span class="n">buf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span></div>
+</span><span data-line="40">    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">(</span><span class="n">file</span><span class="o">=</span><span class="n">buf</span><span class="p">,</span> <span class="n">force_terminal</span><span class="o">=</span><span class="n">color</span><span class="p">,</span> <span class="n">no_color</span><span class="o">=</span><span class="ow">not</span> <span class="n">color</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">)</span>
+</span><span data-line="41">    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">renderable</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+</span><span data-line="42">    <span class="k">return</span> <span class="n">buf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
