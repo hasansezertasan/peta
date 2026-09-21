@@ -404,6 +404,7 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     ordered_candidates, filtered_candidates, filtered_arbitrary_candidates = (
         _release_candidates(releases, specifier)
     )
+    best_incompatible: PackageInfo | None = None
     for version in ordered_candidates:
         package = (
             _package_from_response(data, provenance)
@@ -413,6 +414,8 @@ def get_package_matching(  # ruff: ignore[complex-structure]
         )
         if supports_python(package, marker_environment):
             return package
+        if best_incompatible is None:
+            best_incompatible = package
     fallback = (
         _package_from_response(data, provenance)
         if data.get("info") is not None  # pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.
@@ -421,13 +424,13 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     try:
         fallback_version = Version(fallback.version)
     except InvalidVersion:
-        if fallback.version in filtered_arbitrary_candidates and supports_python(
-            fallback, marker_environment
-        ):
+        if fallback.version in filtered_arbitrary_candidates:
+            if best_incompatible is not None:
+                return best_incompatible
             raise PackageNotFoundError(name, fallback.version) from None
-        return fallback
-    if fallback_version in filtered_candidates and supports_python(
-        fallback, marker_environment
-    ):
+        return best_incompatible or fallback
+    if fallback_version in filtered_candidates:
+        if best_incompatible is not None:
+            return best_incompatible
         raise PackageNotFoundError(name, fallback.version)
-    return fallback
+    return best_incompatible or fallback

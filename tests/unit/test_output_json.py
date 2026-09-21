@@ -295,6 +295,45 @@ def test_why_off_path_conflicts_keep_fieldless_provenance() -> None:
     assert off_path["fields"] == []
 
 
+def test_why_same_package_off_path_warning_keeps_own_provenance() -> None:
+    path_node = DependencyNode(
+        name="urllib3",
+        version_spec="",
+        selected_version="1.26",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:00Z",
+        freshness="cached",
+    )
+    conflict = DependencyNode(
+        name="urllib3",
+        version_spec="<2",
+        selected_version="2.0",
+        state="conflicting",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:01Z",
+        freshness="live",
+    )
+    tree = DependencyNode(
+        name="flask", version_spec="", source="local", children=[path_node, conflict]
+    )
+
+    data = json.loads(
+        format_why(
+            "urllib3",
+            [["flask", "urllib3"]],
+            tree=tree,
+            generated_at="2026-09-04T12:00:02Z",
+        )
+    )
+
+    sources = [source for source in data["sources"] if source["target"] == "urllib3"]
+    assert [source["fields"] for source in sources] == [["result.paths[0][1]"], []]
+    assert [source["retrieved_at"] for source in sources] == [
+        "2026-09-04T12:00:00Z",
+        "2026-09-04T12:00:01Z",
+    ]
+
+
 def test_why_empty() -> None:
     data = json.loads(format_why("nope", []))["result"]
     assert data["paths"] == []

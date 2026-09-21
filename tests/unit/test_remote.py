@@ -256,6 +256,32 @@ def test_matching_does_not_restore_filtered_current_release(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_matching_rejects_filtered_incompatible_current_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {
+                **_INFO,
+                "name": "dep",
+                "version": "2.0",
+                "requires_python": ">=4",
+            },
+            "releases": {"2.0": []},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("dep==2.0")):
+        _ = get_package_matching(
+            "dep", SpecifierSet(">=2"), {"python_full_version": "3.12.0"}
+        )
+
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_accepts_fully_yanked_exact_pin(
     fetch: MagicMock, get: MagicMock
 ) -> None:
@@ -332,6 +358,31 @@ def test_matching_release_skips_releases_incompatible_with_running_python(
 
     result = get_package_matching("dep", SpecifierSet(), None)
     assert result.version == "1.0"
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_retains_best_target_incompatible_candidate(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "dep", "version": "3.0"},
+            "releases": {"3.0": [{"yanked": False}], "1.9": [{"yanked": False}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+    incompatible = PackageInfo(
+        name="dep", version="1.9", source="remote", python_requires=">=4"
+    )
+    get.return_value = incompatible
+
+    result = get_package_matching(
+        "dep", SpecifierSet("<2"), {"python_full_version": "3.12.0"}
+    )
+
+    assert result is incompatible
+    get.assert_called_once_with("dep", "1.9")
 
 
 @patch("peta.core.remote.get_package")
