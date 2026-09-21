@@ -201,20 +201,24 @@ class TestBuildTreeExpansion:
         assert nested_a.children == []
 
     @patch("peta.core.deptree.resolve_package")
-    def test_cycle_expands_newly_activated_extras_once(self, m: MagicMock) -> None:
+    def test_cycle_expands_only_newly_activated_extras(self, m: MagicMock) -> None:
         pkgs = {
-            "a": _pkg("a", ["b", 'c; extra == "feature"']),
-            "b": _pkg("b", ["a[feature]"]),
+            "a": _pkg("a", ["b", 'c; extra == "foo"', 'd; extra == "bar"']),
+            "b": _pkg("b", ["a[foo,bar]"]),
             "c": _pkg("c", []),
+            "d": _pkg("d", []),
         }
         m.side_effect = lambda name, **_kw: pkgs[name]
 
-        nested_a = build_tree("a", local=True, remote=False).children[0].children[0]
+        nested_a = (
+            build_tree("a", local=True, remote=False, extras=("foo",))
+            .children[0]
+            .children[0]
+        )
 
         assert nested_a.name == "a"
         assert nested_a.state == "satisfied"
-        assert [child.name for child in nested_a.children] == ["b", "c"]
-        assert nested_a.children[0].state == "circular"
+        assert [child.name for child in nested_a.children] == ["d"]
 
     @patch("peta.core.deptree.resolve_package")
     def test_incompatible_cycle_edge_is_a_version_conflict(self, m: MagicMock) -> None:

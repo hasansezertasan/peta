@@ -379,6 +379,26 @@ def test_matching_rejects_filtered_noncanonical_arbitrary_current_release(
     get.assert_not_called()
 
 
+@pytest.mark.parametrize("files", [[], [{"yanked": True}]])
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_rejects_filtered_legacy_current_release(
+    fetch: MagicMock, get: MagicMock, files: list[dict[str, bool]]
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "Legacy-Version"},
+            "releases": {"Legacy-Version": files},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("legacy==Legacy-Version")):
+        _ = get_package_matching("legacy", SpecifierSet(), None)
+
+    get.assert_not_called()
+
+
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
 def test_matching_skips_release_without_distribution_files(
