@@ -111,6 +111,12 @@ Schema version `1` replaces the original unversioned command-specific JSON.
 The previous top-level payload is now under `result`; for example, migrate
 `output["name"]` to `output["result"]["name"]`.
 
+Schema version `2` updates dependency nodes for declared-metadata resolution.
+Consumers should migrate `installed_version` to `selected_version` and replace
+the `circular` boolean check with the `state` field, whose `"circular"` value
+represents the former `true` case and whose other values describe additional
+resolution outcomes.
+
 Within a schema version, consumers must tolerate new object fields and new
 warning/error codes. Existing fields will not be removed or change meaning.
 A backward-incompatible shape or semantic change increments `schema_version`.
