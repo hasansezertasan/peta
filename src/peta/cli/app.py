@@ -159,7 +159,7 @@ def main(
 
 
 @app.command()
-def info(
+def info(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     ctx: typer.Context,
     package: Annotated[
         str, typer.Argument(help="Package name (optionally name==version).")
@@ -180,8 +180,17 @@ def info(
     no_stats: Annotated[
         bool, typer.Option("--no-stats", help="Skip download/dependent count lookups.")
     ] = False,
+    python: Annotated[
+        str | None, typer.Option("--python", help="Target Python interpreter.")
+    ] = None,
+    path: Annotated[
+        list[str] | None,
+        typer.Option("--path", help="Metadata search path; repeatable."),
+    ] = None,
 ) -> None:
     """Show detailed package metadata."""
+    if path is None:
+        path = []
     info_mod.info(
         package,
         use_json=use_json,
@@ -191,11 +200,13 @@ def info(
         color=_color_from_ctx(ctx),
         no_osv=no_osv,
         no_stats=no_stats,
+        python=python,
+        paths=tuple(path),
     )
 
 
 @app.command()
-def compare(
+def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     ctx: typer.Context,
     a: Annotated[str, typer.Argument(help="First package name.")],
     b: Annotated[str, typer.Argument(help="Second package name.")],
@@ -215,8 +226,17 @@ def compare(
     no_stats: Annotated[
         bool, typer.Option("--no-stats", help="Skip download/dependent count lookups.")
     ] = False,
+    python: Annotated[
+        str | None, typer.Option("--python", help="Target Python interpreter.")
+    ] = None,
+    path: Annotated[
+        list[str] | None,
+        typer.Option("--path", help="Metadata search path; repeatable."),
+    ] = None,
 ) -> None:
     """Compare two packages' metadata side by side."""
+    if path is None:
+        path = []
     compare_mod.compare(
         a,
         b,
@@ -227,11 +247,13 @@ def compare(
         color=_color_from_ctx(ctx),
         no_osv=no_osv,
         no_stats=no_stats,
+        python=python,
+        paths=tuple(path),
     )
 
 
 @app.command()
-def deps(
+def deps(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
@@ -250,8 +272,17 @@ def deps(
     depth: Annotated[
         int, typer.Option("--depth", min=1, help="Max recursion depth.")
     ] = 10,
+    python: Annotated[
+        str | None, typer.Option("--python", help="Target Python interpreter.")
+    ] = None,
+    path: Annotated[
+        list[str] | None,
+        typer.Option("--path", help="Metadata search path; repeatable."),
+    ] = None,
 ) -> None:
     """Show a package's recursive dependency tree."""
+    if path is None:
+        path = []
     deps_mod.deps(
         package,
         use_json=use_json,
@@ -261,6 +292,8 @@ def deps(
         color=_color_from_ctx(ctx),
         why=why,
         depth=depth,
+        python=python,
+        paths=tuple(path),
     )
 
 
@@ -272,13 +305,24 @@ def files(
     output_format: Annotated[
         OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
     ] = OutputFormat.RICH,
+    python: Annotated[
+        str | None, typer.Option("--python", help="Target Python interpreter.")
+    ] = None,
+    path: Annotated[
+        list[str] | None,
+        typer.Option("--path", help="Metadata search path; repeatable."),
+    ] = None,
 ) -> None:
     """List files installed by a local package."""
+    if path is None:
+        path = []
     files_mod.files(
         package,
         use_json=use_json,
         output_format=_explicit_format(ctx, output_format),
         color=_color_from_ctx(ctx),
+        python=python,
+        paths=tuple(path),
     )
 
 

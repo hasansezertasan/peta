@@ -12,7 +12,8 @@ from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
 from peta.core.concurrency import gather
 from peta.core.enrich import enrich
-from peta.core.local import PackageNotFoundError as LocalNotFound
+from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
+from peta.core.output import TARGET_ENVIRONMENT_KEY
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import not_found_source, resolve_package
 
@@ -28,13 +29,19 @@ _NOT_FOUND = (LocalNotFound, RemoteNotFound)
 
 
 def _resolve_and_enrich(
-    package: str, *, local: bool, remote: bool, no_osv: bool, no_stats: bool
+    package: str,
+    *,
+    local: bool,
+    remote: bool,
+    no_osv: bool,
+    no_stats: bool,
+    target: LocalTarget | None,
 ) -> PackageInfo:
-    pkg = resolve_package(package, local=local, remote=remote)
+    pkg = resolve_package(package, local=local, remote=remote, target=target)
     return enrich(pkg, no_osv=no_osv, no_stats=no_stats)
 
 
-def compare(
+def compare(  # ruff: ignore[complex-structure, too-many-arguments]
     a: str,
     b: str,
     *,
@@ -45,8 +52,12 @@ def compare(
     color: bool = False,
     no_osv: bool = False,
     no_stats: bool = False,
+    python: str | None = None,
+    paths: tuple[str, ...] = (),
 ) -> None:
     """Compare two packages' metadata side by side."""
+    # Recorded before the target is built so a rejected ``--python``/``--path``
+    # still appears in the error envelope; see the note in ``info``.
     arguments: dict[str, object] = {
         "a": a,
         "b": b,
@@ -54,9 +65,21 @@ def compare(
         "remote": remote,
         "no_osv": no_osv,
         "no_stats": no_stats,
+        "python": python,
+        "paths": list(paths),
     }
     selected = resolve_or_fail("compare", arguments, output_format, use_json=use_json)
     try:
+        # Built before ``gather`` so an unusable target fails once, here,
+        # rather than racing as the same error out of two worker threads.
+        # ``python is not None`` rather than a truthiness test: ``--python ""``
+        # must be rejected as an unusable interpreter, not silently fall back
+        # to the environment running peta.
+        target = (
+            LocalTarget.create(python, paths) if python is not None or paths else None
+        )
+        if target:
+            arguments[TARGET_ENVIRONMENT_KEY] = target.output_environment()
         # Both sides at once: they are unrelated lookups, and waiting for the
         # first before starting the second doubled the command's latency.
         # ``gather`` returns them in the order asked for, so which package is
@@ -69,6 +92,7 @@ def compare(
                 remote=remote,
                 no_osv=no_osv,
                 no_stats=no_stats,
+                target=target,
             ),
             partial(
                 _resolve_and_enrich,
@@ -77,21 +101,24 @@ def compare(
                 remote=remote,
                 no_osv=no_osv,
                 no_stats=no_stats,
+                target=target,
             ),
         ])
     except _NOT_FOUND as exc:
         version = getattr(exc, "version", None)
-        target = f"{exc.name}=={version}" if version else exc.name
+        # Named ``missing`` rather than ``target``: that name now holds the
+        # LocalTarget for this invocation.
+        missing = f"{exc.name}=={version}" if version else exc.name
         fail(
             "compare",
             arguments=arguments,
             code="package_not_found",
-            message=f"Package '{target}' not found.",
+            message=f"Package '{missing}' not found.",
             output_format=selected,
             exit_code=1,
             source=not_found_source(exc),
         )
-    except typer.BadParameter as exc:
+    except (typer.BadParameter, ValueError) as exc:
         fail(
             "compare",
             arguments=arguments,
@@ -121,4 +148,6 @@ def compare(
             source="pypi",
         )
     rendered = render_compare(selected, a_pkg, b_pkg, arguments=arguments, color=color)
+    if target and selected != OutputFormat.JSON:
+        rendered = f"{target.describe()}\n{rendered}"
     typer.echo(rendered)

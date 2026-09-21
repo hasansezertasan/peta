@@ -66,6 +66,13 @@ class TestInfo:
         assert r.exit_code == 0
         mr.assert_called_once_with("requests", "2.28.0")
 
+    def test_target_with_version_specifier_rejected(self) -> None:
+        result = runner.invoke(
+            app, ["info", "requests==2.28.0", "--python", sys.executable]
+        )
+        assert result.exit_code == 2
+        assert "version specifier" in result.output
+
     @patch("peta.core.resolve.local_get_package")
     def test_json(self, m: MagicMock) -> None:
         m.return_value = _pkg()
@@ -232,6 +239,92 @@ class TestInfo:
         data = json.loads(r.output)
         assert data["result"]["download_count"] == 100
         assert data["result"]["dependent_count"] == 5
+
+
+class TestEnvironmentTargeting:
+    """``--python`` / ``--path`` wiring shared by info, compare, deps, files."""
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_forwards_the_target(self, ml: MagicMock) -> None:
+        ml.return_value = _pkg()
+        result = runner.invoke(
+            app, ["compare", "requests", "httpx", "--local", "--python", sys.executable]
+        )
+        assert result.exit_code == 0
+        assert ml.call_count == 2
+        targets = [call.kwargs["target"] for call in ml.call_args_list]
+        assert all(target is not None for target in targets)
+        assert targets[0] is targets[1]
+        assert targets[0].interpreter == sys.executable
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_json_reports_the_target(self, ml: MagicMock) -> None:
+        ml.return_value = _pkg()
+        result = runner.invoke(
+            app,
+            [
+                "compare",
+                "requests",
+                "httpx",
+                "--local",
+                "--python",
+                sys.executable,
+                "--json",
+            ],
+        )
+        environment = json.loads(result.output)["query"]["target_environment"]
+        assert environment["interpreter"] == sys.executable
+        assert environment["markers"]["sys_platform"] == sys.platform
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_compare_human_output_describes_the_target(self, ml: MagicMock) -> None:
+        ml.return_value = _pkg()
+        result = runner.invoke(
+            app,
+            [
+                "compare",
+                "requests",
+                "httpx",
+                "--local",
+                "--python",
+                sys.executable,
+                "--format",
+                "text",
+            ],
+        )
+        assert "Target environment:" in result.output
+        assert "markers:" in result.output
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            pytest.param(["info", "requests"], id="info"),
+            pytest.param(["compare", "requests", "httpx"], id="compare"),
+            pytest.param(["deps", "requests"], id="deps"),
+            pytest.param(["files", "requests"], id="files"),
+        ],
+    )
+    def test_invalid_target_is_recorded_in_the_error_envelope(
+        self, argv: list[str]
+    ) -> None:
+        """A rejected target must still name what was asked for."""
+        result = runner.invoke(
+            app, [*argv, "--json", "--path", "/definitely/not/a/directory"]
+        )
+        assert result.exit_code == 2
+        query = json.loads(result.output)["query"]
+        assert query["arguments"]["paths"] == ["/definitely/not/a/directory"]
+        assert query["arguments"]["python"] is None
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_untargeted_json_still_reports_marker_values(self, ml: MagicMock) -> None:
+        """An untargeted run evaluates markers too, so it must publish them."""
+        ml.return_value = _pkg()
+        result = runner.invoke(app, ["info", "requests", "--json"])
+        markers = json.loads(result.output)["query"]["target_environment"]["markers"]
+        assert markers["sys_platform"] == sys.platform
+        assert markers["python_full_version"]
+        assert markers["platform_python_implementation"]
 
 
 class TestNotFoundAttribution:

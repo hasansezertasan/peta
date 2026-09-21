@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from peta.core.local import (
+    LocalTarget,
     PackageNotFoundError as LocalNotFound,
     get_package as local_get_package,
 )
@@ -67,7 +68,9 @@ def _resolve_versioned(name: str, version: str, *, local: bool) -> PackageInfo:
     return remote_get_package(name, version)
 
 
-def resolve_package(package: str, *, local: bool, remote: bool) -> PackageInfo:
+def resolve_package(  # ruff: ignore[complex-structure]
+    package: str, *, local: bool, remote: bool, target: LocalTarget | None = None
+) -> PackageInfo:
     """Resolve a package argument to its metadata.
 
     Checks the local environment first and falls back to PyPI, unless
@@ -76,14 +79,27 @@ def resolve_package(package: str, *, local: bool, remote: bool) -> PackageInfo:
 
     Returns:
         The resolved package metadata.
+
+    Raises:
+        typer.BadParameter: If source-selection options conflict.
     """
     name, version = parse_package_arg(package)
+    if target is not None and remote:
+        msg = "--python and --path cannot be combined with --remote."
+        raise typer.BadParameter(msg)
     if version:
+        if target is not None:
+            msg = "--python and --path cannot be combined with a version specifier."
+            raise typer.BadParameter(msg)
         return _resolve_versioned(name, version, local=local)
     if remote:
         return remote_get_package(name)
-    if local:
-        return local_get_package(name)
+    if local or target is not None:
+        return (
+            local_get_package(name, target=target)
+            if target
+            else local_get_package(name)
+        )
     try:
         return local_get_package(name)
     except LocalNotFound:

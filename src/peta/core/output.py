@@ -6,7 +6,9 @@ import platform
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Literal, TypeAliasType
+from typing import TYPE_CHECKING, Literal, TypeAliasType, cast
+
+from packaging.markers import default_environment
 
 from peta._version import __version__
 
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
 __all__ = [
     "SCHEMA_VERSION",
     "SOURCE_STATES",
+    "TARGET_ENVIRONMENT_KEY",
     "CommandName",
     "EnvelopeStatus",
     "MessageCode",
@@ -33,6 +36,17 @@ __all__ = [
 ]
 
 SCHEMA_VERSION = "1"
+
+TARGET_ENVIRONMENT_KEY = "target_environment"
+"""How a command hands :func:`make_envelope` its resolved target.
+
+Transport only. It travels in the ``arguments`` mapping because that is the
+one channel every command already threads through to the envelope, and
+:func:`make_envelope` removes it again before serialization: ``arguments`` is
+the contract's record of the CLI invocation, so publishing the environment
+there as well would both duplicate ``query.target_environment`` and put an
+undocumented nested object in front of exact consumers.
+"""
 # CodeQL does not yet recognize PEP 695 ``type`` statements as definitions when
 # checking ``__all__``. Keep these runtime-visible assignments until it does.
 CommandName = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
@@ -83,10 +97,18 @@ class TargetEnvironment:
     implementation: str
     python_version: str
     platform: str
+    interpreter: str | None = None
+    paths: tuple[str, ...] = ()
+    markers: dict[str, str] = field(default_factory=dict)
 
     @classmethod
     def current(cls) -> TargetEnvironment:
         """Describe the current runtime.
+
+        ``markers`` is populated even though no target was named: an
+        untargeted run still evaluates dependency markers against the running
+        interpreter, and leaving the field empty would hide from consumers
+        which values actually decided what the result contains.
 
         Returns:
             The active interpreter and operating-system platform.
@@ -95,6 +117,7 @@ class TargetEnvironment:
             implementation=platform.python_implementation(),
             python_version=platform.python_version(),
             platform=sys.platform,
+            markers={key: str(value) for key, value in default_environment().items()},
         )
 
 
@@ -162,6 +185,9 @@ class OutputEnvelope:
                 "implementation": environment.implementation,
                 "python_version": environment.python_version,
                 "platform": environment.platform,
+                "interpreter": environment.interpreter,
+                "paths": list(environment.paths),
+                "markers": environment.markers,
             },
         }
         return {
@@ -225,11 +251,27 @@ def make_envelope(
     Returns:
         A populated, typed output envelope.
     """
+    supplied = (arguments or {}).get(TARGET_ENVIRONMENT_KEY)
+    # Stripped rather than passed through: see TARGET_ENVIRONMENT_KEY.
+    recorded = {
+        key: value
+        for key, value in (arguments or {}).items()
+        if key != TARGET_ENVIRONMENT_KEY
+    }
+    target = TargetEnvironment.current()
+    if isinstance(supplied, dict):
+        supplied = cast("dict[str, object]", supplied)
+        target = TargetEnvironment(
+            implementation=str(supplied["implementation"]),
+            python_version=str(supplied["python_version"]),
+            platform=str(supplied["platform"]),
+            interpreter=cast("str | None", supplied.get("interpreter")),
+            paths=tuple(cast("list[str]", supplied.get("paths", []))),
+            markers=cast("dict[str, str]", supplied.get("markers", {})),
+        )
     return OutputEnvelope(
         query=OutputQuery(
-            command=command,
-            arguments=arguments or {},
-            target_environment=TargetEnvironment.current(),
+            command=command, arguments=recorded, target_environment=target
         ),
         status=status,
         result=result,

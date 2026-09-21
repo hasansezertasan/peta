@@ -10,7 +10,8 @@ from peta.cli.output.render import render_info
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
 from peta.core.enrich import enrich
-from peta.core.local import PackageNotFoundError as LocalNotFound
+from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
+from peta.core.output import TARGET_ENVIRONMENT_KEY
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import not_found_source, resolve_package
 
@@ -26,13 +27,19 @@ _NOT_FOUND = (LocalNotFound, RemoteNotFound)
 
 
 def _resolve_and_enrich(
-    package: str, *, local: bool, remote: bool, no_osv: bool, no_stats: bool
+    package: str,
+    *,
+    local: bool,
+    remote: bool,
+    no_osv: bool,
+    no_stats: bool,
+    target: LocalTarget | None,
 ) -> PackageInfo:
-    pkg = resolve_package(package, local=local, remote=remote)
+    pkg = resolve_package(package, local=local, remote=remote, target=target)
     return enrich(pkg, no_osv=no_osv, no_stats=no_stats)
 
 
-def info(
+def info(  # ruff: ignore[complex-structure, too-many-arguments]
     package: str,
     *,
     use_json: bool = False,
@@ -42,19 +49,40 @@ def info(
     color: bool = False,
     no_osv: bool = False,
     no_stats: bool = False,
+    python: str | None = None,
+    paths: tuple[str, ...] = (),
 ) -> None:
     """Show detailed package metadata."""
+    # ``python``/``paths`` are recorded before the target is built: when
+    # ``LocalTarget.create`` rejects them there is no ``target_environment`` to
+    # add, and an error envelope that named neither would describe the running
+    # interpreter as the target of a query that never ran against it.
     arguments: dict[str, object] = {
         "package": package,
         "local": local,
         "remote": remote,
         "no_osv": no_osv,
         "no_stats": no_stats,
+        "python": python,
+        "paths": list(paths),
     }
     selected = resolve_or_fail("info", arguments, output_format, use_json=use_json)
     try:
+        # ``python is not None`` rather than a truthiness test: ``--python ""``
+        # must be rejected as an unusable interpreter, not silently fall back
+        # to the environment running peta.
+        target = (
+            LocalTarget.create(python, paths) if python is not None or paths else None
+        )
+        if target:
+            arguments[TARGET_ENVIRONMENT_KEY] = target.output_environment()
         pkg = _resolve_and_enrich(
-            package, local=local, remote=remote, no_osv=no_osv, no_stats=no_stats
+            package,
+            local=local,
+            remote=remote,
+            no_osv=no_osv,
+            no_stats=no_stats,
+            target=target,
         )
     except _NOT_FOUND as exc:
         fail(
@@ -66,7 +94,7 @@ def info(
             exit_code=1,
             source=not_found_source(exc),
         )
-    except typer.BadParameter as exc:
+    except (typer.BadParameter, ValueError) as exc:
         fail(
             "info",
             arguments=arguments,
@@ -96,4 +124,6 @@ def info(
             source="pypi",
         )
     rendered = render_info(selected, pkg, arguments=arguments, color=color)
+    if target and selected != OutputFormat.JSON:
+        rendered = f"{target.describe()}\n{rendered}"
     typer.echo(rendered)
