@@ -380,6 +380,27 @@ class TestBuildTreeExpansion:
         assert leaf.resolution_failure.source == "local"
 
     @patch("peta.core.deptree.resolve_package")
+    def test_direct_reference_is_unresolved_without_name_lookup(
+        self, m: MagicMock
+    ) -> None:
+        url = "https://example.invalid/child-1.0.whl"
+        m.return_value = _pkg("root", [f"child @ {url}"])
+
+        leaf = build_tree("root", local=True, remote=False).children[0]
+
+        assert leaf.name == "child"
+        assert leaf.state == "unresolved"
+        assert leaf.selected_version is None
+        assert leaf.resolution_failure is not None
+        assert leaf.resolution_failure.source == "direct-reference"
+        assert leaf.resolution_failure.state == "unsupported"
+        assert url in leaf.resolution_failure.reason
+        assert leaf.resolution_failure.retrieved_at is None
+        m.assert_called_once_with(
+            "root", local=True, remote=False, target=None, select_compatible=True
+        )
+
+    @patch("peta.core.deptree.resolve_package")
     def test_network_failure_is_preserved_on_leaf(self, m: MagicMock) -> None:
         def resolver(name: str, **_kw: object) -> PackageInfo:
             if name == "a":

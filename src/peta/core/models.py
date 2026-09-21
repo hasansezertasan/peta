@@ -91,7 +91,7 @@ class DependencyResolutionFailure:
     """A failed or unavailable transitive dependency lookup."""
 
     source: str
-    state: Literal["empty", "unavailable", "failed"]
+    state: Literal["empty", "unavailable", "unsupported", "failed"]
     reason: str
     retrieved_at: str | None
     """When the source answered, or ``None`` if it was never contacted.
