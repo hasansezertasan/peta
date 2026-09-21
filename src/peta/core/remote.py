@@ -316,7 +316,7 @@ def get_package_matching(  # ruff: ignore[complex-structure]
             version = Version(raw)
         except InvalidVersion:
             continue
-        if specifier.contains(version, prereleases=True):
+        if specifier.contains(version, prereleases=specifier.prereleases):
             candidates.append(version)
     stable_candidates = [
         candidate for candidate in candidates if not candidate.is_prerelease
