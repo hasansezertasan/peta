@@ -464,9 +464,7 @@ def _walk_tree(tree: DependencyNode) -> Iterator[DependencyNode]:
 
 
 def _off_path_warning_sources(
-    tree: DependencyNode,
-    timestamp: str,
-    seen: Container[tuple[str, str | None, SourceState]],
+    tree: DependencyNode, timestamp: str, seen: Container[int]
 ) -> list[SourceRecord]:
     """Collect warning provenance on branches that no emitted path covers.
 
@@ -483,11 +481,7 @@ def _off_path_warning_sources(
             "depth_limited",
         }
         record = _dependency_source(node, "result.paths", timestamp)
-        if (
-            warned
-            and record is not None
-            and (record.name, record.target, record.state) not in seen
-        ):
+        if warned and record is not None and id(node) not in seen:
             records.append(replace(record, fields=[]))
     return records
 
@@ -500,7 +494,7 @@ def _why_sources(
         for path_index, path in enumerate(paths)
         for record in _path_sources(tree, path, path_index, timestamp)
     ]
-    seen = {(record.name, record.target, record.state) for record in records}
+    seen = {id(node) for path in paths for node in _walk_path(tree, path)}
     records.extend(_off_path_warning_sources(tree, timestamp, seen))
     return records
 

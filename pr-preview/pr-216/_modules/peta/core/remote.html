@@ -545,33 +545,36 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="404">    <span class="n">ordered_candidates</span><span class="p">,</span> <span class="n">filtered_candidates</span><span class="p">,</span> <span class="n">filtered_arbitrary_candidates</span> <span class="o">=</span> <span class="p">(</span>
 </span><span data-line="405">        <span class="n">_release_candidates</span><span class="p">(</span><span class="n">releases</span><span class="p">,</span> <span class="n">specifier</span><span class="p">)</span>
 </span><span data-line="406">    <span class="p">)</span>
-</span><span data-line="407">    <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">ordered_candidates</span><span class="p">:</span>
-</span><span data-line="408">        <span class="n">package</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="409">            <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
-</span><span data-line="410">            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
-</span><span data-line="411">            <span class="ow">and</span> <span class="n">version</span> <span class="o">==</span> <span class="n">data</span><span class="p">[</span><span class="s2">"info"</span><span class="p">][</span><span class="s2">"version"</span><span class="p">]</span>
-</span><span data-line="412">            <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
-</span><span data-line="413">        <span class="p">)</span>
-</span><span data-line="414">        <span class="k">if</span> <span class="n">supports_python</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">):</span>
-</span><span data-line="415">            <span class="k">return</span> <span class="n">package</span>
-</span><span data-line="416">    <span class="n">fallback</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="417">        <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
-</span><span data-line="418">        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
-</span><span data-line="419">        <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="420">    <span class="p">)</span>
-</span><span data-line="421">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="422">        <span class="n">fallback_version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
-</span><span data-line="423">    <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
-</span><span data-line="424">        <span class="k">if</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span> <span class="ow">in</span> <span class="n">filtered_arbitrary_candidates</span> <span class="ow">and</span> <span class="n">supports_python</span><span class="p">(</span>
-</span><span data-line="425">            <span class="n">fallback</span><span class="p">,</span> <span class="n">marker_environment</span>
-</span><span data-line="426">        <span class="p">):</span>
-</span><span data-line="427">            <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
-</span><span data-line="428">        <span class="k">return</span> <span class="n">fallback</span>
-</span><span data-line="429">    <span class="k">if</span> <span class="n">fallback_version</span> <span class="ow">in</span> <span class="n">filtered_candidates</span> <span class="ow">and</span> <span class="n">supports_python</span><span class="p">(</span>
-</span><span data-line="430">        <span class="n">fallback</span><span class="p">,</span> <span class="n">marker_environment</span>
-</span><span data-line="431">    <span class="p">):</span>
-</span><span data-line="432">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
-</span><span data-line="433">    <span class="k">return</span> <span class="n">fallback</span></div>
+</span><span data-line="407">    <span class="n">best_incompatible</span><span class="p">:</span> <span class="n">PackageInfo</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="408">    <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="n">ordered_candidates</span><span class="p">:</span>
+</span><span data-line="409">        <span class="n">package</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="410">            <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
+</span><span data-line="411">            <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
+</span><span data-line="412">            <span class="ow">and</span> <span class="n">version</span> <span class="o">==</span> <span class="n">data</span><span class="p">[</span><span class="s2">"info"</span><span class="p">][</span><span class="s2">"version"</span><span class="p">]</span>
+</span><span data-line="413">            <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">)</span>
+</span><span data-line="414">        <span class="p">)</span>
+</span><span data-line="415">        <span class="k">if</span> <span class="n">supports_python</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">):</span>
+</span><span data-line="416">            <span class="k">return</span> <span class="n">package</span>
+</span><span data-line="417">        <span class="k">if</span> <span class="n">best_incompatible</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="418">            <span class="n">best_incompatible</span> <span class="o">=</span> <span class="n">package</span>
+</span><span data-line="419">    <span class="n">fallback</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="420">        <span class="n">_package_from_response</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">provenance</span><span class="p">)</span>
+</span><span data-line="421">        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"info"</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>  <span class="c1"># pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.</span>
+</span><span data-line="422">        <span class="k">else</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="423">    <span class="p">)</span>
+</span><span data-line="424">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="425">        <span class="n">fallback_version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="426">    <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
+</span><span data-line="427">        <span class="k">if</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span> <span class="ow">in</span> <span class="n">filtered_arbitrary_candidates</span><span class="p">:</span>
+</span><span data-line="428">            <span class="k">if</span> <span class="n">best_incompatible</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="429">                <span class="k">return</span> <span class="n">best_incompatible</span>
+</span><span data-line="430">            <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
+</span><span data-line="431">        <span class="k">return</span> <span class="n">best_incompatible</span> <span class="ow">or</span> <span class="n">fallback</span>
+</span><span data-line="432">    <span class="k">if</span> <span class="n">fallback_version</span> <span class="ow">in</span> <span class="n">filtered_candidates</span><span class="p">:</span>
+</span><span data-line="433">        <span class="k">if</span> <span class="n">best_incompatible</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="434">            <span class="k">return</span> <span class="n">best_incompatible</span>
+</span><span data-line="435">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="436">    <span class="k">return</span> <span class="n">best_incompatible</span> <span class="ow">or</span> <span class="n">fallback</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

@@ -588,405 +588,399 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="464">
 </span><span data-line="465">
 </span><span data-line="466"><span class="k">def</span><span class="w"> </span><span class="nf">_off_path_warning_sources</span><span class="p">(</span>
-</span><span data-line="467">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span>
-</span><span data-line="468">    <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="469">    <span class="n">seen</span><span class="p">:</span> <span class="n">Container</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">SourceState</span><span class="p">]],</span>
-</span><span data-line="470"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
-</span><span data-line="471"><span class="w">    </span><span class="sd">"""Collect warning provenance on branches that no emitted path covers.</span>
-</span><span data-line="472">
-</span><span data-line="473"><span class="sd">    Their ``fields`` list is empty: the warning arose outside the returned</span>
-</span><span data-line="474"><span class="sd">    list-of-lists ``result.paths``, so no real result path identifies it.</span>
-</span><span data-line="475">
-</span><span data-line="476"><span class="sd">    Returns:</span>
-</span><span data-line="477"><span class="sd">        One field-less source record per unreported warned node.</span>
-</span><span data-line="478"><span class="sd">    """</span>
-</span><span data-line="479">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="480">    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">_walk_tree</span><span class="p">(</span><span class="n">tree</span><span class="p">):</span>
-</span><span data-line="481">        <span class="n">warned</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">node</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="p">{</span>
-</span><span data-line="482">            <span class="s2">"conflicting"</span><span class="p">,</span>
-</span><span data-line="483">            <span class="s2">"depth_limited"</span><span class="p">,</span>
-</span><span data-line="484">        <span class="p">}</span>
-</span><span data-line="485">        <span class="n">record</span> <span class="o">=</span> <span class="n">_dependency_source</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="s2">"result.paths"</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
-</span><span data-line="486">        <span class="k">if</span> <span class="p">(</span>
-</span><span data-line="487">            <span class="n">warned</span>
-</span><span data-line="488">            <span class="ow">and</span> <span class="n">record</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-</span><span data-line="489">            <span class="ow">and</span> <span class="p">(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span>
-</span><span data-line="490">        <span class="p">):</span>
-</span><span data-line="491">            <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">replace</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[]))</span>
-</span><span data-line="492">    <span class="k">return</span> <span class="n">records</span>
-</span><span data-line="493">
-</span><span data-line="494">
-</span><span data-line="495"><span class="k">def</span><span class="w"> </span><span class="nf">_why_sources</span><span class="p">(</span>
-</span><span data-line="496">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="497"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
-</span><span data-line="498">    <span class="n">records</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="499">        <span class="n">record</span>
-</span><span data-line="500">        <span class="k">for</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
-</span><span data-line="501">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_path_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
-</span><span data-line="502">    <span class="p">]</span>
-</span><span data-line="503">    <span class="n">seen</span> <span class="o">=</span> <span class="p">{(</span><span class="n">record</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">target</span><span class="p">,</span> <span class="n">record</span><span class="o">.</span><span class="n">state</span><span class="p">)</span> <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">records</span><span class="p">}</span>
-</span><span data-line="504">    <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_off_path_warning_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">seen</span><span class="p">))</span>
-</span><span data-line="505">    <span class="k">return</span> <span class="n">records</span>
-</span><span data-line="506">
-</span><span data-line="507">
+</span><span data-line="467">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">seen</span><span class="p">:</span> <span class="n">Container</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span>
+</span><span data-line="468"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="469"><span class="w">    </span><span class="sd">"""Collect warning provenance on branches that no emitted path covers.</span>
+</span><span data-line="470">
+</span><span data-line="471"><span class="sd">    Their ``fields`` list is empty: the warning arose outside the returned</span>
+</span><span data-line="472"><span class="sd">    list-of-lists ``result.paths``, so no real result path identifies it.</span>
+</span><span data-line="473">
+</span><span data-line="474"><span class="sd">    Returns:</span>
+</span><span data-line="475"><span class="sd">        One field-less source record per unreported warned node.</span>
+</span><span data-line="476"><span class="sd">    """</span>
+</span><span data-line="477">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="478">    <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">_walk_tree</span><span class="p">(</span><span class="n">tree</span><span class="p">):</span>
+</span><span data-line="479">        <span class="n">warned</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">node</span><span class="o">.</span><span class="n">state</span> <span class="ow">in</span> <span class="p">{</span>
+</span><span data-line="480">            <span class="s2">"conflicting"</span><span class="p">,</span>
+</span><span data-line="481">            <span class="s2">"depth_limited"</span><span class="p">,</span>
+</span><span data-line="482">        <span class="p">}</span>
+</span><span data-line="483">        <span class="n">record</span> <span class="o">=</span> <span class="n">_dependency_source</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="s2">"result.paths"</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+</span><span data-line="484">        <span class="k">if</span> <span class="n">warned</span> <span class="ow">and</span> <span class="n">record</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">id</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen</span><span class="p">:</span>
+</span><span data-line="485">            <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">replace</span><span class="p">(</span><span class="n">record</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">[]))</span>
+</span><span data-line="486">    <span class="k">return</span> <span class="n">records</span>
+</span><span data-line="487">
+</span><span data-line="488">
+</span><span data-line="489"><span class="k">def</span><span class="w"> </span><span class="nf">_why_sources</span><span class="p">(</span>
+</span><span data-line="490">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="491"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="492">    <span class="n">records</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="493">        <span class="n">record</span>
+</span><span data-line="494">        <span class="k">for</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">path</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">paths</span><span class="p">)</span>
+</span><span data-line="495">        <span class="k">for</span> <span class="n">record</span> <span class="ow">in</span> <span class="n">_path_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">path_index</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span>
+</span><span data-line="496">    <span class="p">]</span>
+</span><span data-line="497">    <span class="n">seen</span> <span class="o">=</span> <span class="p">{</span><span class="nb">id</span><span class="p">(</span><span class="n">node</span><span class="p">)</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span> <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="n">_walk_path</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">path</span><span class="p">)}</span>
+</span><span data-line="498">    <span class="n">records</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_off_path_warning_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">,</span> <span class="n">seen</span><span class="p">))</span>
+</span><span data-line="499">    <span class="k">return</span> <span class="n">records</span>
+</span><span data-line="500">
+</span><span data-line="501">
 <div class="viewcode-block" id="format_dep_tree">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_dep_tree">[docs]</a>
-</span><span data-line="508"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span>
-</span><span data-line="509">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span>
-</span><span data-line="510">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="511">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="512">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="513"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="514"><span class="w">    </span><span class="sd">"""Format a dependency tree in the versioned JSON envelope.</span>
-</span><span data-line="515">
-</span><span data-line="516"><span class="sd">    Returns:</span>
-</span><span data-line="517"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="518"><span class="sd">    """</span>
-</span><span data-line="519">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="520">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
-</span><span data-line="521">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="522">        <span class="s2">"deps"</span><span class="p">,</span>
-</span><span data-line="523">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="524">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="s2">"success"</span><span class="p">,</span>
-</span><span data-line="525">        <span class="n">result</span><span class="o">=</span><span class="n">_node_dict</span><span class="p">(</span><span class="n">node</span><span class="p">),</span>
-</span><span data-line="526">        <span class="n">sources</span><span class="o">=</span><span class="n">_dependency_sources</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">),</span>
-</span><span data-line="527">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
-</span><span data-line="528">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="529">    <span class="p">)</span>
-</span><span data-line="530">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="502"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span>
+</span><span data-line="503">    <span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span>
+</span><span data-line="504">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="505">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="506">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="507"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="508"><span class="w">    </span><span class="sd">"""Format a dependency tree in the versioned JSON envelope.</span>
+</span><span data-line="509">
+</span><span data-line="510"><span class="sd">    Returns:</span>
+</span><span data-line="511"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="512"><span class="sd">    """</span>
+</span><span data-line="513">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="514">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">node</span><span class="p">)</span>
+</span><span data-line="515">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="516">        <span class="s2">"deps"</span><span class="p">,</span>
+</span><span data-line="517">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="518">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="s2">"success"</span><span class="p">,</span>
+</span><span data-line="519">        <span class="n">result</span><span class="o">=</span><span class="n">_node_dict</span><span class="p">(</span><span class="n">node</span><span class="p">),</span>
+</span><span data-line="520">        <span class="n">sources</span><span class="o">=</span><span class="n">_dependency_sources</span><span class="p">(</span><span class="n">node</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">),</span>
+</span><span data-line="521">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
+</span><span data-line="522">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="523">    <span class="p">)</span>
+</span><span data-line="524">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
-</span><span data-line="531">
-</span><span data-line="532">
+</span><span data-line="525">
+</span><span data-line="526">
 <div class="viewcode-block" id="format_why">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_why">[docs]</a>
-</span><span data-line="533"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span>
-</span><span data-line="534">    <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="535">    <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
-</span><span data-line="536">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="537">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="538">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="539">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="540"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="541"><span class="w">    </span><span class="sd">"""Format dependency paths in the versioned JSON envelope.</span>
-</span><span data-line="542">
-</span><span data-line="543"><span class="sd">    Returns:</span>
-</span><span data-line="544"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="545"><span class="sd">    """</span>
-</span><span data-line="546">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="547">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[]</span>
-</span><span data-line="548">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="549">        <span class="s2">"deps"</span><span class="p">,</span>
-</span><span data-line="550">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="551">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">paths</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">),</span>
-</span><span data-line="552">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="n">target</span><span class="p">,</span> <span class="s2">"paths"</span><span class="p">:</span> <span class="n">paths</span><span class="p">},</span>
-</span><span data-line="553">        <span class="n">sources</span><span class="o">=</span><span class="n">_why_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[],</span>
-</span><span data-line="554">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
-</span><span data-line="555">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="556">    <span class="p">)</span>
-</span><span data-line="557">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="527"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span>
+</span><span data-line="528">    <span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="529">    <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]],</span>
+</span><span data-line="530">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="531">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="532">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="533">    <span class="n">tree</span><span class="p">:</span> <span class="n">DependencyNode</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="534"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="535"><span class="w">    </span><span class="sd">"""Format dependency paths in the versioned JSON envelope.</span>
+</span><span data-line="536">
+</span><span data-line="537"><span class="sd">    Returns:</span>
+</span><span data-line="538"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="539"><span class="sd">    """</span>
+</span><span data-line="540">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="541">    <span class="n">warnings</span> <span class="o">=</span> <span class="n">_dependency_warnings</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[]</span>
+</span><span data-line="542">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="543">        <span class="s2">"deps"</span><span class="p">,</span>
+</span><span data-line="544">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="545">        <span class="n">status</span><span class="o">=</span><span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">paths</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">),</span>
+</span><span data-line="546">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"target"</span><span class="p">:</span> <span class="n">target</span><span class="p">,</span> <span class="s2">"paths"</span><span class="p">:</span> <span class="n">paths</span><span class="p">},</span>
+</span><span data-line="547">        <span class="n">sources</span><span class="o">=</span><span class="n">_why_sources</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">paths</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">)</span> <span class="k">if</span> <span class="n">tree</span> <span class="k">else</span> <span class="p">[],</span>
+</span><span data-line="548">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
+</span><span data-line="549">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="550">    <span class="p">)</span>
+</span><span data-line="551">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
-</span><span data-line="558">
-</span><span data-line="559">
+</span><span data-line="552">
+</span><span data-line="553">
 <div class="viewcode-block" id="format_files">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_files">[docs]</a>
-</span><span data-line="560"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span>
-</span><span data-line="561">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
-</span><span data-line="562">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="563">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="564">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="565"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="566"><span class="w">    </span><span class="sd">"""Format an installed file list in the versioned JSON envelope.</span>
-</span><span data-line="567">
-</span><span data-line="568"><span class="sd">    Returns:</span>
-</span><span data-line="569"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="570"><span class="sd">    """</span>
-</span><span data-line="571">    <span class="n">files</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[]</span>
-</span><span data-line="572">    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="s2">"files"</span><span class="p">:</span> <span class="n">files</span><span class="p">}</span>
-</span><span data-line="573">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
-</span><span data-line="574">        <span class="s2">"files"</span><span class="p">,</span>
-</span><span data-line="575">        <span class="p">[</span><span class="n">pkg</span><span class="p">],</span>
-</span><span data-line="576">        <span class="n">result</span><span class="p">,</span>
-</span><span data-line="577">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="578">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
-</span><span data-line="579">        <span class="n">empty</span><span class="o">=</span><span class="ow">not</span> <span class="n">files</span><span class="p">,</span>
-</span><span data-line="580">        <span class="n">include_enrichment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span data-line="581">    <span class="p">)</span></div>
+</span><span data-line="554"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span>
+</span><span data-line="555">    <span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span>
+</span><span data-line="556">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="557">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="558">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="559"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="560"><span class="w">    </span><span class="sd">"""Format an installed file list in the versioned JSON envelope.</span>
+</span><span data-line="561">
+</span><span data-line="562"><span class="sd">    Returns:</span>
+</span><span data-line="563"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="564"><span class="sd">    """</span>
+</span><span data-line="565">    <span class="n">files</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[]</span>
+</span><span data-line="566">    <span class="n">result</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">:</span> <span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="s2">"files"</span><span class="p">:</span> <span class="n">files</span><span class="p">}</span>
+</span><span data-line="567">    <span class="k">return</span> <span class="n">_package_envelope</span><span class="p">(</span>
+</span><span data-line="568">        <span class="s2">"files"</span><span class="p">,</span>
+</span><span data-line="569">        <span class="p">[</span><span class="n">pkg</span><span class="p">],</span>
+</span><span data-line="570">        <span class="n">result</span><span class="p">,</span>
+</span><span data-line="571">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="572">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
+</span><span data-line="573">        <span class="n">empty</span><span class="o">=</span><span class="ow">not</span> <span class="n">files</span><span class="p">,</span>
+</span><span data-line="574">        <span class="n">include_enrichment</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span data-line="575">    <span class="p">)</span></div>
 
-</span><span data-line="582">
-</span><span data-line="583">
+</span><span data-line="576">
+</span><span data-line="577">
 <div class="viewcode-block" id="format_versions">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_versions">[docs]</a>
-</span><span data-line="584"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span>
-</span><span data-line="585">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="586">    <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
-</span><span data-line="587">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="588">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="589">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="590">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="591">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="592"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="593"><span class="w">    </span><span class="sd">"""Format published versions in the versioned JSON envelope.</span>
-</span><span data-line="594">
-</span><span data-line="595"><span class="sd">    Returns:</span>
-</span><span data-line="596"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="597"><span class="sd">    """</span>
-</span><span data-line="598">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="599">    <span class="n">retrieval_time</span> <span class="o">=</span> <span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span>
-</span><span data-line="600">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="601">        <span class="s2">"versions"</span><span class="p">,</span>
-</span><span data-line="602">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="603">        <span class="n">status</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
-</span><span data-line="604">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"versions"</span><span class="p">:</span> <span class="n">versions</span><span class="p">},</span>
-</span><span data-line="605">        <span class="n">sources</span><span class="o">=</span><span class="p">[</span>
-</span><span data-line="606">            <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="607">                <span class="n">name</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
-</span><span data-line="608">                <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
-</span><span data-line="609">                <span class="n">target</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="610">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieval_time</span><span class="p">,</span>
-</span><span data-line="611">                <span class="n">freshness</span><span class="o">=</span><span class="n">freshness</span><span class="p">,</span>
-</span><span data-line="612">                <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.versions"</span><span class="p">],</span>
-</span><span data-line="613">            <span class="p">)</span>
-</span><span data-line="614">        <span class="p">],</span>
-</span><span data-line="615">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="616">    <span class="p">)</span>
-</span><span data-line="617">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="578"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span>
+</span><span data-line="579">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="580">    <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]],</span>
+</span><span data-line="581">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="582">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="583">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="584">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="585">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="586"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="587"><span class="w">    </span><span class="sd">"""Format published versions in the versioned JSON envelope.</span>
+</span><span data-line="588">
+</span><span data-line="589"><span class="sd">    Returns:</span>
+</span><span data-line="590"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="591"><span class="sd">    """</span>
+</span><span data-line="592">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="593">    <span class="n">retrieval_time</span> <span class="o">=</span> <span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span>
+</span><span data-line="594">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="595">        <span class="s2">"versions"</span><span class="p">,</span>
+</span><span data-line="596">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="597">        <span class="n">status</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
+</span><span data-line="598">        <span class="n">result</span><span class="o">=</span><span class="p">{</span><span class="s2">"name"</span><span class="p">:</span> <span class="n">name</span><span class="p">,</span> <span class="s2">"versions"</span><span class="p">:</span> <span class="n">versions</span><span class="p">},</span>
+</span><span data-line="599">        <span class="n">sources</span><span class="o">=</span><span class="p">[</span>
+</span><span data-line="600">            <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="601">                <span class="n">name</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
+</span><span data-line="602">                <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">versions</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
+</span><span data-line="603">                <span class="n">target</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="604">                <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieval_time</span><span class="p">,</span>
+</span><span data-line="605">                <span class="n">freshness</span><span class="o">=</span><span class="n">freshness</span><span class="p">,</span>
+</span><span data-line="606">                <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.versions"</span><span class="p">],</span>
+</span><span data-line="607">            <span class="p">)</span>
+</span><span data-line="608">        <span class="p">],</span>
+</span><span data-line="609">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="610">    <span class="p">)</span>
+</span><span data-line="611">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
-</span><span data-line="618">
-</span><span data-line="619">
-</span><span data-line="620"><span class="k">def</span><span class="w"> </span><span class="nf">_publisher_dict</span><span class="p">(</span><span class="n">publisher</span><span class="p">:</span> <span class="n">Publisher</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="621"><span class="w">    </span><span class="sd">"""Represent one Trusted Publisher identity.</span>
+</span><span data-line="612">
+</span><span data-line="613">
+</span><span data-line="614"><span class="k">def</span><span class="w"> </span><span class="nf">_publisher_dict</span><span class="p">(</span><span class="n">publisher</span><span class="p">:</span> <span class="n">Publisher</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="615"><span class="w">    </span><span class="sd">"""Represent one Trusted Publisher identity.</span>
+</span><span data-line="616">
+</span><span data-line="617"><span class="sd">    Returns:</span>
+</span><span data-line="618"><span class="sd">        The publisher's kind and its kind-specific claims.</span>
+</span><span data-line="619"><span class="sd">    """</span>
+</span><span data-line="620">    <span class="k">return</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="n">publisher</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span> <span class="s2">"claims"</span><span class="p">:</span> <span class="n">publisher</span><span class="o">.</span><span class="n">claims</span><span class="p">}</span>
+</span><span data-line="621">
 </span><span data-line="622">
-</span><span data-line="623"><span class="sd">    Returns:</span>
-</span><span data-line="624"><span class="sd">        The publisher's kind and its kind-specific claims.</span>
-</span><span data-line="625"><span class="sd">    """</span>
-</span><span data-line="626">    <span class="k">return</span> <span class="p">{</span><span class="s2">"kind"</span><span class="p">:</span> <span class="n">publisher</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span> <span class="s2">"claims"</span><span class="p">:</span> <span class="n">publisher</span><span class="o">.</span><span class="n">claims</span><span class="p">}</span>
-</span><span data-line="627">
-</span><span data-line="628">
-</span><span data-line="629"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_dict</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">ArtifactFile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="630"><span class="w">    </span><span class="sd">"""Represent one distribution file as structured data.</span>
-</span><span data-line="631">
-</span><span data-line="632"><span class="sd">    ``compatible`` is nullable on purpose: ``null`` means peta could not read</span>
-</span><span data-line="633"><span class="sd">    the evidence, which is not the same answer as ``false``. ``provenance``</span>
-</span><span data-line="634"><span class="sd">    likewise reports what the index exposed, never a verification result.</span>
-</span><span data-line="635">
-</span><span data-line="636"><span class="sd">    Returns:</span>
-</span><span data-line="637"><span class="sd">        The file's JSON mapping.</span>
-</span><span data-line="638"><span class="sd">    """</span>
-</span><span data-line="639">    <span class="k">return</span> <span class="p">{</span>
-</span><span data-line="640">        <span class="s2">"filename"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
-</span><span data-line="641">        <span class="s2">"url"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">url</span><span class="p">,</span>
-</span><span data-line="642">        <span class="s2">"kind"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
-</span><span data-line="643">        <span class="s2">"size"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
-</span><span data-line="644">        <span class="s2">"upload_time"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">upload_time</span><span class="p">,</span>
-</span><span data-line="645">        <span class="s2">"sha256"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">sha256</span><span class="p">,</span>
-</span><span data-line="646">        <span class="s2">"requires_python"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">requires_python</span><span class="p">,</span>
-</span><span data-line="647">        <span class="s2">"yanked"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">yanked</span><span class="p">,</span>
-</span><span data-line="648">        <span class="s2">"yanked_reason"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">yanked_reason</span><span class="p">,</span>
-</span><span data-line="649">        <span class="s2">"core_metadata"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">core_metadata</span><span class="p">,</span>
-</span><span data-line="650">        <span class="s2">"tags"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">tags</span><span class="p">),</span>
-</span><span data-line="651">        <span class="s2">"compatible"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">compatible</span><span class="p">,</span>
-</span><span data-line="652">        <span class="s2">"incompatibility"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
-</span><span data-line="653">        <span class="s2">"provenance"</span><span class="p">:</span> <span class="p">{</span>
-</span><span data-line="654">            <span class="s2">"available"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">provenance_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="655">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">provenance_url</span><span class="p">,</span>
-</span><span data-line="656">            <span class="s2">"publishers"</span><span class="p">:</span> <span class="p">[</span><span class="n">_publisher_dict</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">file</span><span class="o">.</span><span class="n">publishers</span><span class="p">],</span>
-</span><span data-line="657">        <span class="p">},</span>
-</span><span data-line="658">    <span class="p">}</span>
-</span><span data-line="659">
-</span><span data-line="660">
-</span><span data-line="661"><span class="k">def</span><span class="w"> </span><span class="nf">_artifacts_result</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="662"><span class="w">    </span><span class="sd">"""Build the ``result`` payload for a release's artifacts.</span>
-</span><span data-line="663">
-</span><span data-line="664"><span class="sd">    Returns:</span>
-</span><span data-line="665"><span class="sd">        The release summary and its file list.</span>
-</span><span data-line="666"><span class="sd">    """</span>
-</span><span data-line="667">    <span class="k">return</span> <span class="p">{</span>
-</span><span data-line="668">        <span class="s2">"name"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
-</span><span data-line="669">        <span class="s2">"version"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
-</span><span data-line="670">        <span class="s2">"target"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"python"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">version</span><span class="p">},</span>
-</span><span data-line="671">        <span class="s2">"summary"</span><span class="p">:</span> <span class="p">{</span>
-</span><span data-line="672">            <span class="s2">"files"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">),</span>
-</span><span data-line="673">            <span class="s2">"wheels"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">wheels</span><span class="p">),</span>
-</span><span data-line="674">            <span class="s2">"sdists"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">sdists</span><span class="p">),</span>
-</span><span data-line="675">            <span class="s2">"compatible"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">compatible</span><span class="p">),</span>
-</span><span data-line="676">            <span class="s2">"total_size"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">total_size</span><span class="p">,</span>
-</span><span data-line="677">            <span class="s2">"unsized_files"</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">),</span>
-</span><span data-line="678">            <span class="s2">"yanked"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">yanked</span><span class="p">,</span>
-</span><span data-line="679">            <span class="s2">"with_provenance"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">with_provenance</span><span class="p">),</span>
-</span><span data-line="680">        <span class="p">},</span>
-</span><span data-line="681">        <span class="s2">"files"</span><span class="p">:</span> <span class="p">[</span><span class="n">_artifact_dict</span><span class="p">(</span><span class="n">file</span><span class="p">)</span> <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">],</span>
-</span><span data-line="682">    <span class="p">}</span>
-</span><span data-line="683">
-</span><span data-line="684">
-</span><span data-line="685"><span class="k">def</span><span class="w"> </span><span class="nf">_publisher_paths</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
-</span><span data-line="686"><span class="w">    </span><span class="sd">"""Name the result paths the publisher lookup did and did not reach.</span>
-</span><span data-line="687">
-</span><span data-line="688"><span class="sd">    A reached path counts whether or not PyPI supplied a publisher for it:</span>
-</span><span data-line="689"><span class="sd">    "asked, and there is none" is evidence, and folding it in with the paths</span>
-</span><span data-line="690"><span class="sd">    that were never answered would lose the distinction.</span>
-</span><span data-line="691">
-</span><span data-line="692"><span class="sd">    Returns:</span>
-</span><span data-line="693"><span class="sd">        The paths the lookup completed for, and the paths it failed on.</span>
-</span><span data-line="694"><span class="sd">    """</span>
-</span><span data-line="695">    <span class="n">index_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">:</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">)}</span>
-</span><span data-line="696">
-</span><span data-line="697">    <span class="k">def</span><span class="w"> </span><span class="nf">path</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="698">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"result.files[</span><span class="si">{</span><span class="n">index_of</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span><span class="si">}</span><span class="s2">].provenance.publishers"</span>
-</span><span data-line="699">
-</span><span data-line="700">    <span class="n">reached</span> <span class="o">=</span> <span class="p">[</span><span class="n">path</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_lookups</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">index_of</span><span class="p">]</span>
-</span><span data-line="701">    <span class="n">missed</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="702">        <span class="n">path</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
-</span><span data-line="703">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
-</span><span data-line="704">        <span class="k">if</span> <span class="n">failure</span><span class="o">.</span><span class="n">filename</span> <span class="ow">in</span> <span class="n">index_of</span>
-</span><span data-line="705">    <span class="p">]</span>
-</span><span data-line="706">    <span class="k">return</span> <span class="n">reached</span><span class="p">,</span> <span class="n">missed</span>
+</span><span data-line="623"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_dict</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">ArtifactFile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="624"><span class="w">    </span><span class="sd">"""Represent one distribution file as structured data.</span>
+</span><span data-line="625">
+</span><span data-line="626"><span class="sd">    ``compatible`` is nullable on purpose: ``null`` means peta could not read</span>
+</span><span data-line="627"><span class="sd">    the evidence, which is not the same answer as ``false``. ``provenance``</span>
+</span><span data-line="628"><span class="sd">    likewise reports what the index exposed, never a verification result.</span>
+</span><span data-line="629">
+</span><span data-line="630"><span class="sd">    Returns:</span>
+</span><span data-line="631"><span class="sd">        The file's JSON mapping.</span>
+</span><span data-line="632"><span class="sd">    """</span>
+</span><span data-line="633">    <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="634">        <span class="s2">"filename"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span>
+</span><span data-line="635">        <span class="s2">"url"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">url</span><span class="p">,</span>
+</span><span data-line="636">        <span class="s2">"kind"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
+</span><span data-line="637">        <span class="s2">"size"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+</span><span data-line="638">        <span class="s2">"upload_time"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">upload_time</span><span class="p">,</span>
+</span><span data-line="639">        <span class="s2">"sha256"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">sha256</span><span class="p">,</span>
+</span><span data-line="640">        <span class="s2">"requires_python"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">requires_python</span><span class="p">,</span>
+</span><span data-line="641">        <span class="s2">"yanked"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">yanked</span><span class="p">,</span>
+</span><span data-line="642">        <span class="s2">"yanked_reason"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">yanked_reason</span><span class="p">,</span>
+</span><span data-line="643">        <span class="s2">"core_metadata"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">core_metadata</span><span class="p">,</span>
+</span><span data-line="644">        <span class="s2">"tags"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">tags</span><span class="p">),</span>
+</span><span data-line="645">        <span class="s2">"compatible"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">compatible</span><span class="p">,</span>
+</span><span data-line="646">        <span class="s2">"incompatibility"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">reason</span><span class="p">,</span>
+</span><span data-line="647">        <span class="s2">"provenance"</span><span class="p">:</span> <span class="p">{</span>
+</span><span data-line="648">            <span class="s2">"available"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">provenance_url</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="649">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">file</span><span class="o">.</span><span class="n">provenance_url</span><span class="p">,</span>
+</span><span data-line="650">            <span class="s2">"publishers"</span><span class="p">:</span> <span class="p">[</span><span class="n">_publisher_dict</span><span class="p">(</span><span class="n">p</span><span class="p">)</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">file</span><span class="o">.</span><span class="n">publishers</span><span class="p">],</span>
+</span><span data-line="651">        <span class="p">},</span>
+</span><span data-line="652">    <span class="p">}</span>
+</span><span data-line="653">
+</span><span data-line="654">
+</span><span data-line="655"><span class="k">def</span><span class="w"> </span><span class="nf">_artifacts_result</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="656"><span class="w">    </span><span class="sd">"""Build the ``result`` payload for a release's artifacts.</span>
+</span><span data-line="657">
+</span><span data-line="658"><span class="sd">    Returns:</span>
+</span><span data-line="659"><span class="sd">        The release summary and its file list.</span>
+</span><span data-line="660"><span class="sd">    """</span>
+</span><span data-line="661">    <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="662">        <span class="s2">"name"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+</span><span data-line="663">        <span class="s2">"version"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="p">,</span>
+</span><span data-line="664">        <span class="s2">"target"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"python"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">target</span><span class="o">.</span><span class="n">version</span><span class="p">},</span>
+</span><span data-line="665">        <span class="s2">"summary"</span><span class="p">:</span> <span class="p">{</span>
+</span><span data-line="666">            <span class="s2">"files"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">),</span>
+</span><span data-line="667">            <span class="s2">"wheels"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">wheels</span><span class="p">),</span>
+</span><span data-line="668">            <span class="s2">"sdists"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">sdists</span><span class="p">),</span>
+</span><span data-line="669">            <span class="s2">"compatible"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">compatible</span><span class="p">),</span>
+</span><span data-line="670">            <span class="s2">"total_size"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">total_size</span><span class="p">,</span>
+</span><span data-line="671">            <span class="s2">"unsized_files"</span><span class="p">:</span> <span class="nb">sum</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">size</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">),</span>
+</span><span data-line="672">            <span class="s2">"yanked"</span><span class="p">:</span> <span class="n">release</span><span class="o">.</span><span class="n">yanked</span><span class="p">,</span>
+</span><span data-line="673">            <span class="s2">"with_provenance"</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">with_provenance</span><span class="p">),</span>
+</span><span data-line="674">        <span class="p">},</span>
+</span><span data-line="675">        <span class="s2">"files"</span><span class="p">:</span> <span class="p">[</span><span class="n">_artifact_dict</span><span class="p">(</span><span class="n">file</span><span class="p">)</span> <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">],</span>
+</span><span data-line="676">    <span class="p">}</span>
+</span><span data-line="677">
+</span><span data-line="678">
+</span><span data-line="679"><span class="k">def</span><span class="w"> </span><span class="nf">_publisher_paths</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+</span><span data-line="680"><span class="w">    </span><span class="sd">"""Name the result paths the publisher lookup did and did not reach.</span>
+</span><span data-line="681">
+</span><span data-line="682"><span class="sd">    A reached path counts whether or not PyPI supplied a publisher for it:</span>
+</span><span data-line="683"><span class="sd">    "asked, and there is none" is evidence, and folding it in with the paths</span>
+</span><span data-line="684"><span class="sd">    that were never answered would lose the distinction.</span>
+</span><span data-line="685">
+</span><span data-line="686"><span class="sd">    Returns:</span>
+</span><span data-line="687"><span class="sd">        The paths the lookup completed for, and the paths it failed on.</span>
+</span><span data-line="688"><span class="sd">    """</span>
+</span><span data-line="689">    <span class="n">index_of</span> <span class="o">=</span> <span class="p">{</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">:</span> <span class="n">index</span> <span class="k">for</span> <span class="n">index</span><span class="p">,</span> <span class="n">file</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">)}</span>
+</span><span data-line="690">
+</span><span data-line="691">    <span class="k">def</span><span class="w"> </span><span class="nf">path</span><span class="p">(</span><span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="692">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"result.files[</span><span class="si">{</span><span class="n">index_of</span><span class="p">[</span><span class="n">filename</span><span class="p">]</span><span class="si">}</span><span class="s2">].provenance.publishers"</span>
+</span><span data-line="693">
+</span><span data-line="694">    <span class="n">reached</span> <span class="o">=</span> <span class="p">[</span><span class="n">path</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_lookups</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">index_of</span><span class="p">]</span>
+</span><span data-line="695">    <span class="n">missed</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="696">        <span class="n">path</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span>
+</span><span data-line="697">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
+</span><span data-line="698">        <span class="k">if</span> <span class="n">failure</span><span class="o">.</span><span class="n">filename</span> <span class="ow">in</span> <span class="n">index_of</span>
+</span><span data-line="699">    <span class="p">]</span>
+</span><span data-line="700">    <span class="k">return</span> <span class="n">reached</span><span class="p">,</span> <span class="n">missed</span>
+</span><span data-line="701">
+</span><span data-line="702">
+</span><span data-line="703"><span class="k">def</span><span class="w"> </span><span class="nf">_completed_record</span><span class="p">(</span>
+</span><span data-line="704">    <span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span> <span class="n">reached</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="705"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SourceRecord</span><span class="p">:</span>
+</span><span data-line="706"><span class="w">    </span><span class="sd">"""Describe the provenance lookup that did complete, or its absence.</span>
 </span><span data-line="707">
-</span><span data-line="708">
-</span><span data-line="709"><span class="k">def</span><span class="w"> </span><span class="nf">_completed_record</span><span class="p">(</span>
-</span><span data-line="710">    <span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span> <span class="n">reached</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">target</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="711"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SourceRecord</span><span class="p">:</span>
-</span><span data-line="712"><span class="w">    </span><span class="sd">"""Describe the provenance lookup that did complete, or its absence.</span>
+</span><span data-line="708"><span class="sd">    When no file in the release exposes provenance there is nothing to look</span>
+</span><span data-line="709"><span class="sd">    up, so the record says ``skipped`` and carries no retrieval time. Dating</span>
+</span><span data-line="710"><span class="sd">    it with the envelope's own timestamp would assert that the source answered</span>
+</span><span data-line="711"><span class="sd">    at a moment no request was made — the kind of claim the provenance fields</span>
+</span><span data-line="712"><span class="sd">    exist to prevent.</span>
 </span><span data-line="713">
-</span><span data-line="714"><span class="sd">    When no file in the release exposes provenance there is nothing to look</span>
-</span><span data-line="715"><span class="sd">    up, so the record says ``skipped`` and carries no retrieval time. Dating</span>
-</span><span data-line="716"><span class="sd">    it with the envelope's own timestamp would assert that the source answered</span>
-</span><span data-line="717"><span class="sd">    at a moment no request was made — the kind of claim the provenance fields</span>
-</span><span data-line="718"><span class="sd">    exist to prevent.</span>
-</span><span data-line="719">
-</span><span data-line="720"><span class="sd">    Returns:</span>
-</span><span data-line="721"><span class="sd">        The record for the completed side of the lookup.</span>
-</span><span data-line="722"><span class="sd">    """</span>
-</span><span data-line="723">    <span class="n">retrieval</span> <span class="o">=</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_retrieval</span>
-</span><span data-line="724">    <span class="k">if</span> <span class="n">retrieval</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="725">        <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="726">            <span class="n">name</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
-</span><span data-line="727">            <span class="n">state</span><span class="o">=</span><span class="s2">"skipped"</span><span class="p">,</span>
-</span><span data-line="728">            <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
-</span><span data-line="729">            <span class="n">reason</span><span class="o">=</span><span class="s2">"no file exposes provenance"</span><span class="p">,</span>
-</span><span data-line="730">        <span class="p">)</span>
-</span><span data-line="731">    <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="732">        <span class="n">name</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
-</span><span data-line="733">        <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">publishers</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
-</span><span data-line="734">        <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
-</span><span data-line="735">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieval</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
-</span><span data-line="736">        <span class="n">freshness</span><span class="o">=</span><span class="n">retrieval</span><span class="o">.</span><span class="n">freshness</span><span class="p">,</span>
-</span><span data-line="737">        <span class="n">fields</span><span class="o">=</span><span class="n">reached</span><span class="p">,</span>
-</span><span data-line="738">    <span class="p">)</span>
-</span><span data-line="739">
-</span><span data-line="740">
-</span><span data-line="741"><span class="k">def</span><span class="w"> </span><span class="nf">_publisher_sources</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
-</span><span data-line="742"><span class="w">    </span><span class="sd">"""Record what the PEP 740 provenance lookup produced, field by field.</span>
-</span><span data-line="743">
-</span><span data-line="744"><span class="sd">    A completed lookup and a failed one are separate records, because one</span>
-</span><span data-line="745"><span class="sd">    ``state`` cannot describe both and a consumer must be able to tell the</span>
-</span><span data-line="746"><span class="sd">    paths PyPI supplied nothing for from the paths peta could not reach. The</span>
-</span><span data-line="747"><span class="sd">    completed record survives a sibling failure: a file that was reached and</span>
-</span><span data-line="748"><span class="sd">    genuinely has no publisher must not disappear because another file's</span>
-</span><span data-line="749"><span class="sd">    request fell over.</span>
-</span><span data-line="750">
-</span><span data-line="751"><span class="sd">    Returns:</span>
-</span><span data-line="752"><span class="sd">        One record for the completed lookups, one for the failed ones, or</span>
-</span><span data-line="753"><span class="sd">        whichever of the two actually happened.</span>
-</span><span data-line="754"><span class="sd">    """</span>
-</span><span data-line="755">    <span class="k">del</span> <span class="n">timestamp</span>
-</span><span data-line="756">    <span class="n">reached</span><span class="p">,</span> <span class="n">missed</span> <span class="o">=</span> <span class="n">_publisher_paths</span><span class="p">(</span><span class="n">release</span><span class="p">)</span>
-</span><span data-line="757">    <span class="n">failures</span> <span class="o">=</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
-</span><span data-line="758">    <span class="n">target</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="759">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
-</span><span data-line="760">    <span class="k">if</span> <span class="n">reached</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">failures</span><span class="p">:</span>
-</span><span data-line="761">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_completed_record</span><span class="p">(</span><span class="n">release</span><span class="p">,</span> <span class="n">reached</span><span class="p">,</span> <span class="n">target</span><span class="p">))</span>
-</span><span data-line="762">    <span class="k">if</span> <span class="n">failures</span><span class="p">:</span>
-</span><span data-line="763">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-</span><span data-line="764">            <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="765">                <span class="n">name</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
-</span><span data-line="766">                <span class="n">state</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
-</span><span data-line="767">                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
-</span><span data-line="768">                <span class="n">reason</span><span class="o">=</span><span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">description</span> <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">failures</span><span class="p">),</span>
-</span><span data-line="769">                <span class="n">fields</span><span class="o">=</span><span class="n">missed</span><span class="p">,</span>
-</span><span data-line="770">            <span class="p">)</span>
-</span><span data-line="771">        <span class="p">)</span>
-</span><span data-line="772">    <span class="k">return</span> <span class="n">records</span>
-</span><span data-line="773">
-</span><span data-line="774">
+</span><span data-line="714"><span class="sd">    Returns:</span>
+</span><span data-line="715"><span class="sd">        The record for the completed side of the lookup.</span>
+</span><span data-line="716"><span class="sd">    """</span>
+</span><span data-line="717">    <span class="n">retrieval</span> <span class="o">=</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_retrieval</span>
+</span><span data-line="718">    <span class="k">if</span> <span class="n">retrieval</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="719">        <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="720">            <span class="n">name</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
+</span><span data-line="721">            <span class="n">state</span><span class="o">=</span><span class="s2">"skipped"</span><span class="p">,</span>
+</span><span data-line="722">            <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+</span><span data-line="723">            <span class="n">reason</span><span class="o">=</span><span class="s2">"no file exposes provenance"</span><span class="p">,</span>
+</span><span data-line="724">        <span class="p">)</span>
+</span><span data-line="725">    <span class="k">return</span> <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="726">        <span class="n">name</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
+</span><span data-line="727">        <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">publishers</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">)</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
+</span><span data-line="728">        <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+</span><span data-line="729">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieval</span><span class="o">.</span><span class="n">retrieved_at</span><span class="p">,</span>
+</span><span data-line="730">        <span class="n">freshness</span><span class="o">=</span><span class="n">retrieval</span><span class="o">.</span><span class="n">freshness</span><span class="p">,</span>
+</span><span data-line="731">        <span class="n">fields</span><span class="o">=</span><span class="n">reached</span><span class="p">,</span>
+</span><span data-line="732">    <span class="p">)</span>
+</span><span data-line="733">
+</span><span data-line="734">
+</span><span data-line="735"><span class="k">def</span><span class="w"> </span><span class="nf">_publisher_sources</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]:</span>
+</span><span data-line="736"><span class="w">    </span><span class="sd">"""Record what the PEP 740 provenance lookup produced, field by field.</span>
+</span><span data-line="737">
+</span><span data-line="738"><span class="sd">    A completed lookup and a failed one are separate records, because one</span>
+</span><span data-line="739"><span class="sd">    ``state`` cannot describe both and a consumer must be able to tell the</span>
+</span><span data-line="740"><span class="sd">    paths PyPI supplied nothing for from the paths peta could not reach. The</span>
+</span><span data-line="741"><span class="sd">    completed record survives a sibling failure: a file that was reached and</span>
+</span><span data-line="742"><span class="sd">    genuinely has no publisher must not disappear because another file's</span>
+</span><span data-line="743"><span class="sd">    request fell over.</span>
+</span><span data-line="744">
+</span><span data-line="745"><span class="sd">    Returns:</span>
+</span><span data-line="746"><span class="sd">        One record for the completed lookups, one for the failed ones, or</span>
+</span><span data-line="747"><span class="sd">        whichever of the two actually happened.</span>
+</span><span data-line="748"><span class="sd">    """</span>
+</span><span data-line="749">    <span class="k">del</span> <span class="n">timestamp</span>
+</span><span data-line="750">    <span class="n">reached</span><span class="p">,</span> <span class="n">missed</span> <span class="o">=</span> <span class="n">_publisher_paths</span><span class="p">(</span><span class="n">release</span><span class="p">)</span>
+</span><span data-line="751">    <span class="n">failures</span> <span class="o">=</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
+</span><span data-line="752">    <span class="n">target</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="753">    <span class="n">records</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span data-line="754">    <span class="k">if</span> <span class="n">reached</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">failures</span><span class="p">:</span>
+</span><span data-line="755">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">_completed_record</span><span class="p">(</span><span class="n">release</span><span class="p">,</span> <span class="n">reached</span><span class="p">,</span> <span class="n">target</span><span class="p">))</span>
+</span><span data-line="756">    <span class="k">if</span> <span class="n">failures</span><span class="p">:</span>
+</span><span data-line="757">        <span class="n">records</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+</span><span data-line="758">            <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="759">                <span class="n">name</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
+</span><span data-line="760">                <span class="n">state</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
+</span><span data-line="761">                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+</span><span data-line="762">                <span class="n">reason</span><span class="o">=</span><span class="s2">"; "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">description</span> <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">failures</span><span class="p">),</span>
+</span><span data-line="763">                <span class="n">fields</span><span class="o">=</span><span class="n">missed</span><span class="p">,</span>
+</span><span data-line="764">            <span class="p">)</span>
+</span><span data-line="765">        <span class="p">)</span>
+</span><span data-line="766">    <span class="k">return</span> <span class="n">records</span>
+</span><span data-line="767">
+</span><span data-line="768">
 <div class="viewcode-block" id="format_artifacts">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_artifacts">[docs]</a>
-</span><span data-line="775"><span class="k">def</span><span class="w"> </span><span class="nf">format_artifacts</span><span class="p">(</span>
-</span><span data-line="776">    <span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span>
-</span><span data-line="777">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="778">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="779">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="780">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="781">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="782">    <span class="n">publishers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="783"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="784"><span class="w">    </span><span class="sd">"""Format a release's artifacts in the versioned JSON envelope.</span>
-</span><span data-line="785">
-</span><span data-line="786"><span class="sd">    Returns:</span>
-</span><span data-line="787"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="788"><span class="sd">    """</span>
-</span><span data-line="789">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
-</span><span data-line="790">    <span class="n">files</span> <span class="o">=</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
-</span><span data-line="791">    <span class="n">sources</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="792">        <span class="n">SourceRecord</span><span class="p">(</span>
-</span><span data-line="793">            <span class="n">name</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
-</span><span data-line="794">            <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
-</span><span data-line="795">            <span class="n">target</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-</span><span data-line="796">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="797">            <span class="n">freshness</span><span class="o">=</span><span class="n">freshness</span><span class="p">,</span>
-</span><span data-line="798">            <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.files"</span><span class="p">],</span>
-</span><span data-line="799">        <span class="p">)</span>
-</span><span data-line="800">    <span class="p">]</span>
-</span><span data-line="801">    <span class="k">if</span> <span class="n">publishers</span><span class="p">:</span>
-</span><span data-line="802">        <span class="n">sources</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_publisher_sources</span><span class="p">(</span><span class="n">release</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">))</span>
-</span><span data-line="803">    <span class="n">warnings</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="804">        <span class="n">OutputMessage</span><span class="p">(</span>
-</span><span data-line="805">            <span class="n">code</span><span class="o">=</span><span class="s2">"enrichment_failed"</span><span class="p">,</span>
-</span><span data-line="806">            <span class="n">message</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
-</span><span data-line="807">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
-</span><span data-line="808">        <span class="p">)</span>
-</span><span data-line="809">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
-</span><span data-line="810">    <span class="p">]</span>
-</span><span data-line="811">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="812">        <span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">)</span>
-</span><span data-line="813">    <span class="p">)</span>
-</span><span data-line="814">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="815">        <span class="s2">"artifacts"</span><span class="p">,</span>
-</span><span data-line="816">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="817">        <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
-</span><span data-line="818">        <span class="n">result</span><span class="o">=</span><span class="n">_artifacts_result</span><span class="p">(</span><span class="n">release</span><span class="p">),</span>
-</span><span data-line="819">        <span class="n">sources</span><span class="o">=</span><span class="n">sources</span><span class="p">,</span>
-</span><span data-line="820">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
-</span><span data-line="821">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
-</span><span data-line="822">    <span class="p">)</span>
-</span><span data-line="823">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="769"><span class="k">def</span><span class="w"> </span><span class="nf">format_artifacts</span><span class="p">(</span>
+</span><span data-line="770">    <span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span>
+</span><span data-line="771">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="772">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="773">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="774">    <span class="n">retrieved_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="775">    <span class="n">freshness</span><span class="p">:</span> <span class="n">Freshness</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="776">    <span class="n">publishers</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="777"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="778"><span class="w">    </span><span class="sd">"""Format a release's artifacts in the versioned JSON envelope.</span>
+</span><span data-line="779">
+</span><span data-line="780"><span class="sd">    Returns:</span>
+</span><span data-line="781"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="782"><span class="sd">    """</span>
+</span><span data-line="783">    <span class="n">timestamp</span> <span class="o">=</span> <span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">()</span>
+</span><span data-line="784">    <span class="n">files</span> <span class="o">=</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
+</span><span data-line="785">    <span class="n">sources</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="786">        <span class="n">SourceRecord</span><span class="p">(</span>
+</span><span data-line="787">            <span class="n">name</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
+</span><span data-line="788">            <span class="n">state</span><span class="o">=</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">,</span>
+</span><span data-line="789">            <span class="n">target</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span data-line="790">            <span class="n">retrieved_at</span><span class="o">=</span><span class="n">retrieved_at</span> <span class="ow">or</span> <span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="791">            <span class="n">freshness</span><span class="o">=</span><span class="n">freshness</span><span class="p">,</span>
+</span><span data-line="792">            <span class="n">fields</span><span class="o">=</span><span class="p">[</span><span class="s2">"result.files"</span><span class="p">],</span>
+</span><span data-line="793">        <span class="p">)</span>
+</span><span data-line="794">    <span class="p">]</span>
+</span><span data-line="795">    <span class="k">if</span> <span class="n">publishers</span><span class="p">:</span>
+</span><span data-line="796">        <span class="n">sources</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_publisher_sources</span><span class="p">(</span><span class="n">release</span><span class="p">,</span> <span class="n">timestamp</span><span class="p">))</span>
+</span><span data-line="797">    <span class="n">warnings</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="798">        <span class="n">OutputMessage</span><span class="p">(</span>
+</span><span data-line="799">            <span class="n">code</span><span class="o">=</span><span class="s2">"enrichment_failed"</span><span class="p">,</span>
+</span><span data-line="800">            <span class="n">message</span><span class="o">=</span><span class="n">failure</span><span class="o">.</span><span class="n">description</span><span class="p">,</span>
+</span><span data-line="801">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi-provenance"</span><span class="p">,</span>
+</span><span data-line="802">        <span class="p">)</span>
+</span><span data-line="803">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
+</span><span data-line="804">    <span class="p">]</span>
+</span><span data-line="805">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="806">        <span class="s2">"partial"</span> <span class="k">if</span> <span class="n">warnings</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"success"</span> <span class="k">if</span> <span class="n">files</span> <span class="k">else</span> <span class="s2">"empty"</span><span class="p">)</span>
+</span><span data-line="807">    <span class="p">)</span>
+</span><span data-line="808">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="809">        <span class="s2">"artifacts"</span><span class="p">,</span>
+</span><span data-line="810">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="811">        <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+</span><span data-line="812">        <span class="n">result</span><span class="o">=</span><span class="n">_artifacts_result</span><span class="p">(</span><span class="n">release</span><span class="p">),</span>
+</span><span data-line="813">        <span class="n">sources</span><span class="o">=</span><span class="n">sources</span><span class="p">,</span>
+</span><span data-line="814">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span><span class="p">,</span>
+</span><span data-line="815">        <span class="n">generated_at</span><span class="o">=</span><span class="n">timestamp</span><span class="p">,</span>
+</span><span data-line="816">    <span class="p">)</span>
+</span><span data-line="817">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
-</span><span data-line="824">
-</span><span data-line="825">
+</span><span data-line="818">
+</span><span data-line="819">
 <div class="viewcode-block" id="format_error">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.json.format_error">[docs]</a>
-</span><span data-line="826"><span class="k">def</span><span class="w"> </span><span class="nf">format_error</span><span class="p">(</span>
-</span><span data-line="827">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
-</span><span data-line="828">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="829">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="830">    <span class="n">code</span><span class="p">:</span> <span class="n">MessageCode</span><span class="p">,</span>
-</span><span data-line="831">    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="832">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="833">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="834"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="835"><span class="w">    </span><span class="sd">"""Format a fatal command error in the versioned JSON envelope.</span>
-</span><span data-line="836">
-</span><span data-line="837"><span class="sd">    Returns:</span>
-</span><span data-line="838"><span class="sd">        An indented JSON string.</span>
-</span><span data-line="839"><span class="sd">    """</span>
-</span><span data-line="840">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
-</span><span data-line="841">        <span class="n">command</span><span class="p">,</span>
-</span><span data-line="842">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="843">        <span class="n">status</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
-</span><span data-line="844">        <span class="n">result</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
-</span><span data-line="845">        <span class="n">errors</span><span class="o">=</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">)],</span>
-</span><span data-line="846">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
-</span><span data-line="847">    <span class="p">)</span>
-</span><span data-line="848">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
+</span><span data-line="820"><span class="k">def</span><span class="w"> </span><span class="nf">format_error</span><span class="p">(</span>
+</span><span data-line="821">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
+</span><span data-line="822">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="823">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="824">    <span class="n">code</span><span class="p">:</span> <span class="n">MessageCode</span><span class="p">,</span>
+</span><span data-line="825">    <span class="n">message</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="826">    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="827">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="828"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="829"><span class="w">    </span><span class="sd">"""Format a fatal command error in the versioned JSON envelope.</span>
+</span><span data-line="830">
+</span><span data-line="831"><span class="sd">    Returns:</span>
+</span><span data-line="832"><span class="sd">        An indented JSON string.</span>
+</span><span data-line="833"><span class="sd">    """</span>
+</span><span data-line="834">    <span class="n">envelope</span> <span class="o">=</span> <span class="n">make_envelope</span><span class="p">(</span>
+</span><span data-line="835">        <span class="n">command</span><span class="p">,</span>
+</span><span data-line="836">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="837">        <span class="n">status</span><span class="o">=</span><span class="s2">"failed"</span><span class="p">,</span>
+</span><span data-line="838">        <span class="n">result</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+</span><span data-line="839">        <span class="n">errors</span><span class="o">=</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">code</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="n">message</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">)],</span>
+</span><span data-line="840">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span><span class="p">,</span>
+</span><span data-line="841">    <span class="p">)</span>
+</span><span data-line="842">    <span class="k">return</span> <span class="n">_dump</span><span class="p">(</span><span class="n">envelope</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
