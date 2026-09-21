@@ -105,13 +105,6 @@ def _enrichment_records(
     return records
 
 
-_UNRESOLVED_STATES: frozenset[SourceState] = frozenset({
-    "empty",
-    "failed",
-    "unavailable",
-})
-
-
 def _provider(source: str) -> str:
     """Name the provider behind a ``PackageInfo.source`` value.
 
@@ -464,25 +457,39 @@ def _path_sources(
     return [record for record in records if record is not None]
 
 
-def _off_path_failures(
+def _walk_tree(tree: DependencyNode) -> Iterator[DependencyNode]:
+    yield tree
+    for child in tree.children:
+        yield from _walk_tree(child)
+
+
+def _off_path_warning_sources(
     tree: DependencyNode,
     timestamp: str,
     seen: Container[tuple[str, str | None, SourceState]],
 ) -> list[SourceRecord]:
-    """Collect unresolved lookups on branches that no emitted path covers.
+    """Collect warning provenance on branches that no emitted path covers.
 
-    Their ``fields`` list is empty: the failure happened outside the returned
+    Their ``fields`` list is empty: the warning arose outside the returned
     list-of-lists ``result.paths``, so no real result path identifies it.
 
     Returns:
-        One field-less source record per unreported failed lookup.
+        One field-less source record per unreported warned node.
     """
-    return [
-        replace(record, fields=[])
-        for record in _dependency_sources(tree, timestamp, "result.paths")
-        if record.state in _UNRESOLVED_STATES
-        and (record.name, record.target, record.state) not in seen
-    ]
+    records: list[SourceRecord] = []
+    for node in _walk_tree(tree):
+        warned = node.resolution_failure is not None or node.state in {
+            "conflicting",
+            "depth_limited",
+        }
+        record = _dependency_source(node, "result.paths", timestamp)
+        if (
+            warned
+            and record is not None
+            and (record.name, record.target, record.state) not in seen
+        ):
+            records.append(replace(record, fields=[]))
+    return records
 
 
 def _why_sources(
@@ -494,7 +501,7 @@ def _why_sources(
         for record in _path_sources(tree, path, path_index, timestamp)
     ]
     seen = {(record.name, record.target, record.state) for record in records}
-    records.extend(_off_path_failures(tree, timestamp, seen))
+    records.extend(_off_path_warning_sources(tree, timestamp, seen))
     return records
 
 

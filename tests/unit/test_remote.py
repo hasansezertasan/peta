@@ -135,6 +135,25 @@ def test_matching_release_accepts_explicit_prerelease(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_explicit_prerelease_policy_ranks_all_candidates_by_version(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"1.0": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(">=1.0rc1"), None)
+
+    assert result.version == "2.0rc1"
+    get.assert_called_once_with("dep", "2.0rc1")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_tries_compatible_prerelease_after_incompatible_stable(
     fetch: MagicMock, get: MagicMock
 ) -> None:
@@ -262,17 +281,17 @@ def test_matching_preserves_arbitrary_version_pin(
     fetch.return_value = (
         {
             "info": {**_INFO, "name": "legacy", "version": "2.0"},
-            "releases": {"foobar": [{"yanked": False}], "2.0": [{"yanked": False}]},
+            "releases": {"FooBar": [{"yanked": False}], "2.0": [{"yanked": False}]},
         },
         MagicMock(retrieved_at="now", freshness="live"),
     )
-    arbitrary = PackageInfo(name="legacy", version="foobar", source="remote")
+    arbitrary = PackageInfo(name="legacy", version="FooBar", source="remote")
     get.return_value = arbitrary
 
     result = get_package_matching("legacy", SpecifierSet("===foobar"), None)
 
     assert result is arbitrary
-    get.assert_called_once_with("legacy", "foobar")
+    get.assert_called_once_with("legacy", "FooBar")
 
 
 @patch("peta.core.remote.get_package")

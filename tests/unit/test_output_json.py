@@ -265,6 +265,36 @@ def test_why_off_path_failures_carry_no_result_field() -> None:
     assert data["status"] == "partial"
 
 
+def test_why_off_path_conflicts_keep_fieldless_provenance() -> None:
+    target = DependencyNode(name="certifi", version_spec="", source="local")
+    conflict = DependencyNode(
+        name="urllib3",
+        version_spec="<2",
+        selected_version="2.0",
+        state="conflicting",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:00Z",
+        freshness="live",
+    )
+    tree = DependencyNode(
+        name="flask", version_spec="", source="local", children=[target, conflict]
+    )
+
+    data = json.loads(
+        format_why(
+            "certifi",
+            [["flask", "certifi"]],
+            tree=tree,
+            generated_at="2026-09-04T12:00:01Z",
+        )
+    )
+
+    off_path = next(s for s in data["sources"] if s["target"] == "urllib3")
+    assert off_path["name"] == "pypi"
+    assert off_path["state"] == "success"
+    assert off_path["fields"] == []
+
+
 def test_why_empty() -> None:
     data = json.loads(format_why("nope", []))["result"]
     assert data["paths"] == []

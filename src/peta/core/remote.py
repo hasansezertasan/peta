@@ -314,7 +314,7 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
 
 def _matches_exact_pin(item: Specifier, raw: str, version: Version) -> bool:
     if item.operator == "===":
-        return bool(item.version == raw)
+        return bool(item.version.casefold() == raw.casefold())
     if item.operator != "==" or item.version.endswith(".*"):
         return False
     try:
@@ -328,7 +328,10 @@ def _is_exact_pin(specifier: SpecifierSet, raw: str, version: Version) -> bool:
 
 
 def _is_arbitrary_pin(specifier: SpecifierSet, raw: str) -> bool:
-    return any(item.operator == "===" and item.version == raw for item in specifier)
+    return any(
+        item.operator == "===" and item.version.casefold() == raw.casefold()
+        for item in specifier
+    )
 
 
 def _release_candidates(  # ruff: ignore[complex-structure]
@@ -368,9 +371,13 @@ def _release_candidates(  # ruff: ignore[complex-structure]
     prerelease_candidates = sorted(
         (candidate for candidate in candidates if candidate.is_prerelease), reverse=True
     )
+    version_candidates = (
+        sorted(candidates, reverse=True)
+        if specifier.prereleases is True
+        else [*stable_candidates, *prerelease_candidates]
+    )
     ordered_candidates = [
-        *(str(version) for version in stable_candidates),
-        *(str(version) for version in prerelease_candidates),
+        *(str(version) for version in version_candidates),
         *arbitrary_candidates,
     ]
     return ordered_candidates, filtered_candidates, filtered_arbitrary_candidates
