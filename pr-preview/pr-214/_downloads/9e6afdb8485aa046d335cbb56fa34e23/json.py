@@ -420,7 +420,9 @@ def _conflict_warning(node: DependencyNode) -> OutputMessage:
             "with the target environment"
         )
         return OutputMessage(
-            code="dependency_target_incompatible", message=message, source=node.source
+            code="dependency_target_incompatible",
+            message=message,
+            source=_provider(node.source) if node.source else None,
         )
     return OutputMessage(
         code="dependency_version_conflict",
@@ -428,7 +430,7 @@ def _conflict_warning(node: DependencyNode) -> OutputMessage:
             f"{node.name}: selected {node.selected_version} does not satisfy "
             f"{node.version_spec}"
         ),
-        source=node.source,
+        source=_provider(node.source) if node.source else None,
     )
 
 

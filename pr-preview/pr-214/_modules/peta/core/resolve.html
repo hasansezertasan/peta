@@ -198,104 +198,121 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="74">
 </span><span data-line="75">
 </span><span data-line="76"><span class="k">def</span><span class="w"> </span><span class="nf">_remote_package</span><span class="p">(</span>
-</span><span data-line="77">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span>
-</span><span data-line="78"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="79"><span class="w">    </span><span class="sd">"""Get the newest remote release that meets the dependency requirement.</span>
-</span><span data-line="80">
-</span><span data-line="81"><span class="sd">    Returns:</span>
-</span><span data-line="82"><span class="sd">        The selected remote package metadata.</span>
-</span><span data-line="83"><span class="sd">    """</span>
-</span><span data-line="84">    <span class="k">if</span> <span class="ow">not</span> <span class="n">specifier</span> <span class="ow">and</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="85">        <span class="n">package</span> <span class="o">=</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="86">        <span class="k">if</span> <span class="n">_supports_target</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="kc">None</span><span class="p">):</span>
-</span><span data-line="87">            <span class="k">return</span> <span class="n">package</span>
-</span><span data-line="88">    <span class="k">return</span> <span class="n">remote_get_package_matching</span><span class="p">(</span>
-</span><span data-line="89">        <span class="n">name</span><span class="p">,</span> <span class="n">specifier</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">marker_environment</span> <span class="k">if</span> <span class="n">target</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="90">    <span class="p">)</span>
-</span><span data-line="91">
-</span><span data-line="92">
-</span><span data-line="93"><span class="k">def</span><span class="w"> </span><span class="nf">_supports_target</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="94">    <span class="k">if</span> <span class="ow">not</span> <span class="n">pkg</span><span class="o">.</span><span class="n">python_requires</span><span class="p">:</span>
-</span><span data-line="95">        <span class="k">return</span> <span class="kc">True</span>
-</span><span data-line="96">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="97">        <span class="n">spec</span> <span class="o">=</span> <span class="n">SpecifierSet</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">python_requires</span><span class="p">)</span>
-</span><span data-line="98">    <span class="k">except</span> <span class="n">InvalidSpecifier</span><span class="p">:</span>
-</span><span data-line="99">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="100">    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="101">        <span class="n">version</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span>
-</span><span data-line="102">        <span class="n">python_version</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">major</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">minor</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">micro</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="103">    <span class="k">else</span><span class="p">:</span>
-</span><span data-line="104">        <span class="n">python_version</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">marker_environment</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"python_full_version"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
-</span><span data-line="105">    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">python_version</span><span class="p">))</span>
-</span><span data-line="106">
-</span><span data-line="107">
-</span><span data-line="108"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_default</span><span class="p">(</span>
-</span><span data-line="109">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">requirement</span><span class="p">:</span> <span class="n">SpecifierSet</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span>
-</span><span data-line="110"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="111">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="112">        <span class="n">local_pkg</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="113">            <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
-</span><span data-line="114">            <span class="k">if</span> <span class="n">target</span>
-</span><span data-line="115">            <span class="k">else</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="116">        <span class="p">)</span>
-</span><span data-line="117">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
-</span><span data-line="118">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">):</span>
-</span><span data-line="119">            <span class="k">raise</span>
-</span><span data-line="120">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-</span><span data-line="121">
-</span><span data-line="122">    <span class="n">allows_prereleases</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">requirement</span> <span class="ow">or</span> <span class="n">requirement</span><span class="o">.</span><span class="n">prereleases</span> <span class="ow">is</span> <span class="kc">True</span>
-</span><span data-line="123">    <span class="k">if</span> <span class="n">requirement</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span>
-</span><span data-line="124">        <span class="n">local_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="n">allows_prereleases</span>
-</span><span data-line="125">    <span class="p">)</span> <span class="ow">and</span> <span class="n">_supports_target</span><span class="p">(</span><span class="n">local_pkg</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
-</span><span data-line="126">        <span class="k">return</span> <span class="n">local_pkg</span>
-</span><span data-line="127">    <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-</span><span data-line="128">
+</span><span data-line="77">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="78">    <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span><span class="p">,</span>
+</span><span data-line="79">    <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="80">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="81">    <span class="n">select_compatible</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="82"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="83"><span class="w">    </span><span class="sd">"""Get the newest remote release that meets the dependency requirement.</span>
+</span><span data-line="84">
+</span><span data-line="85"><span class="sd">    Returns:</span>
+</span><span data-line="86"><span class="sd">        The selected remote package metadata.</span>
+</span><span data-line="87"><span class="sd">    """</span>
+</span><span data-line="88">    <span class="k">if</span> <span class="ow">not</span> <span class="n">specifier</span> <span class="ow">and</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">select_compatible</span><span class="p">:</span>
+</span><span data-line="89">        <span class="k">return</span> <span class="n">remote_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="90">    <span class="k">return</span> <span class="n">remote_get_package_matching</span><span class="p">(</span>
+</span><span data-line="91">        <span class="n">name</span><span class="p">,</span> <span class="n">specifier</span><span class="p">,</span> <span class="n">target</span><span class="o">.</span><span class="n">marker_environment</span> <span class="k">if</span> <span class="n">target</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="92">    <span class="p">)</span>
+</span><span data-line="93">
+</span><span data-line="94">
+</span><span data-line="95"><span class="k">def</span><span class="w"> </span><span class="nf">_supports_target</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="96">    <span class="k">if</span> <span class="ow">not</span> <span class="n">pkg</span><span class="o">.</span><span class="n">python_requires</span><span class="p">:</span>
+</span><span data-line="97">        <span class="k">return</span> <span class="kc">True</span>
+</span><span data-line="98">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="99">        <span class="n">spec</span> <span class="o">=</span> <span class="n">SpecifierSet</span><span class="p">(</span><span class="n">pkg</span><span class="o">.</span><span class="n">python_requires</span><span class="p">)</span>
+</span><span data-line="100">    <span class="k">except</span> <span class="n">InvalidSpecifier</span><span class="p">:</span>
+</span><span data-line="101">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="102">    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="103">        <span class="n">version</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span>
+</span><span data-line="104">        <span class="n">python_version</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">major</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">minor</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">version</span><span class="o">.</span><span class="n">micro</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="105">    <span class="k">else</span><span class="p">:</span>
+</span><span data-line="106">        <span class="n">python_version</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">marker_environment</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"python_full_version"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span>
+</span><span data-line="107">    <span class="k">return</span> <span class="nb">bool</span><span class="p">(</span><span class="n">spec</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">python_version</span><span class="p">))</span>
+</span><span data-line="108">
+</span><span data-line="109">
+</span><span data-line="110"><span class="k">def</span><span class="w"> </span><span class="nf">_resolve_default</span><span class="p">(</span>
+</span><span data-line="111">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="112">    <span class="n">requirement</span><span class="p">:</span> <span class="n">SpecifierSet</span><span class="p">,</span>
+</span><span data-line="113">    <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="114">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="115">    <span class="n">select_compatible</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="116"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="117">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="118">        <span class="n">local_pkg</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="119">            <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="120">            <span class="k">if</span> <span class="n">target</span>
+</span><span data-line="121">            <span class="k">else</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="122">        <span class="p">)</span>
+</span><span data-line="123">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
+</span><span data-line="124">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">):</span>
+</span><span data-line="125">            <span class="k">raise</span>
+</span><span data-line="126">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span>
+</span><span data-line="127">            <span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">select_compatible</span><span class="o">=</span><span class="n">select_compatible</span>
+</span><span data-line="128">        <span class="p">)</span>
 </span><span data-line="129">
-</span><span data-line="130"><span class="k">def</span><span class="w"> </span><span class="nf">_reject_remote_metadata_target</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="131">    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">):</span>
-</span><span data-line="132">        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"--remote cannot be combined with --python or --path."</span>
-</span><span data-line="133">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="134">
-</span><span data-line="135">
+</span><span data-line="130">    <span class="n">allows_prereleases</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">requirement</span> <span class="ow">or</span> <span class="n">requirement</span><span class="o">.</span><span class="n">prereleases</span> <span class="ow">is</span> <span class="kc">True</span>
+</span><span data-line="131">    <span class="k">if</span> <span class="n">requirement</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span>
+</span><span data-line="132">        <span class="n">local_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="n">allows_prereleases</span>
+</span><span data-line="133">    <span class="p">)</span> <span class="ow">and</span> <span class="n">_supports_target</span><span class="p">(</span><span class="n">local_pkg</span><span class="p">,</span> <span class="n">target</span><span class="p">):</span>
+</span><span data-line="134">        <span class="k">return</span> <span class="n">local_pkg</span>
+</span><span data-line="135">    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">):</span>
+</span><span data-line="136">        <span class="k">return</span> <span class="n">local_pkg</span>
+</span><span data-line="137">    <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span>
+</span><span data-line="138">        <span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">select_compatible</span><span class="o">=</span><span class="n">select_compatible</span>
+</span><span data-line="139">    <span class="p">)</span>
+</span><span data-line="140">
+</span><span data-line="141">
+</span><span data-line="142"><span class="k">def</span><span class="w"> </span><span class="nf">_reject_remote_metadata_target</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="143">    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">):</span>
+</span><span data-line="144">        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"--remote cannot be combined with --python or --path."</span>
+</span><span data-line="145">        <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="146">
+</span><span data-line="147">
 <div class="viewcode-block" id="resolve_package">
 <a class="viewcode-back" href="../../../modules.html#peta.core.resolve.resolve_package">[docs]</a>
-</span><span data-line="136"><span class="k">def</span><span class="w"> </span><span class="nf">resolve_package</span><span class="p">(</span>
-</span><span data-line="137">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="138">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="139">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="140">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
-</span><span data-line="141">    <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="142">    <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="143"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="144"><span class="w">    </span><span class="sd">"""Resolve a package argument to its metadata.</span>
-</span><span data-line="145">
-</span><span data-line="146"><span class="sd">    Checks the local environment first and falls back to PyPI, unless</span>
-</span><span data-line="147"><span class="sd">    ``--local``/``--remote`` force a source or a ``name==version`` specifier</span>
-</span><span data-line="148"><span class="sd">    is given (which always queries PyPI and rejects ``--local``).</span>
-</span><span data-line="149">
-</span><span data-line="150"><span class="sd">    Returns:</span>
-</span><span data-line="151"><span class="sd">        The resolved package metadata.</span>
-</span><span data-line="152">
-</span><span data-line="153"><span class="sd">    Raises:</span>
-</span><span data-line="154"><span class="sd">        typer.BadParameter: If source-selection options conflict.</span>
-</span><span data-line="155"><span class="sd">    """</span>
-</span><span data-line="156">    <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
-</span><span data-line="157">    <span class="n">requirement</span> <span class="o">=</span> <span class="n">specifier</span> <span class="ow">or</span> <span class="n">SpecifierSet</span><span class="p">()</span>
-</span><span data-line="158">    <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
-</span><span data-line="159">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">):</span>
-</span><span data-line="160">            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"--python and --path cannot be combined with a version specifier."</span>
-</span><span data-line="161">            <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="162">        <span class="k">return</span> <span class="n">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
-</span><span data-line="163">    <span class="k">if</span> <span class="n">remote</span><span class="p">:</span>
-</span><span data-line="164">        <span class="n">_reject_remote_metadata_target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-</span><span data-line="165">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-</span><span data-line="166">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
-</span><span data-line="167">        <span class="k">return</span> <span class="p">(</span>
-</span><span data-line="168">            <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
-</span><span data-line="169">            <span class="k">if</span> <span class="n">target</span>
-</span><span data-line="170">            <span class="k">else</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="171">        <span class="p">)</span>
-</span><span data-line="172">    <span class="k">return</span> <span class="n">_resolve_default</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span></div>
+</span><span data-line="148"><span class="k">def</span><span class="w"> </span><span class="nf">resolve_package</span><span class="p">(</span>
+</span><span data-line="149">    <span class="n">package</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="150">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="151">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="152">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+</span><span data-line="153">    <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="154">    <span class="n">specifier</span><span class="p">:</span> <span class="n">SpecifierSet</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="155">    <span class="n">select_compatible</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="156"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="157"><span class="w">    </span><span class="sd">"""Resolve a package argument to its metadata.</span>
+</span><span data-line="158">
+</span><span data-line="159"><span class="sd">    Checks the local environment first and falls back to PyPI, unless</span>
+</span><span data-line="160"><span class="sd">    ``--local``/``--remote`` force a source or a ``name==version`` specifier</span>
+</span><span data-line="161"><span class="sd">    is given (which always queries PyPI and rejects ``--local``).</span>
+</span><span data-line="162">
+</span><span data-line="163"><span class="sd">    Returns:</span>
+</span><span data-line="164"><span class="sd">        The resolved package metadata.</span>
+</span><span data-line="165">
+</span><span data-line="166"><span class="sd">    Raises:</span>
+</span><span data-line="167"><span class="sd">        typer.BadParameter: If source-selection options conflict.</span>
+</span><span data-line="168"><span class="sd">    """</span>
+</span><span data-line="169">    <span class="n">name</span><span class="p">,</span> <span class="n">version</span> <span class="o">=</span> <span class="n">parse_package_arg</span><span class="p">(</span><span class="n">package</span><span class="p">)</span>
+</span><span data-line="170">    <span class="n">requirement</span> <span class="o">=</span> <span class="n">specifier</span> <span class="ow">or</span> <span class="n">SpecifierSet</span><span class="p">()</span>
+</span><span data-line="171">    <span class="k">if</span> <span class="n">version</span><span class="p">:</span>
+</span><span data-line="172">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">):</span>
+</span><span data-line="173">            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"--python and --path cannot be combined with a version specifier."</span>
+</span><span data-line="174">            <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="175">        <span class="k">return</span> <span class="n">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
+</span><span data-line="176">    <span class="k">if</span> <span class="n">remote</span><span class="p">:</span>
+</span><span data-line="177">        <span class="n">_reject_remote_metadata_target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="178">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span>
+</span><span data-line="179">            <span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">select_compatible</span><span class="o">=</span><span class="n">select_compatible</span>
+</span><span data-line="180">        <span class="p">)</span>
+</span><span data-line="181">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+</span><span data-line="182">        <span class="k">return</span> <span class="p">(</span>
+</span><span data-line="183">            <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="184">            <span class="k">if</span> <span class="n">target</span>
+</span><span data-line="185">            <span class="k">else</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="186">        <span class="p">)</span>
+</span><span data-line="187">    <span class="k">return</span> <span class="n">_resolve_default</span><span class="p">(</span>
+</span><span data-line="188">        <span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">,</span> <span class="n">select_compatible</span><span class="o">=</span><span class="n">select_compatible</span>
+</span><span data-line="189">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
