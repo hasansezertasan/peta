@@ -116,12 +116,15 @@ def resolve_package(  # ruff: ignore[complex-structure, too-many-return-statemen
         return _resolve_versioned(name, version, local=local)
     if remote:
         return _remote_package(name, requirement, target)
+    if local:
+        local_pkg = local_get_package(name, target=target)
+    else:
+        try:
+            local_pkg = local_get_package(name, target=target)
+        except LocalNotFound:
+            return _remote_package(name, requirement, target)
+
     if local or target is not None:
-        local_pkg = (
-            local_get_package(name, target=target)
-            if target
-            else local_get_package(name)
-        )
         if requirement.contains(local_pkg.version, prereleases=True):
             return local_pkg
         if local:
