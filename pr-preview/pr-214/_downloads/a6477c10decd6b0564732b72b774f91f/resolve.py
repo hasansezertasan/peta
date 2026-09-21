@@ -110,9 +110,10 @@ def _resolve_default(
     except LocalNotFound:
         return _remote_package(name, requirement, target)
 
-    if requirement.contains(local_pkg.version, prereleases=True) and _supports_target(
-        local_pkg, target
-    ):
+    allows_prereleases = not requirement or requirement.prereleases is True
+    if requirement.contains(
+        local_pkg.version, prereleases=allows_prereleases
+    ) and _supports_target(local_pkg, target):
         return local_pkg
     return _remote_package(name, requirement, target)
 

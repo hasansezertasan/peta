@@ -463,23 +463,24 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="322">    <span class="n">data</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_fetch</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 </span><span data-line="323">    <span class="n">candidates</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Version</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
 </span><span data-line="324">    <span class="n">releases</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"releases"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
-</span><span data-line="325">    <span class="k">for</span> <span class="n">raw</span> <span class="ow">in</span> <span class="n">releases</span><span class="p">:</span>
-</span><span data-line="326">        <span class="k">try</span><span class="p">:</span>
-</span><span data-line="327">            <span class="n">version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
-</span><span data-line="328">        <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
-</span><span data-line="329">            <span class="k">continue</span>
-</span><span data-line="330">        <span class="k">if</span> <span class="n">specifier</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="n">specifier</span><span class="o">.</span><span class="n">prereleases</span><span class="p">):</span>
-</span><span data-line="331">            <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
-</span><span data-line="332">    <span class="n">stable_candidates</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="333">        <span class="n">candidate</span> <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_prerelease</span>
-</span><span data-line="334">    <span class="p">]</span>
-</span><span data-line="335">    <span class="k">if</span> <span class="n">stable_candidates</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">specifier</span><span class="o">.</span><span class="n">prereleases</span><span class="p">:</span>
-</span><span data-line="336">        <span class="n">candidates</span> <span class="o">=</span> <span class="n">stable_candidates</span>
-</span><span data-line="337">    <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-</span><span data-line="338">        <span class="n">package</span> <span class="o">=</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">version</span><span class="p">))</span>
-</span><span data-line="339">        <span class="k">if</span> <span class="n">_compatible_with_target</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">):</span>
-</span><span data-line="340">            <span class="k">return</span> <span class="n">package</span>
-</span><span data-line="341">    <span class="k">return</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
+</span><span data-line="325">    <span class="n">allows_prereleases</span> <span class="o">=</span> <span class="ow">not</span> <span class="n">specifier</span> <span class="ow">or</span> <span class="n">specifier</span><span class="o">.</span><span class="n">prereleases</span> <span class="ow">is</span> <span class="kc">True</span>
+</span><span data-line="326">    <span class="k">for</span> <span class="n">raw</span> <span class="ow">in</span> <span class="n">releases</span><span class="p">:</span>
+</span><span data-line="327">        <span class="k">try</span><span class="p">:</span>
+</span><span data-line="328">            <span class="n">version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</span><span data-line="329">        <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
+</span><span data-line="330">            <span class="k">continue</span>
+</span><span data-line="331">        <span class="k">if</span> <span class="n">specifier</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="n">allows_prereleases</span><span class="p">):</span>
+</span><span data-line="332">            <span class="n">candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">version</span><span class="p">)</span>
+</span><span data-line="333">    <span class="n">stable_candidates</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="334">        <span class="n">candidate</span> <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">candidates</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="o">.</span><span class="n">is_prerelease</span>
+</span><span data-line="335">    <span class="p">]</span>
+</span><span data-line="336">    <span class="k">if</span> <span class="n">stable_candidates</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">allows_prereleases</span><span class="p">:</span>
+</span><span data-line="337">        <span class="n">candidates</span> <span class="o">=</span> <span class="n">stable_candidates</span>
+</span><span data-line="338">    <span class="k">for</span> <span class="n">version</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">candidates</span><span class="p">,</span> <span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+</span><span data-line="339">        <span class="n">package</span> <span class="o">=</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">version</span><span class="p">))</span>
+</span><span data-line="340">        <span class="k">if</span> <span class="n">_compatible_with_target</span><span class="p">(</span><span class="n">package</span><span class="p">,</span> <span class="n">marker_environment</span><span class="p">):</span>
+</span><span data-line="341">            <span class="k">return</span> <span class="n">package</span>
+</span><span data-line="342">    <span class="k">return</span> <span class="n">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
