@@ -187,14 +187,20 @@ def _depth_limited_node(
 
 
 def _cycle_node(
-    req: Requirement, path: dict[str, PackageInfo], target: LocalTarget | None
+    req: Requirement,
+    path: dict[str, tuple[PackageInfo, frozenset[str]]],
+    target: LocalTarget | None,
 ) -> DependencyNode | None:
     canon = canonicalize_name(req.name)
-    if canon not in path:
+    entry = path.get(canon)
+    if entry is None:
         return None
-    conflict = _conflict_node(req, path[canon], target)
+    package, expanded_extras = entry
+    conflict = _conflict_node(req, package, target)
     if conflict is not None:
         return conflict
+    if not req.extras.issubset(expanded_extras):
+        return None
     return DependencyNode(
         name=req.name, version_spec=str(req.specifier), state="circular"
     )
@@ -202,7 +208,7 @@ def _cycle_node(
 
 def _child_node(
     req: Requirement,
-    path: dict[str, PackageInfo],
+    path: dict[str, tuple[PackageInfo, frozenset[str]]],
     cache: dict[str, PackageInfo | DependencyResolutionFailure],
     *,
     local: bool,
@@ -222,7 +228,12 @@ def _child_node(
     cycle = _cycle_node(req, path, target)
     if cycle is not None:
         return cycle
-    resolved = _resolve_cached(req, cache, local=local, remote=remote, target=target)
+    path_entry = path.get(canon)
+    resolved = (
+        path_entry[0]
+        if path_entry is not None
+        else _resolve_cached(req, cache, local=local, remote=remote, target=target)
+    )
     if isinstance(resolved, DependencyResolutionFailure):
         return DependencyNode(
             name=req.name,
@@ -239,7 +250,14 @@ def _child_node(
         return _depth_limited_node(req, child_pkg, target, extras)
     children = _expand(
         child_pkg,
-        {**path, canon: child_pkg},
+        {
+            **path,
+            canon: (
+                child_pkg,
+                (path_entry[1] if path_entry is not None else frozenset())
+                | frozenset(extras),
+            ),
+        },
         cache,
         local=local,
         remote=remote,
@@ -261,7 +279,7 @@ def _child_node(
 
 def _expand(
     pkg: PackageInfo,
-    path: dict[str, PackageInfo],
+    path: dict[str, tuple[PackageInfo, frozenset[str]]],
     cache: dict[str, PackageInfo | DependencyResolutionFailure],
     *,
     local: bool,
@@ -322,7 +340,7 @@ def build_tree(
     children = (
         _expand(
             root_pkg,
-            {canon: root_pkg},
+            {canon: (root_pkg, frozenset(extras))},
             cache,
             local=local,
             remote=remote,
