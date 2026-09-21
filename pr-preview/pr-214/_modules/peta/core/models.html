@@ -331,7 +331,9 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="193">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span data-line="194"><span class="w">        </span><span class="sd">"""Keep the former constructor argument source-compatible."""</span>
 </span><span data-line="195">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="196">            <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span></div>
+</span><span data-line="196">            <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span>
+</span><span data-line="197">        <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="198">            <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

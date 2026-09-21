@@ -242,24 +242,27 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="116">        <span class="k">return</span> <span class="n">_resolve_versioned</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">version</span><span class="p">,</span> <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">)</span>
 </span><span data-line="117">    <span class="k">if</span> <span class="n">remote</span><span class="p">:</span>
 </span><span data-line="118">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-</span><span data-line="119">    <span class="k">if</span> <span class="n">local</span> <span class="ow">or</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="120">        <span class="n">local_pkg</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="121">            <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
-</span><span data-line="122">            <span class="k">if</span> <span class="n">target</span>
-</span><span data-line="123">            <span class="k">else</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="124">        <span class="p">)</span>
-</span><span data-line="125">        <span class="k">if</span> <span class="n">requirement</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">local_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-</span><span data-line="126">            <span class="k">return</span> <span class="n">local_pkg</span>
-</span><span data-line="127">        <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
-</span><span data-line="128">            <span class="k">return</span> <span class="n">local_pkg</span>
-</span><span data-line="129">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-</span><span data-line="130">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="131">        <span class="n">local_pkg</span> <span class="o">=</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="132">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
-</span><span data-line="133">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
-</span><span data-line="134">    <span class="k">if</span> <span class="n">requirement</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">local_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
-</span><span data-line="135">        <span class="k">return</span> <span class="n">local_pkg</span>
-</span><span data-line="136">    <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span></div>
+</span><span data-line="119">    <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+</span><span data-line="120">        <span class="n">local_pkg</span> <span class="o">=</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="121">    <span class="k">else</span><span class="p">:</span>
+</span><span data-line="122">        <span class="k">try</span><span class="p">:</span>
+</span><span data-line="123">            <span class="n">local_pkg</span> <span class="o">=</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="124">        <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
+</span><span data-line="125">            <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+</span><span data-line="126">
+</span><span data-line="127">    <span class="k">if</span> <span class="n">local</span> <span class="ow">or</span> <span class="n">target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="128">        <span class="k">if</span> <span class="n">requirement</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">local_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+</span><span data-line="129">            <span class="k">return</span> <span class="n">local_pkg</span>
+</span><span data-line="130">        <span class="k">if</span> <span class="n">local</span><span class="p">:</span>
+</span><span data-line="131">            <span class="k">return</span> <span class="n">local_pkg</span>
+</span><span data-line="132">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+</span><span data-line="133">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="134">        <span class="n">local_pkg</span> <span class="o">=</span> <span class="n">local_get_package</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="135">    <span class="k">except</span> <span class="n">LocalNotFound</span><span class="p">:</span>
+</span><span data-line="136">        <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+</span><span data-line="137">    <span class="k">if</span> <span class="n">requirement</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">local_pkg</span><span class="o">.</span><span class="n">version</span><span class="p">,</span> <span class="n">prereleases</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+</span><span data-line="138">        <span class="k">return</span> <span class="n">local_pkg</span>
+</span><span data-line="139">    <span class="k">return</span> <span class="n">_remote_package</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">requirement</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
