@@ -162,7 +162,15 @@ class TestBuildTree:
 
     @patch("peta.core.deptree.resolve_package")
     def test_cycle_marks_circular_and_stops(self, m: MagicMock) -> None:
-        pkgs = {"a": _pkg("a", ["b"]), "b": _pkg("b", ["a"])}
+        pkgs = {
+            "a": replace(
+                _pkg("a", ["b"]),
+                source="pypi",
+                retrieved_at="2026-09-21T00:00:00Z",
+                freshness="live",
+            ),
+            "b": _pkg("b", ["a"]),
+        }
         m.side_effect = lambda name, **_kw: pkgs[name]
         tree = build_tree("a", local=False, remote=False)
         b_node = tree.children[0]
@@ -170,7 +178,27 @@ class TestBuildTree:
         a_child = b_node.children[0]
         assert a_child.name == "a"
         assert a_child.circular is True
+        assert a_child.selected_version == "1.0"
+        assert a_child.source == "pypi"
+        assert a_child.retrieved_at == "2026-09-21T00:00:00Z"
+        assert a_child.freshness == "live"
         assert a_child.children == []
+
+
+class TestBuildTreeExpansion:
+    @patch("peta.core.deptree.resolve_package")
+    def test_cycle_compares_canonical_extra_names(self, m: MagicMock) -> None:
+        pkgs = {"a": _pkg("a", ["b"]), "b": _pkg("b", ["a[foo_bar]"])}
+        m.side_effect = lambda name, **_kw: pkgs[name]
+
+        nested_a = (
+            build_tree("a", local=True, remote=False, extras=("foo-bar",))
+            .children[0]
+            .children[0]
+        )
+
+        assert nested_a.state == "circular"
+        assert nested_a.children == []
 
     @patch("peta.core.deptree.resolve_package")
     def test_cycle_expands_newly_activated_extras_once(self, m: MagicMock) -> None:
@@ -259,6 +287,19 @@ class TestBuildTree:
         tree = build_tree("root", local=True, remote=False, extras=("feature",))
 
         assert [child.name for child in tree.children] == ["enabled"]
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_multiple_extras_union_duplicate_requirements(self, m: MagicMock) -> None:
+        pkgs = {
+            "root": _pkg("root", ['child; extra == "docs"', 'child; extra == "dev"']),
+            "child": _pkg("child", []),
+        }
+        m.side_effect = lambda name, **_kw: pkgs[name]
+
+        tree = build_tree("root", local=True, remote=False, extras=("docs", "dev"))
+
+        assert [child.name for child in tree.children] == ["child"]
+        assert m.call_count == 2
 
     @patch("peta.core.deptree.resolve_package")
     def test_python_override_updates_cpython_implementation_marker(

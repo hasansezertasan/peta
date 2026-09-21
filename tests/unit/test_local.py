@@ -252,6 +252,7 @@ def test_local_target_platform_override_updates_platform_family() -> None:
     assert target.marker_environment["sys_platform"] == "win32"
     assert target.marker_environment["os_name"] == "nt"
     assert target.marker_environment["platform_system"] == "Windows"
+    assert not target.marker_environment["platform_machine"]
     assert not target.marker_environment["platform_release"]
     assert not target.marker_environment["platform_version"]
 

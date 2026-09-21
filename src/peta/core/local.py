@@ -319,6 +319,7 @@ def _override_platform(target: dict[str, str], platform: str) -> None:
         raise InvalidTargetError(msg)
     target["sys_platform"] = platform
     target.update(_PLATFORM_MARKERS[platform])
+    target["platform_machine"] = ""
     target["platform_release"] = ""
     target["platform_version"] = ""
 
