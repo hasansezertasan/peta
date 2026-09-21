@@ -108,6 +108,8 @@ def _resolve_default(
             else local_get_package(name)
         )
     except LocalNotFound:
+        if target is not None and (target.interpreter is not None or target.paths):
+            raise
         return _remote_package(name, requirement, target)
 
     allows_prereleases = not requirement or requirement.prereleases is True

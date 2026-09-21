@@ -333,7 +333,7 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     stable_candidates = [
         candidate for candidate in candidates if not candidate.is_prerelease
     ]
-    if stable_candidates and not allows_prereleases:
+    if stable_candidates and specifier.prereleases is not True:
         candidates = stable_candidates
     for version in sorted(candidates, reverse=True):
         package = get_package(name, str(version))
