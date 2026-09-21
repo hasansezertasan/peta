@@ -314,11 +314,11 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
 
 def _matches_exact_pin(item: Specifier, raw: str, version: Version) -> bool:
     if item.operator == "===":
-        return item.version == raw
+        return bool(item.version == raw)
     if item.operator != "==" or item.version.endswith(".*"):
         return False
     try:
-        return Version(item.version) == version
+        return bool(Version(item.version) == version)
     except InvalidVersion:
         return False
 
