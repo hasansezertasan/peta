@@ -173,6 +173,22 @@ class TestBuildTree:
         assert a_child.children == []
 
     @patch("peta.core.deptree.resolve_package")
+    def test_cycle_expands_newly_activated_extras_once(self, m: MagicMock) -> None:
+        pkgs = {
+            "a": _pkg("a", ["b", 'c; extra == "feature"']),
+            "b": _pkg("b", ["a[feature]"]),
+            "c": _pkg("c", []),
+        }
+        m.side_effect = lambda name, **_kw: pkgs[name]
+
+        nested_a = build_tree("a", local=True, remote=False).children[0].children[0]
+
+        assert nested_a.name == "a"
+        assert nested_a.state == "satisfied"
+        assert [child.name for child in nested_a.children] == ["b", "c"]
+        assert nested_a.children[0].state == "circular"
+
+    @patch("peta.core.deptree.resolve_package")
     def test_incompatible_cycle_edge_is_a_version_conflict(self, m: MagicMock) -> None:
         pkgs = {"a": replace(_pkg("a", ["b"]), version="2.0"), "b": _pkg("b", ["a<2"])}
         m.side_effect = lambda name, **_kw: pkgs[name]

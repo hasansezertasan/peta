@@ -192,6 +192,25 @@ def test_matching_skips_fully_yanked_ordinary_release(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_matching_does_not_restore_filtered_current_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "dep", "version": "2.0"},
+            "releases": {"2.0": [{"yanked": True}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("dep==2.0")):
+        _ = get_package_matching("dep", SpecifierSet(">=2"), None)
+
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_accepts_fully_yanked_exact_pin(
     fetch: MagicMock, get: MagicMock
 ) -> None:
