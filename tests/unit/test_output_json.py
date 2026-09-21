@@ -334,6 +334,60 @@ def test_why_same_package_off_path_warning_keeps_own_provenance() -> None:
     ]
 
 
+def test_why_duplicate_name_paths_keep_distinct_provenance() -> None:
+    first_target = DependencyNode(
+        name="target",
+        version_spec="",
+        selected_version="1.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:01Z",
+    )
+    second_target = DependencyNode(
+        name="target",
+        version_spec="",
+        selected_version="2.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:03Z",
+    )
+    first_parent = DependencyNode(
+        name="shared",
+        version_spec="<2",
+        selected_version="1.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:00Z",
+        children=[first_target],
+    )
+    second_parent = DependencyNode(
+        name="shared",
+        version_spec=">=2",
+        selected_version="2.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:02Z",
+        children=[second_target],
+    )
+    tree = DependencyNode(
+        name="root",
+        version_spec="",
+        source="local",
+        children=[first_parent, second_parent],
+    )
+    paths = [["root", "shared", "target"], ["root", "shared", "target"]]
+
+    data = json.loads(
+        format_why("target", paths, tree=tree, generated_at="2026-09-04T12:00:04Z")
+    )
+
+    sources = [source for source in data["sources"] if source["target"] == "shared"]
+    assert [source["fields"] for source in sources] == [
+        ["result.paths[0][1]"],
+        ["result.paths[1][1]"],
+    ]
+    assert [source["retrieved_at"] for source in sources] == [
+        "2026-09-04T12:00:00Z",
+        "2026-09-04T12:00:02Z",
+    ]
+
+
 def test_why_empty() -> None:
     data = json.loads(format_why("nope", []))["result"]
     assert data["paths"] == []

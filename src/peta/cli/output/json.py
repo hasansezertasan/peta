@@ -427,32 +427,49 @@ def _conflict_warning(node: DependencyNode) -> OutputMessage:
     )
 
 
-def _walk_path(tree: DependencyNode, path: list[str]) -> Iterator[DependencyNode]:
-    """Yield the tree nodes named by ``path``, stopping at the first mismatch.
+def _matching_node_paths(
+    tree: DependencyNode, path: list[str]
+) -> Iterator[list[DependencyNode]]:
+    """Yield every node path represented by a name-only ``path``.
 
     Yields:
-        Each node matched, from the root down.
+        Node paths in the tree's depth-first order.
     """
-    node = tree
-    for depth, name in enumerate(path):
-        if node.name != name:
-            return
-        yield node
-        remaining = path[depth + 1 :]
-        if not remaining:
-            return
-        child = next((c for c in node.children if c.name == remaining[0]), None)
-        if child is None:
-            return
-        node = child
+    if not path or tree.name != path[0]:
+        return
+    if len(path) == 1:
+        yield [tree]
+        return
+    for child in tree.children:
+        for child_path in _matching_node_paths(child, path[1:]):
+            yield [tree, *child_path]
+
+
+def _resolve_node_paths(
+    tree: DependencyNode, paths: list[list[str]]
+) -> list[list[DependencyNode]]:
+    """Match repeated name paths to distinct tree paths in emission order.
+
+    Returns:
+        One node path per emitted name path, or an empty path for a mismatch.
+    """
+    occurrences: dict[tuple[str, ...], int] = {}
+    resolved: list[list[DependencyNode]] = []
+    for path in paths:
+        key = tuple(path)
+        occurrence = occurrences.get(key, 0)
+        matches = list(_matching_node_paths(tree, path))
+        resolved.append(matches[occurrence] if occurrence < len(matches) else [])
+        occurrences[key] = occurrence + 1
+    return resolved
 
 
 def _path_sources(
-    tree: DependencyNode, path: list[str], path_index: int, timestamp: str
+    path: list[DependencyNode], path_index: int, timestamp: str
 ) -> list[SourceRecord]:
     records = (
         _dependency_source(node, f"result.paths[{path_index}][{index}]", timestamp)
-        for index, node in enumerate(_walk_path(tree, path))
+        for index, node in enumerate(path)
     )
     return [record for record in records if record is not None]
 
@@ -489,12 +506,13 @@ def _off_path_warning_sources(
 def _why_sources(
     tree: DependencyNode, paths: list[list[str]], timestamp: str
 ) -> list[SourceRecord]:
+    node_paths = _resolve_node_paths(tree, paths)
     records = [
         record
-        for path_index, path in enumerate(paths)
-        for record in _path_sources(tree, path, path_index, timestamp)
+        for path_index, node_path in enumerate(node_paths)
+        for record in _path_sources(node_path, path_index, timestamp)
     ]
-    seen = {id(node) for path in paths for node in _walk_path(tree, path)}
+    seen = {id(node) for node_path in node_paths for node in node_path}
     records.extend(_off_path_warning_sources(tree, timestamp, seen))
     return records
 
