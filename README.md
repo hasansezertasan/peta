@@ -86,7 +86,7 @@ nearby `.venv`; human output and JSON identify the target and marker values.
 peta requests                 # info (local first, falls back to PyPI)
 peta info requests            # explicit info
 peta info requests==2.31.0    # a specific version from PyPI
-peta deps flask               # recursive dependency tree
+peta deps flask               # declared metadata tree
 peta deps flask --why certifi # why is certifi pulled in?
 peta files rich               # files installed locally
 peta versions httpx           # published versions on PyPI
@@ -113,6 +113,9 @@ peta requests --json          # compatibility alias for --format json
 | `--provenance` | artifacts | fetch PEP 740 provenance for publisher identity |
 | `--why <target>` | deps | show why `<target>` is a dependency |
 | `--depth <n>` | deps | max recursion depth (default 10) |
+| `--extra <name>` | deps | activate optional extra dependencies on root; repeatable |
+| `--python-version <ver>` | deps | target Python version (e.g. 3.12) |
+| `--platform <plat>` | deps | target platform (e.g. win32, linux, darwin) |
 | `--no-osv` | info, compare | skip OSV vulnerability lookup |
 | `--no-stats` | info, compare | skip download/dependent count lookups |
 | `--no-color` | (root) | disable colored output (also via `NO_COLOR`) |

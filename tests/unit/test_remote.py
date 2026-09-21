@@ -2,12 +2,19 @@
 
 import re
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from packaging.specifiers import SpecifierSet
 
 from peta.core.models import PackageInfo
-from peta.core.remote import NetworkError, PackageNotFoundError, get_package
+from peta.core.remote import (
+    NetworkError,
+    PackageNotFoundError,
+    get_package,
+    get_package_matching,
+)
 from tests.contract_fixtures import load_contract
 
 if TYPE_CHECKING:
@@ -77,6 +84,425 @@ def test_specific_version_url(fake_http: FakeTransport) -> None:
     assert str(fake_http.request.url) == "https://pypi.org/pypi/requests/2.28.0/json"
 
 
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_prefers_stable_versions(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"1.9": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet("<2"), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_excludes_implicit_prerelease(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"1.9rc1": [{"yanked": False}]}}, MagicMock())
+    current = PackageInfo(name="dep", version="2.0", source="remote")
+    get.return_value = current
+
+    result = get_package_matching("dep", SpecifierSet("<2"), None)
+
+    assert result is current
+    get.assert_called_once_with("dep")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_accepts_explicit_prerelease(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"1.9rc1": [{"yanked": False}]}}, MagicMock())
+    prerelease = PackageInfo(name="dep", version="1.9rc1", source="remote")
+    get.return_value = prerelease
+
+    result = get_package_matching("dep", SpecifierSet(">=1.9rc1,<2"), None)
+
+    assert result is prerelease
+    get.assert_called_once_with("dep", "1.9rc1")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_explicit_prerelease_policy_ranks_all_candidates_by_version(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"1.0": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(">=1.0rc1"), None)
+
+    assert result.version == "2.0rc1"
+    get.assert_called_once_with("dep", "2.0rc1")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_tries_compatible_prerelease_after_incompatible_stable(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"1.0": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    packages = {
+        "1.0": PackageInfo(
+            name="dep", version="1.0", source="remote", python_requires=">=4"
+        ),
+        "2.0rc1": PackageInfo(name="dep", version="2.0rc1", source="remote"),
+    }
+    get.side_effect = lambda _name, version: packages[version]
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "2.0rc1"
+    assert [item.args for item in get.call_args_list] == [
+        ("dep", "1.0"),
+        ("dep", "2.0rc1"),
+    ]
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_unconstrained_matching_prefers_final_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"1.9": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_reuses_current_project_metadata(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "dep", "version": "1.9"},
+            "releases": {"1.9": [{"yanked": False}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_skips_fully_yanked_ordinary_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0": [{"yanked": True}], "1.9": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_does_not_restore_filtered_current_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "dep", "version": "2.0"},
+            "releases": {"2.0": [{"yanked": True}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("dep==2.0")):
+        _ = get_package_matching("dep", SpecifierSet(">=2"), None)
+
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_rejects_filtered_incompatible_current_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {
+                **_INFO,
+                "name": "dep",
+                "version": "2.0",
+                "requires_python": ">=4",
+            },
+            "releases": {"2.0": []},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("dep==2.0")):
+        _ = get_package_matching(
+            "dep", SpecifierSet(">=2"), {"python_full_version": "3.12.0"}
+        )
+
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_accepts_fully_yanked_exact_pin(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0.0": [{"yanked": True}], "1.9": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet("==2.0"), None)
+
+    assert result.version == "2.0.0"
+    get.assert_called_once_with("dep", "2.0.0")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_preserves_arbitrary_version_pin(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "2.0"},
+            "releases": {"FooBar": [{"yanked": False}], "2.0": [{"yanked": False}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+    arbitrary = PackageInfo(name="legacy", version="FooBar", source="remote")
+    get.return_value = arbitrary
+
+    result = get_package_matching("legacy", SpecifierSet("===foobar"), None)
+
+    assert result is arbitrary
+    get.assert_called_once_with("legacy", "FooBar")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_preserves_noncanonical_arbitrary_version_pin(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "2.0"},
+            "releases": {"01.0": [{"yanked": False}], "2.0": [{"yanked": False}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+    arbitrary = PackageInfo(name="legacy", version="01.0", source="remote")
+    get.return_value = arbitrary
+
+    result = get_package_matching("legacy", SpecifierSet("===01.0"), None)
+
+    assert result is arbitrary
+    get.assert_called_once_with("legacy", "01.0")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_rejects_case_variant_filtered_arbitrary_current_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "foobar"},
+            "releases": {"FooBar": []},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("legacy==foobar")):
+        _ = get_package_matching("legacy", SpecifierSet("===foobar"), None)
+
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_rejects_filtered_noncanonical_arbitrary_current_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "01.0"},
+            "releases": {"01.0": []},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("legacy==01.0")):
+        _ = get_package_matching("legacy", SpecifierSet("===01.0"), None)
+
+    get.assert_not_called()
+
+
+@pytest.mark.parametrize("files", [[], [{"yanked": True}]])
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_rejects_filtered_legacy_current_release(
+    fetch: MagicMock, get: MagicMock, files: list[dict[str, bool]]
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "Legacy-Version"},
+            "releases": {"Legacy-Version": files},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    with pytest.raises(PackageNotFoundError, match=re.escape("legacy==Legacy-Version")):
+        _ = get_package_matching("legacy", SpecifierSet(), None)
+
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_skips_release_without_distribution_files(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0": [], "1.9": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_skips_releases_incompatible_with_running_python(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0": [{"yanked": False}], "1.0": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    pkgs = {
+        "2.0": PackageInfo(
+            name="dep", version="2.0", source="remote", python_requires=">=4.0"
+        ),
+        "1.0": PackageInfo(name="dep", version="1.0", source="remote"),
+    }
+    get.side_effect = lambda _name, version: pkgs[version]
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+    assert result.version == "1.0"
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_retains_best_target_incompatible_candidate(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "dep", "version": "3.0"},
+            "releases": {"3.0": [{"yanked": False}], "1.9": [{"yanked": False}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+    incompatible = PackageInfo(
+        name="dep", version="1.9", source="remote", python_requires=">=4"
+    )
+    get.return_value = incompatible
+
+    result = get_package_matching(
+        "dep", SpecifierSet("<2"), {"python_full_version": "3.12.0"}
+    )
+
+    assert result is incompatible
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_skips_invalid_versions_and_falls_back(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"not-a-version": [], "2.0": []}}, MagicMock())
+    current = PackageInfo(name="dep", version="3.0", source="remote")
+    get.return_value = current
+
+    result = get_package_matching("dep", SpecifierSet("<2"), None)
+
+    assert result is current
+    get.assert_called_once_with("dep")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_rejects_invalid_requires_python(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0": [{"yanked": False}], "1.0": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    packages = {
+        "2.0": PackageInfo(
+            name="dep", version="2.0", source="remote", python_requires="invalid"
+        ),
+        "1.0": PackageInfo(name="dep", version="1.0", source="remote"),
+    }
+    get.side_effect = lambda _name, version=None: packages.get(version, packages["1.0"])
+
+    result = get_package_matching(
+        "dep", SpecifierSet(), {"python_full_version": "3.12.0"}
+    )
+
+    assert result.version == "1.0"
+
+
 def test_not_found(fake_http: FakeTransport) -> None:
     fake_http.reply(status=404)
     with pytest.raises(PackageNotFoundError):
@@ -90,18 +516,21 @@ def test_parses_vulnerabilities(fake_http: FakeTransport) -> None:
             {
                 "id": "PYSEC-2024-001",
                 "aliases": ["CVE-2024-1"],
-                "summary": "x",
-                "fixed_in": ["1.0.1"],
+                "summary": "something bad",
+                "fixed_in": ["2.32.0"],
             }
         ],
     }
     fake_http.reply(json=payload)
-    result = get_package("vuln-pkg")
-    assert result.vulnerabilities[0].id == "PYSEC-2024-001"
-    assert result.keywords == []
-    # An explicit null classifiers must normalize to [], not None.
-    assert result.classifiers == []
-    assert result.dependencies == []
+
+    pkg = get_package("requests")
+
+    assert len(pkg.vulnerabilities) == 1
+    vuln = pkg.vulnerabilities[0]
+    assert vuln.id == "PYSEC-2024-001"
+    assert vuln.aliases == ["CVE-2024-1"]
+    assert vuln.summary == "something bad"
+    assert vuln.fixed_in == ["2.32.0"]
 
 
 def test_network_error(fake_http: FakeTransport) -> None:
@@ -131,6 +560,14 @@ def test_invalid_json_raises_network_error(fake_http: FakeTransport) -> None:
         {"info": {"name": None, "version": "1.0"}},
         {"info": {"name": "pkg", "version": 1}},
         {"info": {"name": "pkg", "version": "1.0", "requires_dist": [None]}},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": None},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": []},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": {"1.0": None}},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": {"1.0": [None]}},
+        {
+            "info": {"name": "pkg", "version": "1.0"},
+            "releases": {"1.0": [{"yanked": 1}]},
+        },
     ],
 )
 def test_malformed_metadata_raises_network_error(

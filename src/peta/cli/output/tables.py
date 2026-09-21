@@ -136,11 +136,11 @@ def render_info(pkg: PackageInfo, *, color: bool) -> str:
 
 
 def _node_label(node: DependencyNode) -> str:
-    if node.circular:
-        return f"{node.name} (circular)"
     label = f"{node.name} {node.version_spec}".rstrip()
-    if node.installed_version:
-        label += f" (installed {node.installed_version})"
+    if node.selected_version:
+        label += f" (selected {node.selected_version})"
+    if node.state != "satisfied":
+        label += f" ({node.state.replace('_', ' ')})"
     if node.resolution_failure:
         label += f" (unresolved: {node.resolution_failure.reason})"
     return label
@@ -157,7 +157,9 @@ def render_dep_tree(node: DependencyNode, *, color: bool) -> str:
     Returns:
         The dependency tree rendered as text.
     """
-    root_label = f"{node.name} {node.installed_version}".rstrip()
+    root_label = f"Declared metadata tree: {node.name} {node.selected_version}".rstrip()
+    if node.state != "satisfied":
+        root_label += f" ({node.state.replace('_', ' ')})"
     tree = Tree(root_label)
     _add_children(tree, node)
     return _to_string(tree, color=color)

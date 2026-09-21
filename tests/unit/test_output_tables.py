@@ -167,15 +167,15 @@ def test_render_compare_does_not_claim_zero_when_osv_failed() -> None:
 
 def test_render_dep_tree() -> None:
     child = DependencyNode(
-        name="urllib3", version_spec=">=1.21.1", installed_version="2.0"
+        name="urllib3", version_spec=">=1.21.1", selected_version="2.0"
     )
     root = DependencyNode(
-        name="requests", version_spec="", installed_version="2.31.0", children=[child]
+        name="requests", version_spec="", selected_version="2.31.0", children=[child]
     )
     out = render_dep_tree(root, color=False)
     assert "requests" in out
     assert "urllib3" in out
-    assert "installed 2.0" in out
+    assert "selected 2.0" in out
 
 
 def test_render_dep_tree_unresolved_child_no_installed_version() -> None:
@@ -187,10 +187,18 @@ def test_render_dep_tree_unresolved_child_no_installed_version() -> None:
 
 
 def test_render_dep_tree_circular() -> None:
-    circular_child = DependencyNode(name="a", version_spec="", circular=True)
+    circular_child = DependencyNode(name="a", version_spec="", state="circular")
     root = DependencyNode(name="a", version_spec="", children=[circular_child])
     out = render_dep_tree(root, color=False)
     assert "(circular)" in out
+
+
+def test_render_dep_tree_root_conflicting() -> None:
+    root = DependencyNode(
+        name="requests", version_spec="", selected_version="3.0.0", state="conflicting"
+    )
+    out = render_dep_tree(root, color=False)
+    assert "Declared metadata tree: requests 3.0.0 (conflicting)" in out
 
 
 def test_render_why() -> None:

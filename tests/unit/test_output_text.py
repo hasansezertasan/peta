@@ -99,14 +99,17 @@ def test_compare_reports_security_state_for_both_packages() -> None:
 
 
 def test_dependency_tree() -> None:
-    child = DependencyNode(name="urllib3", version_spec=">=2", circular=True)
+    child = DependencyNode(name="urllib3", version_spec=">=2", state="circular")
     root = DependencyNode(name="requests", version_spec="", children=[child])
-    assert format_dep_tree(root) == "requests\n  urllib3 >=2 (circular)"
+    assert (
+        format_dep_tree(root)
+        == "Declared metadata tree:\nrequests\n  urllib3 >=2 (circular)"
+    )
 
 
 def test_dependency_tree_shows_resolved_and_unresolved_nodes() -> None:
     resolved = DependencyNode(
-        name="urllib3", version_spec=">=1.21.1", installed_version="2.5.0"
+        name="urllib3", version_spec=">=1.21.1", selected_version="2.5.0"
     )
     unresolved = DependencyNode(
         name="ghost",
@@ -121,11 +124,11 @@ def test_dependency_tree_shows_resolved_and_unresolved_nodes() -> None:
     root = DependencyNode(
         name="requests",
         version_spec="",
-        installed_version="2.31.0",
+        selected_version="2.31.0",
         children=[resolved, unresolved],
     )
     output = format_dep_tree(root)
-    assert "  urllib3 >=1.21.1 (installed 2.5.0)" in output
+    assert "  urllib3 >=1.21.1 (selected 2.5.0)" in output
     assert "  ghost >=1 (unresolved: Package 'ghost' not found.)" in output
 
 

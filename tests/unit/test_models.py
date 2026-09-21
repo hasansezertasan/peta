@@ -2,7 +2,12 @@
 
 import pytest
 
-from peta.core.models import DependencyNode, PackageInfo, Vulnerability
+from peta.core.models import (
+    DependencyNode,
+    DependencyResolutionFailure,
+    PackageInfo,
+    Vulnerability,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -65,17 +70,57 @@ class TestPackageInfo:
 class TestDependencyNode:
     def test_defaults(self) -> None:
         node = DependencyNode(name="urllib3", version_spec=">=1.21.1")
-        assert node.installed_version is None
+        assert node.selected_version is None
         assert node.children == []
-        assert node.circular is False
+        assert node.state == "satisfied"
 
     def test_full(self) -> None:
         child = DependencyNode(name="idna", version_spec="")
         node = DependencyNode(
             name="requests",
             version_spec="==2.31.0",
-            installed_version="2.31.0",
+            selected_version="2.31.0",
             children=[child],
-            circular=False,
+            state="satisfied",
         )
         assert node.children == [child]
+
+    def test_legacy_positional_constructor_order(self) -> None:
+        child = DependencyNode(name="idna", version_spec="")
+
+        node = DependencyNode(
+            "requests",
+            "==2.31.0",
+            "2.31.0",
+            [child],
+            True,  # ruff: ignore[boolean-positional-value-in-call]  # Exercise the legacy positional API.
+        )
+
+        assert node.selected_version == "2.31.0"
+        assert node.installed_version == "2.31.0"
+        assert node.children == [child]
+        assert node.circular is True
+
+    def test_legacy_circular_argument_translates_to_state(self) -> None:
+        node = DependencyNode(name="x", version_spec="", circular=True)
+        assert node.state == "circular"
+        assert node.circular is True
+
+    def test_state_precedence_over_circular(self) -> None:
+        node = DependencyNode(
+            name="x", version_spec="", state="conflicting", circular=True
+        )
+        assert node.state == "conflicting"
+        assert node.circular is False
+
+    def test_circular_false_keeps_satisfied(self) -> None:
+        node = DependencyNode(name="x", version_spec="", circular=False)
+        assert node.state == "satisfied"
+        assert node.circular is False
+
+    def test_legacy_resolution_failure_infers_unresolved_state(self) -> None:
+        failure = DependencyResolutionFailure(
+            source="pypi", state="failed", reason="down", retrieved_at=None
+        )
+        node = DependencyNode(name="x", version_spec="", resolution_failure=failure)
+        assert node.state == "unresolved"

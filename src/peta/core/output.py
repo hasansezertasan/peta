@@ -35,7 +35,7 @@ __all__ = [
     "utc_now",
 ]
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 TARGET_ENVIRONMENT_KEY = "target_environment"
 """How a command hands :func:`make_envelope` its resolved target.
@@ -59,7 +59,10 @@ MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
     "MessageCode",
     Literal[
         "dependency_not_found",
+        "dependency_depth_limited",
         "dependency_resolution_failed",
+        "dependency_target_incompatible",
+        "dependency_version_conflict",
         "enrichment_failed",
         "invalid_arguments",
         "network_error",

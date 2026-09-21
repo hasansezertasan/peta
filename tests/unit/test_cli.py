@@ -78,7 +78,7 @@ class TestInfo:
         m.return_value = _pkg()
         r = runner.invoke(app, ["info", "requests", "--json"])
         data = json.loads(r.output)
-        assert data["schema_version"] == "1"
+        assert data["schema_version"] == "2"
         assert data["result"]["name"] == "requests"
 
     @patch("peta.core.resolve.local_get_package")
@@ -382,7 +382,7 @@ class TestOutputContract:
         r = runner.invoke(app, ["info", "==", "--format", "json"])
         assert r.exit_code == 2
         data = json.loads(r.output)
-        assert data["schema_version"] == "1"
+        assert data["schema_version"] == "2"
         assert data["errors"][0]["code"] == "invalid_arguments"
 
     def test_conflicting_json_formats_are_structured(self) -> None:
@@ -409,7 +409,7 @@ class TestOutputContract:
         result = runner.invoke(app, arguments)
         assert result.exit_code == 2
         data = json.loads(result.output)
-        assert data["schema_version"] == "1"
+        assert data["schema_version"] == "2"
         assert data["status"] == "failed"
         assert data["errors"][0]["code"] == "invalid_arguments"
 
@@ -526,13 +526,13 @@ class TestDeps:
     def test_deps_markdown(self, m: MagicMock) -> None:
         m.return_value = _pkg()
         result = runner.invoke(app, ["deps", "requests", "--format", "markdown"])
-        assert result.output.startswith("# Dependencies for requests")
+        assert result.output.startswith("# Declared metadata tree for requests")
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     def test_deps_remote_flag(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["deps", "requests", "-r"]).exit_code == 0
-        assert mr.call_args_list[0].args == ("requests",)
+        assert mr.call_args_list[0].args[0] == "requests"
 
     @patch("peta.core.resolve.local_get_package")
     def test_deps_local_flag(self, ml: MagicMock) -> None:
@@ -540,21 +540,21 @@ class TestDeps:
         assert runner.invoke(app, ["deps", "requests", "-l"]).exit_code == 0
         assert ml.call_args_list[0].args == ("requests",)
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     @patch("peta.core.resolve.local_get_package")
     def test_deps_fallback_to_remote(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
         mr.return_value = _pkg(source="remote")
         assert runner.invoke(app, ["deps", "x"]).exit_code == 0
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     @patch("peta.core.resolve.local_get_package")
     def test_deps_not_found(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")
         mr.side_effect = RemoteNotFound("x")
         assert runner.invoke(app, ["deps", "x"]).exit_code == 1
 
-    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.remote_get_package_matching")
     def test_deps_network_error_exit_2(self, mr: MagicMock) -> None:
         from peta.core.remote import NetworkError
 

@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING, Literal, Required, TypedDict, cast
 
 import httpx
 from packaging.utils import canonicalize_name
+from packaging.version import InvalidVersion, Version
 
 from peta.core import cache, http
+from peta.core.compatibility import supports_python
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.validation import (
     ResponseValidationError,
@@ -20,6 +22,8 @@ from peta.core.validation import (
 )
 
 if TYPE_CHECKING:
+    from packaging.specifiers import Specifier, SpecifierSet
+
     from peta.core.cache import Provenance
 
 __all__ = [
@@ -30,6 +34,7 @@ __all__ = [
     "PyPIResponse",
     "PyPIVulnerability",
     "get_package",
+    "get_package_matching",
 ]
 
 
@@ -74,6 +79,7 @@ class PyPIReleaseFile(TypedDict, total=False):
     """A single distribution file within a release entry."""
 
     upload_time: str
+    yanked: bool
 
 
 class PyPIResponse(TypedDict, total=False):
@@ -206,9 +212,28 @@ def _validate_info(value: object) -> None:
     _ = optional_string_list(info, "classifiers", source="PyPI", path="$.info")
 
 
+def _validate_releases(value: object) -> None:
+    source = "PyPI"
+    releases = expect_mapping(value, source=source, path="$.releases")
+    for version, raw_files in releases.items():
+        path = f"$.releases[{version!r}]"
+        files = expect_list(raw_files, source="PyPI", path=path)
+        for index, raw_file in enumerate(files):
+            file_path = f"{path}[{index}]"
+            release_file = expect_mapping(raw_file, source="PyPI", path=file_path)
+            if "yanked" in release_file and not isinstance(
+                release_file["yanked"], bool
+            ):
+                raise ResponseValidationError(
+                    source, f"{file_path}.yanked", "a boolean"
+                )
+
+
 def _validate_response(body: object) -> PyPIResponse:
     root = expect_mapping(body, source="PyPI", path="$")
     _validate_info(root.get("info"))
+    if "releases" in root:
+        _validate_releases(root["releases"])
     raw_vulnerabilities = root.get("vulnerabilities", [])
     vulnerabilities = expect_list(
         raw_vulnerabilities, source="PyPI", path="$.vulnerabilities"
@@ -246,19 +271,8 @@ def _parse_license(
     return legacy, "legacy" if legacy else None
 
 
-def get_package(name: str, version: str | None = None) -> PackageInfo:
-    """Get metadata for a package from PyPI.
-
-    Args:
-        name: Package name to look up.
-        version: Optional specific version; if ``None`` the latest is fetched.
-
-    Returns:
-        A :class:`PackageInfo` with ``source="remote"``. Not-found and network
-        failures propagate from :func:`_fetch`.
-    """
-    data, provenance = _fetch(name, version)
-    info: PyPIInfo = data["info"]
+def _package_from_response(data: PyPIResponse, provenance: Provenance) -> PackageInfo:
+    info = data["info"]
     license_value, license_source = _parse_license(info)
     return PackageInfo(
         name=info["name"],
@@ -281,3 +295,144 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         retrieved_at=provenance.retrieved_at,
         freshness=provenance.freshness,
     )
+
+
+def get_package(name: str, version: str | None = None) -> PackageInfo:
+    """Get metadata for a package from PyPI.
+
+    Args:
+        name: Package name to look up.
+        version: Optional specific version; if ``None`` the latest is fetched.
+
+    Returns:
+        A :class:`PackageInfo` with ``source="remote"``. Not-found and network
+        failures propagate from :func:`_fetch`.
+    """
+    data, provenance = _fetch(name, version)
+    return _package_from_response(data, provenance)
+
+
+def _matches_exact_pin(item: Specifier, raw: str, version: Version) -> bool:
+    if item.operator == "===":
+        return bool(item.version.casefold() == raw.casefold())
+    if item.operator != "==" or item.version.endswith(".*"):
+        return False
+    try:
+        return bool(Version(item.version) == version)
+    except InvalidVersion:
+        return False
+
+
+def _is_exact_pin(specifier: SpecifierSet, raw: str, version: Version) -> bool:
+    return any(_matches_exact_pin(item, raw, version) for item in specifier)
+
+
+def _is_arbitrary_pin(specifier: SpecifierSet, raw: str) -> bool:
+    return any(
+        item.operator == "===" and item.version.casefold() == raw.casefold()
+        for item in specifier
+    )
+
+
+def _release_candidates(  # ruff: ignore[complex-structure]
+    releases: dict[str, list[PyPIReleaseFile]], specifier: SpecifierSet
+) -> tuple[list[str], set[Version], set[str]]:
+    candidates: list[Version] = []
+    arbitrary_candidates: list[str] = []
+    filtered_candidates: set[Version] = set()
+    filtered_arbitrary_candidates: set[str] = set()
+    allows_prereleases = not specifier or specifier.prereleases is True
+    for raw, files in releases.items():
+        if _is_arbitrary_pin(specifier, raw):
+            if not files:
+                filtered_arbitrary_candidates.add(raw.casefold())
+                continue
+            arbitrary_candidates.append(raw)
+            continue
+        try:
+            version = Version(raw)
+        except InvalidVersion:
+            if not files or all(file.get("yanked", False) for file in files):
+                filtered_arbitrary_candidates.add(raw.casefold())
+            continue
+        if not specifier.contains(version, prereleases=allows_prereleases):
+            continue
+        if not files:
+            filtered_candidates.add(version)
+            continue
+        exact_pin = _is_exact_pin(specifier, raw, version)
+        fully_yanked = all(file.get("yanked", False) for file in files)
+        if fully_yanked and not exact_pin:
+            filtered_candidates.add(version)
+            continue
+        candidates.append(version)
+    stable_candidates = sorted(
+        (candidate for candidate in candidates if not candidate.is_prerelease),
+        reverse=True,
+    )
+    prerelease_candidates = sorted(
+        (candidate for candidate in candidates if candidate.is_prerelease), reverse=True
+    )
+    version_candidates = (
+        sorted(candidates, reverse=True)
+        if specifier.prereleases is True
+        else [*stable_candidates, *prerelease_candidates]
+    )
+    ordered_candidates = [
+        *(str(version) for version in version_candidates),
+        *arbitrary_candidates,
+    ]
+    return ordered_candidates, filtered_candidates, filtered_arbitrary_candidates
+
+
+def get_package_matching(  # ruff: ignore[complex-structure]
+    name: str, specifier: SpecifierSet, marker_environment: dict[str, str] | None
+) -> PackageInfo:
+    """Get the newest PyPI release satisfying a dependency requirement.
+
+    The project endpoint lists releases but only a version endpoint supplies
+    historical ``Requires-Python`` and dependency metadata, so candidates are
+    checked newest-first until one also supports the requested target.
+
+    Returns:
+        The newest compatible package, or the current release when no release
+        satisfies the requirement so callers can surface a conflict.
+
+    Raises:
+        PackageNotFoundError: If a matching current release has no usable files.
+    """
+    data, provenance = _fetch(name, None)
+    releases = data.get("releases") or {}
+    ordered_candidates, filtered_candidates, filtered_arbitrary_candidates = (
+        _release_candidates(releases, specifier)
+    )
+    best_incompatible: PackageInfo | None = None
+    for version in ordered_candidates:
+        package = (
+            _package_from_response(data, provenance)
+            if data.get("info") is not None  # pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.
+            and version == data["info"]["version"]
+            else get_package(name, version)
+        )
+        if supports_python(package, marker_environment):
+            return package
+        if best_incompatible is None:
+            best_incompatible = package
+    fallback = (
+        _package_from_response(data, provenance)
+        if data.get("info") is not None  # pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.
+        else get_package(name)
+    )
+    if fallback.version.casefold() in filtered_arbitrary_candidates:
+        if best_incompatible is not None:
+            return best_incompatible
+        raise PackageNotFoundError(name, fallback.version)
+    try:
+        fallback_version = Version(fallback.version)
+    except InvalidVersion:
+        return best_incompatible or fallback
+    if fallback_version in filtered_candidates:
+        if best_incompatible is not None:
+            return best_incompatible
+        raise PackageNotFoundError(name, fallback.version)
+    return best_incompatible or fallback

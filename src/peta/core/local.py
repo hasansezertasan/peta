@@ -7,7 +7,7 @@ import json
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Final, Literal, cast
 
 from packaging.markers import default_environment
 from packaging.utils import canonicalize_name
@@ -53,6 +53,8 @@ Checked while the payload is still being validated, so a truncated marker
 mapping is rejected with a target error instead of surfacing as a ``KeyError``
 from deep inside output serialization.
 """
+
+_VERSION_PARTS_WITH_PATCH = 3
 
 
 def _interpreter_problem(python: str, detail: str) -> str:
@@ -207,7 +209,11 @@ class LocalTarget:
 
     @classmethod
     def create(
-        cls, python: str | None = None, paths: tuple[str, ...] = ()
+        cls,
+        python: str | None = None,
+        paths: tuple[str, ...] = (),
+        python_version: str | None = None,
+        platform: str | None = None,
     ) -> LocalTarget:
         """Build a target without implicitly discovering a virtual environment.
 
@@ -222,7 +228,11 @@ class LocalTarget:
             marker_environment = {
                 key: str(value) for key, value in default_environment().items()
             }
-            return cls(checked or None, None, marker_environment)
+            return cls(
+                checked or None,
+                None,
+                _target_markers(marker_environment, python_version, platform),
+            )
         if not python.strip():
             msg = _interpreter_problem(python, "no interpreter path given.")
             raise InvalidTargetError(msg)
@@ -235,7 +245,11 @@ class LocalTarget:
         inspected, marker_environment = _validated_inspection(
             _run_inspection(interpreter, python), python
         )
-        return cls(checked or inspected, str(interpreter), marker_environment)
+        return cls(
+            checked or inspected,
+            str(interpreter),
+            _target_markers(marker_environment, python_version, platform),
+        )
 
     def describe(self) -> str:
         """Return a concise human-readable target description.
@@ -272,6 +286,58 @@ class LocalTarget:
             "paths": list(self.paths or ()),
             "markers": self.marker_environment,
         }
+
+
+_PLATFORM_MARKERS: Final[dict[str, dict[str, str]]] = {
+    "win32": {"os_name": "nt", "platform_system": "Windows"},
+    "linux": {"os_name": "posix", "platform_system": "Linux"},
+    "darwin": {"os_name": "posix", "platform_system": "Darwin"},
+}
+
+
+def _override_python_version(target: dict[str, str], python_version: str) -> None:
+    parts = python_version.split(".")
+    if len(parts) not in {2, 3} or not all(part.isdigit() for part in parts):
+        msg = f"Invalid Python version {python_version!r}: expected X.Y or X.Y.Z."
+        raise InvalidTargetError(msg)
+    target["python_version"] = ".".join(parts[:2])
+    target["python_full_version"] = (
+        python_version
+        if len(parts) == _VERSION_PARTS_WITH_PATCH
+        else f"{python_version}.0"
+    )
+    if target.get("platform_python_implementation") == "CPython":
+        target["implementation_version"] = target["python_full_version"]
+
+
+def _override_platform(target: dict[str, str], platform: str) -> None:
+    if not platform.strip():
+        msg = "Invalid platform '': expected a marker platform."
+        raise InvalidTargetError(msg)
+    if platform not in _PLATFORM_MARKERS:
+        msg = f"Invalid platform {platform!r}: expected win32, linux, or darwin."
+        raise InvalidTargetError(msg)
+    target["sys_platform"] = platform
+    target.update(_PLATFORM_MARKERS[platform])
+    target["platform_machine"] = ""
+    target["platform_release"] = ""
+    target["platform_version"] = ""
+
+
+def _target_markers(
+    marker_environment: dict[str, str], python_version: str | None, platform: str | None
+) -> dict[str, str]:
+    """Apply explicit marker overrides without changing metadata paths.
+
+    Returns:
+        The adjusted marker environment.
+    """
+    target = dict(marker_environment)
+    if python_version is not None:
+        _override_python_version(target, python_version)
+    if platform is not None:
+        _override_platform(target, platform)
+    return target
 
 
 _TARGET_SCRIPT = """

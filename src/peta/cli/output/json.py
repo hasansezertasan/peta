@@ -105,13 +105,6 @@ def _enrichment_records(
     return records
 
 
-_UNRESOLVED_STATES: frozenset[SourceState] = frozenset({
-    "empty",
-    "failed",
-    "unavailable",
-})
-
-
 def _provider(source: str) -> str:
     """Name the provider behind a ``PackageInfo.source`` value.
 
@@ -327,8 +320,8 @@ def _node_dict(node: DependencyNode) -> dict[str, object]:
     return {
         "name": node.name,
         "version_spec": node.version_spec,
-        "installed_version": node.installed_version,
-        "circular": node.circular,
+        "selected_version": node.selected_version,
+        "state": node.state,
         "source": node.source,
         "resolution": (
             {"state": failure.state, "source": failure.source, "reason": failure.reason}
@@ -390,72 +383,137 @@ def _dependency_warnings(node: DependencyNode) -> list[OutputMessage]:
                 source=failure.source,
             )
         )
+    if node.state == "conflicting":
+        warnings.append(_conflict_warning(node))
+    if node.state == "depth_limited":
+        warnings.append(
+            OutputMessage(
+                code="dependency_depth_limited",
+                message=f"{node.name}: expansion stopped at the depth limit",
+                source=_provider(node.source) if node.source else None,
+            )
+        )
     for child in node.children:
         warnings.extend(_dependency_warnings(child))
     return warnings
 
 
-def _walk_path(tree: DependencyNode, path: list[str]) -> Iterator[DependencyNode]:
-    """Yield the tree nodes named by ``path``, stopping at the first mismatch.
+def _conflict_warning(node: DependencyNode) -> OutputMessage:
+    """Return the structured warning matching a conflict node.
+
+    Returns:
+        The warning for the node's version or target-environment conflict.
+    """
+    is_target_conflict = node.conflict_reason == "target" or (
+        node.conflict_reason is None and not node.version_spec
+    )
+    if is_target_conflict:
+        message = (
+            f"{node.name}: selected {node.selected_version} is incompatible "
+            "with the target environment"
+        )
+        return OutputMessage(
+            code="dependency_target_incompatible",
+            message=message,
+            source=_provider(node.source) if node.source else None,
+        )
+    return OutputMessage(
+        code="dependency_version_conflict",
+        message=(
+            f"{node.name}: selected {node.selected_version} does not satisfy "
+            f"{node.version_spec}"
+        ),
+        source=_provider(node.source) if node.source else None,
+    )
+
+
+def _matching_node_paths(
+    tree: DependencyNode, path: list[str]
+) -> Iterator[list[DependencyNode]]:
+    """Yield every node path represented by a name-only ``path``.
 
     Yields:
-        Each node matched, from the root down.
+        Node paths in the tree's depth-first order.
     """
-    node = tree
-    for depth, name in enumerate(path):
-        if node.name != name:
-            return
-        yield node
-        remaining = path[depth + 1 :]
-        if not remaining:
-            return
-        child = next((c for c in node.children if c.name == remaining[0]), None)
-        if child is None:
-            return
-        node = child
+    if not path or tree.name != path[0]:
+        return
+    if len(path) == 1:
+        yield [tree]
+        return
+    for child in tree.children:
+        for child_path in _matching_node_paths(child, path[1:]):
+            yield [tree, *child_path]
+
+
+def _resolve_node_paths(
+    tree: DependencyNode, paths: list[list[str]]
+) -> list[list[DependencyNode]]:
+    """Match repeated name paths to distinct tree paths in emission order.
+
+    Returns:
+        One node path per emitted name path, or an empty path for a mismatch.
+    """
+    occurrences: dict[tuple[str, ...], int] = {}
+    resolved: list[list[DependencyNode]] = []
+    for path in paths:
+        key = tuple(path)
+        occurrence = occurrences.get(key, 0)
+        matches = list(_matching_node_paths(tree, path))
+        resolved.append(matches[occurrence] if occurrence < len(matches) else [])
+        occurrences[key] = occurrence + 1
+    return resolved
 
 
 def _path_sources(
-    tree: DependencyNode, path: list[str], path_index: int, timestamp: str
+    path: list[DependencyNode], path_index: int, timestamp: str
 ) -> list[SourceRecord]:
     records = (
         _dependency_source(node, f"result.paths[{path_index}][{index}]", timestamp)
-        for index, node in enumerate(_walk_path(tree, path))
+        for index, node in enumerate(path)
     )
     return [record for record in records if record is not None]
 
 
-def _off_path_failures(
-    tree: DependencyNode,
-    timestamp: str,
-    seen: Container[tuple[str, str | None, SourceState]],
-) -> list[SourceRecord]:
-    """Collect unresolved lookups on branches that no emitted path covers.
+def _walk_tree(tree: DependencyNode) -> Iterator[DependencyNode]:
+    yield tree
+    for child in tree.children:
+        yield from _walk_tree(child)
 
-    Their ``fields`` list is empty: the failure happened outside the returned
+
+def _off_path_warning_sources(
+    tree: DependencyNode, timestamp: str, seen: Container[int]
+) -> list[SourceRecord]:
+    """Collect warning provenance on branches that no emitted path covers.
+
+    Their ``fields`` list is empty: the warning arose outside the returned
     list-of-lists ``result.paths``, so no real result path identifies it.
 
     Returns:
-        One field-less source record per unreported failed lookup.
+        One field-less source record per unreported warned node.
     """
-    return [
-        replace(record, fields=[])
-        for record in _dependency_sources(tree, timestamp, "result.paths")
-        if record.state in _UNRESOLVED_STATES
-        and (record.name, record.target, record.state) not in seen
-    ]
+    records: list[SourceRecord] = []
+    for node in _walk_tree(tree):
+        warned = node.resolution_failure is not None or node.state in {
+            "conflicting",
+            "depth_limited",
+        }
+        record = _dependency_source(node, "result.paths", timestamp)
+        if warned and record is not None and id(node) not in seen:
+            records.append(replace(record, fields=[]))
+    return records
 
 
 def _why_sources(
     tree: DependencyNode, paths: list[list[str]], timestamp: str
 ) -> list[SourceRecord]:
+    node_paths = _resolve_node_paths(tree, paths)
     records = [
         record
-        for path_index, path in enumerate(paths)
-        for record in _path_sources(tree, path, path_index, timestamp)
+        for path_index, node_path in enumerate(node_paths)
+        for record in _path_sources(node_path, path_index, timestamp)
     ]
-    seen = {(record.name, record.target, record.state) for record in records}
-    records.extend(_off_path_failures(tree, timestamp, seen))
+    seen = {id(node) for node_path in node_paths for node in node_path}
+    records.extend(_off_path_warning_sources(tree, timestamp, seen))
     return records
 
 

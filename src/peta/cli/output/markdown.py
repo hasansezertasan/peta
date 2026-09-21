@@ -139,15 +139,17 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
 
 def _tree_lines(node: DependencyNode, depth: int = 0) -> list[str]:
     suffix = f" {node.version_spec}" if node.version_spec else ""
-    circular = " _(circular)_" if node.circular else ""
-    installed = (
-        f" _(installed {_cell(node.installed_version)})_"
-        if node.installed_version
+    state = (
+        f" _({node.state.replace('_', ' ')})_"
+        if node.state != "satisfied" and node.resolution_failure is None
         else ""
+    )
+    selected = (
+        f" _(selected {_cell(node.selected_version)})_" if node.selected_version else ""
     )
     failure = node.resolution_failure
     unresolved = f" _(unresolved: {_cell(failure.reason)})_" if failure else ""
-    lines = [f"{'  ' * depth}- `{node.name}{suffix}`{circular}{installed}{unresolved}"]
+    lines = [f"{'  ' * depth}- `{node.name}{suffix}`{selected}{state}{unresolved}"]
     for child in node.children:
         lines.extend(_tree_lines(child, depth + 1))
     return lines
@@ -159,7 +161,11 @@ def format_dep_tree(node: DependencyNode) -> str:
     Returns:
         A heading and nested Markdown list.
     """
-    return "\n".join([f"# Dependencies for {node.name}", "", *_tree_lines(node)])
+    return "\n".join([
+        f"# Declared metadata tree for {node.name}",
+        "",
+        *_tree_lines(node),
+    ])
 
 
 def format_why(target: str, paths: list[list[str]]) -> str:

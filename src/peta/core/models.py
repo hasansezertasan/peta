@@ -91,7 +91,7 @@ class DependencyResolutionFailure:
     """A failed or unavailable transitive dependency lookup."""
 
     source: str
-    state: Literal["empty", "unavailable", "failed"]
+    state: Literal["empty", "unavailable", "unsupported", "failed"]
     reason: str
     retrieved_at: str | None
     """When the source answered, or ``None`` if it was never contacted.
@@ -167,9 +167,13 @@ class DependencyNode:
 
     name: str
     version_spec: str
+    selected_version: str | None = None
     installed_version: str | None = None
+    """Deprecated compatibility alias for :attr:`selected_version`."""
     children: list[DependencyNode] = field(default_factory=list)
-    circular: bool = False
+    state: Literal[
+        "satisfied", "conflicting", "unresolved", "circular", "depth_limited"
+    ] = "satisfied"
     source: str | None = None
     retrieved_at: str | None = None
     freshness: Freshness | None = None
@@ -180,3 +184,53 @@ class DependencyNode:
     whole command would be a fiction.
     """
     resolution_failure: DependencyResolutionFailure | None = None
+    conflict_reason: Literal["version", "target"] | None = None
+
+    def __init__(  # ruff: ignore[too-many-arguments]
+        self,
+        name: str,
+        version_spec: str,
+        installed_version: str | None = None,
+        children: list[DependencyNode] | None = None,
+        circular: bool | None = None,  # ruff: ignore[boolean-type-hint-positional-argument]  # Legacy positional API.
+        source: str | None = None,
+        retrieved_at: str | None = None,
+        freshness: Freshness | None = None,
+        resolution_failure: DependencyResolutionFailure | None = None,
+        *,
+        selected_version: str | None = None,
+        state: Literal[
+            "satisfied", "conflicting", "unresolved", "circular", "depth_limited"
+        ] = "satisfied",
+        conflict_reason: Literal["version", "target"] | None = None,
+    ) -> None:
+        """Initialize a DependencyNode.
+
+        Explicit ``state`` takes precedence over the deprecated ``circular``
+        constructor argument.
+        """
+        self.name = name
+        self.version_spec = version_spec
+        if circular is True and state == "satisfied":
+            self.state = "circular"
+        elif resolution_failure is not None and state == "satisfied":
+            self.state = "unresolved"
+        else:
+            self.state = state
+        if selected_version is None:
+            self.selected_version = installed_version
+            self.installed_version = installed_version
+        else:
+            self.selected_version = selected_version
+            self.installed_version = installed_version or selected_version
+        self.children = children if children is not None else []
+        self.source = source
+        self.retrieved_at = retrieved_at
+        self.freshness = freshness
+        self.resolution_failure = resolution_failure
+        self.conflict_reason = conflict_reason
+
+    @property
+    def circular(self) -> bool:
+        """Whether this is a cycle leaf (deprecated; use :attr:`state`)."""
+        return self.state == "circular"

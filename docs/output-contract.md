@@ -6,7 +6,7 @@ the rest of the document.
 
 ```json
 {
-  "schema_version": "1",
+  "schema_version": "2",
   "peta_version": "<installed version>",
   "generated_at": "2026-09-04T12:00:00Z",
   "query": {
@@ -31,7 +31,9 @@ the rest of the document.
 The envelope `status` is one of:
 
 - `success`: the query completed with a result;
-- `partial`: the primary result is usable, but optional enrichment failed;
+- `partial`: the primary result is usable, but optional enrichment failed or a
+  dependency tree is incomplete because of a conflict, depth limit, or
+  transitive resolution failure;
 - `empty`: the query succeeded and returned no items; or
 - `failed`: the command failed and `result` is `null`.
 
@@ -110,6 +112,12 @@ matching the names used by `versions` and by network failures. The legacy
 Schema version `1` replaces the original unversioned command-specific JSON.
 The previous top-level payload is now under `result`; for example, migrate
 `output["name"]` to `output["result"]["name"]`.
+
+Schema version `2` updates dependency nodes for declared-metadata resolution.
+Consumers should migrate `installed_version` to `selected_version` and replace
+the `circular` boolean check with the `state` field, whose `"circular"` value
+represents the former `true` case and whose other values describe additional
+resolution outcomes.
 
 Within a schema version, consumers must tolerate new object fields and new
 warning/error codes. Existing fields will not be removed or change meaning.

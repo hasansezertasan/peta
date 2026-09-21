@@ -92,7 +92,7 @@ def test_each_command_envelope_snapshot() -> None:
     }
     assert envelopes == snapshot({
         "info": {
-            "schema_version": "1",
+            "schema_version": "2",
             "peta_version": "<peta-version>",
             "generated_at": "2026-09-04T12:00:00Z",
             "query": {
@@ -134,7 +134,7 @@ def test_each_command_envelope_snapshot() -> None:
             },
         },
         "compare": {
-            "schema_version": "1",
+            "schema_version": "2",
             "peta_version": "<peta-version>",
             "generated_at": "2026-09-04T12:00:00Z",
             "query": {
@@ -214,7 +214,7 @@ def test_each_command_envelope_snapshot() -> None:
             },
         },
         "deps": {
-            "schema_version": "1",
+            "schema_version": "2",
             "peta_version": "<peta-version>",
             "generated_at": "2026-09-04T12:00:00Z",
             "query": {
@@ -229,16 +229,16 @@ def test_each_command_envelope_snapshot() -> None:
             "result": {
                 "name": "requests",
                 "version_spec": "",
-                "installed_version": "2.31.0",
-                "circular": False,
+                "selected_version": "2.31.0",
+                "state": "satisfied",
                 "source": None,
                 "resolution": None,
                 "children": [
                     {
                         "name": "urllib3",
                         "version_spec": ">=2",
-                        "installed_version": None,
-                        "circular": False,
+                        "selected_version": None,
+                        "state": "satisfied",
                         "source": None,
                         "resolution": None,
                         "children": [],
@@ -247,7 +247,7 @@ def test_each_command_envelope_snapshot() -> None:
             },
         },
         "why": {
-            "schema_version": "1",
+            "schema_version": "2",
             "peta_version": "<peta-version>",
             "generated_at": "2026-09-04T12:00:00Z",
             "query": {
@@ -262,7 +262,7 @@ def test_each_command_envelope_snapshot() -> None:
             "result": {"target": "urllib3", "paths": [["requests", "urllib3"]]},
         },
         "files": {
-            "schema_version": "1",
+            "schema_version": "2",
             "peta_version": "<peta-version>",
             "generated_at": "2026-09-04T12:00:00Z",
             "query": {
@@ -289,7 +289,7 @@ def test_each_command_envelope_snapshot() -> None:
             },
         },
         "versions": {
-            "schema_version": "1",
+            "schema_version": "2",
             "peta_version": "<peta-version>",
             "generated_at": "2026-09-04T12:00:00Z",
             "query": {
@@ -331,7 +331,7 @@ def test_partial_failure_envelope_snapshot() -> None:
         format_info(_pkg(enrichment_failures=failures), generated_at=GENERATED_AT)
     )
     assert envelope == snapshot({
-        "schema_version": "1",
+        "schema_version": "2",
         "peta_version": "<peta-version>",
         "generated_at": "2026-09-04T12:00:00Z",
         "query": {

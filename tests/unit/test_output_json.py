@@ -96,23 +96,85 @@ def test_compare() -> None:
 
 def test_dep_tree() -> None:
     child = DependencyNode(
-        name="urllib3", version_spec=">=1.21.1", installed_version="2.0"
+        name="urllib3", version_spec=">=1.21.1", selected_version="2.0"
     )
     root = DependencyNode(
-        name="requests", version_spec="", installed_version="2.31.0", children=[child]
+        name="requests", version_spec="", selected_version="2.31.0", children=[child]
     )
     data = json.loads(format_dep_tree(root))["result"]
     assert data["name"] == "requests"
     assert data["children"][0]["name"] == "urllib3"
-    assert data["children"][0]["installed_version"] == "2.0"
-    assert data["circular"] is False
+    assert data["children"][0]["selected_version"] == "2.0"
+    assert data["state"] == "satisfied"
 
 
 def test_dep_tree_circular() -> None:
-    node = DependencyNode(name="a", version_spec="", circular=True)
+    node = DependencyNode(name="a", version_spec="", state="circular")
     data = json.loads(format_dep_tree(node))["result"]
-    assert data["circular"] is True
+    assert data["state"] == "circular"
     assert data["children"] == []
+
+
+def test_depth_warning_uses_provider_name() -> None:
+    node = DependencyNode(
+        name="a", version_spec="", state="depth_limited", source="remote"
+    )
+    warning = json.loads(format_dep_tree(node))["warnings"][0]
+    assert warning["source"] == "pypi"
+
+
+def test_dep_tree_reports_a_root_target_conflict() -> None:
+    root = DependencyNode(
+        name="requests",
+        version_spec="",
+        selected_version="3.0.0",
+        state="conflicting",
+        source="remote",
+    )
+
+    data = json.loads(format_dep_tree(root))
+
+    assert data["status"] == "partial"
+    assert data["warnings"] == [
+        {
+            "code": "dependency_target_incompatible",
+            "message": (
+                "requests: selected 3.0.0 is incompatible with the target environment"
+            ),
+            "source": "pypi",
+        }
+    ]
+
+
+def test_dep_tree_reports_child_target_conflict_with_version_spec() -> None:
+    child = DependencyNode(
+        name="urllib3",
+        version_spec=">=2.0",
+        selected_version="2.0.0",
+        state="conflicting",
+        conflict_reason="target",
+        source="remote",
+    )
+    root = DependencyNode(
+        name="requests",
+        version_spec="",
+        selected_version="2.31.0",
+        children=[child],
+        source="remote",
+    )
+
+    data = json.loads(format_dep_tree(root))
+
+    assert data["status"] == "partial"
+    assert data["warnings"] == [
+        {
+            "code": "dependency_target_incompatible",
+            "message": (
+                "urllib3: selected 2.0.0 is incompatible with the target environment"
+            ),
+            "source": "pypi",
+        }
+    ]
 
 
 def test_dep_tree_reports_transitive_resolution_failure_as_partial() -> None:
@@ -201,6 +263,129 @@ def test_why_off_path_failures_carry_no_result_field() -> None:
     assert off_path["fields"] == []
     assert off_path["state"] == "failed"
     assert data["status"] == "partial"
+
+
+def test_why_off_path_conflicts_keep_fieldless_provenance() -> None:
+    target = DependencyNode(name="certifi", version_spec="", source="local")
+    conflict = DependencyNode(
+        name="urllib3",
+        version_spec="<2",
+        selected_version="2.0",
+        state="conflicting",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:00Z",
+        freshness="live",
+    )
+    tree = DependencyNode(
+        name="flask", version_spec="", source="local", children=[target, conflict]
+    )
+
+    data = json.loads(
+        format_why(
+            "certifi",
+            [["flask", "certifi"]],
+            tree=tree,
+            generated_at="2026-09-04T12:00:01Z",
+        )
+    )
+
+    off_path = next(s for s in data["sources"] if s["target"] == "urllib3")
+    assert off_path["name"] == "pypi"
+    assert off_path["state"] == "success"
+    assert off_path["fields"] == []
+
+
+def test_why_same_package_off_path_warning_keeps_own_provenance() -> None:
+    path_node = DependencyNode(
+        name="urllib3",
+        version_spec="",
+        selected_version="1.26",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:00Z",
+        freshness="cached",
+    )
+    conflict = DependencyNode(
+        name="urllib3",
+        version_spec="<2",
+        selected_version="2.0",
+        state="conflicting",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:01Z",
+        freshness="live",
+    )
+    tree = DependencyNode(
+        name="flask", version_spec="", source="local", children=[path_node, conflict]
+    )
+
+    data = json.loads(
+        format_why(
+            "urllib3",
+            [["flask", "urllib3"]],
+            tree=tree,
+            generated_at="2026-09-04T12:00:02Z",
+        )
+    )
+
+    sources = [source for source in data["sources"] if source["target"] == "urllib3"]
+    assert [source["fields"] for source in sources] == [["result.paths[0][1]"], []]
+    assert [source["retrieved_at"] for source in sources] == [
+        "2026-09-04T12:00:00Z",
+        "2026-09-04T12:00:01Z",
+    ]
+
+
+def test_why_duplicate_name_paths_keep_distinct_provenance() -> None:
+    first_target = DependencyNode(
+        name="target",
+        version_spec="",
+        selected_version="1.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:01Z",
+    )
+    second_target = DependencyNode(
+        name="target",
+        version_spec="",
+        selected_version="2.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:03Z",
+    )
+    first_parent = DependencyNode(
+        name="shared",
+        version_spec="<2",
+        selected_version="1.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:00Z",
+        children=[first_target],
+    )
+    second_parent = DependencyNode(
+        name="shared",
+        version_spec=">=2",
+        selected_version="2.0",
+        source="remote",
+        retrieved_at="2026-09-04T12:00:02Z",
+        children=[second_target],
+    )
+    tree = DependencyNode(
+        name="root",
+        version_spec="",
+        source="local",
+        children=[first_parent, second_parent],
+    )
+    paths = [["root", "shared", "target"], ["root", "shared", "target"]]
+
+    data = json.loads(
+        format_why("target", paths, tree=tree, generated_at="2026-09-04T12:00:04Z")
+    )
+
+    sources = [source for source in data["sources"] if source["target"] == "shared"]
+    assert [source["fields"] for source in sources] == [
+        ["result.paths[0][1]"],
+        ["result.paths[1][1]"],
+    ]
+    assert [source["retrieved_at"] for source in sources] == [
+        "2026-09-04T12:00:00Z",
+        "2026-09-04T12:00:02Z",
+    ]
 
 
 def test_why_empty() -> None:

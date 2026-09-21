@@ -245,3 +245,60 @@ def test_nameless_distribution_alone_reports_not_found(mock_meta: MagicMock) -> 
     )
     with pytest.raises(PackageNotFoundError):
         get_package("wanted-pkg", target=target)
+
+
+def test_local_target_platform_override_updates_platform_family() -> None:
+    target = LocalTarget.create(platform="win32")
+    assert target.marker_environment["sys_platform"] == "win32"
+    assert target.marker_environment["os_name"] == "nt"
+    assert target.marker_environment["platform_system"] == "Windows"
+    assert not target.marker_environment["platform_machine"]
+    assert not target.marker_environment["platform_release"]
+    assert not target.marker_environment["platform_version"]
+
+    target_linux = LocalTarget.create(platform="linux")
+    assert target_linux.marker_environment["sys_platform"] == "linux"
+    assert target_linux.marker_environment["os_name"] == "posix"
+    assert target_linux.marker_environment["platform_system"] == "Linux"
+
+
+@pytest.mark.parametrize(
+    ("requested", "short", "full"),
+    [("3.12", "3.12", "3.12.0"), ("3.12.4", "3.12", "3.12.4")],
+)
+def test_local_target_python_version_override(
+    requested: str, short: str, full: str
+) -> None:
+    target = LocalTarget.create(python_version=requested)
+
+    assert target.marker_environment["python_version"] == short
+    assert target.marker_environment["python_full_version"] == full
+    assert target.marker_environment["implementation_version"] == full
+
+
+def test_non_cpython_implementation_version_is_not_overridden() -> None:
+    markers = {
+        **default_environment(),
+        "platform_python_implementation": "PyPy",
+        "implementation_version": "7.3.19",
+    }
+    with patch("peta.core.local.default_environment", return_value=markers):
+        target = LocalTarget.create(python_version="3.12")
+
+    assert target.marker_environment["implementation_version"] == "7.3.19"
+
+
+@pytest.mark.parametrize("requested", ["3", "3.12.4.5", "3.x"])
+def test_local_target_rejects_invalid_python_version(requested: str) -> None:
+    with pytest.raises(InvalidTargetError, match=r"expected X\.Y or X\.Y\.Z"):
+        LocalTarget.create(python_version=requested)
+
+
+def test_local_target_rejects_blank_platform() -> None:
+    with pytest.raises(InvalidTargetError, match="expected a marker platform"):
+        LocalTarget.create(platform="")
+
+
+def test_local_target_rejects_unknown_platform() -> None:
+    with pytest.raises(InvalidTargetError, match="win32, linux, or darwin"):
+        LocalTarget.create(platform="freebsd")

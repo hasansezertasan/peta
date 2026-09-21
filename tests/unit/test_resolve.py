@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
+from packaging.specifiers import SpecifierSet
 
 from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
 from peta.core.models import PackageInfo
@@ -57,6 +58,170 @@ class TestResolvePackage:
         pkg = resolve_package("x", local=False, remote=False)
         assert pkg.source == "remote"
 
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_unconstrained_remote_reselects_incompatible_latest_release(
+        self, latest: MagicMock, matching: MagicMock
+    ) -> None:
+        latest.return_value = _pkg(source="remote", python_requires=">=999")
+        matching.return_value = _pkg(
+            source="remote", version="2.30.0", python_requires=">=3.10"
+        )
+
+        package = resolve_package(
+            "requests", local=False, remote=True, select_compatible=True
+        )
+
+        assert package.version == "2.30.0"
+        matching.assert_called_once_with("requests", SpecifierSet(), None)
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_top_level_remote_preserves_latest_release(
+        self, latest: MagicMock, matching: MagicMock
+    ) -> None:
+        latest.return_value = _pkg(source="remote", python_requires=">=999")
+
+        package = resolve_package("requests", local=False, remote=True)
+
+        assert package.python_requires == ">=999"
+        matching.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("paths", "interpreter"),
+        [(("/site-packages",), None), (None, "/target/python")],
+    )
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_explicit_metadata_target_does_not_fall_back_to_remote(
+        self,
+        ml: MagicMock,
+        mr: MagicMock,
+        paths: tuple[str, ...] | None,
+        interpreter: str | None,
+    ) -> None:
+        ml.side_effect = LocalNotFound("x")
+        target = LocalTarget(
+            paths=paths,
+            interpreter=interpreter,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        with pytest.raises(LocalNotFound):
+            resolve_package("x", local=False, remote=False, target=target)
+
+        mr.assert_not_called()
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_target_incompatible_local_package_falls_back_to_remote(
+        self, ml: MagicMock, mr: MagicMock
+    ) -> None:
+        ml.return_value = _pkg(name="x", version="2.0.0", python_requires=">=3.13")
+        mr.return_value = _pkg(name="x", version="1.0.0", source="remote")
+        target = LocalTarget(
+            paths=None,
+            interpreter=None,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+        pkg = resolve_package(
+            "x", local=False, remote=False, target=target, select_compatible=True
+        )
+        assert pkg.version == "1.0.0"
+        assert pkg.source == "remote"
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_explicit_target_keeps_incompatible_local_package(
+        self, local_package: MagicMock, remote_package: MagicMock
+    ) -> None:
+        local_package.return_value = _pkg(name="x", version="1.0.0")
+        target = LocalTarget(
+            paths=("/site-packages",),
+            interpreter=None,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        package = resolve_package(
+            "x",
+            local=False,
+            remote=False,
+            target=target,
+            specifier=SpecifierSet(">=2"),
+            select_compatible=True,
+        )
+
+        assert package.version == "1.0.0"
+        remote_package.assert_not_called()
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_invalid_local_requires_python_falls_back_to_remote(
+        self, ml: MagicMock, mr: MagicMock
+    ) -> None:
+        ml.return_value = _pkg(name="x", python_requires="invalid")
+        mr.return_value = _pkg(name="x", version="1.0.0", source="remote")
+        target = LocalTarget(
+            paths=None,
+            interpreter=None,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        pkg = resolve_package(
+            "x", local=False, remote=False, target=target, select_compatible=True
+        )
+
+        assert pkg.source == "remote"
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_ordinary_requirement_rejects_local_prerelease(
+        self, ml: MagicMock, mr: MagicMock
+    ) -> None:
+        ml.return_value = _pkg(name="x", version="1.9rc1")
+        mr.return_value = _pkg(name="x", version="1.8", source="remote")
+
+        pkg = resolve_package(
+            "x",
+            local=False,
+            remote=False,
+            specifier=SpecifierSet("<2"),
+            select_compatible=True,
+        )
+
+        assert pkg.version == "1.8"
+        assert pkg.source == "remote"
+
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_explicit_prerelease_requirement_accepts_local_prerelease(
+        self, ml: MagicMock, mr: MagicMock
+    ) -> None:
+        ml.return_value = _pkg(name="x", version="1.9rc1")
+
+        pkg = resolve_package(
+            "x",
+            local=False,
+            remote=False,
+            specifier=SpecifierSet(">=1.9rc1,<2"),
+            select_compatible=True,
+        )
+
+        assert pkg.version == "1.9rc1"
+        mr.assert_not_called()
+
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_top_level_preserves_incompatible_local_metadata(
+        self, local_package: MagicMock, remote_package: MagicMock
+    ) -> None:
+        local_package.return_value = _pkg(python_requires=">=999")
+
+        package = resolve_package("requests", local=False, remote=False)
+
+        assert package.source == "local"
+        remote_package.assert_not_called()
+
     @patch("peta.core.resolve.remote_get_package")
     def test_version_specifier_queries_remote(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(version="2.28.0", source="remote")
@@ -68,6 +233,31 @@ class TestResolvePackage:
         mr.return_value = _pkg(source="remote")
         resolve_package("requests", local=False, remote=True)
         mr.assert_called_once_with("requests")
+
+    @pytest.mark.parametrize(
+        ("paths", "interpreter"),
+        [(("/site-packages",), None), (None, "/target/python")],
+    )
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_remote_rejects_explicit_metadata_target(
+        self,
+        latest: MagicMock,
+        matching: MagicMock,
+        paths: tuple[str, ...] | None,
+        interpreter: str | None,
+    ) -> None:
+        target = LocalTarget(
+            paths=paths,
+            interpreter=interpreter,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        with pytest.raises(typer.BadParameter, match="--remote"):
+            resolve_package("requests", local=False, remote=True, target=target)
+
+        latest.assert_not_called()
+        matching.assert_not_called()
 
     @patch("peta.core.resolve.local_get_package")
     def test_local_flag_forces_local(self, ml: MagicMock) -> None:
