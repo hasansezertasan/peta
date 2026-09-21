@@ -2,7 +2,12 @@
 
 import pytest
 
-from peta.core.models import DependencyNode, PackageInfo, Vulnerability
+from peta.core.models import (
+    DependencyNode,
+    DependencyResolutionFailure,
+    PackageInfo,
+    Vulnerability,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -112,3 +117,10 @@ class TestDependencyNode:
         node = DependencyNode(name="x", version_spec="", circular=False)
         assert node.state == "satisfied"
         assert node.circular is False
+
+    def test_legacy_resolution_failure_infers_unresolved_state(self) -> None:
+        failure = DependencyResolutionFailure(
+            source="pypi", state="failed", reason="down", retrieved_at=None
+        )
+        node = DependencyNode(name="x", version_spec="", resolution_failure=failure)
+        assert node.state == "unresolved"

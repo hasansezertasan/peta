@@ -148,6 +148,60 @@ def test_unconstrained_matching_prefers_final_release(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_matching_reuses_current_project_metadata(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"info": {**_INFO, "name": "dep", "version": "1.9"}, "releases": {"1.9": []}},
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_not_called()
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_skips_fully_yanked_ordinary_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0": [{"yanked": True}], "1.9": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_accepts_fully_yanked_exact_pin(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0": [{"yanked": True}], "1.9": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet("==2.0"), None)
+
+    assert result.version == "2.0"
+    get.assert_called_once_with("dep", "2.0")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_release_skips_releases_incompatible_with_running_python(
     fetch: MagicMock, get: MagicMock
 ) -> None:

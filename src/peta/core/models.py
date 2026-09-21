@@ -213,6 +213,8 @@ class DependencyNode:
         self.version_spec = version_spec
         if circular is True and state == "satisfied":
             self.state = "circular"
+        elif resolution_failure is not None and state == "satisfied":
+            self.state = "unresolved"
         else:
             self.state = state
         if selected_version is None:

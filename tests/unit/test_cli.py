@@ -52,7 +52,7 @@ class TestInfo:
         assert r.exit_code == 0
         assert "requests" in r.output
 
-    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.remote_get_package")
     @patch("peta.core.resolve.local_get_package")
     def test_fallback_to_remote(self, ml: MagicMock, mr: MagicMock) -> None:
         ml.side_effect = LocalNotFound("x")

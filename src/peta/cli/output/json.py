@@ -397,7 +397,7 @@ def _dependency_warnings(node: DependencyNode) -> list[OutputMessage]:
             OutputMessage(
                 code="dependency_depth_limited",
                 message=f"{node.name}: expansion stopped at the depth limit",
-                source=node.source,
+                source=_provider(node.source) if node.source else None,
             )
         )
     for child in node.children:

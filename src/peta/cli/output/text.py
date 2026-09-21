@@ -129,7 +129,11 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
 
 def _tree_lines(node: DependencyNode, depth: int = 0) -> list[str]:
     suffix = f" {node.version_spec}" if node.version_spec else ""
-    state = f" ({node.state.replace('_', ' ')})" if node.state != "satisfied" else ""
+    state = (
+        f" ({node.state.replace('_', ' ')})"
+        if node.state != "satisfied" and node.resolution_failure is None
+        else ""
+    )
     selected = f" (selected {node.selected_version})" if node.selected_version else ""
     failure = node.resolution_failure
     unresolved = f" (unresolved: {failure.reason})" if failure else ""

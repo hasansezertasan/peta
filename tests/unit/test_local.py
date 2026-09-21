@@ -296,7 +296,6 @@ def test_local_target_rejects_blank_platform() -> None:
         LocalTarget.create(platform="")
 
 
-def test_local_target_accepts_custom_sys_platform() -> None:
-    target = LocalTarget.create(platform="custom-os")
-
-    assert target.marker_environment["sys_platform"] == "custom-os"
+def test_local_target_rejects_unknown_platform() -> None:
+    with pytest.raises(InvalidTargetError, match="win32, linux, or darwin"):
+        LocalTarget.create(platform="freebsd")

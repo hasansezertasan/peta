@@ -115,6 +115,14 @@ def test_dep_tree_circular() -> None:
     assert data["children"] == []
 
 
+def test_depth_warning_uses_provider_name() -> None:
+    node = DependencyNode(
+        name="a", version_spec="", state="depth_limited", source="remote"
+    )
+    warning = json.loads(format_dep_tree(node))["warnings"][0]
+    assert warning["source"] == "pypi"
+
+
 def test_dep_tree_reports_a_root_target_conflict() -> None:
     root = DependencyNode(
         name="requests",
