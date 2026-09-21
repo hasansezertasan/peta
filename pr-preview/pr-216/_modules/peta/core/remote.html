@@ -488,7 +488,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="349">            <span class="k">if</span> <span class="ow">not</span> <span class="n">_is_arbitrary_pin</span><span class="p">(</span><span class="n">specifier</span><span class="p">,</span> <span class="n">raw</span><span class="p">):</span>
 </span><span data-line="350">                <span class="k">continue</span>
 </span><span data-line="351">            <span class="k">if</span> <span class="ow">not</span> <span class="n">files</span><span class="p">:</span>
-</span><span data-line="352">                <span class="n">filtered_arbitrary_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
+</span><span data-line="352">                <span class="n">filtered_arbitrary_candidates</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">raw</span><span class="o">.</span><span class="n">casefold</span><span class="p">())</span>
 </span><span data-line="353">                <span class="k">continue</span>
 </span><span data-line="354">            <span class="n">arbitrary_candidates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span>
 </span><span data-line="355">            <span class="k">continue</span>
@@ -565,7 +565,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="424">    <span class="k">try</span><span class="p">:</span>
 </span><span data-line="425">        <span class="n">fallback_version</span> <span class="o">=</span> <span class="n">Version</span><span class="p">(</span><span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span>
 </span><span data-line="426">    <span class="k">except</span> <span class="n">InvalidVersion</span><span class="p">:</span>
-</span><span data-line="427">        <span class="k">if</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span> <span class="ow">in</span> <span class="n">filtered_arbitrary_candidates</span><span class="p">:</span>
+</span><span data-line="427">        <span class="k">if</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="o">.</span><span class="n">casefold</span><span class="p">()</span> <span class="ow">in</span> <span class="n">filtered_arbitrary_candidates</span><span class="p">:</span>
 </span><span data-line="428">            <span class="k">if</span> <span class="n">best_incompatible</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span data-line="429">                <span class="k">return</span> <span class="n">best_incompatible</span>
 </span><span data-line="430">            <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">fallback</span><span class="o">.</span><span class="n">version</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
