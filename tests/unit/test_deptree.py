@@ -102,6 +102,22 @@ class TestBuildTreeConflicts:
         assert tree.children[1].state == "conflicting"
         assert tree.children[1].conflict_reason == "target"
 
+    @patch("peta.core.deptree.resolve_package")
+    def test_ordinary_requirement_rejects_selected_prerelease(
+        self, m: MagicMock
+    ) -> None:
+        pkgs = {
+            "root": _pkg("root", ["child<2"]),
+            "child": replace(_pkg("child", ["must-not-expand"]), version="1.9rc1"),
+        }
+        m.side_effect = lambda name, **_kw: pkgs[name]
+
+        child = build_tree("root", local=True, remote=False).children[0]
+
+        assert child.state == "conflicting"
+        assert child.conflict_reason == "version"
+        assert child.children == []
+
 
 class TestBuildTree:
     @patch("peta.core.deptree.resolve_package")
@@ -211,6 +227,22 @@ class TestBuildTree:
         m.side_effect = lambda name, **_kw: pkgs[name]
         tree = build_tree("a", local=False, remote=False)
         assert [c.name for c in tree.children] == ["d"]
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_selected_extra_does_not_also_evaluate_base_extra(
+        self, m: MagicMock
+    ) -> None:
+        pkgs = {
+            "root": _pkg(
+                "root", ['base; extra != "feature"', 'enabled; extra == "feature"']
+            ),
+            "enabled": _pkg("enabled", []),
+        }
+        m.side_effect = lambda name, **_kw: pkgs[name]
+
+        tree = build_tree("root", local=True, remote=False, extras=("feature",))
+
+        assert [child.name for child in tree.children] == ["enabled"]
 
     @patch("peta.core.deptree.resolve_package")
     def test_python_override_updates_cpython_implementation_marker(

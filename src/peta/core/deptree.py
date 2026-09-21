@@ -95,12 +95,12 @@ def _resolve_cached(
 def _marker_satisfied(
     req: Requirement, marker_environment: dict[str, str] | None, extras: tuple[str, ...]
 ) -> bool:
-    """Whether a requirement's environment marker holds for a base install.
+    """Whether a requirement's environment marker holds for selected extras.
 
-    Evaluates with ``extra=""`` so optional ``extra == "..."`` dependencies
-    resolve to unsatisfied (they are not part of the base install) rather than
-    raising ``UndefinedEnvironmentName``; any other undefined marker variable is
-    likewise treated as unsatisfied.
+    When no extra is selected, evaluates with ``extra=""`` so optional
+    dependencies resolve to unsatisfied rather than raising
+    ``UndefinedEnvironmentName``. Any other undefined marker variable is likewise
+    treated as unsatisfied.
 
     Returns:
         ``True`` if there is no marker or the marker is satisfied.
@@ -113,9 +113,10 @@ def _marker_satisfied(
         environment = {"extra": ""}
         if marker_environment is not None:
             environment.update(marker_environment)
+        selected_extras = extras or ("",)
         return any(
             bool(req.marker.evaluate({**environment, "extra": extra}))
-            for extra in ("", *extras)
+            for extra in selected_extras
         )
     except UndefinedEnvironmentName:
         return False
@@ -147,7 +148,8 @@ def _kept_requirements(
 def _conflict_node(
     req: Requirement, child_pkg: PackageInfo, target: LocalTarget | None
 ) -> DependencyNode | None:
-    spec_ok = req.specifier.contains(child_pkg.version)
+    allows_prereleases = not req.specifier or req.specifier.prereleases is True
+    spec_ok = req.specifier.contains(child_pkg.version, prereleases=allows_prereleases)
     target_ok = supports_python(
         child_pkg, target.marker_environment if target is not None else None
     )

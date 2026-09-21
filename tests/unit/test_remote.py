@@ -89,7 +89,10 @@ def test_specific_version_url(fake_http: FakeTransport) -> None:
 def test_matching_release_prefers_stable_versions(
     fetch: MagicMock, get: MagicMock
 ) -> None:
-    fetch.return_value = ({"releases": {"1.9": [], "2.0rc1": []}}, MagicMock())
+    fetch.return_value = (
+        {"releases": {"1.9": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
     get.side_effect = lambda _name, version: PackageInfo(
         name="dep", version=version, source="remote"
     )
@@ -105,7 +108,7 @@ def test_matching_release_prefers_stable_versions(
 def test_matching_release_excludes_implicit_prerelease(
     fetch: MagicMock, get: MagicMock
 ) -> None:
-    fetch.return_value = ({"releases": {"1.9rc1": []}}, MagicMock())
+    fetch.return_value = ({"releases": {"1.9rc1": [{"yanked": False}]}}, MagicMock())
     current = PackageInfo(name="dep", version="2.0", source="remote")
     get.return_value = current
 
@@ -120,7 +123,7 @@ def test_matching_release_excludes_implicit_prerelease(
 def test_matching_release_accepts_explicit_prerelease(
     fetch: MagicMock, get: MagicMock
 ) -> None:
-    fetch.return_value = ({"releases": {"1.9rc1": []}}, MagicMock())
+    fetch.return_value = ({"releases": {"1.9rc1": [{"yanked": False}]}}, MagicMock())
     prerelease = PackageInfo(name="dep", version="1.9rc1", source="remote")
     get.return_value = prerelease
 
@@ -135,7 +138,10 @@ def test_matching_release_accepts_explicit_prerelease(
 def test_unconstrained_matching_prefers_final_release(
     fetch: MagicMock, get: MagicMock
 ) -> None:
-    fetch.return_value = ({"releases": {"1.9": [], "2.0rc1": []}}, MagicMock())
+    fetch.return_value = (
+        {"releases": {"1.9": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
     get.side_effect = lambda _name, version: PackageInfo(
         name="dep", version=version, source="remote"
     )
@@ -152,7 +158,10 @@ def test_matching_reuses_current_project_metadata(
     fetch: MagicMock, get: MagicMock
 ) -> None:
     fetch.return_value = (
-        {"info": {**_INFO, "name": "dep", "version": "1.9"}, "releases": {"1.9": []}},
+        {
+            "info": {**_INFO, "name": "dep", "version": "1.9"},
+            "releases": {"1.9": [{"yanked": False}]},
+        },
         MagicMock(retrieved_at="now", freshness="live"),
     )
 
@@ -202,10 +211,32 @@ def test_matching_accepts_fully_yanked_exact_pin(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_matching_skips_release_without_distribution_files(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"2.0": [], "1.9": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_release_skips_releases_incompatible_with_running_python(
     fetch: MagicMock, get: MagicMock
 ) -> None:
-    fetch.return_value = ({"releases": {"2.0": [], "1.0": []}}, MagicMock())
+    fetch.return_value = (
+        {"releases": {"2.0": [{"yanked": False}], "1.0": [{"yanked": False}]}},
+        MagicMock(),
+    )
     pkgs = {
         "2.0": PackageInfo(
             name="dep", version="2.0", source="remote", python_requires=">=4.0"
@@ -238,7 +269,10 @@ def test_matching_release_skips_invalid_versions_and_falls_back(
 def test_matching_release_rejects_invalid_requires_python(
     fetch: MagicMock, get: MagicMock
 ) -> None:
-    fetch.return_value = ({"releases": {"2.0": [], "1.0": []}}, MagicMock())
+    fetch.return_value = (
+        {"releases": {"2.0": [{"yanked": False}], "1.0": [{"yanked": False}]}},
+        MagicMock(),
+    )
     packages = {
         "2.0": PackageInfo(
             name="dep", version="2.0", source="remote", python_requires="invalid"
@@ -313,6 +347,12 @@ def test_invalid_json_raises_network_error(fake_http: FakeTransport) -> None:
         {"info": {"name": "pkg", "version": "1.0", "requires_dist": [None]}},
         {"info": {"name": "pkg", "version": "1.0"}, "releases": None},
         {"info": {"name": "pkg", "version": "1.0"}, "releases": []},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": {"1.0": None}},
+        {"info": {"name": "pkg", "version": "1.0"}, "releases": {"1.0": [None]}},
+        {
+            "info": {"name": "pkg", "version": "1.0"},
+            "releases": {"1.0": [{"yanked": 1}]},
+        },
     ],
 )
 def test_malformed_metadata_raises_network_error(

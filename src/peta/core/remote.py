@@ -212,11 +212,28 @@ def _validate_info(value: object) -> None:
     _ = optional_string_list(info, "classifiers", source="PyPI", path="$.info")
 
 
+def _validate_releases(value: object) -> None:
+    source = "PyPI"
+    releases = expect_mapping(value, source=source, path="$.releases")
+    for version, raw_files in releases.items():
+        path = f"$.releases[{version!r}]"
+        files = expect_list(raw_files, source="PyPI", path=path)
+        for index, raw_file in enumerate(files):
+            file_path = f"{path}[{index}]"
+            release_file = expect_mapping(raw_file, source="PyPI", path=file_path)
+            if "yanked" in release_file and not isinstance(
+                release_file["yanked"], bool
+            ):
+                raise ResponseValidationError(
+                    source, f"{file_path}.yanked", "a boolean"
+                )
+
+
 def _validate_response(body: object) -> PyPIResponse:
     root = expect_mapping(body, source="PyPI", path="$")
     _validate_info(root.get("info"))
     if "releases" in root:
-        _ = expect_mapping(root["releases"], source="PyPI", path="$.releases")
+        _validate_releases(root["releases"])
     raw_vulnerabilities = root.get("vulnerabilities", [])
     vulnerabilities = expect_list(
         raw_vulnerabilities, source="PyPI", path="$.vulnerabilities"
@@ -313,6 +330,8 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     releases = data.get("releases") or {}
     allows_prereleases = not specifier or specifier.prereleases is True
     for raw, files in releases.items():
+        if not files:
+            continue
         try:
             version = Version(raw)
         except InvalidVersion:
@@ -320,7 +339,7 @@ def get_package_matching(  # ruff: ignore[complex-structure]
         exact_pin = any(
             item.operator in {"==", "==="} and item.version == raw for item in specifier
         )
-        fully_yanked = bool(files) and all(file.get("yanked", False) for file in files)
+        fully_yanked = all(file.get("yanked", False) for file in files)
         if specifier.contains(version, prereleases=allows_prereleases) and (
             not fully_yanked or exact_pin
         ):
