@@ -352,6 +352,8 @@ def _release_candidates(  # ruff: ignore[complex-structure]
         try:
             version = Version(raw)
         except InvalidVersion:
+            if not files or all(file.get("yanked", False) for file in files):
+                filtered_arbitrary_candidates.add(raw.casefold())
             continue
         if not specifier.contains(version, prereleases=allows_prereleases):
             continue

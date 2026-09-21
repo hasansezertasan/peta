@@ -185,6 +185,28 @@ def _kept_requirements(
     return kept
 
 
+def _new_requirements(
+    pkg: PackageInfo,
+    marker_environment: dict[str, str] | None,
+    extras: tuple[str, ...],
+    previous_extras: frozenset[str] | None,
+) -> list[Requirement]:
+    """Return requirements newly activated since an earlier path expansion.
+
+    Returns:
+        All active requirements for a new node, or only the newly active ones
+        when re-entering an ancestor with additional extras.
+    """
+    requirements = _kept_requirements(pkg, marker_environment, extras)
+    if previous_extras is None:
+        return requirements
+    previous = _kept_requirements(
+        pkg, marker_environment, tuple(sorted(previous_extras))
+    )
+    previous_keys = {_requirement_key(req) for req in previous}
+    return [req for req in requirements if _requirement_key(req) not in previous_keys]
+
+
 def _conflict_node(
     req: Requirement, child_pkg: PackageInfo, target: LocalTarget | None
 ) -> DependencyNode | None:
@@ -212,9 +234,10 @@ def _depth_limited_node(
     child_pkg: PackageInfo,
     target: LocalTarget | None,
     extras: tuple[str, ...],
+    previous_extras: frozenset[str] | None,
 ) -> DependencyNode:
     env = target.marker_environment if target else None
-    has_active_deps = bool(_kept_requirements(child_pkg, env, extras))
+    has_active_deps = bool(_new_requirements(child_pkg, env, extras, previous_extras))
     return DependencyNode(
         name=req.name,
         version_spec=str(req.specifier),
@@ -292,25 +315,23 @@ def _child_node(
         return conflict
     child_pkg = resolved
     extras = _canonical_extras(req.extras)
+    previous_extras = path_entry[1] if path_entry is not None else None
+    expanded_extras = (previous_extras or frozenset()) | frozenset(extras)
+    active_extras = tuple(sorted(expanded_extras))
     if depth >= max_depth:
-        return _depth_limited_node(req, child_pkg, target, extras)
+        return _depth_limited_node(
+            req, child_pkg, target, active_extras, previous_extras
+        )
     children = _expand(
         child_pkg,
-        {
-            **path,
-            canon: (
-                child_pkg,
-                (path_entry[1] if path_entry is not None else frozenset())
-                | frozenset(extras),
-            ),
-        },
+        path,
         cache,
         local=local,
         remote=remote,
         target=target,
         depth=depth + 1,
         max_depth=max_depth,
-        extras=extras,
+        extras=active_extras,
     )
     return DependencyNode(
         name=req.name,
@@ -340,10 +361,14 @@ def _expand(
     Returns:
         The child dependency nodes.
     """
+    canon = canonicalize_name(pkg.name)
+    path_entry = path.get(canon)
+    previous_extras = path_entry[1] if path_entry is not None else None
+    expanded_path = {**path, canon: (pkg, frozenset(extras))}
     return [
         _child_node(
             req,
-            path,
+            expanded_path,
             cache,
             local=local,
             remote=remote,
@@ -351,8 +376,8 @@ def _expand(
             depth=depth,
             max_depth=max_depth,
         )
-        for req in _kept_requirements(
-            pkg, target.marker_environment if target else None, extras
+        for req in _new_requirements(
+            pkg, target.marker_environment if target else None, extras, previous_extras
         )
     ]
 
@@ -387,7 +412,7 @@ def build_tree(
     children = (
         _expand(
             root_pkg,
-            {canon: (root_pkg, frozenset(extras))},
+            {},
             cache,
             local=local,
             remote=remote,
