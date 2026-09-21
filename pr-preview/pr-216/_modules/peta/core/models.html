@@ -351,25 +351,27 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="213">        <span class="bp">self</span><span class="o">.</span><span class="n">version_spec</span> <span class="o">=</span> <span class="n">version_spec</span>
 </span><span data-line="214">        <span class="k">if</span> <span class="n">circular</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">"satisfied"</span><span class="p">:</span>
 </span><span data-line="215">            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"circular"</span>
-</span><span data-line="216">        <span class="k">else</span><span class="p">:</span>
-</span><span data-line="217">            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
-</span><span data-line="218">        <span class="k">if</span> <span class="n">selected_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="219">            <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span> <span class="o">=</span> <span class="n">installed_version</span>
-</span><span data-line="220">            <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span> <span class="o">=</span> <span class="n">installed_version</span>
-</span><span data-line="221">        <span class="k">else</span><span class="p">:</span>
-</span><span data-line="222">            <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span> <span class="o">=</span> <span class="n">selected_version</span>
-</span><span data-line="223">            <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span> <span class="o">=</span> <span class="n">installed_version</span> <span class="ow">or</span> <span class="n">selected_version</span>
-</span><span data-line="224">        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">children</span> <span class="k">if</span> <span class="n">children</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[]</span>
-</span><span data-line="225">        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">source</span>
-</span><span data-line="226">        <span class="bp">self</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="o">=</span> <span class="n">retrieved_at</span>
-</span><span data-line="227">        <span class="bp">self</span><span class="o">.</span><span class="n">freshness</span> <span class="o">=</span> <span class="n">freshness</span>
-</span><span data-line="228">        <span class="bp">self</span><span class="o">.</span><span class="n">resolution_failure</span> <span class="o">=</span> <span class="n">resolution_failure</span>
-</span><span data-line="229">        <span class="bp">self</span><span class="o">.</span><span class="n">conflict_reason</span> <span class="o">=</span> <span class="n">conflict_reason</span>
-</span><span data-line="230">
-</span><span data-line="231">    <span class="nd">@property</span>
-</span><span data-line="232">    <span class="k">def</span><span class="w"> </span><span class="nf">circular</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="233"><span class="w">        </span><span class="sd">"""Whether this is a cycle leaf (deprecated; use :attr:`state`)."""</span>
-</span><span data-line="234">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"circular"</span></div>
+</span><span data-line="216">        <span class="k">elif</span> <span class="n">resolution_failure</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">state</span> <span class="o">==</span> <span class="s2">"satisfied"</span><span class="p">:</span>
+</span><span data-line="217">            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="s2">"unresolved"</span>
+</span><span data-line="218">        <span class="k">else</span><span class="p">:</span>
+</span><span data-line="219">            <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">=</span> <span class="n">state</span>
+</span><span data-line="220">        <span class="k">if</span> <span class="n">selected_version</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="221">            <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span> <span class="o">=</span> <span class="n">installed_version</span>
+</span><span data-line="222">            <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span> <span class="o">=</span> <span class="n">installed_version</span>
+</span><span data-line="223">        <span class="k">else</span><span class="p">:</span>
+</span><span data-line="224">            <span class="bp">self</span><span class="o">.</span><span class="n">selected_version</span> <span class="o">=</span> <span class="n">selected_version</span>
+</span><span data-line="225">            <span class="bp">self</span><span class="o">.</span><span class="n">installed_version</span> <span class="o">=</span> <span class="n">installed_version</span> <span class="ow">or</span> <span class="n">selected_version</span>
+</span><span data-line="226">        <span class="bp">self</span><span class="o">.</span><span class="n">children</span> <span class="o">=</span> <span class="n">children</span> <span class="k">if</span> <span class="n">children</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[]</span>
+</span><span data-line="227">        <span class="bp">self</span><span class="o">.</span><span class="n">source</span> <span class="o">=</span> <span class="n">source</span>
+</span><span data-line="228">        <span class="bp">self</span><span class="o">.</span><span class="n">retrieved_at</span> <span class="o">=</span> <span class="n">retrieved_at</span>
+</span><span data-line="229">        <span class="bp">self</span><span class="o">.</span><span class="n">freshness</span> <span class="o">=</span> <span class="n">freshness</span>
+</span><span data-line="230">        <span class="bp">self</span><span class="o">.</span><span class="n">resolution_failure</span> <span class="o">=</span> <span class="n">resolution_failure</span>
+</span><span data-line="231">        <span class="bp">self</span><span class="o">.</span><span class="n">conflict_reason</span> <span class="o">=</span> <span class="n">conflict_reason</span>
+</span><span data-line="232">
+</span><span data-line="233">    <span class="nd">@property</span>
+</span><span data-line="234">    <span class="k">def</span><span class="w"> </span><span class="nf">circular</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="235"><span class="w">        </span><span class="sd">"""Whether this is a cycle leaf (deprecated; use :attr:`state`)."""</span>
+</span><span data-line="236">        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">state</span> <span class="o">==</span> <span class="s2">"circular"</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

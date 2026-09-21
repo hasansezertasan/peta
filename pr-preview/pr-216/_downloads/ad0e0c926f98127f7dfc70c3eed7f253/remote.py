@@ -78,6 +78,7 @@ class PyPIReleaseFile(TypedDict, total=False):
     """A single distribution file within a release entry."""
 
     upload_time: str
+    yanked: bool
 
 
 class PyPIResponse(TypedDict, total=False):
@@ -252,19 +253,8 @@ def _parse_license(
     return legacy, "legacy" if legacy else None
 
 
-def get_package(name: str, version: str | None = None) -> PackageInfo:
-    """Get metadata for a package from PyPI.
-
-    Args:
-        name: Package name to look up.
-        version: Optional specific version; if ``None`` the latest is fetched.
-
-    Returns:
-        A :class:`PackageInfo` with ``source="remote"``. Not-found and network
-        failures propagate from :func:`_fetch`.
-    """
-    data, provenance = _fetch(name, version)
-    info: PyPIInfo = data["info"]
+def _package_from_response(data: PyPIResponse, provenance: Provenance) -> PackageInfo:
+    info = data["info"]
     license_value, license_source = _parse_license(info)
     return PackageInfo(
         name=info["name"],
@@ -287,6 +277,21 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         retrieved_at=provenance.retrieved_at,
         freshness=provenance.freshness,
     )
+
+
+def get_package(name: str, version: str | None = None) -> PackageInfo:
+    """Get metadata for a package from PyPI.
+
+    Args:
+        name: Package name to look up.
+        version: Optional specific version; if ``None`` the latest is fetched.
+
+    Returns:
+        A :class:`PackageInfo` with ``source="remote"``. Not-found and network
+        failures propagate from :func:`_fetch`.
+    """
+    data, provenance = _fetch(name, version)
+    return _package_from_response(data, provenance)
 
 
 def _compatible_with_target(
@@ -319,16 +324,22 @@ def get_package_matching(  # ruff: ignore[complex-structure]
         The newest compatible package, or the current release when no release
         satisfies the requirement so callers can surface a conflict.
     """
-    data, _ = _fetch(name, None)
+    data, provenance = _fetch(name, None)
     candidates: list[Version] = []
     releases = data.get("releases") or {}
     allows_prereleases = not specifier or specifier.prereleases is True
-    for raw in releases:
+    for raw, files in releases.items():
         try:
             version = Version(raw)
         except InvalidVersion:
             continue
-        if specifier.contains(version, prereleases=allows_prereleases):
+        exact_pin = any(
+            item.operator in {"==", "==="} and item.version == raw for item in specifier
+        )
+        fully_yanked = bool(files) and all(file.get("yanked", False) for file in files)
+        if specifier.contains(version, prereleases=allows_prereleases) and (
+            not fully_yanked or exact_pin
+        ):
             candidates.append(version)
     stable_candidates = [
         candidate for candidate in candidates if not candidate.is_prerelease
@@ -336,7 +347,12 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     if stable_candidates and specifier.prereleases is not True:
         candidates = stable_candidates
     for version in sorted(candidates, reverse=True):
-        package = get_package(name, str(version))
+        package = (
+            _package_from_response(data, provenance)
+            if data.get("info") is not None  # pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.
+            and str(version) == data["info"]["version"]
+            else get_package(name, str(version))
+        )
         if _compatible_with_target(package, marker_environment):
             return package
     return get_package(name)

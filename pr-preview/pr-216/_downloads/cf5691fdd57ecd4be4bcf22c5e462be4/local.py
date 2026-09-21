@@ -314,9 +314,11 @@ def _override_platform(target: dict[str, str], platform: str) -> None:
     if not platform.strip():
         msg = "Invalid platform '': expected a marker platform."
         raise InvalidTargetError(msg)
+    if platform not in _PLATFORM_MARKERS:
+        msg = f"Invalid platform {platform!r}: expected win32, linux, or darwin."
+        raise InvalidTargetError(msg)
     target["sys_platform"] = platform
-    if platform in _PLATFORM_MARKERS:
-        target.update(_PLATFORM_MARKERS[platform])
+    target.update(_PLATFORM_MARKERS[platform])
 
 
 def _target_markers(

@@ -521,7 +521,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="397">            <span class="n">OutputMessage</span><span class="p">(</span>
 </span><span data-line="398">                <span class="n">code</span><span class="o">=</span><span class="s2">"dependency_depth_limited"</span><span class="p">,</span>
 </span><span data-line="399">                <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: expansion stopped at the depth limit"</span><span class="p">,</span>
-</span><span data-line="400">                <span class="n">source</span><span class="o">=</span><span class="n">node</span><span class="o">.</span><span class="n">source</span><span class="p">,</span>
+</span><span data-line="400">                <span class="n">source</span><span class="o">=</span><span class="n">_provider</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">source</span><span class="p">)</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">source</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
 </span><span data-line="401">            <span class="p">)</span>
 </span><span data-line="402">        <span class="p">)</span>
 </span><span data-line="403">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>

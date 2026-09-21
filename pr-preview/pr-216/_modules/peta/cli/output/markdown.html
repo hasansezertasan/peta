@@ -263,167 +263,171 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="139">
 </span><span data-line="140"><span class="k">def</span><span class="w"> </span><span class="nf">_tree_lines</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">,</span> <span class="n">depth</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
 </span><span data-line="141">    <span class="n">suffix</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">version_spec</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">version_spec</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="142">    <span class="n">state</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" _(</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">'_'</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">state</span> <span class="o">!=</span> <span class="s2">"satisfied"</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="143">    <span class="n">selected</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="144">        <span class="sa">f</span><span class="s2">" _(selected </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">selected_version</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">selected_version</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="145">    <span class="p">)</span>
-</span><span data-line="146">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
-</span><span data-line="147">    <span class="n">unresolved</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" _(unresolved: </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span> <span class="k">if</span> <span class="n">failure</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="148">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'  '</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">depth</span><span class="si">}</span><span class="s2">- `</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">`</span><span class="si">{</span><span class="n">selected</span><span class="si">}{</span><span class="n">state</span><span class="si">}{</span><span class="n">unresolved</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
-</span><span data-line="149">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
-</span><span data-line="150">        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
-</span><span data-line="151">    <span class="k">return</span> <span class="n">lines</span>
-</span><span data-line="152">
-</span><span data-line="153">
+</span><span data-line="142">    <span class="n">state</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="143">        <span class="sa">f</span><span class="s2">" _(</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">state</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">'_'</span><span class="p">,</span><span class="w"> </span><span class="s1">' '</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span>
+</span><span data-line="144">        <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">state</span> <span class="o">!=</span> <span class="s2">"satisfied"</span> <span class="ow">and</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span> <span class="ow">is</span> <span class="kc">None</span>
+</span><span data-line="145">        <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="146">    <span class="p">)</span>
+</span><span data-line="147">    <span class="n">selected</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="148">        <span class="sa">f</span><span class="s2">" _(selected </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">node</span><span class="o">.</span><span class="n">selected_version</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span> <span class="k">if</span> <span class="n">node</span><span class="o">.</span><span class="n">selected_version</span> <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="149">    <span class="p">)</span>
+</span><span data-line="150">    <span class="n">failure</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">resolution_failure</span>
+</span><span data-line="151">    <span class="n">unresolved</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">" _(unresolved: </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span><span class="si">}</span><span class="s2">)_"</span> <span class="k">if</span> <span class="n">failure</span> <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="152">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="s1">'  '</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">depth</span><span class="si">}</span><span class="s2">- `</span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">`</span><span class="si">{</span><span class="n">selected</span><span class="si">}{</span><span class="n">state</span><span class="si">}{</span><span class="n">unresolved</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span>
+</span><span data-line="153">    <span class="k">for</span> <span class="n">child</span> <span class="ow">in</span> <span class="n">node</span><span class="o">.</span><span class="n">children</span><span class="p">:</span>
+</span><span data-line="154">        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">child</span><span class="p">,</span> <span class="n">depth</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))</span>
+</span><span data-line="155">    <span class="k">return</span> <span class="n">lines</span>
+</span><span data-line="156">
+</span><span data-line="157">
 <div class="viewcode-block" id="format_dep_tree">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_dep_tree">[docs]</a>
-</span><span data-line="154"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="155"><span class="w">    </span><span class="sd">"""Format a dependency tree as Markdown.</span>
-</span><span data-line="156">
-</span><span data-line="157"><span class="sd">    Returns:</span>
-</span><span data-line="158"><span class="sd">        A heading and nested Markdown list.</span>
-</span><span data-line="159"><span class="sd">    """</span>
-</span><span data-line="160">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
-</span><span data-line="161">        <span class="sa">f</span><span class="s2">"# Declared metadata tree for </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-</span><span data-line="162">        <span class="s2">""</span><span class="p">,</span>
-</span><span data-line="163">        <span class="o">*</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">node</span><span class="p">),</span>
-</span><span data-line="164">    <span class="p">])</span></div>
+</span><span data-line="158"><span class="k">def</span><span class="w"> </span><span class="nf">format_dep_tree</span><span class="p">(</span><span class="n">node</span><span class="p">:</span> <span class="n">DependencyNode</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="159"><span class="w">    </span><span class="sd">"""Format a dependency tree as Markdown.</span>
+</span><span data-line="160">
+</span><span data-line="161"><span class="sd">    Returns:</span>
+</span><span data-line="162"><span class="sd">        A heading and nested Markdown list.</span>
+</span><span data-line="163"><span class="sd">    """</span>
+</span><span data-line="164">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+</span><span data-line="165">        <span class="sa">f</span><span class="s2">"# Declared metadata tree for </span><span class="si">{</span><span class="n">node</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span data-line="166">        <span class="s2">""</span><span class="p">,</span>
+</span><span data-line="167">        <span class="o">*</span><span class="n">_tree_lines</span><span class="p">(</span><span class="n">node</span><span class="p">),</span>
+</span><span data-line="168">    <span class="p">])</span></div>
 
-</span><span data-line="165">
-</span><span data-line="166">
+</span><span data-line="169">
+</span><span data-line="170">
 <div class="viewcode-block" id="format_why">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_why">[docs]</a>
-</span><span data-line="167"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="168"><span class="w">    </span><span class="sd">"""Format dependency paths as Markdown.</span>
-</span><span data-line="169">
-</span><span data-line="170"><span class="sd">    Returns:</span>
-</span><span data-line="171"><span class="sd">        A heading and one list item per path.</span>
-</span><span data-line="172"><span class="sd">    """</span>
-</span><span data-line="173">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Why </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">?"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
-</span><span data-line="174">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- </span><span class="si">{</span><span class="s1">' → '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">'`</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">`'</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">)</span>
-</span><span data-line="175">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="171"><span class="k">def</span><span class="w"> </span><span class="nf">format_why</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">paths</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="172"><span class="w">    </span><span class="sd">"""Format dependency paths as Markdown.</span>
+</span><span data-line="173">
+</span><span data-line="174"><span class="sd">    Returns:</span>
+</span><span data-line="175"><span class="sd">        A heading and one list item per path.</span>
+</span><span data-line="176"><span class="sd">    """</span>
+</span><span data-line="177">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Why </span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">?"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
+</span><span data-line="178">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- </span><span class="si">{</span><span class="s1">' → '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s1">'`</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s1">`'</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">)</span>
+</span><span data-line="179">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
-</span><span data-line="176">
-</span><span data-line="177">
+</span><span data-line="180">
+</span><span data-line="181">
 <div class="viewcode-block" id="format_files">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_files">[docs]</a>
-</span><span data-line="178"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="179"><span class="w">    </span><span class="sd">"""Format an installed file list as Markdown.</span>
-</span><span data-line="180">
-</span><span data-line="181"><span class="sd">    Returns:</span>
-</span><span data-line="182"><span class="sd">        A heading and Markdown list.</span>
-</span><span data-line="183"><span class="sd">    """</span>
-</span><span data-line="184">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Files for </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
-</span><span data-line="185">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">`"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[])</span>
-</span><span data-line="186">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="182"><span class="k">def</span><span class="w"> </span><span class="nf">format_files</span><span class="p">(</span><span class="n">pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="183"><span class="w">    </span><span class="sd">"""Format an installed file list as Markdown.</span>
+</span><span data-line="184">
+</span><span data-line="185"><span class="sd">    Returns:</span>
+</span><span data-line="186"><span class="sd">        A heading and Markdown list.</span>
+</span><span data-line="187"><span class="sd">    """</span>
+</span><span data-line="188">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Files for </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">]</span>
+</span><span data-line="189">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">`"</span> <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">pkg</span><span class="o">.</span><span class="n">files</span> <span class="ow">or</span> <span class="p">[])</span>
+</span><span data-line="190">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
-</span><span data-line="187">
-</span><span data-line="188">
+</span><span data-line="191">
+</span><span data-line="192">
 <div class="viewcode-block" id="format_versions">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_versions">[docs]</a>
-</span><span data-line="189"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="190"><span class="w">    </span><span class="sd">"""Format published versions as Markdown.</span>
-</span><span data-line="191">
-</span><span data-line="192"><span class="sd">    Returns:</span>
-</span><span data-line="193"><span class="sd">        A heading and Markdown table.</span>
-</span><span data-line="194"><span class="sd">    """</span>
-</span><span data-line="195">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Versions for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="s2">"| Version | Uploaded |"</span><span class="p">,</span> <span class="s2">"| --- | --- |"</span><span class="p">]</span>
-</span><span data-line="196">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="197">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'version'</span><span class="p">])</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'upload_time'</span><span class="p">])</span><span class="si">}</span><span class="s2"> |"</span>
-</span><span data-line="198">        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">versions</span>
-</span><span data-line="199">    <span class="p">)</span>
-</span><span data-line="200">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="193"><span class="k">def</span><span class="w"> </span><span class="nf">format_versions</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">versions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="194"><span class="w">    </span><span class="sd">"""Format published versions as Markdown.</span>
+</span><span data-line="195">
+</span><span data-line="196"><span class="sd">    Returns:</span>
+</span><span data-line="197"><span class="sd">        A heading and Markdown table.</span>
+</span><span data-line="198"><span class="sd">    """</span>
+</span><span data-line="199">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s2">"# Versions for </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="s2">"| Version | Uploaded |"</span><span class="p">,</span> <span class="s2">"| --- | --- |"</span><span class="p">]</span>
+</span><span data-line="200">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="201">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'version'</span><span class="p">])</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s1">'upload_time'</span><span class="p">])</span><span class="si">}</span><span class="s2"> |"</span>
+</span><span data-line="202">        <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">versions</span>
+</span><span data-line="203">    <span class="p">)</span>
+</span><span data-line="204">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
-</span><span data-line="201">
-</span><span data-line="202">
-</span><span data-line="203"><span class="n">_ARTIFACT_HEADER</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="204">    <span class="p">(</span>
-</span><span data-line="205">        <span class="s2">"| File | Kind | Size | Uploaded | Requires | Compatible | SHA-256 | Flags"</span>
-</span><span data-line="206">        <span class="s2">" | Published by |"</span>
-</span><span data-line="207">    <span class="p">),</span>
-</span><span data-line="208">    <span class="s2">"| --- | --- | --- | --- | --- | --- | --- | --- | --- |"</span><span class="p">,</span>
-</span><span data-line="209"><span class="p">)</span>
-</span><span data-line="210">
-</span><span data-line="211">
-</span><span data-line="212"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_rows</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="213"><span class="w">    </span><span class="sd">"""Render the per-file table body.</span>
+</span><span data-line="205">
+</span><span data-line="206">
+</span><span data-line="207"><span class="n">_ARTIFACT_HEADER</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="208">    <span class="p">(</span>
+</span><span data-line="209">        <span class="s2">"| File | Kind | Size | Uploaded | Requires | Compatible | SHA-256 | Flags"</span>
+</span><span data-line="210">        <span class="s2">" | Published by |"</span>
+</span><span data-line="211">    <span class="p">),</span>
+</span><span data-line="212">    <span class="s2">"| --- | --- | --- | --- | --- | --- | --- | --- | --- |"</span><span class="p">,</span>
+</span><span data-line="213"><span class="p">)</span>
 </span><span data-line="214">
-</span><span data-line="215"><span class="sd">    Returns:</span>
-</span><span data-line="216"><span class="sd">        One Markdown table row per file.</span>
-</span><span data-line="217"><span class="sd">    """</span>
-</span><span data-line="218">    <span class="k">return</span> <span class="p">[</span>
-</span><span data-line="219">        <span class="s2">"| "</span>
-</span><span data-line="220">        <span class="o">+</span> <span class="s2">" | "</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
-</span><span data-line="221">            <span class="sa">f</span><span class="s2">"`</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s2">`"</span><span class="p">,</span>
-</span><span data-line="222">            <span class="n">file</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
-</span><span data-line="223">            <span class="n">_cell</span><span class="p">(</span><span class="n">file_size</span><span class="p">(</span><span class="n">file</span><span class="p">)),</span>
-</span><span data-line="224">            <span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">upload_time</span><span class="p">),</span>
-</span><span data-line="225">            <span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">requires_python</span><span class="p">),</span>
-</span><span data-line="226">            <span class="n">verdict</span><span class="p">(</span><span class="n">file</span><span class="p">),</span>
-</span><span data-line="227">            <span class="sa">f</span><span class="s2">"`</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">sha256</span><span class="p">)</span><span class="si">}</span><span class="s2">`"</span> <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">sha256</span> <span class="k">else</span> <span class="s2">"—"</span><span class="p">,</span>
-</span><span data-line="228">            <span class="n">_cell</span><span class="p">(</span><span class="n">file_flags</span><span class="p">(</span><span class="n">file</span><span class="p">)),</span>
-</span><span data-line="229">            <span class="n">_cell</span><span class="p">(</span><span class="n">file_publishers</span><span class="p">(</span><span class="n">file</span><span class="p">)),</span>
-</span><span data-line="230">        <span class="p">])</span>
-</span><span data-line="231">        <span class="o">+</span> <span class="s2">" |"</span>
-</span><span data-line="232">        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
-</span><span data-line="233">    <span class="p">]</span>
-</span><span data-line="234">
-</span><span data-line="235">
-</span><span data-line="236"><span class="k">def</span><span class="w"> </span><span class="nf">_yanked_reason</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">ArtifactFile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="237"><span class="w">    </span><span class="sd">"""Render a yank reason, naming the absence of one explicitly.</span>
+</span><span data-line="215">
+</span><span data-line="216"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_rows</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="217"><span class="w">    </span><span class="sd">"""Render the per-file table body.</span>
+</span><span data-line="218">
+</span><span data-line="219"><span class="sd">    Returns:</span>
+</span><span data-line="220"><span class="sd">        One Markdown table row per file.</span>
+</span><span data-line="221"><span class="sd">    """</span>
+</span><span data-line="222">    <span class="k">return</span> <span class="p">[</span>
+</span><span data-line="223">        <span class="s2">"| "</span>
+</span><span data-line="224">        <span class="o">+</span> <span class="s2">" | "</span><span class="o">.</span><span class="n">join</span><span class="p">([</span>
+</span><span data-line="225">            <span class="sa">f</span><span class="s2">"`</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s2">`"</span><span class="p">,</span>
+</span><span data-line="226">            <span class="n">file</span><span class="o">.</span><span class="n">kind</span><span class="p">,</span>
+</span><span data-line="227">            <span class="n">_cell</span><span class="p">(</span><span class="n">file_size</span><span class="p">(</span><span class="n">file</span><span class="p">)),</span>
+</span><span data-line="228">            <span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">upload_time</span><span class="p">),</span>
+</span><span data-line="229">            <span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">requires_python</span><span class="p">),</span>
+</span><span data-line="230">            <span class="n">verdict</span><span class="p">(</span><span class="n">file</span><span class="p">),</span>
+</span><span data-line="231">            <span class="sa">f</span><span class="s2">"`</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">sha256</span><span class="p">)</span><span class="si">}</span><span class="s2">`"</span> <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">sha256</span> <span class="k">else</span> <span class="s2">"—"</span><span class="p">,</span>
+</span><span data-line="232">            <span class="n">_cell</span><span class="p">(</span><span class="n">file_flags</span><span class="p">(</span><span class="n">file</span><span class="p">)),</span>
+</span><span data-line="233">            <span class="n">_cell</span><span class="p">(</span><span class="n">file_publishers</span><span class="p">(</span><span class="n">file</span><span class="p">)),</span>
+</span><span data-line="234">        <span class="p">])</span>
+</span><span data-line="235">        <span class="o">+</span> <span class="s2">" |"</span>
+</span><span data-line="236">        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
+</span><span data-line="237">    <span class="p">]</span>
 </span><span data-line="238">
-</span><span data-line="239"><span class="sd">    Returns:</span>
-</span><span data-line="240"><span class="sd">        The reason PyPI recorded, or a stand-in when it recorded none.</span>
-</span><span data-line="241"><span class="sd">    """</span>
-</span><span data-line="242">    <span class="k">return</span> <span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">yanked_reason</span> <span class="ow">or</span> <span class="s2">"no reason given"</span><span class="p">)</span>
-</span><span data-line="243">
-</span><span data-line="244">
-</span><span data-line="245"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_notes</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-</span><span data-line="246"><span class="w">    </span><span class="sd">"""Report incompatibility reasons, yanks, and failed provenance lookups.</span>
+</span><span data-line="239">
+</span><span data-line="240"><span class="k">def</span><span class="w"> </span><span class="nf">_yanked_reason</span><span class="p">(</span><span class="n">file</span><span class="p">:</span> <span class="n">ArtifactFile</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="241"><span class="w">    </span><span class="sd">"""Render a yank reason, naming the absence of one explicitly.</span>
+</span><span data-line="242">
+</span><span data-line="243"><span class="sd">    Returns:</span>
+</span><span data-line="244"><span class="sd">        The reason PyPI recorded, or a stand-in when it recorded none.</span>
+</span><span data-line="245"><span class="sd">    """</span>
+</span><span data-line="246">    <span class="k">return</span> <span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">yanked_reason</span> <span class="ow">or</span> <span class="s2">"no reason given"</span><span class="p">)</span>
 </span><span data-line="247">
-</span><span data-line="248"><span class="sd">    Returns:</span>
-</span><span data-line="249"><span class="sd">        A trailing Markdown section, empty when there is nothing to report.</span>
-</span><span data-line="250"><span class="sd">    """</span>
-</span><span data-line="251">    <span class="n">notes</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="252">        <span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s2">`: </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="253">        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
-</span><span data-line="254">        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">reason</span>
-</span><span data-line="255">    <span class="p">]</span>
-</span><span data-line="256">    <span class="n">notes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="257">        <span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s2">` **yanked:** </span><span class="si">{</span><span class="n">_yanked_reason</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="258">        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
-</span><span data-line="259">        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">yanked</span>
-</span><span data-line="260">    <span class="p">)</span>
-</span><span data-line="261">    <span class="n">notes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="262">        <span class="sa">f</span><span class="s2">"- **provenance lookup failed:** </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">description</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="263">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
+</span><span data-line="248">
+</span><span data-line="249"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_notes</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+</span><span data-line="250"><span class="w">    </span><span class="sd">"""Report incompatibility reasons, yanks, and failed provenance lookups.</span>
+</span><span data-line="251">
+</span><span data-line="252"><span class="sd">    Returns:</span>
+</span><span data-line="253"><span class="sd">        A trailing Markdown section, empty when there is nothing to report.</span>
+</span><span data-line="254"><span class="sd">    """</span>
+</span><span data-line="255">    <span class="n">notes</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="256">        <span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s2">`: </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">reason</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="257">        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
+</span><span data-line="258">        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">compatibility</span><span class="o">.</span><span class="n">reason</span>
+</span><span data-line="259">    <span class="p">]</span>
+</span><span data-line="260">    <span class="n">notes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="261">        <span class="sa">f</span><span class="s2">"- `</span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">file</span><span class="o">.</span><span class="n">filename</span><span class="p">)</span><span class="si">}</span><span class="s2">` **yanked:** </span><span class="si">{</span><span class="n">_yanked_reason</span><span class="p">(</span><span class="n">file</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="262">        <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span>
+</span><span data-line="263">        <span class="k">if</span> <span class="n">file</span><span class="o">.</span><span class="n">yanked</span>
 </span><span data-line="264">    <span class="p">)</span>
-</span><span data-line="265">    <span class="k">if</span> <span class="ow">not</span> <span class="n">notes</span><span class="p">:</span>
-</span><span data-line="266">        <span class="k">return</span> <span class="p">[]</span>
-</span><span data-line="267">    <span class="k">return</span> <span class="p">[</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"## Notes"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">notes</span><span class="p">]</span>
-</span><span data-line="268">
-</span><span data-line="269">
+</span><span data-line="265">    <span class="n">notes</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="266">        <span class="sa">f</span><span class="s2">"- **provenance lookup failed:** </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">failure</span><span class="o">.</span><span class="n">description</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="267">        <span class="k">for</span> <span class="n">failure</span> <span class="ow">in</span> <span class="n">release</span><span class="o">.</span><span class="n">publisher_failures</span>
+</span><span data-line="268">    <span class="p">)</span>
+</span><span data-line="269">    <span class="k">if</span> <span class="ow">not</span> <span class="n">notes</span><span class="p">:</span>
+</span><span data-line="270">        <span class="k">return</span> <span class="p">[]</span>
+</span><span data-line="271">    <span class="k">return</span> <span class="p">[</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"## Notes"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">notes</span><span class="p">]</span>
+</span><span data-line="272">
+</span><span data-line="273">
 <div class="viewcode-block" id="format_artifacts">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.markdown.format_artifacts">[docs]</a>
-</span><span data-line="270"><span class="k">def</span><span class="w"> </span><span class="nf">format_artifacts</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">detailed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="271"><span class="w">    </span><span class="sd">"""Format a release's artifacts as Markdown.</span>
-</span><span data-line="272">
-</span><span data-line="273"><span class="sd">    Returns:</span>
-</span><span data-line="274"><span class="sd">        A summary table, an optional per-file table, and any notes.</span>
-</span><span data-line="275"><span class="sd">    """</span>
-</span><span data-line="276">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="277">        <span class="sa">f</span><span class="s2">"# Artifacts for </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-</span><span data-line="278">        <span class="s2">""</span><span class="p">,</span>
-</span><span data-line="279">        <span class="s2">"| Field | Value |"</span><span class="p">,</span>
-</span><span data-line="280">        <span class="s2">"| --- | --- |"</span><span class="p">,</span>
-</span><span data-line="281">    <span class="p">]</span>
-</span><span data-line="282">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
-</span><span data-line="283">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">summary_rows</span><span class="p">(</span><span class="n">release</span><span class="p">)</span>
-</span><span data-line="284">    <span class="p">)</span>
-</span><span data-line="285">    <span class="k">if</span> <span class="n">detailed</span> <span class="ow">and</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
-</span><span data-line="286">        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"## Files"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">_ARTIFACT_HEADER</span><span class="p">,</span> <span class="o">*</span><span class="n">_artifact_rows</span><span class="p">(</span><span class="n">release</span><span class="p">)])</span>
-</span><span data-line="287">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_artifact_notes</span><span class="p">(</span><span class="n">release</span><span class="p">))</span>
-</span><span data-line="288">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
+</span><span data-line="274"><span class="k">def</span><span class="w"> </span><span class="nf">format_artifacts</span><span class="p">(</span><span class="n">release</span><span class="p">:</span> <span class="n">ReleaseArtifacts</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">detailed</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="275"><span class="w">    </span><span class="sd">"""Format a release's artifacts as Markdown.</span>
+</span><span data-line="276">
+</span><span data-line="277"><span class="sd">    Returns:</span>
+</span><span data-line="278"><span class="sd">        A summary table, an optional per-file table, and any notes.</span>
+</span><span data-line="279"><span class="sd">    """</span>
+</span><span data-line="280">    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="281">        <span class="sa">f</span><span class="s2">"# Artifacts for </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">release</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span data-line="282">        <span class="s2">""</span><span class="p">,</span>
+</span><span data-line="283">        <span class="s2">"| Field | Value |"</span><span class="p">,</span>
+</span><span data-line="284">        <span class="s2">"| --- | --- |"</span><span class="p">,</span>
+</span><span data-line="285">    <span class="p">]</span>
+</span><span data-line="286">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+</span><span data-line="287">        <span class="sa">f</span><span class="s2">"| </span><span class="si">{</span><span class="n">label</span><span class="si">}</span><span class="s2"> | </span><span class="si">{</span><span class="n">_cell</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="si">}</span><span class="s2"> |"</span> <span class="k">for</span> <span class="n">label</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">summary_rows</span><span class="p">(</span><span class="n">release</span><span class="p">)</span>
+</span><span data-line="288">    <span class="p">)</span>
+</span><span data-line="289">    <span class="k">if</span> <span class="n">detailed</span> <span class="ow">and</span> <span class="n">release</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+</span><span data-line="290">        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"## Files"</span><span class="p">,</span> <span class="s2">""</span><span class="p">,</span> <span class="o">*</span><span class="n">_ARTIFACT_HEADER</span><span class="p">,</span> <span class="o">*</span><span class="n">_artifact_rows</span><span class="p">(</span><span class="n">release</span><span class="p">)])</span>
+</span><span data-line="291">    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">_artifact_notes</span><span class="p">(</span><span class="n">release</span><span class="p">))</span>
+</span><span data-line="292">    <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
