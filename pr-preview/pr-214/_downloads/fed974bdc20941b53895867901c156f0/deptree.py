@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 from packaging.markers import UndefinedEnvironmentName
@@ -145,13 +146,17 @@ def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
     Returns:
         ``True`` when no target restriction excludes the package.
     """
-    if target is None or not pkg.python_requires:
+    if not pkg.python_requires:
         return True
     try:
         specifier = SpecifierSet(pkg.python_requires)
     except InvalidSpecifier:
         return False
-    python_version = target.marker_environment.get("python_full_version", "")
+    if target is None:
+        version = sys.version_info
+        python_version = f"{version.major}.{version.minor}.{version.micro}"
+    else:
+        python_version = target.marker_environment.get("python_full_version", "")
     return bool(specifier.contains(python_version))
 
 
@@ -193,9 +198,23 @@ def _depth_limited_node(
     )
 
 
+def _cycle_node(
+    req: Requirement, path: dict[str, PackageInfo], target: LocalTarget | None
+) -> DependencyNode | None:
+    canon = canonicalize_name(req.name)
+    if canon not in path:
+        return None
+    conflict = _conflict_node(req, path[canon], target)
+    if conflict is not None:
+        return conflict
+    return DependencyNode(
+        name=req.name, version_spec=str(req.specifier), state="circular"
+    )
+
+
 def _child_node(
     req: Requirement,
-    path: frozenset[str],
+    path: dict[str, PackageInfo],
     cache: dict[str, PackageInfo | DependencyResolutionFailure],
     *,
     local: bool,
@@ -212,10 +231,9 @@ def _child_node(
     """
     version_spec = str(req.specifier)
     canon = canonicalize_name(req.name)
-    if canon in path:
-        return DependencyNode(
-            name=req.name, version_spec=version_spec, state="circular"
-        )
+    cycle = _cycle_node(req, path, target)
+    if cycle is not None:
+        return cycle
     resolved = _resolve_cached(req, cache, local=local, remote=remote, target=target)
     if isinstance(resolved, DependencyResolutionFailure):
         return DependencyNode(
@@ -233,7 +251,7 @@ def _child_node(
         return _depth_limited_node(req, child_pkg, target, extras)
     children = _expand(
         child_pkg,
-        path | {canon},
+        {**path, canon: child_pkg},
         cache,
         local=local,
         remote=remote,
@@ -255,7 +273,7 @@ def _child_node(
 
 def _expand(
     pkg: PackageInfo,
-    path: frozenset[str],
+    path: dict[str, PackageInfo],
     cache: dict[str, PackageInfo | DependencyResolutionFailure],
     *,
     local: bool,
@@ -312,7 +330,7 @@ def build_tree(
     children = (
         _expand(
             root_pkg,
-            frozenset({canon}),
+            {canon: root_pkg},
             cache,
             local=local,
             remote=remote,
