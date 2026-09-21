@@ -22,7 +22,7 @@ from peta.core.validation import (
 )
 
 if TYPE_CHECKING:
-    from packaging.specifiers import SpecifierSet
+    from packaging.specifiers import Specifier, SpecifierSet
 
     from peta.core.cache import Provenance
 
@@ -312,6 +312,21 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
     return _package_from_response(data, provenance)
 
 
+def _matches_exact_pin(item: Specifier, raw: str, version: Version) -> bool:
+    if item.operator == "===":
+        return item.version == raw
+    if item.operator != "==" or item.version.endswith(".*"):
+        return False
+    try:
+        return Version(item.version) == version
+    except InvalidVersion:
+        return False
+
+
+def _is_exact_pin(specifier: SpecifierSet, raw: str, version: Version) -> bool:
+    return any(_matches_exact_pin(item, raw, version) for item in specifier)
+
+
 def get_package_matching(  # ruff: ignore[complex-structure]
     name: str, specifier: SpecifierSet, marker_environment: dict[str, str] | None
 ) -> PackageInfo:
@@ -336,9 +351,7 @@ def get_package_matching(  # ruff: ignore[complex-structure]
             version = Version(raw)
         except InvalidVersion:
             continue
-        exact_pin = any(
-            item.operator in {"==", "==="} and item.version == raw for item in specifier
-        )
+        exact_pin = _is_exact_pin(specifier, raw, version)
         fully_yanked = all(file.get("yanked", False) for file in files)
         if specifier.contains(version, prereleases=allows_prereleases) and (
             not fully_yanked or exact_pin

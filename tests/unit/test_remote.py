@@ -196,7 +196,7 @@ def test_matching_accepts_fully_yanked_exact_pin(
     fetch: MagicMock, get: MagicMock
 ) -> None:
     fetch.return_value = (
-        {"releases": {"2.0": [{"yanked": True}], "1.9": [{"yanked": False}]}},
+        {"releases": {"2.0.0": [{"yanked": True}], "1.9": [{"yanked": False}]}},
         MagicMock(),
     )
     get.side_effect = lambda _name, version: PackageInfo(
@@ -205,8 +205,8 @@ def test_matching_accepts_fully_yanked_exact_pin(
 
     result = get_package_matching("dep", SpecifierSet("==2.0"), None)
 
-    assert result.version == "2.0"
-    get.assert_called_once_with("dep", "2.0")
+    assert result.version == "2.0.0"
+    get.assert_called_once_with("dep", "2.0.0")
 
 
 @patch("peta.core.remote.get_package")
