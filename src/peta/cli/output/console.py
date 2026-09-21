@@ -37,12 +37,6 @@ def render(renderable: object, *, color: bool, width: int = 100) -> str:
         supply exactly one.
     """
     buf = StringIO()
-    console = Console(
-        file=buf,
-        force_terminal=color,
-        no_color=not color,
-        color_system="standard" if color else None,
-        width=width,
-    )
+    console = Console(file=buf, force_terminal=color, no_color=not color, width=width)
     console.print(renderable, end="")
     return buf.getvalue()
