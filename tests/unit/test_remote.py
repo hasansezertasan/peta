@@ -132,6 +132,22 @@ def test_matching_release_accepts_explicit_prerelease(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_unconstrained_matching_prefers_final_release(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"1.9": [], "2.0rc1": []}}, MagicMock())
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_matching_release_skips_releases_incompatible_with_running_python(
     fetch: MagicMock, get: MagicMock
 ) -> None:

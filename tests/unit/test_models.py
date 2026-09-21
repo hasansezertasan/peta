@@ -80,6 +80,22 @@ class TestDependencyNode:
         )
         assert node.children == [child]
 
+    def test_legacy_positional_constructor_order(self) -> None:
+        child = DependencyNode(name="idna", version_spec="")
+
+        node = DependencyNode(
+            "requests",
+            "==2.31.0",
+            "2.31.0",
+            [child],
+            True,  # ruff: ignore[boolean-positional-value-in-call]  # Exercise the legacy positional API.
+        )
+
+        assert node.selected_version == "2.31.0"
+        assert node.installed_version == "2.31.0"
+        assert node.children == [child]
+        assert node.circular is True
+
     def test_legacy_circular_argument_translates_to_state(self) -> None:
         node = DependencyNode(name="x", version_spec="", circular=True)
         assert node.state == "circular"

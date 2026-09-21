@@ -58,6 +58,31 @@ class TestResolvePackage:
         pkg = resolve_package("x", local=False, remote=False)
         assert pkg.source == "remote"
 
+    @pytest.mark.parametrize(
+        ("paths", "interpreter"),
+        [(("/site-packages",), None), (None, "/target/python")],
+    )
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_explicit_metadata_target_does_not_fall_back_to_remote(
+        self,
+        ml: MagicMock,
+        mr: MagicMock,
+        paths: tuple[str, ...] | None,
+        interpreter: str | None,
+    ) -> None:
+        ml.side_effect = LocalNotFound("x")
+        target = LocalTarget(
+            paths=paths,
+            interpreter=interpreter,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        with pytest.raises(LocalNotFound):
+            resolve_package("x", local=False, remote=False, target=target)
+
+        mr.assert_not_called()
+
     @patch("peta.core.resolve.remote_get_package_matching")
     @patch("peta.core.resolve.local_get_package")
     def test_target_incompatible_local_package_falls_back_to_remote(

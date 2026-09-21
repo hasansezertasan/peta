@@ -186,23 +186,23 @@ class DependencyNode:
     resolution_failure: DependencyResolutionFailure | None = None
     conflict_reason: Literal["version", "target"] | None = None
 
-    def __init__(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
+    def __init__(  # ruff: ignore[too-many-arguments]
         self,
         name: str,
         version_spec: str,
-        selected_version: str | None = None,
         installed_version: str | None = None,
         children: list[DependencyNode] | None = None,
-        state: Literal[
-            "satisfied", "conflicting", "unresolved", "circular", "depth_limited"
-        ] = "satisfied",
+        circular: bool | None = None,  # ruff: ignore[boolean-type-hint-positional-argument]  # Legacy positional API.
         source: str | None = None,
         retrieved_at: str | None = None,
         freshness: Freshness | None = None,
         resolution_failure: DependencyResolutionFailure | None = None,
         *,
+        selected_version: str | None = None,
+        state: Literal[
+            "satisfied", "conflicting", "unresolved", "circular", "depth_limited"
+        ] = "satisfied",
         conflict_reason: Literal["version", "target"] | None = None,
-        circular: bool | None = None,
     ) -> None:
         """Initialize a DependencyNode.
 
