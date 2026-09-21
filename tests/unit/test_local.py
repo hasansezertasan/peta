@@ -257,3 +257,33 @@ def test_local_target_platform_override_updates_platform_family() -> None:
     assert target_linux.marker_environment["sys_platform"] == "linux"
     assert target_linux.marker_environment["os_name"] == "posix"
     assert target_linux.marker_environment["platform_system"] == "Linux"
+
+
+@pytest.mark.parametrize(
+    ("requested", "short", "full"),
+    [("3.12", "3.12", "3.12.0"), ("3.12.4", "3.12", "3.12.4")],
+)
+def test_local_target_python_version_override(
+    requested: str, short: str, full: str
+) -> None:
+    target = LocalTarget.create(python_version=requested)
+
+    assert target.marker_environment["python_version"] == short
+    assert target.marker_environment["python_full_version"] == full
+
+
+@pytest.mark.parametrize("requested", ["3", "3.12.4.5", "3.x"])
+def test_local_target_rejects_invalid_python_version(requested: str) -> None:
+    with pytest.raises(InvalidTargetError, match=r"expected X\.Y or X\.Y\.Z"):
+        LocalTarget.create(python_version=requested)
+
+
+def test_local_target_rejects_blank_platform() -> None:
+    with pytest.raises(InvalidTargetError, match="expected a marker platform"):
+        LocalTarget.create(platform="")
+
+
+def test_local_target_accepts_custom_sys_platform() -> None:
+    target = LocalTarget.create(platform="custom-os")
+
+    assert target.marker_environment["sys_platform"] == "custom-os"

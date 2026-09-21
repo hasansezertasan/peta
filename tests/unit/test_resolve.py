@@ -73,6 +73,23 @@ class TestResolvePackage:
         assert pkg.version == "1.0.0"
         assert pkg.source == "remote"
 
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.local_get_package")
+    def test_invalid_local_requires_python_falls_back_to_remote(
+        self, ml: MagicMock, mr: MagicMock
+    ) -> None:
+        ml.return_value = _pkg(name="x", python_requires="invalid")
+        mr.return_value = _pkg(name="x", version="1.0.0", source="remote")
+        target = LocalTarget(
+            paths=None,
+            interpreter=None,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        pkg = resolve_package("x", local=False, remote=False, target=target)
+
+        assert pkg.source == "remote"
+
     @patch("peta.core.resolve.remote_get_package")
     def test_version_specifier_queries_remote(self, mr: MagicMock) -> None:
         mr.return_value = _pkg(version="2.28.0", source="remote")

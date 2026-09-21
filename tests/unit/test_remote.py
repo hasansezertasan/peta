@@ -118,6 +118,42 @@ def test_matching_release_skips_releases_incompatible_with_running_python(
     assert result.version == "1.0"
 
 
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_skips_invalid_versions_and_falls_back(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"not-a-version": [], "2.0": []}}, MagicMock())
+    current = PackageInfo(name="dep", version="3.0", source="remote")
+    get.return_value = current
+
+    result = get_package_matching("dep", SpecifierSet("<2"), None)
+
+    assert result is current
+    get.assert_called_once_with("dep")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_rejects_invalid_requires_python(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"2.0": [], "1.0": []}}, MagicMock())
+    packages = {
+        "2.0": PackageInfo(
+            name="dep", version="2.0", source="remote", python_requires="invalid"
+        ),
+        "1.0": PackageInfo(name="dep", version="1.0", source="remote"),
+    }
+    get.side_effect = lambda _name, version=None: packages.get(version, packages["1.0"])
+
+    result = get_package_matching(
+        "dep", SpecifierSet(), {"python_full_version": "3.12.0"}
+    )
+
+    assert result.version == "1.0"
+
+
 def test_not_found(fake_http: FakeTransport) -> None:
     fake_http.reply(status=404)
     with pytest.raises(PackageNotFoundError):
