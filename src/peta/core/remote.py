@@ -349,7 +349,7 @@ def _release_candidates(  # ruff: ignore[complex-structure]
             if not _is_arbitrary_pin(specifier, raw):
                 continue
             if not files:
-                filtered_arbitrary_candidates.add(raw)
+                filtered_arbitrary_candidates.add(raw.casefold())
                 continue
             arbitrary_candidates.append(raw)
             continue
@@ -424,7 +424,7 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     try:
         fallback_version = Version(fallback.version)
     except InvalidVersion:
-        if fallback.version in filtered_arbitrary_candidates:
+        if fallback.version.casefold() in filtered_arbitrary_candidates:
             if best_incompatible is not None:
                 return best_incompatible
             raise PackageNotFoundError(name, fallback.version) from None
