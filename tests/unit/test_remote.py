@@ -2,12 +2,19 @@
 
 import re
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
+from packaging.specifiers import SpecifierSet
 
 from peta.core.models import PackageInfo
-from peta.core.remote import NetworkError, PackageNotFoundError, get_package
+from peta.core.remote import (
+    NetworkError,
+    PackageNotFoundError,
+    get_package,
+    get_package_matching,
+)
 from tests.contract_fixtures import load_contract
 
 if TYPE_CHECKING:
@@ -75,6 +82,22 @@ def test_specific_version_url(fake_http: FakeTransport) -> None:
     fake_http.reply(json={"info": _INFO, "vulnerabilities": []})
     _ = get_package("requests", version="2.28.0")
     assert str(fake_http.request.url) == "https://pypi.org/pypi/requests/2.28.0/json"
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_release_prefers_stable_versions(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = ({"releases": {"1.9": [], "2.0rc1": []}}, MagicMock())
+    get.side_effect = lambda _name, version: PackageInfo(
+        name="dep", version=version, source="remote"
+    )
+
+    result = get_package_matching("dep", SpecifierSet("<2"), None)
+
+    assert result.version == "1.9"
+    get.assert_called_once_with("dep", "1.9")
 
 
 def test_not_found(fake_http: FakeTransport) -> None:

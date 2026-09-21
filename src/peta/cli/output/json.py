@@ -327,8 +327,8 @@ def _node_dict(node: DependencyNode) -> dict[str, object]:
     return {
         "name": node.name,
         "version_spec": node.version_spec,
-        "installed_version": node.installed_version,
-        "circular": node.circular,
+        "selected_version": node.selected_version,
+        "state": node.state,
         "source": node.source,
         "resolution": (
             {"state": failure.state, "source": failure.source, "reason": failure.reason}
@@ -390,9 +390,43 @@ def _dependency_warnings(node: DependencyNode) -> list[OutputMessage]:
                 source=failure.source,
             )
         )
+    if node.state == "conflicting":
+        warnings.append(_conflict_warning(node))
+    if node.state == "depth_limited":
+        warnings.append(
+            OutputMessage(
+                code="dependency_depth_limited",
+                message=f"{node.name}: expansion stopped at the depth limit",
+                source=node.source,
+            )
+        )
     for child in node.children:
         warnings.extend(_dependency_warnings(child))
     return warnings
+
+
+def _conflict_warning(node: DependencyNode) -> OutputMessage:
+    """Return the structured warning matching a conflict node.
+
+    Returns:
+        The warning for the node's version or target-environment conflict.
+    """
+    if not node.version_spec:
+        message = (
+            f"{node.name}: selected {node.selected_version} is incompatible "
+            "with the target environment"
+        )
+        return OutputMessage(
+            code="dependency_target_incompatible", message=message, source=node.source
+        )
+    return OutputMessage(
+        code="dependency_version_conflict",
+        message=(
+            f"{node.name}: selected {node.selected_version} does not satisfy "
+            f"{node.version_spec}"
+        ),
+        source=node.source,
+    )
 
 
 def _walk_path(tree: DependencyNode, path: list[str]) -> Iterator[DependencyNode]:

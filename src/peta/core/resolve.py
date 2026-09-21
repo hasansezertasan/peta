@@ -5,13 +5,17 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import typer
+from packaging.specifiers import SpecifierSet
 
 from peta.core.local import (
     LocalTarget,
     PackageNotFoundError as LocalNotFound,
     get_package as local_get_package,
 )
-from peta.core.remote import get_package as remote_get_package
+from peta.core.remote import (
+    get_package as remote_get_package,
+    get_package_matching as remote_get_package_matching,
+)
 
 if TYPE_CHECKING:
     from peta.core.models import PackageInfo
@@ -68,8 +72,28 @@ def _resolve_versioned(name: str, version: str, *, local: bool) -> PackageInfo:
     return remote_get_package(name, version)
 
 
-def resolve_package(  # ruff: ignore[complex-structure]
-    package: str, *, local: bool, remote: bool, target: LocalTarget | None = None
+def _remote_package(
+    name: str, specifier: SpecifierSet, target: LocalTarget | None
+) -> PackageInfo:
+    """Get the newest remote release that meets the dependency requirement.
+
+    Returns:
+        The selected remote package metadata.
+    """
+    if not specifier and target is None:
+        return remote_get_package(name)
+    return remote_get_package_matching(
+        name, specifier, target.marker_environment if target else None
+    )
+
+
+def resolve_package(  # ruff: ignore[complex-structure, too-many-return-statements]
+    package: str,
+    *,
+    local: bool,
+    remote: bool,
+    target: LocalTarget | None = None,
+    specifier: SpecifierSet | None = None,
 ) -> PackageInfo:
     """Resolve a package argument to its metadata.
 
@@ -84,23 +108,29 @@ def resolve_package(  # ruff: ignore[complex-structure]
         typer.BadParameter: If source-selection options conflict.
     """
     name, version = parse_package_arg(package)
-    if target is not None and remote:
-        msg = "--python and --path cannot be combined with --remote."
-        raise typer.BadParameter(msg)
+    requirement = specifier or SpecifierSet()
     if version:
-        if target is not None:
+        if target is not None and (target.interpreter is not None or target.paths):
             msg = "--python and --path cannot be combined with a version specifier."
             raise typer.BadParameter(msg)
         return _resolve_versioned(name, version, local=local)
     if remote:
-        return remote_get_package(name)
+        return _remote_package(name, requirement, target)
     if local or target is not None:
-        return (
+        local_pkg = (
             local_get_package(name, target=target)
             if target
             else local_get_package(name)
         )
+        if requirement.contains(local_pkg.version, prereleases=True):
+            return local_pkg
+        if local:
+            return local_pkg
+        return _remote_package(name, requirement, target)
     try:
-        return local_get_package(name)
+        local_pkg = local_get_package(name)
     except LocalNotFound:
-        return remote_get_package(name)
+        return _remote_package(name, requirement, target)
+    if requirement.contains(local_pkg.version, prereleases=True):
+        return local_pkg
+    return _remote_package(name, requirement, target)

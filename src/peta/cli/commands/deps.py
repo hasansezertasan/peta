@@ -76,6 +76,7 @@ def _build_or_fail(
     selected: OutputFormat,
     arguments: dict[str, object],
     target: LocalTarget | None,
+    extras: tuple[str, ...],
 ) -> DependencyNode:
     """Resolve the tree, or render the failure and exit.
 
@@ -87,7 +88,12 @@ def _build_or_fail(
     """
     try:
         return build_tree(
-            package, local=local, remote=remote, target=target, max_depth=depth
+            package,
+            local=local,
+            remote=remote,
+            target=target,
+            max_depth=depth,
+            extras=extras,
         )
     except _NOT_FOUND as exc:
         fail(
@@ -141,6 +147,9 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
     why: str | None = None,
     depth: int = 10,
     python: str | None = None,
+    python_version: str | None = None,
+    platform: str | None = None,
+    extras: tuple[str, ...] = (),
     paths: tuple[str, ...] = (),
 ) -> None:
     """Show a package's recursive dependency tree, or why a target is pulled in."""
@@ -153,6 +162,9 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
         "why": why,
         "depth": depth,
         "python": python,
+        "python_version": python_version,
+        "platform": platform,
+        "extras": list(extras),
         "paths": list(paths),
     }
     try:
@@ -160,7 +172,12 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
         # must be rejected as an unusable interpreter, not silently fall back
         # to the environment running peta.
         target = (
-            LocalTarget.create(python, paths) if python is not None or paths else None
+            LocalTarget.create(python, paths, python_version, platform)
+            if python is not None
+            or paths
+            or python_version is not None
+            or platform is not None
+            else None
         )
     except ValueError as exc:
         fail(
@@ -184,6 +201,7 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
         selected=selected,
         arguments=arguments,
         target=target,
+        extras=extras,
     )
 
     if why is not None:

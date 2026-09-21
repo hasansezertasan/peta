@@ -526,7 +526,7 @@ class TestDeps:
     def test_deps_markdown(self, m: MagicMock) -> None:
         m.return_value = _pkg()
         result = runner.invoke(app, ["deps", "requests", "--format", "markdown"])
-        assert result.output.startswith("# Dependencies for requests")
+        assert result.output.startswith("# Declared metadata tree for requests")
 
     @patch("peta.core.resolve.remote_get_package")
     def test_deps_remote_flag(self, mr: MagicMock) -> None:

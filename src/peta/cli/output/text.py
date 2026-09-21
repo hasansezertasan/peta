@@ -129,13 +129,11 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
 
 def _tree_lines(node: DependencyNode, depth: int = 0) -> list[str]:
     suffix = f" {node.version_spec}" if node.version_spec else ""
-    circular = " (circular)" if node.circular else ""
-    installed = (
-        f" (installed {node.installed_version})" if node.installed_version else ""
-    )
+    state = f" ({node.state.replace('_', ' ')})" if node.state != "satisfied" else ""
+    selected = f" (selected {node.selected_version})" if node.selected_version else ""
     failure = node.resolution_failure
     unresolved = f" (unresolved: {failure.reason})" if failure else ""
-    lines = [f"{'  ' * depth}{node.name}{suffix}{circular}{installed}{unresolved}"]
+    lines = [f"{'  ' * depth}{node.name}{suffix}{selected}{state}{unresolved}"]
     for child in node.children:
         lines.extend(_tree_lines(child, depth + 1))
     return lines
@@ -147,7 +145,7 @@ def format_dep_tree(node: DependencyNode) -> str:
     Returns:
         One dependency per line.
     """
-    return "\n".join(_tree_lines(node))
+    return "\n".join(["Declared metadata tree:", *_tree_lines(node)])
 
 
 def format_why(target: str, paths: list[list[str]]) -> str:

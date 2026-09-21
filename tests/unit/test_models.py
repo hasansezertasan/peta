@@ -65,17 +65,17 @@ class TestPackageInfo:
 class TestDependencyNode:
     def test_defaults(self) -> None:
         node = DependencyNode(name="urllib3", version_spec=">=1.21.1")
-        assert node.installed_version is None
+        assert node.selected_version is None
         assert node.children == []
-        assert node.circular is False
+        assert node.state == "satisfied"
 
     def test_full(self) -> None:
         child = DependencyNode(name="idna", version_spec="")
         node = DependencyNode(
             name="requests",
             version_spec="==2.31.0",
-            installed_version="2.31.0",
+            selected_version="2.31.0",
             children=[child],
-            circular=False,
+            state="satisfied",
         )
         assert node.children == [child]

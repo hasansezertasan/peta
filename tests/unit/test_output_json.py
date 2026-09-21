@@ -96,23 +96,46 @@ def test_compare() -> None:
 
 def test_dep_tree() -> None:
     child = DependencyNode(
-        name="urllib3", version_spec=">=1.21.1", installed_version="2.0"
+        name="urllib3", version_spec=">=1.21.1", selected_version="2.0"
     )
     root = DependencyNode(
-        name="requests", version_spec="", installed_version="2.31.0", children=[child]
+        name="requests", version_spec="", selected_version="2.31.0", children=[child]
     )
     data = json.loads(format_dep_tree(root))["result"]
     assert data["name"] == "requests"
     assert data["children"][0]["name"] == "urllib3"
-    assert data["children"][0]["installed_version"] == "2.0"
-    assert data["circular"] is False
+    assert data["children"][0]["selected_version"] == "2.0"
+    assert data["state"] == "satisfied"
 
 
 def test_dep_tree_circular() -> None:
-    node = DependencyNode(name="a", version_spec="", circular=True)
+    node = DependencyNode(name="a", version_spec="", state="circular")
     data = json.loads(format_dep_tree(node))["result"]
-    assert data["circular"] is True
+    assert data["state"] == "circular"
     assert data["children"] == []
+
+
+def test_dep_tree_reports_a_root_target_conflict() -> None:
+    root = DependencyNode(
+        name="requests",
+        version_spec="",
+        selected_version="3.0.0",
+        state="conflicting",
+        source="remote",
+    )
+
+    data = json.loads(format_dep_tree(root))
+
+    assert data["status"] == "partial"
+    assert data["warnings"] == [
+        {
+            "code": "dependency_target_incompatible",
+            "message": (
+                "requests: selected 3.0.0 is incompatible with the target environment"
+            ),
+            "source": "remote",
+        }
+    ]
 
 
 def test_dep_tree_reports_transitive_resolution_failure_as_partial() -> None:

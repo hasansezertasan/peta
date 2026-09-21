@@ -275,6 +275,15 @@ def deps(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     python: Annotated[
         str | None, typer.Option("--python", help="Target Python interpreter.")
     ] = None,
+    python_version: Annotated[
+        str | None, typer.Option("--python-version", help="Target Python version.")
+    ] = None,
+    platform: Annotated[
+        str | None, typer.Option("--platform", help="Target marker platform.")
+    ] = None,
+    extra: Annotated[
+        list[str] | None, typer.Option("--extra", help="Activate an optional extra.")
+    ] = None,
     path: Annotated[
         list[str] | None,
         typer.Option("--path", help="Metadata search path; repeatable."),
@@ -283,6 +292,8 @@ def deps(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     """Show a package's recursive dependency tree."""
     if path is None:
         path = []
+    if extra is None:
+        extra = []
     deps_mod.deps(
         package,
         use_json=use_json,
@@ -293,6 +304,9 @@ def deps(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
         why=why,
         depth=depth,
         python=python,
+        python_version=python_version,
+        platform=platform,
+        extras=tuple(extra),
         paths=tuple(path),
     )
 

@@ -167,9 +167,13 @@ class DependencyNode:
 
     name: str
     version_spec: str
+    selected_version: str | None = None
     installed_version: str | None = None
+    """Deprecated compatibility alias for :attr:`selected_version`."""
     children: list[DependencyNode] = field(default_factory=list)
-    circular: bool = False
+    state: Literal[
+        "satisfied", "conflicting", "unresolved", "circular", "depth_limited"
+    ] = "satisfied"
     source: str | None = None
     retrieved_at: str | None = None
     freshness: Freshness | None = None
@@ -180,3 +184,13 @@ class DependencyNode:
     whole command would be a fiction.
     """
     resolution_failure: DependencyResolutionFailure | None = None
+
+    @property
+    def circular(self) -> bool:
+        """Whether this is a cycle leaf (deprecated; use :attr:`state`)."""
+        return self.state == "circular"
+
+    def __post_init__(self) -> None:
+        """Keep the former constructor argument source-compatible."""
+        if self.selected_version is None:
+            self.selected_version = self.installed_version

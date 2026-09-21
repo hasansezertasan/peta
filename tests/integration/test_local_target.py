@@ -132,7 +132,7 @@ class TestTargetMarkers:
         )
         tree = build_tree("probe", local=True, remote=False, target=target)
         assert [child.name for child in tree.children] == ["probe-dep"]
-        assert tree.children[0].installed_version == "2.0.0"
+        assert tree.children[0].selected_version == "2.0.0"
 
     def test_dependency_dropped_when_the_target_does_not(
         self, site_packages: Path

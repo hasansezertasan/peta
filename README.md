@@ -86,7 +86,7 @@ nearby `.venv`; human output and JSON identify the target and marker values.
 peta requests                 # info (local first, falls back to PyPI)
 peta info requests            # explicit info
 peta info requests==2.31.0    # a specific version from PyPI
-peta deps flask               # recursive dependency tree
+peta deps flask               # declared metadata tree
 peta deps flask --why certifi # why is certifi pulled in?
 peta files rich               # files installed locally
 peta versions httpx           # published versions on PyPI

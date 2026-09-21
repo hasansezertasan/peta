@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from packaging.markers import UndefinedEnvironmentName
 from packaging.requirements import InvalidRequirement, Requirement
+from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
 
 from peta.core import http
@@ -59,7 +60,7 @@ def _resolution_failure(
 
 
 def _resolve_cached(
-    name: str,
+    req: Requirement,
     cache: dict[str, PackageInfo | DependencyResolutionFailure],
     *,
     local: bool,
@@ -71,11 +72,13 @@ def _resolve_cached(
     Returns:
         The resolved package or a structured lookup failure.
     """
-    canon = canonicalize_name(name)
+    canon = f"{canonicalize_name(req.name)}:{req.specifier}"
     if canon in cache:
         return cache[canon]
     try:
-        pkg = resolve_package(name, local=local, remote=remote, target=target)
+        pkg = resolve_package(
+            req.name, local=local, remote=remote, target=target, specifier=req.specifier
+        )
     except _UNRESOLVABLE as exc:
         result: PackageInfo | DependencyResolutionFailure = _resolution_failure(exc)
     else:
@@ -85,7 +88,7 @@ def _resolve_cached(
 
 
 def _marker_satisfied(
-    req: Requirement, marker_environment: dict[str, str] | None
+    req: Requirement, marker_environment: dict[str, str] | None, extras: tuple[str, ...]
 ) -> bool:
     """Whether a requirement's environment marker holds for a base install.
 
@@ -105,13 +108,16 @@ def _marker_satisfied(
         environment = {"extra": ""}
         if marker_environment is not None:
             environment.update(marker_environment)
-        return bool(req.marker.evaluate(environment))
+        return any(
+            bool(req.marker.evaluate({**environment, "extra": extra}))
+            for extra in ("", *extras)
+        )
     except UndefinedEnvironmentName:
         return False
 
 
 def _kept_requirements(
-    pkg: PackageInfo, marker_environment: dict[str, str] | None
+    pkg: PackageInfo, marker_environment: dict[str, str] | None, extras: tuple[str, ...]
 ) -> list[Requirement]:
     """Parse a package's ``requires_dist`` entries, dropping unmet markers.
 
@@ -128,9 +134,22 @@ def _kept_requirements(
             req = Requirement(raw)
         except InvalidRequirement:
             continue
-        if _marker_satisfied(req, marker_environment):
+        if _marker_satisfied(req, marker_environment, extras):
             kept.append(req)
     return kept
+
+
+def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
+    """Whether package metadata permits the selected Python target.
+
+    Returns:
+        ``True`` when no target restriction excludes the package.
+    """
+    if target is None or not pkg.python_requires:
+        return True
+    return SpecifierSet(pkg.python_requires).contains(
+        target.marker_environment["python_full_version"]
+    )
 
 
 def _child_node(
@@ -153,20 +172,36 @@ def _child_node(
     version_spec = str(req.specifier)
     canon = canonicalize_name(req.name)
     if canon in path:
-        return DependencyNode(name=req.name, version_spec=version_spec, circular=True)
-    resolved = _resolve_cached(
-        req.name, cache, local=local, remote=remote, target=target
-    )
+        return DependencyNode(
+            name=req.name, version_spec=version_spec, state="circular"
+        )
+    resolved = _resolve_cached(req, cache, local=local, remote=remote, target=target)
     if isinstance(resolved, DependencyResolutionFailure):
         return DependencyNode(
-            name=req.name, version_spec=version_spec, resolution_failure=resolved
+            name=req.name,
+            version_spec=version_spec,
+            state="unresolved",
+            resolution_failure=resolved,
         )
     child_pkg = resolved
+    if not req.specifier.contains(child_pkg.version) or not _supports_target(
+        child_pkg, target
+    ):
+        return DependencyNode(
+            name=req.name,
+            version_spec=version_spec,
+            selected_version=child_pkg.version,
+            state="conflicting",
+            source=child_pkg.source,
+            retrieved_at=child_pkg.retrieved_at,
+            freshness=child_pkg.freshness,
+        )
     if depth >= max_depth:
         return DependencyNode(
             name=req.name,
             version_spec=version_spec,
-            installed_version=child_pkg.version,
+            selected_version=child_pkg.version,
+            state="depth_limited",
             source=child_pkg.source,
             retrieved_at=child_pkg.retrieved_at,
             freshness=child_pkg.freshness,
@@ -180,11 +215,12 @@ def _child_node(
         target=target,
         depth=depth + 1,
         max_depth=max_depth,
+        extras=tuple(sorted(req.extras)),
     )
     return DependencyNode(
         name=req.name,
         version_spec=version_spec,
-        installed_version=child_pkg.version,
+        selected_version=child_pkg.version,
         children=children,
         source=child_pkg.source,
         retrieved_at=child_pkg.retrieved_at,
@@ -202,6 +238,7 @@ def _expand(
     target: LocalTarget | None,
     depth: int,
     max_depth: int,
+    extras: tuple[str, ...],
 ) -> list[DependencyNode]:
     """Build the dependency nodes for every kept requirement of ``pkg``.
 
@@ -220,7 +257,7 @@ def _expand(
             max_depth=max_depth,
         )
         for req in _kept_requirements(
-            pkg, target.marker_environment if target else None
+            pkg, target.marker_environment if target else None, extras
         )
     ]
 
@@ -232,12 +269,13 @@ def build_tree(
     remote: bool,
     target: LocalTarget | None = None,
     max_depth: int = 10,
+    extras: tuple[str, ...] = (),
 ) -> DependencyNode:
     """Recursively resolve ``name`` and its dependency tree.
 
     Only the root resolution can raise (propagated from
     :func:`peta.core.resolve.resolve_package`); unresolvable transitive
-    dependencies become leaf nodes with ``installed_version=None`` instead.
+    dependencies become leaf nodes with ``selected_version=None`` instead.
 
     Returns:
         The root :class:`DependencyNode`, with children expanded recursively.
@@ -245,20 +283,27 @@ def build_tree(
     root_pkg = resolve_package(name, local=local, remote=remote, target=target)
     canon = canonicalize_name(root_pkg.name)
     cache: dict[str, PackageInfo | DependencyResolutionFailure] = {canon: root_pkg}
-    children = _expand(
-        root_pkg,
-        frozenset({canon}),
-        cache,
-        local=local,
-        remote=remote,
-        target=target,
-        depth=1,
-        max_depth=max_depth,
+    target_compatible = _supports_target(root_pkg, target)
+    children = (
+        _expand(
+            root_pkg,
+            frozenset({canon}),
+            cache,
+            local=local,
+            remote=remote,
+            target=target,
+            depth=1,
+            max_depth=max_depth,
+            extras=extras,
+        )
+        if target_compatible
+        else []
     )
     return DependencyNode(
         name=root_pkg.name,
         version_spec="",
-        installed_version=root_pkg.version,
+        selected_version=root_pkg.version,
+        state="satisfied" if target_compatible else "conflicting",
         children=children,
         source=root_pkg.source,
         retrieved_at=root_pkg.retrieved_at,

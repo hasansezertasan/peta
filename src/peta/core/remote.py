@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Literal, Required, TypedDict, cast
 
 import httpx
+from packaging.specifiers import SpecifierSet
 from packaging.utils import canonicalize_name
+from packaging.version import InvalidVersion, Version
 
 from peta.core import cache, http
 from peta.core.models import PackageInfo, Vulnerability
@@ -30,6 +32,7 @@ __all__ = [
     "PyPIResponse",
     "PyPIVulnerability",
     "get_package",
+    "get_package_matching",
 ]
 
 
@@ -281,3 +284,47 @@ def get_package(name: str, version: str | None = None) -> PackageInfo:
         retrieved_at=provenance.retrieved_at,
         freshness=provenance.freshness,
     )
+
+
+def _compatible_with_target(
+    package: PackageInfo, marker_environment: dict[str, str] | None
+) -> bool:
+    if not package.python_requires or marker_environment is None:
+        return True
+    return SpecifierSet(package.python_requires).contains(
+        marker_environment["python_full_version"]
+    )
+
+
+def get_package_matching(  # ruff: ignore[complex-structure]
+    name: str, specifier: SpecifierSet, marker_environment: dict[str, str] | None
+) -> PackageInfo:
+    """Get the newest PyPI release satisfying a dependency requirement.
+
+    The project endpoint lists releases but only a version endpoint supplies
+    historical ``Requires-Python`` and dependency metadata, so candidates are
+    checked newest-first until one also supports the requested target.
+
+    Returns:
+        The newest compatible package, or the current release when no release
+        satisfies the requirement so callers can surface a conflict.
+    """
+    data, _ = _fetch(name, None)
+    candidates: list[Version] = []
+    for raw in data.get("releases", {}):
+        try:
+            version = Version(raw)
+        except InvalidVersion:
+            continue
+        if specifier.contains(version, prereleases=True):
+            candidates.append(version)
+    stable_candidates = [
+        candidate for candidate in candidates if not candidate.is_prerelease
+    ]
+    if stable_candidates and not specifier.prereleases:
+        candidates = stable_candidates
+    for version in sorted(candidates, reverse=True):
+        package = get_package(name, str(version))
+        if _compatible_with_target(package, marker_environment):
+            return package
+    return get_package(name)

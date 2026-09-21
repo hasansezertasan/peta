@@ -116,7 +116,7 @@ and mark the overall result ``partial``. See :doc:`output-contract`.
 Dependency tree
 ---------------
 
-``peta deps <package>`` prints the package's full recursive dependency tree
+``peta deps <package>`` prints the package's full recursive declared metadata tree
 (not just its direct requirements), resolving each dependency the same way
 ``info`` does. Requirements whose environment marker is not satisfied (e.g.
 an ``extra`` that is not requested, or a ``python_version`` constraint that
@@ -125,11 +125,13 @@ on its own ancestor path is shown once more and marked ``(circular)`` rather
 than being expanded again. Recursion stops at ``--depth`` (default ``10``)
 levels; deeper dependencies are omitted.
 
-The tree is a metadata view, not a full dependency resolution: each
-dependency is expanded from its currently-installed or latest-published
-metadata (a version specifier such as ``foo<2`` narrows what is *shown*, not
-which release is expanded), and dependencies gated behind an ``extra`` are
-not activated. ``--why`` searches only the tree built at the current
+The tree is a metadata view, not a full dependency resolution. A local selected
+release is used when it satisfies the incoming requirement; otherwise peta
+selects the newest compatible PyPI release. If no selected release satisfies a
+requirement, the node is marked ``conflicting`` and is not expanded. Nodes also
+record whether they are ``unresolved``, ``circular``, or ``depth_limited``. A
+future resolver-backed mode would be a separate command mode. Dependencies
+gated behind an extra are not activated. ``--why`` searches only the tree built at the current
 ``--depth``, so raise ``--depth`` if a target is deeper than the default.
 
 Pass ``--why <target>`` to show every chain of dependencies that pulls
