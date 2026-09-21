@@ -58,6 +58,21 @@ class TestResolvePackage:
         pkg = resolve_package("x", local=False, remote=False)
         assert pkg.source == "remote"
 
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_unconstrained_remote_reselects_incompatible_latest_release(
+        self, latest: MagicMock, matching: MagicMock
+    ) -> None:
+        latest.return_value = _pkg(source="remote", python_requires=">=999")
+        matching.return_value = _pkg(
+            source="remote", version="2.30.0", python_requires=">=3.10"
+        )
+
+        package = resolve_package("requests", local=False, remote=True)
+
+        assert package.version == "2.30.0"
+        matching.assert_called_once_with("requests", SpecifierSet(), None)
+
     @pytest.mark.parametrize(
         ("paths", "interpreter"),
         [(("/site-packages",), None), (None, "/target/python")],
@@ -156,6 +171,31 @@ class TestResolvePackage:
         mr.return_value = _pkg(source="remote")
         resolve_package("requests", local=False, remote=True)
         mr.assert_called_once_with("requests")
+
+    @pytest.mark.parametrize(
+        ("paths", "interpreter"),
+        [(("/site-packages",), None), (None, "/target/python")],
+    )
+    @patch("peta.core.resolve.remote_get_package_matching")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_remote_rejects_explicit_metadata_target(
+        self,
+        latest: MagicMock,
+        matching: MagicMock,
+        paths: tuple[str, ...] | None,
+        interpreter: str | None,
+    ) -> None:
+        target = LocalTarget(
+            paths=paths,
+            interpreter=interpreter,
+            marker_environment={"python_full_version": "3.12.0"},
+        )
+
+        with pytest.raises(typer.BadParameter, match="--remote"):
+            resolve_package("requests", local=False, remote=True, target=target)
+
+        latest.assert_not_called()
+        matching.assert_not_called()
 
     @patch("peta.core.resolve.local_get_package")
     def test_local_flag_forces_local(self, ml: MagicMock) -> None:

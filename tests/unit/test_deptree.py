@@ -25,6 +25,18 @@ def _raise(exc: Exception) -> PackageInfo:
 
 class TestBuildTreeConflicts:
     @patch("peta.core.deptree.resolve_package")
+    def test_running_python_incompatible_root_is_conflicting(
+        self, m: MagicMock
+    ) -> None:
+        m.return_value = replace(_pkg("root", ["child"]), python_requires=">=999")
+
+        tree = build_tree("root", local=False, remote=True)
+
+        assert tree.state == "conflicting"
+        assert tree.conflict_reason == "target"
+        assert tree.children == []
+
+    @patch("peta.core.deptree.resolve_package")
     def test_target_incompatible_root_is_conflicting(self, m: MagicMock) -> None:
         m.return_value = replace(_pkg("root", ["child"]), python_requires=">=4")
         target = LocalTarget(
@@ -143,6 +155,18 @@ class TestBuildTree:
         assert a_child.name == "a"
         assert a_child.circular is True
         assert a_child.children == []
+
+    @patch("peta.core.deptree.resolve_package")
+    def test_incompatible_cycle_edge_is_a_version_conflict(self, m: MagicMock) -> None:
+        pkgs = {"a": replace(_pkg("a", ["b"]), version="2.0"), "b": _pkg("b", ["a<2"])}
+        m.side_effect = lambda name, **_kw: pkgs[name]
+
+        leaf = build_tree("a", local=False, remote=False).children[0].children[0]
+
+        assert leaf.name == "a"
+        assert leaf.selected_version == "2.0"
+        assert leaf.state == "conflicting"
+        assert leaf.conflict_reason == "version"
 
     @patch("peta.core.deptree.resolve_package")
     def test_max_depth_truncates(self, m: MagicMock) -> None:

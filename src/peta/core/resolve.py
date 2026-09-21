@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from typing import TYPE_CHECKING
 
 import typer
@@ -81,20 +82,26 @@ def _remote_package(
         The selected remote package metadata.
     """
     if not specifier and target is None:
-        return remote_get_package(name)
+        package = remote_get_package(name)
+        if _supports_target(package, None):
+            return package
     return remote_get_package_matching(
         name, specifier, target.marker_environment if target else None
     )
 
 
 def _supports_target(pkg: PackageInfo, target: LocalTarget | None) -> bool:
-    if target is None or not pkg.python_requires:
+    if not pkg.python_requires:
         return True
     try:
         spec = SpecifierSet(pkg.python_requires)
     except InvalidSpecifier:
         return False
-    python_version = target.marker_environment.get("python_full_version", "")
+    if target is None:
+        version = sys.version_info
+        python_version = f"{version.major}.{version.minor}.{version.micro}"
+    else:
+        python_version = target.marker_environment.get("python_full_version", "")
     return bool(spec.contains(python_version))
 
 
@@ -118,6 +125,12 @@ def _resolve_default(
     ) and _supports_target(local_pkg, target):
         return local_pkg
     return _remote_package(name, requirement, target)
+
+
+def _reject_remote_metadata_target(target: LocalTarget | None) -> None:
+    if target is not None and (target.interpreter is not None or target.paths):
+        msg = "--remote cannot be combined with --python or --path."
+        raise typer.BadParameter(msg)
 
 
 def resolve_package(
@@ -148,6 +161,7 @@ def resolve_package(
             raise typer.BadParameter(msg)
         return _resolve_versioned(name, version, local=local)
     if remote:
+        _reject_remote_metadata_target(target)
         return _remote_package(name, requirement, target)
     if local:
         return (
