@@ -17,6 +17,8 @@ from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFoun
 from peta.core.resolve import resolve_package
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from peta.core.models import PackageInfo
 
 __all__ = ["build_tree", "find_why"]
@@ -24,6 +26,29 @@ __all__ = ["build_tree", "find_why"]
 # Tuple constant (not an inline ``except (A, B)`` literal) so the ruff formatter
 # cannot strip the parentheses into Python-2-only ``except A, B`` syntax.
 _UNRESOLVABLE = (LocalNotFound, RemoteNotFound, NetworkError, http.OfflineError)
+
+
+def _canonical_extras(extras: Iterable[str]) -> tuple[str, ...]:
+    """Return extras in their normalized, duplicate-free form.
+
+    Returns:
+        The sorted canonical extra names.
+    """
+    return tuple(sorted({canonicalize_name(extra) for extra in extras}))
+
+
+def _requirement_key(req: Requirement) -> tuple[str, tuple[str, ...], str, str | None]:
+    """Identify a requirement after its already-satisfied marker is removed.
+
+    Returns:
+        The normalized marker-free requirement identity.
+    """
+    return (
+        canonicalize_name(req.name),
+        _canonical_extras(req.extras),
+        str(req.specifier),
+        req.url,
+    )
 
 
 def _resolution_failure(
@@ -135,12 +160,17 @@ def _kept_requirements(
         The requirements whose environment marker (if any) is satisfied.
     """
     kept: list[Requirement] = []
+    seen: set[tuple[str, tuple[str, ...], str, str | None]] = set()
     for raw in pkg.dependencies:
         try:
             req = Requirement(raw)
         except InvalidRequirement:
             continue
-        if _marker_satisfied(req, marker_environment, extras):
+        if not _marker_satisfied(req, marker_environment, extras):
+            continue
+        key = _requirement_key(req)
+        if key not in seen:
+            seen.add(key)
             kept.append(req)
     return kept
 
@@ -199,10 +229,16 @@ def _cycle_node(
     conflict = _conflict_node(req, package, target)
     if conflict is not None:
         return conflict
-    if not req.extras.issubset(expanded_extras):
+    if not set(_canonical_extras(req.extras)).issubset(expanded_extras):
         return None
     return DependencyNode(
-        name=req.name, version_spec=str(req.specifier), state="circular"
+        name=req.name,
+        version_spec=str(req.specifier),
+        selected_version=package.version,
+        state="circular",
+        source=package.source,
+        retrieved_at=package.retrieved_at,
+        freshness=package.freshness,
     )
 
 
@@ -245,7 +281,7 @@ def _child_node(
     if conflict is not None:
         return conflict
     child_pkg = resolved
-    extras = tuple(sorted(req.extras))
+    extras = _canonical_extras(req.extras)
     if depth >= max_depth:
         return _depth_limited_node(req, child_pkg, target, extras)
     children = _expand(
@@ -332,6 +368,7 @@ def build_tree(
     root_pkg = resolve_package(
         name, local=local, remote=remote, target=target, select_compatible=True
     )
+    extras = _canonical_extras(extras)
     canon = canonicalize_name(root_pkg.name)
     cache: dict[str, PackageInfo | DependencyResolutionFailure] = {canon: root_pkg}
     target_compatible = supports_python(
