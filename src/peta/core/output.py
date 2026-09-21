@@ -35,7 +35,7 @@ __all__ = [
     "utc_now",
 ]
 
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 TARGET_ENVIRONMENT_KEY = "target_environment"
 """How a command hands :func:`make_envelope` its resolved target.
