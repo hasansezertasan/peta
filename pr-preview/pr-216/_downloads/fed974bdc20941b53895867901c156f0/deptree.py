@@ -97,9 +97,19 @@ def _resolve_cached(
     Returns:
         The resolved package or a structured lookup failure.
     """
-    canon = f"{canonicalize_name(req.name)}:{req.specifier}"
+    canon = f"{canonicalize_name(req.name)}:{req.specifier}:{req.url or ''}"
     if canon in cache:
         return cache[canon]
+    result: PackageInfo | DependencyResolutionFailure
+    if req.url is not None:
+        result = DependencyResolutionFailure(
+            source="direct-reference",
+            state="unsupported",
+            reason=f"Direct-reference dependency URLs are not supported: {req.url}",
+            retrieved_at=None,
+        )
+        cache[canon] = result
+        return result
     try:
         pkg = resolve_package(
             req.name,
@@ -110,7 +120,7 @@ def _resolve_cached(
             select_compatible=True,
         )
     except _UNRESOLVABLE as exc:
-        result: PackageInfo | DependencyResolutionFailure = _resolution_failure(exc)
+        result = _resolution_failure(exc)
     else:
         result = pkg
     cache[canon] = result
