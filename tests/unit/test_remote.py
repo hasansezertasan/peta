@@ -135,6 +135,32 @@ def test_matching_release_accepts_explicit_prerelease(
 
 @patch("peta.core.remote.get_package")
 @patch("peta.core.remote._fetch")
+def test_matching_tries_compatible_prerelease_after_incompatible_stable(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {"releases": {"1.0": [{"yanked": False}], "2.0rc1": [{"yanked": False}]}},
+        MagicMock(),
+    )
+    packages = {
+        "1.0": PackageInfo(
+            name="dep", version="1.0", source="remote", python_requires=">=4"
+        ),
+        "2.0rc1": PackageInfo(name="dep", version="2.0rc1", source="remote"),
+    }
+    get.side_effect = lambda _name, version: packages[version]
+
+    result = get_package_matching("dep", SpecifierSet(), None)
+
+    assert result.version == "2.0rc1"
+    assert [item.args for item in get.call_args_list] == [
+        ("dep", "1.0"),
+        ("dep", "2.0rc1"),
+    ]
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
 def test_unconstrained_matching_prefers_final_release(
     fetch: MagicMock, get: MagicMock
 ) -> None:
@@ -226,6 +252,27 @@ def test_matching_accepts_fully_yanked_exact_pin(
 
     assert result.version == "2.0.0"
     get.assert_called_once_with("dep", "2.0.0")
+
+
+@patch("peta.core.remote.get_package")
+@patch("peta.core.remote._fetch")
+def test_matching_preserves_arbitrary_version_pin(
+    fetch: MagicMock, get: MagicMock
+) -> None:
+    fetch.return_value = (
+        {
+            "info": {**_INFO, "name": "legacy", "version": "2.0"},
+            "releases": {"foobar": [{"yanked": False}], "2.0": [{"yanked": False}]},
+        },
+        MagicMock(retrieved_at="now", freshness="live"),
+    )
+    arbitrary = PackageInfo(name="legacy", version="foobar", source="remote")
+    get.return_value = arbitrary
+
+    result = get_package_matching("legacy", SpecifierSet("===foobar"), None)
+
+    assert result is arbitrary
+    get.assert_called_once_with("legacy", "foobar")
 
 
 @patch("peta.core.remote.get_package")

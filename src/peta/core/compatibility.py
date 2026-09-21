@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import sys
+import platform
 from typing import TYPE_CHECKING
 
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
@@ -31,6 +31,5 @@ def supports_python(
     if marker_environment is not None:
         python_version = marker_environment.get("python_full_version", "")
     else:
-        version = sys.version_info
-        python_version = f"{version.major}.{version.minor}.{version.micro}"
+        python_version = platform.python_version()
     return bool(specifier.contains(python_version))

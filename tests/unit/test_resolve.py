@@ -124,7 +124,9 @@ class TestResolvePackage:
             interpreter=None,
             marker_environment={"python_full_version": "3.12.0"},
         )
-        pkg = resolve_package("x", local=False, remote=False, target=target)
+        pkg = resolve_package(
+            "x", local=False, remote=False, target=target, select_compatible=True
+        )
         assert pkg.version == "1.0.0"
         assert pkg.source == "remote"
 
@@ -165,7 +167,9 @@ class TestResolvePackage:
             marker_environment={"python_full_version": "3.12.0"},
         )
 
-        pkg = resolve_package("x", local=False, remote=False, target=target)
+        pkg = resolve_package(
+            "x", local=False, remote=False, target=target, select_compatible=True
+        )
 
         assert pkg.source == "remote"
 
@@ -178,7 +182,11 @@ class TestResolvePackage:
         mr.return_value = _pkg(name="x", version="1.8", source="remote")
 
         pkg = resolve_package(
-            "x", local=False, remote=False, specifier=SpecifierSet("<2")
+            "x",
+            local=False,
+            remote=False,
+            specifier=SpecifierSet("<2"),
+            select_compatible=True,
         )
 
         assert pkg.version == "1.8"
@@ -192,11 +200,27 @@ class TestResolvePackage:
         ml.return_value = _pkg(name="x", version="1.9rc1")
 
         pkg = resolve_package(
-            "x", local=False, remote=False, specifier=SpecifierSet(">=1.9rc1,<2")
+            "x",
+            local=False,
+            remote=False,
+            specifier=SpecifierSet(">=1.9rc1,<2"),
+            select_compatible=True,
         )
 
         assert pkg.version == "1.9rc1"
         mr.assert_not_called()
+
+    @patch("peta.core.resolve.remote_get_package")
+    @patch("peta.core.resolve.local_get_package")
+    def test_top_level_preserves_incompatible_local_metadata(
+        self, local_package: MagicMock, remote_package: MagicMock
+    ) -> None:
+        local_package.return_value = _pkg(python_requires=">=999")
+
+        package = resolve_package("requests", local=False, remote=False)
+
+        assert package.source == "local"
+        remote_package.assert_not_called()
 
     @patch("peta.core.resolve.remote_get_package")
     def test_version_specifier_queries_remote(self, mr: MagicMock) -> None:

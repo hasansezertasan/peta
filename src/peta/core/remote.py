@@ -327,6 +327,55 @@ def _is_exact_pin(specifier: SpecifierSet, raw: str, version: Version) -> bool:
     return any(_matches_exact_pin(item, raw, version) for item in specifier)
 
 
+def _is_arbitrary_pin(specifier: SpecifierSet, raw: str) -> bool:
+    return any(item.operator == "===" and item.version == raw for item in specifier)
+
+
+def _release_candidates(  # ruff: ignore[complex-structure]
+    releases: dict[str, list[PyPIReleaseFile]], specifier: SpecifierSet
+) -> tuple[list[str], set[Version], set[str]]:
+    candidates: list[Version] = []
+    arbitrary_candidates: list[str] = []
+    filtered_candidates: set[Version] = set()
+    filtered_arbitrary_candidates: set[str] = set()
+    allows_prereleases = not specifier or specifier.prereleases is True
+    for raw, files in releases.items():
+        try:
+            version = Version(raw)
+        except InvalidVersion:
+            if not _is_arbitrary_pin(specifier, raw):
+                continue
+            if not files:
+                filtered_arbitrary_candidates.add(raw)
+                continue
+            arbitrary_candidates.append(raw)
+            continue
+        if not specifier.contains(version, prereleases=allows_prereleases):
+            continue
+        if not files:
+            filtered_candidates.add(version)
+            continue
+        exact_pin = _is_exact_pin(specifier, raw, version)
+        fully_yanked = all(file.get("yanked", False) for file in files)
+        if fully_yanked and not exact_pin:
+            filtered_candidates.add(version)
+            continue
+        candidates.append(version)
+    stable_candidates = sorted(
+        (candidate for candidate in candidates if not candidate.is_prerelease),
+        reverse=True,
+    )
+    prerelease_candidates = sorted(
+        (candidate for candidate in candidates if candidate.is_prerelease), reverse=True
+    )
+    ordered_candidates = [
+        *(str(version) for version in stable_candidates),
+        *(str(version) for version in prerelease_candidates),
+        *arbitrary_candidates,
+    ]
+    return ordered_candidates, filtered_candidates, filtered_arbitrary_candidates
+
+
 def get_package_matching(  # ruff: ignore[complex-structure]
     name: str, specifier: SpecifierSet, marker_environment: dict[str, str] | None
 ) -> PackageInfo:
@@ -344,37 +393,16 @@ def get_package_matching(  # ruff: ignore[complex-structure]
         PackageNotFoundError: If a matching current release has no usable files.
     """
     data, provenance = _fetch(name, None)
-    candidates: list[Version] = []
-    filtered_candidates: set[Version] = set()
     releases = data.get("releases") or {}
-    allows_prereleases = not specifier or specifier.prereleases is True
-    for raw, files in releases.items():
-        try:
-            version = Version(raw)
-        except InvalidVersion:
-            continue
-        if not specifier.contains(version, prereleases=allows_prereleases):
-            continue
-        if not files:
-            filtered_candidates.add(version)
-            continue
-        exact_pin = _is_exact_pin(specifier, raw, version)
-        fully_yanked = all(file.get("yanked", False) for file in files)
-        if fully_yanked and not exact_pin:
-            filtered_candidates.add(version)
-            continue
-        candidates.append(version)
-    stable_candidates = [
-        candidate for candidate in candidates if not candidate.is_prerelease
-    ]
-    if stable_candidates and specifier.prereleases is not True:
-        candidates = stable_candidates
-    for version in sorted(candidates, reverse=True):
+    ordered_candidates, filtered_candidates, filtered_arbitrary_candidates = (
+        _release_candidates(releases, specifier)
+    )
+    for version in ordered_candidates:
         package = (
             _package_from_response(data, provenance)
             if data.get("info") is not None  # pyright: ignore[reportUnnecessaryComparison]  # Defensive for mocked/legacy payloads.
-            and str(version) == data["info"]["version"]
-            else get_package(name, str(version))
+            and version == data["info"]["version"]
+            else get_package(name, version)
         )
         if supports_python(package, marker_environment):
             return package
@@ -386,6 +414,10 @@ def get_package_matching(  # ruff: ignore[complex-structure]
     try:
         fallback_version = Version(fallback.version)
     except InvalidVersion:
+        if fallback.version in filtered_arbitrary_candidates and supports_python(
+            fallback, marker_environment
+        ):
+            raise PackageNotFoundError(name, fallback.version) from None
         return fallback
     if fallback_version in filtered_candidates and supports_python(
         fallback, marker_environment

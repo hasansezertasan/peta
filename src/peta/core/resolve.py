@@ -112,6 +112,21 @@ def _resolve_default(
             name, requirement, target, select_compatible=select_compatible
         )
 
+    return _select_local_or_remote(
+        name, local_pkg, requirement, target, select_compatible=select_compatible
+    )
+
+
+def _select_local_or_remote(
+    name: str,
+    local_pkg: PackageInfo,
+    requirement: SpecifierSet,
+    target: LocalTarget | None,
+    *,
+    select_compatible: bool,
+) -> PackageInfo:
+    if not select_compatible:
+        return local_pkg
     allows_prereleases = not requirement or requirement.prereleases is True
     if requirement.contains(
         local_pkg.version, prereleases=allows_prereleases
