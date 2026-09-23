@@ -331,7 +331,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="206">
 </span><span data-line="207">    <span class="k">if</span> <span class="n">why</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span data-line="208">        <span class="k">if</span> <span class="n">target</span> <span class="ow">and</span> <span class="n">selected</span> <span class="o">!=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">JSON</span><span class="p">:</span>
-</span><span data-line="209">            <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">render_target</span><span class="p">(</span><span class="n">target</span><span class="p">))</span>
+</span><span data-line="209">            <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">render_target</span><span class="p">(</span><span class="n">selected</span><span class="p">,</span> <span class="n">target</span><span class="p">))</span>
 </span><span data-line="210">        <span class="n">_print_why</span><span class="p">(</span>
 </span><span data-line="211">            <span class="n">package</span><span class="p">,</span>
 </span><span data-line="212">            <span class="n">why</span><span class="p">,</span>
@@ -344,11 +344,13 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="219">        <span class="p">)</span>
 </span><span data-line="220">        <span class="k">return</span>
 </span><span data-line="221">    <span class="n">rendered_target</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="222">        <span class="n">render_target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span> <span class="k">if</span> <span class="n">target</span> <span class="ow">and</span> <span class="n">selected</span> <span class="o">!=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">JSON</span> <span class="k">else</span> <span class="s2">""</span>
-</span><span data-line="223">    <span class="p">)</span>
-</span><span data-line="224">    <span class="k">if</span> <span class="n">rendered_target</span><span class="p">:</span>
-</span><span data-line="225">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered_target</span><span class="p">)</span>
-</span><span data-line="226">    <span class="n">_print_tree</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span></div>
+</span><span data-line="222">        <span class="n">render_target</span><span class="p">(</span><span class="n">selected</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span>
+</span><span data-line="223">        <span class="k">if</span> <span class="n">target</span> <span class="ow">and</span> <span class="n">selected</span> <span class="o">!=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">JSON</span>
+</span><span data-line="224">        <span class="k">else</span> <span class="s2">""</span>
+</span><span data-line="225">    <span class="p">)</span>
+</span><span data-line="226">    <span class="k">if</span> <span class="n">rendered_target</span><span class="p">:</span>
+</span><span data-line="227">        <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered_target</span><span class="p">)</span>
+</span><span data-line="228">    <span class="n">_print_tree</span><span class="p">(</span><span class="n">tree</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

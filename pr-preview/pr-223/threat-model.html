@@ -260,9 +260,10 @@ own, since the per-segment pass never sees them. A fatal error printed for a
 human is held to one line the same way, since its message can quote text an
 index chose. The target-environment banner, printed outside the formatters,
 goes through the same boundary: it names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the
-target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>. Doing it to finished Rich output instead
-cannot work — peta’s own styling is escape sequences too, and cannot be told
-apart from an attacker’s.</p></li>
+target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>, and it is escaped as Markdown when it
+heads a Markdown document. Doing it to finished Rich output instead cannot
+work — peta’s own styling is escape sequences too, and cannot be told apart
+from an attacker’s.</p></li>
 <li><p>Credentials are absent from errors, logs, snapshots, cache keys, cache
 payloads, process arguments, and diagnostics. Redaction is applied where a
 diagnostic is <em>built</em> — <code class="docutils literal notranslate"><span class="pre">EnrichmentError</span></code>, <code class="docutils literal notranslate"><span class="pre">OutputMessage</span></code>,
