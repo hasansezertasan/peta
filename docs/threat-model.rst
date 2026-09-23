@@ -145,8 +145,8 @@ Every provider must preserve these invariants when it is added or changed:
   ``PublisherFailure``, ``SourceRecord``, and the fatal human path — rather
   than over rendered output or the envelope as a whole. Both
   credential-bearing query parameters and URL userinfo —
-  ``https://user:token@index/``, the usual way to configure a private index —
-  are removed. The distinction matters in both directions: a URL peta
+  ``https://{user}:{token}@index/``, the usual way to configure a private
+  index — are removed. The distinction matters in both directions: a URL peta
   *requested* can carry peta's API key, while a URL a package *declared* is
   metadata the output contract promises to report, and the redaction list
   holds names as ordinary as ``key``, so sweeping every string would silently

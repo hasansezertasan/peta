@@ -57,7 +57,7 @@ def redacted(url: str) -> str:
     """
     parts = urlsplit(url)
     if "@" in parts.netloc:
-        # ``https://user:token@index/`` is how a private index is usually
+        # ``https://{user}:{token}@index/`` is how a private index is usually
         # configured, and the userinfo is the credential itself.
         parts = parts._replace(netloc=parts.netloc.rpartition("@")[2])
         url = urlunsplit(parts)

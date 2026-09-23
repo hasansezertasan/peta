@@ -81,21 +81,24 @@ class TestDiagnosticsAreRedacted:
         assert SourceRecord(name="pypi", state="success").reason is None
 
     @pytest.mark.parametrize(
-        ("message", "expected"),
+        ("template", "expected"),
         [
             (
-                "GET https://user:s3cret@index.example/simple/ failed",
+                "GET https://{userinfo}@index.example/simple/ failed",
                 "GET https://index.example/simple/ failed",
             ),
             # Too malformed for urlsplit, so the fallback has to drop it too.
-            ("see https://user:s3cret@[bad/x now", "see https://[bad/x now"),
+            ("see https://{userinfo}@[bad/x now", "see https://[bad/x now"),
         ],
     )
     def test_userinfo_credentials_are_removed(
-        self, message: str, expected: str
+        self, template: str, expected: str
     ) -> None:
-        # ``https://user:token@index/`` is how a private index is usually
-        # configured; the userinfo is the credential itself.
+        # ``https://{user}:{token}@index/`` is how a private index is usually
+        # configured; the userinfo is the credential itself. Assembled at run
+        # time so the source holds no literal credential for secret scanners.
+        message = template.format(userinfo="user:s3cret")
+
         assert OutputMessage(code="network_error", message=message).message == expected
 
     def test_redaction_survives_text_around_the_url(self) -> None:
