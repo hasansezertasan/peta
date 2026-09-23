@@ -37,29 +37,11 @@ from peta.core.concurrency import MAX_WORKERS
 from peta.core.output import utc_from, utc_now
 
 if TYPE_CHECKING:
-    from typing import Protocol
+    # zlib's decompressor type is only published under a private name. It is
+    # imported for annotations alone and never touched at runtime.
+    from zlib import _Decompress  # pyright: ignore[reportPrivateUsage]
 
     from peta.core.cache import CachedResponse
-
-    class _Decompressor(Protocol):
-        """What :mod:`zlib`'s decompressor object offers, as peta uses it.
-
-        Spelled out because the concrete type, ``zlib._Decompress``, is
-        private. Members are bare ``...`` stubs, as in a ``.pyi`` file.
-        """
-
-        @property
-        def eof(self) -> bool: ...
-
-        @property
-        def unconsumed_tail(self) -> bytes: ...
-
-        @property
-        def unused_data(self) -> bytes: ...
-
-        def decompress(self, data: bytes, /, max_length: int = 0) -> bytes: ...
-
-        def flush(self) -> bytes: ...
 
 
 __all__ = [
@@ -268,7 +250,7 @@ class UnsupportedEncodingError(TransportPolicyError):
     """Raised when a response uses a content encoding peta did not ask for."""
 
 
-def _decompressor(response: httpx.Response) -> _Decompressor | None:
+def _decompressor(response: httpx.Response) -> _Decompress | None:
     """Choose how to decode a body, refusing any encoding peta cannot bound.
 
     Returns:
@@ -308,9 +290,7 @@ _AFTER_END = "Unexpected data after the end of the gzip stream."
 _CUT_SHORT = "The gzip stream ended before its end-of-stream marker."
 
 
-def _inflate_into(
-    content: bytearray, decompressor: _Decompressor, chunk: bytes
-) -> None:
+def _inflate_into(content: bytearray, decompressor: _Decompress, chunk: bytes) -> None:
     """Decompress one wire chunk into ``content`` a bounded step at a time.
 
     Each call is capped with ``max_length`` at one step, and never at more than
@@ -341,9 +321,7 @@ def _inflate_into(
         data = decompressor.unconsumed_tail or decompressor.unused_data
 
 
-def _append(
-    content: bytearray, decompressor: _Decompressor | None, chunk: bytes
-) -> None:
+def _append(content: bytearray, decompressor: _Decompress | None, chunk: bytes) -> None:
     """Add one chunk of body to ``content``, decoding it if it is compressed.
 
     Raises:
@@ -371,7 +349,7 @@ def _measured(body: bytes) -> bytes:
     return body
 
 
-def _finish(content: bytearray, decompressor: _Decompressor | None) -> None:
+def _finish(content: bytearray, decompressor: _Decompress | None) -> None:
     """Drain a gzip decoder once the body has ended, refusing a truncated one.
 
     All input has been consumed by now — every call ran until nothing was
