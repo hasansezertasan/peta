@@ -14,7 +14,7 @@ from peta.core.output import utc_from
 from peta.core.validation import EnrichmentError
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
     from pathlib import Path
 
     from tests.transport import FakeTransport
@@ -810,6 +810,50 @@ class TestCompressedBodiesAreBoundedWhileDecoding:
         body = b"x" * (1024 * 1024)
 
         assert http._within_limit(self._streamed(gzip.compress(body))) == body
+
+    @staticmethod
+    def _chunked(*parts: bytes) -> httpx.Response:
+        """Stream a gzip body in exactly these wire chunks, as a network would."""
+
+        class Chunks(httpx.SyncByteStream):
+            def __iter__(self) -> Iterator[bytes]:
+                yield from parts
+
+        return httpx.Response(
+            200, headers={"content-encoding": "gzip"}, stream=Chunks()
+        )
+
+    def test_data_after_the_end_of_the_gzip_stream_is_refused(self) -> None:
+        # zlib keeps anything after the end marker in ``unused_data``, copying
+        # it again on every call; a small valid member with an endless trailer
+        # grew memory without bound while the decoded body stayed tiny.
+        member = gzip.compress(b"{}")
+        response = self._chunked(member, *([b"\0" * 1024] * 100))
+
+        with pytest.raises(httpx.DecodingError, match="after the end"):
+            _ = http._within_limit(response)
+
+        assert response.is_closed
+
+    def test_a_trailer_in_the_same_chunk_as_the_member_is_refused(self) -> None:
+        response = self._chunked(gzip.compress(b"{}") + b"junk")
+
+        with pytest.raises(httpx.DecodingError, match="after the end"):
+            _ = http._within_limit(response)
+
+    def test_a_truncated_gzip_stream_is_refused(self) -> None:
+        # Handing back what arrived would pass a cut-off body on as whole.
+        response = self._chunked(gzip.compress(b'{"a": 1}')[:-6])
+
+        with pytest.raises(httpx.DecodingError, match="ended before"):
+            _ = http._within_limit(response)
+
+    def test_a_member_split_across_chunks_decodes(self) -> None:
+        member = gzip.compress(b'{"a": 1}')
+
+        response = self._chunked(member[:5], member[5:12], member[12:])
+
+        assert http._within_limit(response) == b'{"a": 1}'
 
     def test_an_encoding_peta_did_not_ask_for_is_refused(self) -> None:
         with pytest.raises(http.UnsupportedEncodingError, match="'br'"):

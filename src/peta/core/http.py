@@ -44,21 +44,22 @@ if TYPE_CHECKING:
     class _Decompressor(Protocol):
         """What :mod:`zlib`'s decompressor object offers, as peta uses it.
 
-        Spelled out because the concrete type, ``_Decompressor``, is private.
+        Spelled out because the concrete type, ``zlib._Decompress``, is
+        private. Members are bare ``...`` stubs, as in a ``.pyi`` file.
         """
 
         @property
-        def unconsumed_tail(self) -> bytes:
-            """Input left over when a call stopped at ``max_length``."""
-            ...
+        def eof(self) -> bool: ...
 
-        def decompress(self, data: bytes, /, max_length: int = 0) -> bytes:
-            """Decompress ``data``, producing at most ``max_length`` bytes."""
-            ...
+        @property
+        def unconsumed_tail(self) -> bytes: ...
 
-        def flush(self) -> bytes:
-            """Return whatever output is still pending."""
-            ...
+        @property
+        def unused_data(self) -> bytes: ...
+
+        def decompress(self, data: bytes, /, max_length: int = 0) -> bytes: ...
+
+        def flush(self) -> bytes: ...
 
 
 __all__ = [
@@ -303,6 +304,9 @@ def _refuse_declared_oversize(response: httpx.Response) -> None:
 _INFLATE_STEP = 1024 * 1024
 """Most output one decompression call may produce, in bytes."""
 
+_AFTER_END = "Unexpected data after the end of the gzip stream."
+_CUT_SHORT = "The gzip stream ended before its end-of-stream marker."
+
 
 def _inflate_into(
     content: bytearray, decompressor: _Decompressor, chunk: bytes
@@ -315,16 +319,26 @@ def _inflate_into(
     at the budget would let a single call return the whole budget as a fresh
     object before it is copied into ``content`` — twice the limit at peak.
 
+    Input arriving after the end of the gzip stream is refused rather than
+    ignored. zlib keeps it in ``unused_data``, re-copying the whole buffer on
+    every call, so a tiny valid member followed by an endless trailer grew
+    memory without bound while the decoded body stayed small — 300 MiB of
+    trailer peaked at 600 MiB. Taking that leftover as the next input makes
+    it reach the end-of-stream check, holding at most one chunk.
+
     Raises:
         ResponseTooLargeError: If the decoded body exceeds the limit.
+        DecodingError: If any data follows the end of the gzip stream.
     """
     data = chunk
     while data:
+        if decompressor.eof:
+            raise httpx.DecodingError(_AFTER_END)
         budget = MAX_RESPONSE_BYTES - len(content) + 1
         content += decompressor.decompress(data, max_length=min(budget, _INFLATE_STEP))
         if len(content) > MAX_RESPONSE_BYTES:
             raise ResponseTooLargeError(_TOO_LARGE)
-        data = decompressor.unconsumed_tail
+        data = decompressor.unconsumed_tail or decompressor.unused_data
 
 
 def _append(
@@ -357,6 +371,25 @@ def _measured(body: bytes) -> bytes:
     return body
 
 
+def _finish(content: bytearray, decompressor: _Decompressor | None) -> None:
+    """Drain a gzip decoder once the body has ended, refusing a truncated one.
+
+    All input has been consumed by now — every call ran until nothing was
+    left — so what ``flush`` returns is small, but it is measured like any
+    other output. A stream that never reached its end marker was cut off, and
+    handing back the part that arrived would pass a truncated body on as
+    whole.
+
+    Raises:
+        DecodingError: If the gzip stream never reached its end marker.
+    """
+    if decompressor is None:
+        return
+    _append(content, None, decompressor.flush())
+    if not decompressor.eof:
+        raise httpx.DecodingError(_CUT_SHORT)
+
+
 def _read_body(response: httpx.Response) -> bytes:
     """Read and decode a streamed body without ever holding more than the limit.
 
@@ -379,11 +412,7 @@ def _read_body(response: httpx.Response) -> bytes:
     content = bytearray()
     for chunk in response.iter_raw():
         _append(content, decompressor, chunk)
-    if decompressor is not None:
-        # All input has been consumed by now — each call ran until the
-        # unconsumed tail was empty — so what flush returns is small, but it
-        # is measured like any other output.
-        _append(content, None, decompressor.flush())
+    _finish(content, decompressor)
     return bytes(content)
 
 
