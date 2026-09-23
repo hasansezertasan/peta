@@ -24,7 +24,7 @@ import atexit
 import threading
 from dataclasses import dataclass
 from functools import cache as _memoize
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import httpx
 
@@ -40,9 +40,13 @@ if TYPE_CHECKING:
 
 __all__ = [
     "DEFAULT_TIMEOUT",
+    "MAX_RESPONSE_BYTES",
     "USER_AGENT",
     "Fetched",
     "OfflineError",
+    "ResponseTooLargeError",
+    "TransportPolicyError",
+    "UnsafeURLError",
     "client",
     "get",
     "keep",
@@ -55,6 +59,16 @@ _OK = 200
 
 DEFAULT_TIMEOUT = 10.0
 """Per-request timeout, in seconds, applied to every outbound request."""
+
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024
+"""Largest response accepted from an untrusted source, in bytes.
+
+Sized against real PyPI data, not a round guess: ``grpcio``'s JSON document is
+already 9 MiB and its Simple API page 6.7 MiB, and both grow with every
+release. A 10 MiB cap was 87% used by one popular package. This one leaves
+room for years of growth while still bounding what a hostile index can make
+peta hold in memory.
+"""
 
 USER_AGENT = f"{PROJECT_NAME}/{__version__}"
 """Identifies peta to the APIs it queries, as their usage guidelines ask."""
@@ -93,12 +107,19 @@ def _build_client() -> httpx.Client:
     ``ResourceWarning`` that this project's ``filterwarnings = ["error"]``
     turns into a test failure.
 
+    Redirects are refused rather than followed. It is already httpx's default,
+    and stated anyway because the HTTPS check runs against the URL peta chose:
+    a followed redirect would move the request past it, to another scheme or
+    origin, and could carry a credentialed header to wherever the response
+    pointed.
+
     Returns:
         A new pooled :class:`httpx.Client`.
     """
     instance = httpx.Client(
         timeout=DEFAULT_TIMEOUT,
         headers={"user-agent": USER_AGENT},
+        follow_redirects=False,
         limits=httpx.Limits(
             max_connections=MAX_CONNECTIONS, max_keepalive_connections=MAX_CONNECTIONS
         ),
@@ -157,6 +178,119 @@ class OfflineError(Exception):
         """
         self.url: str = cache.redacted(url)
         super().__init__(f"offline and no cached response for {self.url}")
+
+
+class TransportPolicyError(httpx.RequestError):
+    """A request peta refused, or could not start, before any reply existed.
+
+    Derived from :class:`httpx.RequestError` so that these checks join the
+    contract every source already handles. Each one maps a failed request onto
+    its own error type by catching ``httpx.RequestError``; an exception outside
+    that hierarchy reaches the CLI unhandled, which prints a traceback and no
+    message at all. A request peta declined to send has failed in exactly the
+    sense those handlers already describe.
+    """
+
+
+class UnsafeURLError(TransportPolicyError):
+    """Raised before a request to a non-HTTPS URL can be sent."""
+
+
+class ResponseTooLargeError(TransportPolicyError):
+    """Raised when an untrusted source exceeds the response-size limit."""
+
+
+def _checked_url(url: str) -> str:
+    """Accept only absolute HTTPS URLs before constructing a request.
+
+    Redirects remain disabled on the shared client, so a response cannot move a
+    request to another origin or carry any caller-supplied headers there.
+
+    Returns:
+        The normalized HTTPS URL.
+
+    Raises:
+        UnsafeURLError: If the URL is not absolute HTTPS.
+    """
+    parsed = httpx.URL(url)
+    if parsed.scheme != "https" or not parsed.host:
+        msg = f"Refusing unsafe URL {cache.redacted(url)!r}; HTTPS is required."
+        raise UnsafeURLError(msg)
+    return str(parsed)
+
+
+_TOO_LARGE = f"Response exceeds the {MAX_RESPONSE_BYTES}-byte limit."
+
+_TRANSFER_HEADERS = frozenset({
+    "content-encoding",
+    "content-length",
+    "transfer-encoding",
+})
+"""Headers that describe the body *on the wire*, not the body peta ends up with.
+
+:func:`_checked_response` hands httpx bytes it has already decoded, so leaving
+``content-encoding`` in place would make httpx decompress a second time and
+fail on every gzipped response — which is most of them. ``content-length`` and
+``transfer-encoding`` describe the same encoded stream and are equally wrong
+afterwards; httpx recomputes the length from the content it is given.
+"""
+
+
+def _within_limit(response: httpx.Response) -> bytes:
+    """Read a streamed body, stopping as soon as it grows past the limit.
+
+    Returns:
+        The decoded body.
+
+    Raises:
+        ResponseTooLargeError: If the body exceeds the configured limit.
+    """
+    declared = cast("str | None", response.headers.get("content-length"))
+    content = bytearray()
+    # Everything, the declared-size refusal included, sits inside the ``try``:
+    # a streamed response holds a connection checked out of the shared pool
+    # until it is closed, so raising before ``close`` would leak one per
+    # oversized reply and a fan-out across many packages could drain the pool.
+    try:
+        if (
+            declared is not None
+            and declared.isdigit()
+            and int(declared) > MAX_RESPONSE_BYTES
+        ):
+            raise ResponseTooLargeError(_TOO_LARGE)
+        for chunk in response.iter_bytes():
+            content.extend(chunk)
+            if len(content) > MAX_RESPONSE_BYTES:
+                raise ResponseTooLargeError(_TOO_LARGE)
+    finally:
+        response.close()
+    return bytes(content)
+
+
+def _checked_response(response: httpx.Response) -> httpx.Response:
+    """Reject a response whose declared or received body exceeds the limit.
+
+    Returns:
+        The accepted response, carrying the already-decoded body.
+    """
+    content = _within_limit(response)
+    headers = [
+        (name, value)
+        for name, value in response.headers.multi_items()
+        if name.lower() not in _TRANSFER_HEADERS
+    ]
+    return httpx.Response(
+        response.status_code, content=content, headers=headers, request=response.request
+    )
+
+
+def _send(request: httpx.Request) -> httpx.Response:
+    """Send and consume a response without allowing an unbounded body in memory.
+
+    Returns:
+        The bounded, fully consumed response.
+    """
+    return _checked_response(client().send(request, stream=True))
 
 
 def _bind(url: str) -> httpx.Request:
@@ -248,7 +382,7 @@ def _revalidate(
         request.headers.update(headers)
     if entry is not None:
         request.headers.update(entry.validators)
-    response = client().send(request)
+    response = _send(request)
     if response.status_code == _NOT_MODIFIED and entry is not None:
         # Restamped by ``keep``, not here: the stored body still has to
         # satisfy the caller's decoder, which a stricter parser or a
@@ -345,13 +479,14 @@ def get(
     # ``params=None`` is not passed through: httpx reads that as "replace the
     # query with nothing" and silently drops any query already in the URL,
     # where ``build_request`` leaves it alone.
-    full = str(httpx.URL(url) if params is None else httpx.URL(url, params=params))
+    built_url = httpx.URL(url) if params is None else httpx.URL(url, params=params)
+    full = _checked_url(str(built_url))
     if ttl is None:
         _refuse_offline(full)
         request = client().build_request("GET", full)
         if headers:
             request.headers.update(headers)
-        return Fetched(client().send(request), Provenance("live", utc_now()))
+        return Fetched(_send(request), Provenance("live", utc_now()))
     return _cached_get(full, ttl, scope, headers=headers)
 
 
@@ -372,6 +507,7 @@ def post(url: str, *, json: dict[str, object]) -> Fetched:
     Returns:
         The response and where it came from, always ``live``.
     """
-    _refuse_offline(url)
-    request = client().build_request("POST", url, json=json)
-    return Fetched(client().send(request), Provenance("live", utc_now()))
+    full = _checked_url(url)
+    _refuse_offline(full)
+    request = client().build_request("POST", full, json=json)
+    return Fetched(_send(request), Provenance("live", utc_now()))

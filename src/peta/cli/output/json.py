@@ -236,6 +236,13 @@ def _warnings(
 
 
 def _dump(data: dict[str, object]) -> str:
+    # Deliberately not redacted here. Credentials are stripped where a
+    # diagnostic is built — ``EnrichmentError`` and ``fail`` — because that is
+    # where peta's own API keys can appear. Sweeping every string in the
+    # envelope instead would rewrite package metadata: ``_CREDENTIAL_PARAMS``
+    # holds names as ordinary as ``key``, so a homepage of
+    # ``https://example.com/docs?key=install`` would silently lose its query
+    # and break the contract's promise to report what a package declared.
     return json.dumps(data, indent=2)
 
 

@@ -6,7 +6,7 @@ from typing import Required, TypedDict, cast
 
 import httpx
 
-from peta.core import http
+from peta.core import http, validation
 from peta.core.models import Vulnerability
 from peta.core.validation import (
     EnrichmentError,
@@ -114,7 +114,9 @@ def _fetch(name: str, version: str | None) -> OsvResponse:
     if response.status_code != 200:  # ruff: ignore[magic-value-comparison]
         raise EnrichmentError(OSV_SOURCE, f"HTTP {response.status_code}")
     try:
-        body = cast("object", response.json())
+        body = validation.json_body(response, source=OSV_SOURCE)
+    except ResponseValidationError as exc:
+        raise EnrichmentError(OSV_SOURCE, f"malformed response: {exc}") from exc
     except ValueError as exc:
         raise EnrichmentError(OSV_SOURCE, "invalid JSON") from exc
     try:

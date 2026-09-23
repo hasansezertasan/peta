@@ -48,6 +48,7 @@ __all__ = [
     "load",
     "now",
     "redacted",
+    "redacted_text",
     "reset",
     "settings",
     "store",
@@ -119,6 +120,9 @@ Redacting rather than including is also correct for the key: the response
 depends on which package was asked about, not on who asked, so two users with
 different keys should share one entry.
 """
+
+_URL_IN_TEXT = re.compile(r"https?://[^\s'\"]+")
+"""URLs that can appear inside an error message or other diagnostic string."""
 
 _STORED_HEADERS = frozenset({"content-type", "etag", "last-modified"})
 """Response headers worth keeping, as an allowlist rather than a denylist.
@@ -312,6 +316,32 @@ def redacted(url: str) -> str:
         if name.lower() not in _CREDENTIAL_PARAMS
     ]
     return urlunsplit(parts._replace(query=urlencode(kept)))
+
+
+def _redacted_match(url: str) -> str:
+    """Redact one URL found inside free text, however malformed it is.
+
+    :func:`redacted` parses, and a URL lifted out of untrusted metadata need
+    not parse — ``https://[`` alone raises. Dropping the query outright is the
+    safe answer for one of those: the credential cannot survive, and text that
+    was never a real URL loses nothing that mattered.
+
+    Returns:
+        The URL with credential-bearing parameters removed.
+    """
+    try:
+        return redacted(url)
+    except ValueError:
+        return url.split("?", 1)[0]
+
+
+def redacted_text(value: str) -> str:
+    """Redact credentials from every URL embedded in an arbitrary string.
+
+    Returns:
+        The original text with credentials removed from each HTTP(S) URL.
+    """
+    return _URL_IN_TEXT.sub(lambda match: _redacted_match(match.group()), value)
 
 
 def key_for(method: str, url: str, scope: str = "") -> str:

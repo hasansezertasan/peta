@@ -530,3 +530,29 @@ class TestStuckEntries:
         monkeypatch.setattr(cache, "_ENTRY_VERSION", "99")
 
         assert cache.key_for("GET", _URL) != before
+
+
+class TestRedactedText:
+    """Removing credentials from URLs embedded in free-form text."""
+
+    def test_a_credential_inside_a_message_is_removed(self) -> None:
+        text = "GET https://libraries.io/api?api_key=s3cret&q=x failed"
+
+        redacted = cache.redacted_text(text)
+
+        assert "s3cret" not in redacted
+        assert "q=x" in redacted
+        assert redacted.startswith("GET https://libraries.io/api?")
+
+    def test_text_without_a_url_is_untouched(self) -> None:
+        assert cache.redacted_text("nothing to see") == "nothing to see"
+
+    @pytest.mark.parametrize(
+        "text",
+        ["https://[", "see https://[::1 here", "https://[bad]host/?token=s3cret"],
+    )
+    def test_an_unparsable_url_does_not_raise(self, text: str) -> None:
+        # Metadata decides this text, so a URL-shaped string that no parser
+        # accepts is an input, not a bug. Raising here would turn any hostile
+        # summary into a crash.
+        assert "s3cret" not in cache.redacted_text(text)

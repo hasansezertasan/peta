@@ -22,14 +22,14 @@ from __future__ import annotations
 import platform
 from dataclasses import dataclass, field, replace
 from functools import cache as _memoize, partial
-from typing import TYPE_CHECKING, Literal, TypeAliasType, cast
+from typing import TYPE_CHECKING, Literal, TypeAliasType
 
 import httpx
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.tags import compatible_tags, cpython_tags, sys_tags
 from packaging.utils import InvalidWheelFilename, parse_wheel_filename
 
-from peta.core import cache, http
+from peta.core import cache, http, validation
 from peta.core.cache import Provenance
 from peta.core.concurrency import gather
 from peta.core.index import (
@@ -562,7 +562,8 @@ def _publisher_for(file: ArtifactFile) -> _Lookup:
     try:
         fetched = http.get(url, ttl=cache.DAILY, scope="provenance")
         _ = fetched.response.raise_for_status()
-        publishers = _publishers_from(cast("object", fetched.response.json()))
+        body = validation.json_body(fetched.response, source="provenance")
+        publishers = _publishers_from(body)
     except (httpx.HTTPError, httpx.InvalidURL, http.OfflineError, ValueError) as exc:
         return _Lookup(failure=PublisherFailure(file.filename, str(exc)))
     http.keep(fetched)

@@ -38,6 +38,33 @@ def _pkg(**over: object) -> PackageInfo:
     return replace(base, **over)
 
 
+def test_json_reports_a_declared_url_exactly_as_declared() -> None:
+    # ``key`` is among the parameter names peta strips from its own request
+    # URLs. Sweeping the whole envelope with that rule would rewrite metadata
+    # the contract promises to report faithfully.
+    package = _pkg(homepage="https://example.invalid/docs?key=install")
+
+    output = json.loads(format_info(package, arguments={}))
+
+    assert output["result"]["homepage"] == "https://example.invalid/docs?key=install"
+
+
+def test_json_error_messages_carry_no_credential() -> None:
+    from peta.cli.output.json import format_error
+
+    output = json.loads(
+        format_error(
+            "info",
+            arguments={},
+            code="network_error",
+            message="GET https://libraries.io/api?api_key=s3cret failed",
+        )
+    )
+
+    assert "s3cret" not in json.dumps(output)
+    assert "libraries.io" in json.dumps(output)
+
+
 def test_info_basic() -> None:
     data = json.loads(format_info(_pkg()))["result"]
     assert data["name"] == "requests"

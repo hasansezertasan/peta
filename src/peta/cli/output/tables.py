@@ -18,6 +18,8 @@ from peta.cli.output.summary import (
 )
 
 if TYPE_CHECKING:
+    from rich.console import RenderableType
+
     from peta.core.artifacts import ReleaseArtifacts
     from peta.core.models import DependencyNode, PackageInfo
 
@@ -32,7 +34,7 @@ __all__ = [
 ]
 
 
-def _to_string(renderable: object, *, color: bool) -> str:
+def _to_string(renderable: RenderableType, *, color: bool) -> str:
     return _render(renderable, color=color)
 
 

@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import os
-from typing import TYPE_CHECKING, Required, TypedDict, cast
+from typing import TYPE_CHECKING, Required, TypedDict
 
 import httpx
 
-from peta.core import cache, http
+from peta.core import cache, http, validation
 from peta.core.validation import (
     EnrichmentError,
     ResponseValidationError,
@@ -61,7 +61,9 @@ class LibrariesIoResponse(TypedDict, total=False):
 
 def _decode(response: httpx.Response, source: str) -> object:
     try:
-        return cast("object", response.json())
+        return validation.json_body(response, source=source)
+    except ResponseValidationError as exc:
+        raise EnrichmentError(source, f"malformed response: {exc}") from exc
     except ValueError as exc:
         raise EnrichmentError(source, "invalid JSON") from exc
 

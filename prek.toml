@@ -110,8 +110,12 @@ hooks = [
   # src/). Without this, the hook passes every changed .py file, which surfaces
   # strict-decorator errors in tests/ that the canonical run never checks — not
   # part of the shipped, type-checked surface.
+  # httpx is here because src/ subclasses httpx.RequestError. Without it the
+  # module resolves to Any in the hook's isolated env, and strict mode's
+  # disallow_subclassing_any rejects the subclass that tox's mypy accepts.
   { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = [
     "typer",
+    "httpx",
   ] },
 ]
 

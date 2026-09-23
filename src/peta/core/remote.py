@@ -8,7 +8,7 @@ import httpx
 from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 
-from peta.core import cache, http
+from peta.core import cache, http, validation
 from peta.core.compatibility import supports_python
 from peta.core.models import PackageInfo, Vulnerability
 from peta.core.validation import (
@@ -171,7 +171,10 @@ def _fetch(name: str, version: str | None) -> tuple[PyPIResponse, Provenance]:
 
 def _decode_response(response: httpx.Response) -> PyPIResponse:
     try:
-        body = cast("object", response.json())
+        body = validation.json_body(response, source="PyPI")
+    except ResponseValidationError as exc:
+        msg = f"malformed response from PyPI: {exc}"
+        raise NetworkError(msg) from exc
     except ValueError as exc:
         msg = "PyPI returned invalid JSON"
         raise NetworkError(msg) from exc

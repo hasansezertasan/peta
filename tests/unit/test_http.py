@@ -1,13 +1,14 @@
 """Unit tests for the shared outbound HTTP client."""
 
 import atexit
+import gzip
 import threading
 from typing import TYPE_CHECKING
 
 import httpx
 import pytest
 
-from peta.core import cache, http, stats
+from peta.core import cache, http, remote, stats
 from peta.core.output import utc_from
 from peta.core.validation import EnrichmentError
 
@@ -104,6 +105,74 @@ def test_post_sends_a_json_body(fake_http: FakeTransport) -> None:
 
     assert fake_http.request.method == "POST"
     assert fake_http.request.headers["content-type"] == "application/json"
+
+
+@pytest.mark.parametrize("url", ["http://example.invalid/thing", "file:///tmp/thing"])
+def test_get_refuses_non_https_urls(url: str, fake_http: FakeTransport) -> None:
+    with pytest.raises(http.UnsafeURLError, match="HTTPS is required"):
+        _ = http.get(url)
+
+    assert fake_http.requests == []
+
+
+def test_get_refuses_a_response_with_an_excessive_declared_size(
+    fake_http: FakeTransport,
+) -> None:
+    oversized = str(http.MAX_RESPONSE_BYTES + 1)
+    fake_http.reply(json={}, headers={"content-length": oversized})
+
+    with pytest.raises(http.ResponseTooLargeError, match="Response exceeds"):
+        _ = http.get(_URL)
+
+
+def test_a_compressed_response_is_decoded_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Bounding the body means reading it, and handing the decoded bytes back
+    # to httpx under the original ``content-encoding`` would decompress them a
+    # second time. PyPI serves gzip, so that failure would be the normal case
+    # rather than an edge one — and no mock transport compresses by default.
+    body = b'{"hello": "world"}'
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            content=gzip.compress(body),
+            headers={"content-encoding": "gzip", "content-type": "application/json"},
+            request=request,
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handle))
+    monkeypatch.setattr(http, "client", lambda: client)
+
+    fetched = http.get(_URL)
+
+    assert fetched.response.json() == {"hello": "world"}
+    assert fetched.response.headers["content-type"] == "application/json"
+    client.close()
+
+
+def test_a_declared_oversize_still_releases_the_connection() -> None:
+    # A streamed response holds a connection checked out of the shared pool
+    # until it is closed. Refusing on the declared length before reaching the
+    # ``finally`` that closes it leaked one connection per oversized reply,
+    # so a fan-out across many packages could drain the pool.
+    oversized = str(http.MAX_RESPONSE_BYTES + 1)
+    response = httpx.Response(
+        200, headers={"content-length": oversized}, stream=httpx.ByteStream(b"{}")
+    )
+
+    with pytest.raises(http.ResponseTooLargeError):
+        _ = http._within_limit(response)
+
+    assert response.is_closed
+
+
+def test_the_body_limit_leaves_room_for_the_largest_real_package() -> None:
+    # grpcio's JSON document was 9 MiB when the limit was set; the previous
+    # 10 MiB cap was 87% used by it and would have broken ``peta info grpcio``
+    # within a few releases.
+    assert http.MAX_RESPONSE_BYTES >= 5 * 9_082_440
 
 
 def test_transport_failures_reach_the_caller(fake_http: FakeTransport) -> None:
@@ -630,3 +699,63 @@ class TestScopedEntries:
 
         assert again.provenance.freshness == "cached"
         assert len(fake_http.requests) == 1
+
+
+def test_redirects_are_refused_rather_than_followed() -> None:
+    # The HTTPS check runs against the URL peta chose, so following a redirect
+    # would step around it to whatever scheme or origin the response named.
+    assert http.client().follow_redirects is False
+
+
+def test_a_redirect_is_returned_to_the_caller_unfollowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        return httpx.Response(
+            302, headers={"location": "http://10.0.0.1/secret"}, request=request
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handle), follow_redirects=False)
+    monkeypatch.setattr(http, "client", lambda: client)
+
+    fetched = http.get(_URL)
+
+    assert fetched.response.status_code == 302
+    assert seen == [_URL]
+    client.close()
+
+
+class TestGuardsReachTheUserAsNetworkErrors:
+    """Every refusal must travel the path sources already handle.
+
+    Each source maps a failed request onto its own error type by catching
+    ``httpx.RequestError``. A guard that raises outside that hierarchy reaches
+    the CLI unhandled, which prints a traceback and no message at all — so
+    these are contract tests, not implementation details.
+    """
+
+    @pytest.mark.parametrize("error", [http.UnsafeURLError, http.ResponseTooLargeError])
+    def test_each_guard_is_a_request_error(self, error: type[Exception]) -> None:
+        assert issubclass(error, httpx.RequestError)
+
+    def test_an_unreachable_host_becomes_a_network_error(
+        self, fake_http: FakeTransport
+    ) -> None:
+        # Being offline is the ordinary failure, and it must end in peta's own
+        # message rather than a traceback.
+        fake_http.fail(httpx.ConnectError("nodename nor servname provided"))
+
+        with pytest.raises(remote.NetworkError, match="nodename"):
+            _ = remote.get_package("requests")
+
+    def test_an_oversized_response_becomes_a_network_error(
+        self, fake_http: FakeTransport
+    ) -> None:
+        oversized = str(http.MAX_RESPONSE_BYTES + 1)
+        fake_http.reply(json={}, headers={"content-length": oversized})
+
+        with pytest.raises(remote.NetworkError, match="exceeds"):
+            _ = remote.get_package("requests")

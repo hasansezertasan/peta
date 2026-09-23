@@ -396,6 +396,7 @@ class TestOutputContract:
         "arguments",
         [
             ["deps", "requests", "--depth", "0", "--format", "json"],
+            ["deps", "requests", "--depth", "101", "--format", "json"],
             ["versions", "requests", "--limit", "0", "--format", "json"],
             ["info", "--format", "json"],
             ["info", "requests", "--unknown", "--format", "json"],

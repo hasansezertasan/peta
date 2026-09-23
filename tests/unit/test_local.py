@@ -302,3 +302,56 @@ def test_local_target_rejects_blank_platform() -> None:
 def test_local_target_rejects_unknown_platform() -> None:
     with pytest.raises(InvalidTargetError, match="win32, linux, or darwin"):
         LocalTarget.create(platform="freebsd")
+
+
+class TestInspectionNeverRunsPackageCode:
+    """The guarantee the README and the threat model both make.
+
+    Peta reads metadata that a package *declares*; it never reaches the code
+    that package ships. An installed distribution is attacker-controlled input
+    like any other, so the distinction is the whole reason inspecting an
+    unknown package is safe, and a refactor towards ``import`` or a build
+    backend has to fail here rather than in the field.
+    """
+
+    @staticmethod
+    def _install(root: Path, *, name: str = "boobytrap") -> Path:
+        """Install a distribution whose import and build both leave evidence.
+
+        Returns:
+            The sentinel path that only executing the package can create.
+        """
+        sentinel = root / "executed"
+        trap = f"import pathlib; pathlib.Path({str(sentinel)!r}).write_text('ran')"
+        _ = (root / f"{name}.py").write_text(trap)
+        _ = (root / "setup.py").write_text(trap)
+        dist = root / f"{name}-1.0.dist-info"
+        dist.mkdir()
+        _ = (dist / "METADATA").write_text(
+            f"Metadata-Version: 2.1\nName: {name}\nVersion: 1.0\nSummary: inert\n"
+        )
+        return sentinel
+
+    def test_reading_metadata_does_not_execute_the_package(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        sentinel = self._install(tmp_path)
+        monkeypatch.syspath_prepend(str(tmp_path))
+
+        package = get_package("boobytrap")
+
+        assert package.version == "1.0"
+        assert package.summary == "inert"
+        assert not sentinel.exists()
+
+    def test_the_interpreter_query_does_not_execute_the_package(
+        self, tmp_path: Path
+    ) -> None:
+        # The ``--python`` boundary runs a real subprocess, so it is the one
+        # place a stray import would actually happen rather than be mocked out.
+        sentinel = self._install(tmp_path)
+
+        target = LocalTarget.create(sys.executable)
+
+        assert target.paths
+        assert not sentinel.exists()

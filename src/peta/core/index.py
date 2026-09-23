@@ -26,7 +26,7 @@ from packaging.utils import (
 )
 from packaging.version import InvalidVersion, Version
 
-from peta.core import cache, http
+from peta.core import cache, http, validation
 from peta.core.remote import NetworkError
 from peta.core.validation import (
     ResponseValidationError,
@@ -355,6 +355,31 @@ def _fetch_page(name: str, base_url: str) -> tuple[httpx.Response, http.Fetched]
     return fetched.response, fetched
 
 
+def _decoded_page(response: httpx.Response) -> ProjectPage:
+    """Decode a Simple API body and check it against the shape peta consumes.
+
+    Decoding and validating share one handler because they fail the same way
+    from a caller's side: the index said something peta cannot use. A limit
+    breach arrives as a :class:`ResponseValidationError` too, and keeps its
+    own wording rather than being flattened into "invalid JSON".
+
+    Returns:
+        The validated project page.
+
+    Raises:
+        NetworkError: If the body cannot be decoded or does not match.
+    """
+    try:
+        body = validation.json_body(response, source="Simple API")
+        return _validate_response(body)
+    except ResponseValidationError as exc:
+        msg = f"malformed response from Simple API: {exc}"
+        raise NetworkError(msg) from exc
+    except ValueError as exc:
+        msg = "malformed response from Simple API"
+        raise NetworkError(msg) from exc
+
+
 def get_project_page(
     name: str, *, base_url: str = PYPI_SIMPLE_URL
 ) -> tuple[ProjectPage, Provenance]:
@@ -384,17 +409,6 @@ def get_project_page(
         msg = f"Simple API returned HTTP {exc.response.status_code}"
         raise NetworkError(msg) from exc
 
-    try:
-        body = cast("object", response.json())
-    except ValueError as exc:
-        msg = "malformed response from Simple API"
-        raise NetworkError(msg) from exc
-
-    try:
-        page = _validate_response(body)
-    except ResponseValidationError as exc:
-        msg = f"malformed response from Simple API: {exc}"
-        raise NetworkError(msg) from exc
-
+    page = _decoded_page(response)
     http.keep(fetched)
     return page, fetched.provenance

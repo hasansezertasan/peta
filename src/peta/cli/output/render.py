@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from peta.cli.output import json, markdown, tables, text
+from peta.cli.output.console import sanitize_terminal
 from peta.cli.output.selection import OutputFormat
 
 if TYPE_CHECKING:
@@ -23,6 +24,24 @@ __all__ = [
 ]
 
 
+def _plain_output(value: str) -> str:
+    """Make the plain-text renderers safe to paste into a terminal.
+
+    Text and Markdown carry no styling of peta's own, so the finished string
+    can be hardened wholesale. The Rich renderers cannot: their output is
+    mostly escape sequences peta itself emitted, so they are hardened per
+    rendered segment inside :func:`peta.cli.output.console.render`.
+
+    Credentials are not this function's business. They are stripped where a
+    diagnostic is built, so that a URL a package merely *declared* is reported
+    as declared rather than quietly rewritten.
+
+    Returns:
+        The rendered value with terminal control characters removed.
+    """
+    return sanitize_terminal(value)
+
+
 def render_info(
     output_format: OutputFormat,
     pkg: PackageInfo,
@@ -38,9 +57,9 @@ def render_info(
     if output_format == OutputFormat.JSON:
         return json.format_info(pkg, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_info(pkg)
+        return _plain_output(markdown.format_info(pkg))
     if output_format == OutputFormat.TEXT:
-        return text.format_info(pkg)
+        return _plain_output(text.format_info(pkg))
     return tables.render_info(pkg, color=color)
 
 
@@ -60,9 +79,9 @@ def render_compare(
     if output_format == OutputFormat.JSON:
         return json.format_compare(a, b, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_compare(a, b)
+        return _plain_output(markdown.format_compare(a, b))
     if output_format == OutputFormat.TEXT:
-        return text.format_compare(a, b)
+        return _plain_output(text.format_compare(a, b))
     return tables.render_compare(a, b, color=color)
 
 
@@ -81,9 +100,9 @@ def render_dep_tree(
     if output_format == OutputFormat.JSON:
         return json.format_dep_tree(tree, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_dep_tree(tree)
+        return _plain_output(markdown.format_dep_tree(tree))
     if output_format == OutputFormat.TEXT:
-        return text.format_dep_tree(tree)
+        return _plain_output(text.format_dep_tree(tree))
     return tables.render_dep_tree(tree, color=color)
 
 
@@ -104,9 +123,9 @@ def render_why(
     if output_format == OutputFormat.JSON:
         return json.format_why(target, paths, arguments=arguments, tree=tree)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_why(target, paths)
+        return _plain_output(markdown.format_why(target, paths))
     if output_format == OutputFormat.TEXT:
-        return text.format_why(target, paths)
+        return _plain_output(text.format_why(target, paths))
     return tables.render_why(target, paths, color=color)
 
 
@@ -125,9 +144,9 @@ def render_files(
     if output_format == OutputFormat.JSON:
         return json.format_files(pkg, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_files(pkg)
+        return _plain_output(markdown.format_files(pkg))
     if output_format == OutputFormat.TEXT:
-        return text.format_files(pkg)
+        return _plain_output(text.format_files(pkg))
     return tables.render_files(pkg, color=color)
 
 
@@ -155,9 +174,9 @@ def render_versions(
             freshness=freshness,
         )
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_versions(package, versions)
+        return _plain_output(markdown.format_versions(package, versions))
     if output_format == OutputFormat.TEXT:
-        return text.format_versions(package, versions)
+        return _plain_output(text.format_versions(package, versions))
     return tables.render_versions(package, versions, color=color)
 
 
@@ -186,7 +205,7 @@ def render_artifacts(
             publishers=publishers,
         )
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_artifacts(release, detailed=detailed)
+        return _plain_output(markdown.format_artifacts(release, detailed=detailed))
     if output_format == OutputFormat.TEXT:
-        return text.format_artifacts(release, detailed=detailed)
+        return _plain_output(text.format_artifacts(release, detailed=detailed))
     return tables.render_artifacts(release, color=color, detailed=detailed)
