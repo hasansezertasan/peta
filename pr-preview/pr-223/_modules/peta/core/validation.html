@@ -173,286 +173,315 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="54"><span class="sd">which the response-size limit is far too coarse to stop.</span>
 </span><span data-line="55"><span class="sd">"""</span>
 </span><span data-line="56">
-</span><span data-line="57"><span class="n">_JSON_STRING</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">'"[^"</span><span class="se">\\</span><span class="s1">]*(?:</span><span class="se">\\</span><span class="s1">.[^"</span><span class="se">\\</span><span class="s1">]*)*"'</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)</span>
-</span><span data-line="58"><span class="sd">"""One complete JSON string literal.</span>
+</span><span data-line="57"><span class="n">_JSON_STRING</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s1">'"[^"</span><span class="se">\\</span><span class="s1">]*(?:</span><span class="se">\\</span><span class="s1">.[^"</span><span class="se">\\</span><span class="s1">]*)*(?:"|</span><span class="se">\\</span><span class="s1">?\Z)'</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">DOTALL</span><span class="p">)</span>
+</span><span data-line="58"><span class="sd">"""One JSON string literal, or an unterminated one running to the end.</span>
 </span><span data-line="59">
-</span><span data-line="60"><span class="sd">Written as an unrolled loop rather than ``(?:[^"\\]|\\.)*`` so that it runs in</span>
-</span><span data-line="61"><span class="sd">linear time: the alternation form backtracks catastrophically on a long run of</span>
-</span><span data-line="62"><span class="sd">escapes, which would hand an attacker the denial of service this scan exists</span>
-</span><span data-line="63"><span class="sd">to prevent.</span>
-</span><span data-line="64"><span class="sd">"""</span>
-</span><span data-line="65">
-</span><span data-line="66"><span class="n">_OPENING</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="s2">"[{"</span><span class="p">)</span>
-</span><span data-line="67"><span class="n">_CLOSING</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="s2">"]}"</span><span class="p">)</span>
-</span><span data-line="68"><span class="n">_STRUCTURAL</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"[\[\]</span><span class="si">{}</span><span class="s2">,]"</span><span class="p">)</span>
-</span><span data-line="69"><span class="sd">"""The only characters that change a document's shape once strings are gone.</span>
-</span><span data-line="70">
-</span><span data-line="71"><span class="sd">Matching them with a regex lets the scan skip every other byte in C rather</span>
-</span><span data-line="72"><span class="sd">than visiting each one in a Python loop.</span>
-</span><span data-line="73"><span class="sd">"""</span>
+</span><span data-line="60"><span class="sd">Two properties keep this linear, and both are needed. The body is an unrolled</span>
+</span><span data-line="61"><span class="sd">loop rather than ``(?:[^"\\]|\\.)*``, whose alternation backtracks</span>
+</span><span data-line="62"><span class="sd">catastrophically on a long run of escapes. And a literal with no closing quote</span>
+</span><span data-line="63"><span class="sd">is allowed to end at the end of the input: without that, the match fails, the</span>
+</span><span data-line="64"><span class="sd">engine restarts from the next ``"`` — every escaped quote is one — and scans to</span>
+</span><span data-line="65"><span class="sd">the end again, so ``"\\"\\"\\"...`` costs quadratic time. 32 KB of it took</span>
+</span><span data-line="66"><span class="sd">nearly two seconds; a full-size body would take hours. An unterminated string</span>
+</span><span data-line="67"><span class="sd">is invalid JSON anyway, and the decoder rejects it once the scan is done.</span>
+</span><span data-line="68"><span class="sd">"""</span>
+</span><span data-line="69">
+</span><span data-line="70"><span class="n">_OPENING</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="s2">"[{"</span><span class="p">)</span>
+</span><span data-line="71"><span class="n">_CLOSING</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="s2">"]}"</span><span class="p">)</span>
+</span><span data-line="72"><span class="n">_STRUCTURAL</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"[\[\]</span><span class="si">{}</span><span class="s2">,]"</span><span class="p">)</span>
+</span><span data-line="73"><span class="sd">"""The only characters that change a document's shape once strings are gone.</span>
 </span><span data-line="74">
-</span><span data-line="75">
+</span><span data-line="75"><span class="sd">Matching them with a regex lets the scan skip every other byte in C rather</span>
+</span><span data-line="76"><span class="sd">than visiting each one in a Python loop.</span>
+</span><span data-line="77"><span class="sd">"""</span>
+</span><span data-line="78">
+</span><span data-line="79">
 <div class="viewcode-block" id="EnrichmentError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.EnrichmentError">[docs]</a>
-</span><span data-line="76"><span class="k">class</span><span class="w"> </span><span class="nc">EnrichmentError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-</span><span data-line="77"><span class="w">    </span><span class="sd">"""A source-specific failure from an optional external API."""</span>
-</span><span data-line="78">
-</span><span data-line="79">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">contacted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="80"><span class="w">        </span><span class="sd">"""Store the failed source, safe diagnostic reason, and whether it ran.</span>
-</span><span data-line="81">
-</span><span data-line="82"><span class="sd">        Args:</span>
-</span><span data-line="83"><span class="sd">            source: The source that failed.</span>
-</span><span data-line="84"><span class="sd">            reason: A diagnostic to show a user. Credentials are stripped from</span>
-</span><span data-line="85"><span class="sd">                any URL it names, here rather than at each call site: most of</span>
-</span><span data-line="86"><span class="sd">                these reasons are ``str(exc)`` on a transport error, which</span>
-</span><span data-line="87"><span class="sd">                quotes the request URL, and Libraries.io carries its API key</span>
-</span><span data-line="88"><span class="sd">                in the query string.</span>
-</span><span data-line="89"><span class="sd">            contacted: Whether a request was actually made. ``False`` for a</span>
-</span><span data-line="90"><span class="sd">                refusal that never reached the network — being offline — so</span>
-</span><span data-line="91"><span class="sd">                the resulting record can omit a retrieval time instead of</span>
-</span><span data-line="92"><span class="sd">                claiming one for a source nothing was sent to.</span>
-</span><span data-line="93"><span class="sd">        """</span>
-</span><span data-line="94">        <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">source</span>
-</span><span data-line="95">        <span class="bp">self</span><span class="o">.</span><span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">redacted_text</span><span class="p">(</span><span class="n">reason</span><span class="p">)</span>
-</span><span data-line="96">        <span class="bp">self</span><span class="o">.</span><span class="n">contacted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">contacted</span>
-</span><span data-line="97">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+</span><span data-line="80"><span class="k">class</span><span class="w"> </span><span class="nc">EnrichmentError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+</span><span data-line="81"><span class="w">    </span><span class="sd">"""A source-specific failure from an optional external API."""</span>
+</span><span data-line="82">
+</span><span data-line="83">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">reason</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">contacted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="84"><span class="w">        </span><span class="sd">"""Store the failed source, safe diagnostic reason, and whether it ran.</span>
+</span><span data-line="85">
+</span><span data-line="86"><span class="sd">        Args:</span>
+</span><span data-line="87"><span class="sd">            source: The source that failed.</span>
+</span><span data-line="88"><span class="sd">            reason: A diagnostic to show a user. Credentials are stripped from</span>
+</span><span data-line="89"><span class="sd">                any URL it names, here rather than at each call site: most of</span>
+</span><span data-line="90"><span class="sd">                these reasons are ``str(exc)`` on a transport error, which</span>
+</span><span data-line="91"><span class="sd">                quotes the request URL, and Libraries.io carries its API key</span>
+</span><span data-line="92"><span class="sd">                in the query string.</span>
+</span><span data-line="93"><span class="sd">            contacted: Whether a request was actually made. ``False`` for a</span>
+</span><span data-line="94"><span class="sd">                refusal that never reached the network — being offline — so</span>
+</span><span data-line="95"><span class="sd">                the resulting record can omit a retrieval time instead of</span>
+</span><span data-line="96"><span class="sd">                claiming one for a source nothing was sent to.</span>
+</span><span data-line="97"><span class="sd">        """</span>
+</span><span data-line="98">        <span class="bp">self</span><span class="o">.</span><span class="n">source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">source</span>
+</span><span data-line="99">        <span class="bp">self</span><span class="o">.</span><span class="n">reason</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">redacted_text</span><span class="p">(</span><span class="n">reason</span><span class="p">)</span>
+</span><span data-line="100">        <span class="bp">self</span><span class="o">.</span><span class="n">contacted</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="n">contacted</span>
+</span><span data-line="101">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">reason</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
 
-</span><span data-line="98">
-</span><span data-line="99">
+</span><span data-line="102">
+</span><span data-line="103">
 <div class="viewcode-block" id="ResponseValidationError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.ResponseValidationError">[docs]</a>
-</span><span data-line="100"><span class="k">class</span><span class="w"> </span><span class="nc">ResponseValidationError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
-</span><span data-line="101"><span class="w">    </span><span class="sd">"""Raised when an external response does not match its consumed contract."""</span>
-</span><span data-line="102">
-</span><span data-line="103">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="104"><span class="w">        </span><span class="sd">"""Describe the source, JSON path, and expected value type."""</span>
-</span><span data-line="105">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2"> field </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> must be </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
-
+</span><span data-line="104"><span class="k">class</span><span class="w"> </span><span class="nc">ResponseValidationError</span><span class="p">(</span><span class="ne">ValueError</span><span class="p">):</span>
+</span><span data-line="105"><span class="w">    </span><span class="sd">"""Raised when an external response does not match its consumed contract."""</span>
 </span><span data-line="106">
-</span><span data-line="107">
+</span><span data-line="107">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">expected</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="108"><span class="w">        </span><span class="sd">"""Describe the source, JSON path, and expected value type."""</span>
+</span><span data-line="109">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">source</span><span class="si">}</span><span class="s2"> field </span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> must be </span><span class="si">{</span><span class="n">expected</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
+</span><span data-line="110">
+</span><span data-line="111">
 <div class="viewcode-block" id="ResponseLimitError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.ResponseLimitError">[docs]</a>
-</span><span data-line="108"><span class="k">class</span><span class="w"> </span><span class="nc">ResponseLimitError</span><span class="p">(</span><span class="n">ResponseValidationError</span><span class="p">):</span>
-</span><span data-line="109"><span class="w">    </span><span class="sd">"""Raised when a response is well formed but past one of peta's limits.</span>
-</span><span data-line="110">
-</span><span data-line="111"><span class="sd">    Separate from its parent so that a refusal on size does not claim the</span>
-</span><span data-line="112"><span class="sd">    value had the wrong type. An array of 10,001 items *is* an array, and</span>
-</span><span data-line="113"><span class="sd">    reporting it as "must be an array" sends whoever debugs it to check the</span>
-</span><span data-line="114"><span class="sd">    response shape, find it correct, and lose the trail.</span>
-</span><span data-line="115"><span class="sd">    """</span>
-</span><span data-line="116">
-</span><span data-line="117">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="118"><span class="w">        </span><span class="sd">"""Describe the source, JSON path, and the limit that was exceeded."""</span>
-</span><span data-line="119">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"at most </span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
-
+</span><span data-line="112"><span class="k">class</span><span class="w"> </span><span class="nc">ResponseLimitError</span><span class="p">(</span><span class="n">ResponseValidationError</span><span class="p">):</span>
+</span><span data-line="113"><span class="w">    </span><span class="sd">"""Raised when a response is well formed but past one of peta's limits.</span>
+</span><span data-line="114">
+</span><span data-line="115"><span class="sd">    Separate from its parent so that a refusal on size does not claim the</span>
+</span><span data-line="116"><span class="sd">    value had the wrong type. An array of 10,001 items *is* an array, and</span>
+</span><span data-line="117"><span class="sd">    reporting it as "must be an array" sends whoever debugs it to check the</span>
+</span><span data-line="118"><span class="sd">    response shape, find it correct, and lose the trail.</span>
+</span><span data-line="119"><span class="sd">    """</span>
 </span><span data-line="120">
-</span><span data-line="121">
-</span><span data-line="122"><span class="k">def</span><span class="w"> </span><span class="nf">_step</span><span class="p">(</span><span class="n">open_counts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="123"><span class="w">    </span><span class="sd">"""Apply one structural token to the scan, reporting any limit it breaks.</span>
+</span><span data-line="121">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="122"><span class="w">        </span><span class="sd">"""Describe the source, JSON path, and the limit that was exceeded."""</span>
+</span><span data-line="123">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"at most </span><span class="si">{</span><span class="n">limit</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+
 </span><span data-line="124">
-</span><span data-line="125"><span class="sd">    ``open_counts`` holds an item count per container still open, over a</span>
-</span><span data-line="126"><span class="sd">    sentinel for the top level so that malformed input — a stray ``,`` or</span>
-</span><span data-line="127"><span class="sd">    ``]`` — cannot underflow it; the decoder rejects such input afterwards.</span>
-</span><span data-line="128"><span class="sd">    Counting commas plus one overstates an empty container by one item, which</span>
-</span><span data-line="129"><span class="sd">    is harmless for an upper bound.</span>
-</span><span data-line="130">
-</span><span data-line="131"><span class="sd">    Returns:</span>
-</span><span data-line="132"><span class="sd">        A description of the limit broken, or ``None``.</span>
-</span><span data-line="133"><span class="sd">    """</span>
-</span><span data-line="134">    <span class="k">if</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">_OPENING</span><span class="p">:</span>
-</span><span data-line="135">        <span class="n">open_counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
-</span><span data-line="136">        <span class="n">too_deep</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">open_counts</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">&gt;</span> <span class="n">MAX_JSON_DEPTH</span>
-</span><span data-line="137">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_JSON_DEPTH</span><span class="si">}</span><span class="s2"> levels deep"</span> <span class="k">if</span> <span class="n">too_deep</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="138">    <span class="k">if</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">_CLOSING</span><span class="p">:</span>
-</span><span data-line="139">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">open_counts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-</span><span data-line="140">            <span class="n">_</span> <span class="o">=</span> <span class="n">open_counts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
-</span><span data-line="141">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="142">    <span class="n">open_counts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
-</span><span data-line="143">    <span class="n">too_many</span> <span class="o">=</span> <span class="n">open_counts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">MAX_COLLECTION_ITEMS</span>
-</span><span data-line="144">    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_COLLECTION_ITEMS</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> items"</span> <span class="k">if</span> <span class="n">too_many</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="145">
-</span><span data-line="146">
-</span><span data-line="147"><span class="k">def</span><span class="w"> </span><span class="nf">_structural_breach</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="148"><span class="w">    </span><span class="sd">"""Measure nesting and per-container size before anything is decoded.</span>
+</span><span data-line="125">
+</span><span data-line="126"><span class="k">def</span><span class="w"> </span><span class="nf">_step</span><span class="p">(</span><span class="n">open_counts</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span> <span class="n">token</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="127"><span class="w">    </span><span class="sd">"""Apply one structural token to the scan, reporting any limit it breaks.</span>
+</span><span data-line="128">
+</span><span data-line="129"><span class="sd">    ``open_counts`` holds an item count per container still open, over a</span>
+</span><span data-line="130"><span class="sd">    sentinel for the top level so that malformed input — a stray ``,`` or</span>
+</span><span data-line="131"><span class="sd">    ``]`` — cannot underflow it; the decoder rejects such input afterwards.</span>
+</span><span data-line="132"><span class="sd">    Counting commas plus one overstates an empty container by one item, which</span>
+</span><span data-line="133"><span class="sd">    is harmless for an upper bound.</span>
+</span><span data-line="134">
+</span><span data-line="135"><span class="sd">    Returns:</span>
+</span><span data-line="136"><span class="sd">        A description of the limit broken, or ``None``.</span>
+</span><span data-line="137"><span class="sd">    """</span>
+</span><span data-line="138">    <span class="k">if</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">_OPENING</span><span class="p">:</span>
+</span><span data-line="139">        <span class="n">open_counts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span data-line="140">        <span class="n">too_deep</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">open_counts</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="o">&gt;</span> <span class="n">MAX_JSON_DEPTH</span>
+</span><span data-line="141">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_JSON_DEPTH</span><span class="si">}</span><span class="s2"> levels deep"</span> <span class="k">if</span> <span class="n">too_deep</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="142">    <span class="k">if</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">_CLOSING</span><span class="p">:</span>
+</span><span data-line="143">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">open_counts</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+</span><span data-line="144">            <span class="n">_</span> <span class="o">=</span> <span class="n">open_counts</span><span class="o">.</span><span class="n">pop</span><span class="p">()</span>
+</span><span data-line="145">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="146">    <span class="n">open_counts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+</span><span data-line="147">    <span class="n">too_many</span> <span class="o">=</span> <span class="n">open_counts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">MAX_COLLECTION_ITEMS</span>
+</span><span data-line="148">    <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_COLLECTION_ITEMS</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> items"</span> <span class="k">if</span> <span class="n">too_many</span> <span class="k">else</span> <span class="kc">None</span>
 </span><span data-line="149">
-</span><span data-line="150"><span class="sd">    Both have to be measured here rather than by the validators. Nesting,</span>
-</span><span data-line="151"><span class="sd">    because ``json.loads`` recurses and fails while parsing. Size, because the</span>
-</span><span data-line="152"><span class="sd">    validators only visit fields peta consumes: an ignored ``"padding"`` array</span>
-</span><span data-line="153"><span class="sd">    of tens of millions of zeros would be fully allocated by ``json.loads``</span>
-</span><span data-line="154"><span class="sd">    and never measured at all.</span>
-</span><span data-line="155">
-</span><span data-line="156"><span class="sd">    Returns:</span>
-</span><span data-line="157"><span class="sd">        A description of the first limit the document breaks, or ``None``.</span>
-</span><span data-line="158"><span class="sd">    """</span>
-</span><span data-line="159">    <span class="n">open_counts</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-</span><span data-line="160">    <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">_STRUCTURAL</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">_JSON_STRING</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">""</span><span class="p">,</span> <span class="n">text</span><span class="p">)):</span>
-</span><span data-line="161">        <span class="n">breach</span> <span class="o">=</span> <span class="n">_step</span><span class="p">(</span><span class="n">open_counts</span><span class="p">,</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">())</span>
-</span><span data-line="162">        <span class="k">if</span> <span class="n">breach</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="163">            <span class="k">return</span> <span class="n">breach</span>
-</span><span data-line="164">    <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="165">
-</span><span data-line="166">
+</span><span data-line="150">
+</span><span data-line="151"><span class="k">def</span><span class="w"> </span><span class="nf">_without_strings</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span><span class="p">]:</span>
+</span><span data-line="152"><span class="w">    </span><span class="sd">"""Remove every string literal, noting whether any was over the limit.</span>
+</span><span data-line="153">
+</span><span data-line="154"><span class="sd">    The raw literal counts its quotes and escapes, so it can only overstate the</span>
+</span><span data-line="155"><span class="sd">    decoded length: a string under the limit here is under it once decoded,</span>
+</span><span data-line="156"><span class="sd">    which is the direction that matters.</span>
+</span><span data-line="157">
+</span><span data-line="158"><span class="sd">    Returns:</span>
+</span><span data-line="159"><span class="sd">        The text with string literals removed, and whether one was too long.</span>
+</span><span data-line="160"><span class="sd">    """</span>
+</span><span data-line="161">    <span class="n">too_long</span> <span class="o">=</span> <span class="kc">False</span>
+</span><span data-line="162">
+</span><span data-line="163">    <span class="k">def</span><span class="w"> </span><span class="nf">blank</span><span class="p">(</span><span class="n">match</span><span class="p">:</span> <span class="n">re</span><span class="o">.</span><span class="n">Match</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="164">        <span class="k">nonlocal</span> <span class="n">too_long</span>
+</span><span data-line="165">        <span class="n">too_long</span> <span class="o">=</span> <span class="n">too_long</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">())</span> <span class="o">-</span> <span class="mi">2</span> <span class="o">&gt;</span> <span class="n">MAX_STRING_LENGTH</span>
+</span><span data-line="166">        <span class="k">return</span> <span class="s2">""</span>
+</span><span data-line="167">
+</span><span data-line="168">    <span class="k">return</span> <span class="n">_JSON_STRING</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="n">blank</span><span class="p">,</span> <span class="n">text</span><span class="p">),</span> <span class="n">too_long</span>
+</span><span data-line="169">
+</span><span data-line="170">
+</span><span data-line="171"><span class="k">def</span><span class="w"> </span><span class="nf">_structural_breach</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="172"><span class="w">    </span><span class="sd">"""Measure nesting and per-container size before anything is decoded.</span>
+</span><span data-line="173">
+</span><span data-line="174"><span class="sd">    All three have to be measured here rather than by the validators.</span>
+</span><span data-line="175"><span class="sd">    Nesting, because ``json.loads`` recurses and fails while parsing. Sizes,</span>
+</span><span data-line="176"><span class="sd">    because the validators only visit fields peta consumes, and not every</span>
+</span><span data-line="177"><span class="sd">    string they consume goes through :func:`expect_string`: an ignored</span>
+</span><span data-line="178"><span class="sd">    ``"padding"`` array, or a long string inside a list, would be fully</span>
+</span><span data-line="179"><span class="sd">    allocated by ``json.loads`` and never measured at all.</span>
+</span><span data-line="180">
+</span><span data-line="181"><span class="sd">    Returns:</span>
+</span><span data-line="182"><span class="sd">        A description of the first limit the document breaks, or ``None``.</span>
+</span><span data-line="183"><span class="sd">    """</span>
+</span><span data-line="184">    <span class="n">stripped</span><span class="p">,</span> <span class="n">too_long</span> <span class="o">=</span> <span class="n">_without_strings</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
+</span><span data-line="185">    <span class="k">if</span> <span class="n">too_long</span><span class="p">:</span>
+</span><span data-line="186">        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_STRING_LENGTH</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> characters"</span>
+</span><span data-line="187">    <span class="n">open_counts</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+</span><span data-line="188">    <span class="k">for</span> <span class="n">match</span> <span class="ow">in</span> <span class="n">_STRUCTURAL</span><span class="o">.</span><span class="n">finditer</span><span class="p">(</span><span class="n">stripped</span><span class="p">):</span>
+</span><span data-line="189">        <span class="n">breach</span> <span class="o">=</span> <span class="n">_step</span><span class="p">(</span><span class="n">open_counts</span><span class="p">,</span> <span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">())</span>
+</span><span data-line="190">        <span class="k">if</span> <span class="n">breach</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="191">            <span class="k">return</span> <span class="n">breach</span>
+</span><span data-line="192">    <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="193">
+</span><span data-line="194">
 <div class="viewcode-block" id="json_body">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.json_body">[docs]</a>
-</span><span data-line="167"><span class="k">def</span><span class="w"> </span><span class="nf">json_body</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
-</span><span data-line="168"><span class="w">    </span><span class="sd">"""Decode a JSON response, refusing one shaped to exhaust the process.</span>
-</span><span data-line="169">
-</span><span data-line="170"><span class="sd">    Returns:</span>
-</span><span data-line="171"><span class="sd">        The decoded body.</span>
-</span><span data-line="172">
-</span><span data-line="173"><span class="sd">    Raises:</span>
-</span><span data-line="174"><span class="sd">        ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`, or</span>
-</span><span data-line="175"><span class="sd">            any one array or object holds more than</span>
-</span><span data-line="176"><span class="sd">            :data:`MAX_COLLECTION_ITEMS` items.</span>
-</span><span data-line="177"><span class="sd">    """</span>
-</span><span data-line="178">    <span class="n">breach</span> <span class="o">=</span> <span class="n">_structural_breach</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
-</span><span data-line="179">    <span class="k">if</span> <span class="n">breach</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="180">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"$"</span><span class="p">,</span> <span class="n">breach</span><span class="p">)</span>
-</span><span data-line="181">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"object"</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span></div>
+</span><span data-line="195"><span class="k">def</span><span class="w"> </span><span class="nf">json_body</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">object</span><span class="p">:</span>
+</span><span data-line="196"><span class="w">    </span><span class="sd">"""Decode a JSON response, refusing one shaped to exhaust the process.</span>
+</span><span data-line="197">
+</span><span data-line="198"><span class="sd">    Returns:</span>
+</span><span data-line="199"><span class="sd">        The decoded body.</span>
+</span><span data-line="200">
+</span><span data-line="201"><span class="sd">    Raises:</span>
+</span><span data-line="202"><span class="sd">        ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`,</span>
+</span><span data-line="203"><span class="sd">            any one array or object holds more than</span>
+</span><span data-line="204"><span class="sd">            :data:`MAX_COLLECTION_ITEMS` items, or any string is longer than</span>
+</span><span data-line="205"><span class="sd">            :data:`MAX_STRING_LENGTH`.</span>
+</span><span data-line="206"><span class="sd">    """</span>
+</span><span data-line="207">    <span class="n">breach</span> <span class="o">=</span> <span class="n">_structural_breach</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+</span><span data-line="208">    <span class="k">if</span> <span class="n">breach</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="209">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="s2">"$"</span><span class="p">,</span> <span class="n">breach</span><span class="p">)</span>
+</span><span data-line="210">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"object"</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">())</span></div>
 
-</span><span data-line="182">
-</span><span data-line="183">
+</span><span data-line="211">
+</span><span data-line="212">
 <div class="viewcode-block" id="expect_mapping">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.expect_mapping">[docs]</a>
-</span><span data-line="184"><span class="k">def</span><span class="w"> </span><span class="nf">expect_mapping</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="185"><span class="w">    </span><span class="sd">"""Require a JSON object with string keys.</span>
-</span><span data-line="186">
-</span><span data-line="187"><span class="sd">    Returns:</span>
-</span><span data-line="188"><span class="sd">        The validated mapping.</span>
-</span><span data-line="189">
-</span><span data-line="190"><span class="sd">    Raises:</span>
-</span><span data-line="191"><span class="sd">        ResponseValidationError: If the value is not a string-keyed mapping.</span>
-</span><span data-line="192"><span class="sd">        ResponseLimitError: If the object holds more than the item limit.</span>
-</span><span data-line="193"><span class="sd">    """</span>
-</span><span data-line="194">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-</span><span data-line="195">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an object"</span><span class="p">)</span>
-</span><span data-line="196">    <span class="n">raw</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[object, object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-</span><span data-line="197">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_COLLECTION_ITEMS</span><span class="p">:</span>
-</span><span data-line="198">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_COLLECTION_ITEMS</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> entries"</span><span class="p">)</span>
-</span><span data-line="199">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">raw</span><span class="p">):</span>
-</span><span data-line="200">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an object"</span><span class="p">)</span>
-</span><span data-line="201">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
+</span><span data-line="213"><span class="k">def</span><span class="w"> </span><span class="nf">expect_mapping</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="214"><span class="w">    </span><span class="sd">"""Require a JSON object with string keys.</span>
+</span><span data-line="215">
+</span><span data-line="216"><span class="sd">    Returns:</span>
+</span><span data-line="217"><span class="sd">        The validated mapping.</span>
+</span><span data-line="218">
+</span><span data-line="219"><span class="sd">    Raises:</span>
+</span><span data-line="220"><span class="sd">        ResponseValidationError: If the value is not a string-keyed mapping.</span>
+</span><span data-line="221"><span class="sd">        ResponseLimitError: If the object holds more than the item limit.</span>
+</span><span data-line="222"><span class="sd">    """</span>
+</span><span data-line="223">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span data-line="224">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an object"</span><span class="p">)</span>
+</span><span data-line="225">    <span class="n">raw</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[object, object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="226">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">raw</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_COLLECTION_ITEMS</span><span class="p">:</span>
+</span><span data-line="227">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_COLLECTION_ITEMS</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> entries"</span><span class="p">)</span>
+</span><span data-line="228">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">raw</span><span class="p">):</span>
+</span><span data-line="229">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an object"</span><span class="p">)</span>
+</span><span data-line="230">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span></div>
 
-</span><span data-line="202">
-</span><span data-line="203">
+</span><span data-line="231">
+</span><span data-line="232">
 <div class="viewcode-block" id="expect_list">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.expect_list">[docs]</a>
-</span><span data-line="204"><span class="k">def</span><span class="w"> </span><span class="nf">expect_list</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="205"><span class="w">    </span><span class="sd">"""Require a JSON array.</span>
-</span><span data-line="206">
-</span><span data-line="207"><span class="sd">    Returns:</span>
-</span><span data-line="208"><span class="sd">        The validated list.</span>
-</span><span data-line="209">
-</span><span data-line="210"><span class="sd">    Raises:</span>
-</span><span data-line="211"><span class="sd">        ResponseValidationError: If the value is not a list.</span>
-</span><span data-line="212"><span class="sd">        ResponseLimitError: If the array holds more than the item limit.</span>
-</span><span data-line="213"><span class="sd">    """</span>
-</span><span data-line="214">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-</span><span data-line="215">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an array"</span><span class="p">)</span>
-</span><span data-line="216">    <span class="n">values</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"list[object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-</span><span data-line="217">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_COLLECTION_ITEMS</span><span class="p">:</span>
-</span><span data-line="218">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_COLLECTION_ITEMS</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> items"</span><span class="p">)</span>
-</span><span data-line="219">    <span class="k">return</span> <span class="n">values</span></div>
+</span><span data-line="233"><span class="k">def</span><span class="w"> </span><span class="nf">expect_list</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="234"><span class="w">    </span><span class="sd">"""Require a JSON array.</span>
+</span><span data-line="235">
+</span><span data-line="236"><span class="sd">    Returns:</span>
+</span><span data-line="237"><span class="sd">        The validated list.</span>
+</span><span data-line="238">
+</span><span data-line="239"><span class="sd">    Raises:</span>
+</span><span data-line="240"><span class="sd">        ResponseValidationError: If the value is not a list.</span>
+</span><span data-line="241"><span class="sd">        ResponseLimitError: If the array holds more than the item limit.</span>
+</span><span data-line="242"><span class="sd">    """</span>
+</span><span data-line="243">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+</span><span data-line="244">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an array"</span><span class="p">)</span>
+</span><span data-line="245">    <span class="n">values</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"list[object]"</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="246">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">values</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_COLLECTION_ITEMS</span><span class="p">:</span>
+</span><span data-line="247">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_COLLECTION_ITEMS</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> items"</span><span class="p">)</span>
+</span><span data-line="248">    <span class="k">return</span> <span class="n">values</span></div>
 
-</span><span data-line="220">
-</span><span data-line="221">
+</span><span data-line="249">
+</span><span data-line="250">
 <div class="viewcode-block" id="expect_string">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.expect_string">[docs]</a>
-</span><span data-line="222"><span class="k">def</span><span class="w"> </span><span class="nf">expect_string</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="223"><span class="w">    </span><span class="sd">"""Require a string value.</span>
-</span><span data-line="224">
-</span><span data-line="225"><span class="sd">    Returns:</span>
-</span><span data-line="226"><span class="sd">        The validated string.</span>
-</span><span data-line="227">
-</span><span data-line="228"><span class="sd">    Raises:</span>
-</span><span data-line="229"><span class="sd">        ResponseValidationError: If the value is not a string.</span>
-</span><span data-line="230"><span class="sd">        ResponseLimitError: If the string is longer than the length limit.</span>
-</span><span data-line="231"><span class="sd">    """</span>
-</span><span data-line="232">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-</span><span data-line="233">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"a string"</span><span class="p">)</span>
-</span><span data-line="234">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_STRING_LENGTH</span><span class="p">:</span>
-</span><span data-line="235">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_STRING_LENGTH</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> characters"</span><span class="p">)</span>
-</span><span data-line="236">    <span class="k">return</span> <span class="n">value</span></div>
+</span><span data-line="251"><span class="k">def</span><span class="w"> </span><span class="nf">expect_string</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="252"><span class="w">    </span><span class="sd">"""Require a string value.</span>
+</span><span data-line="253">
+</span><span data-line="254"><span class="sd">    Returns:</span>
+</span><span data-line="255"><span class="sd">        The validated string.</span>
+</span><span data-line="256">
+</span><span data-line="257"><span class="sd">    Raises:</span>
+</span><span data-line="258"><span class="sd">        ResponseValidationError: If the value is not a string.</span>
+</span><span data-line="259"><span class="sd">        ResponseLimitError: If the string is longer than the length limit.</span>
+</span><span data-line="260"><span class="sd">    """</span>
+</span><span data-line="261">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+</span><span data-line="262">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"a string"</span><span class="p">)</span>
+</span><span data-line="263">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_STRING_LENGTH</span><span class="p">:</span>
+</span><span data-line="264">        <span class="k">raise</span> <span class="n">ResponseLimitError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">MAX_STRING_LENGTH</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2"> characters"</span><span class="p">)</span>
+</span><span data-line="265">    <span class="k">return</span> <span class="n">value</span></div>
 
-</span><span data-line="237">
-</span><span data-line="238">
+</span><span data-line="266">
+</span><span data-line="267">
 <div class="viewcode-block" id="optional_string">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.optional_string">[docs]</a>
-</span><span data-line="239"><span class="k">def</span><span class="w"> </span><span class="nf">optional_string</span><span class="p">(</span>
-</span><span data-line="240">    <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="241"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="242"><span class="w">    </span><span class="sd">"""Validate an optional nullable string field.</span>
-</span><span data-line="243">
-</span><span data-line="244"><span class="sd">    Returns:</span>
-</span><span data-line="245"><span class="sd">        The string, or ``None`` when the field is absent or null.</span>
-</span><span data-line="246"><span class="sd">    """</span>
-</span><span data-line="247">    <span class="n">value</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-</span><span data-line="248">    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="249">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="250">    <span class="k">return</span> <span class="n">expect_string</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+</span><span data-line="268"><span class="k">def</span><span class="w"> </span><span class="nf">optional_string</span><span class="p">(</span>
+</span><span data-line="269">    <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="270"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="271"><span class="w">    </span><span class="sd">"""Validate an optional nullable string field.</span>
+</span><span data-line="272">
+</span><span data-line="273"><span class="sd">    Returns:</span>
+</span><span data-line="274"><span class="sd">        The string, or ``None`` when the field is absent or null.</span>
+</span><span data-line="275"><span class="sd">    """</span>
+</span><span data-line="276">    <span class="n">value</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</span><span data-line="277">    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="278">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="279">    <span class="k">return</span> <span class="n">expect_string</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
 
-</span><span data-line="251">
-</span><span data-line="252">
+</span><span data-line="280">
+</span><span data-line="281">
 <div class="viewcode-block" id="optional_string_list">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.optional_string_list">[docs]</a>
-</span><span data-line="253"><span class="k">def</span><span class="w"> </span><span class="nf">optional_string_list</span><span class="p">(</span>
-</span><span data-line="254">    <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="255"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="256"><span class="w">    </span><span class="sd">"""Validate an optional nullable array of strings.</span>
-</span><span data-line="257">
-</span><span data-line="258"><span class="sd">    Returns:</span>
-</span><span data-line="259"><span class="sd">        The string list, or ``None`` when the field is absent or null.</span>
-</span><span data-line="260">
-</span><span data-line="261"><span class="sd">    Raises:</span>
-</span><span data-line="262"><span class="sd">        ResponseValidationError: If a present value is not a list of strings.</span>
-</span><span data-line="263"><span class="sd">    """</span>
-</span><span data-line="264">    <span class="n">value</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-</span><span data-line="265">    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="266">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="267">    <span class="n">values</span> <span class="o">=</span> <span class="n">expect_list</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-</span><span data-line="268">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">values</span><span class="p">):</span>
-</span><span data-line="269">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">[]"</span><span class="p">,</span> <span class="s2">"a string"</span><span class="p">)</span>
-</span><span data-line="270">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"list[str]"</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span></div>
+</span><span data-line="282"><span class="k">def</span><span class="w"> </span><span class="nf">optional_string_list</span><span class="p">(</span>
+</span><span data-line="283">    <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="284"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="285"><span class="w">    </span><span class="sd">"""Validate an optional nullable array of strings.</span>
+</span><span data-line="286">
+</span><span data-line="287"><span class="sd">    Returns:</span>
+</span><span data-line="288"><span class="sd">        The string list, or ``None`` when the field is absent or null.</span>
+</span><span data-line="289">
+</span><span data-line="290"><span class="sd">    Raises:</span>
+</span><span data-line="291"><span class="sd">        ResponseValidationError: If a present value is not a list of strings.</span>
+</span><span data-line="292"><span class="sd">    """</span>
+</span><span data-line="293">    <span class="n">value</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</span><span data-line="294">    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="295">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="296">    <span class="n">values</span> <span class="o">=</span> <span class="n">expect_list</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span data-line="297">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">values</span><span class="p">):</span>
+</span><span data-line="298">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">[]"</span><span class="p">,</span> <span class="s2">"a string"</span><span class="p">)</span>
+</span><span data-line="299">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"list[str]"</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span></div>
 
-</span><span data-line="271">
-</span><span data-line="272">
+</span><span data-line="300">
+</span><span data-line="301">
 <div class="viewcode-block" id="optional_string_mapping">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.optional_string_mapping">[docs]</a>
-</span><span data-line="273"><span class="k">def</span><span class="w"> </span><span class="nf">optional_string_mapping</span><span class="p">(</span>
-</span><span data-line="274">    <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="275"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="276"><span class="w">    </span><span class="sd">"""Validate an optional nullable string-to-string object.</span>
-</span><span data-line="277">
-</span><span data-line="278"><span class="sd">    Returns:</span>
-</span><span data-line="279"><span class="sd">        The validated mapping, or ``None`` when the field is absent or null.</span>
-</span><span data-line="280">
-</span><span data-line="281"><span class="sd">    Raises:</span>
-</span><span data-line="282"><span class="sd">        ResponseValidationError: If a present value is not a string mapping.</span>
-</span><span data-line="283"><span class="sd">    """</span>
-</span><span data-line="284">    <span class="n">value</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
-</span><span data-line="285">    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="286">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="287">    <span class="n">values</span> <span class="o">=</span> <span class="n">expect_mapping</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-</span><span data-line="288">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
-</span><span data-line="289">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.*"</span><span class="p">,</span> <span class="s2">"a string"</span><span class="p">)</span>
-</span><span data-line="290">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, str]"</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span></div>
+</span><span data-line="302"><span class="k">def</span><span class="w"> </span><span class="nf">optional_string_mapping</span><span class="p">(</span>
+</span><span data-line="303">    <span class="n">mapping</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">],</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="304"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="305"><span class="w">    </span><span class="sd">"""Validate an optional nullable string-to-string object.</span>
+</span><span data-line="306">
+</span><span data-line="307"><span class="sd">    Returns:</span>
+</span><span data-line="308"><span class="sd">        The validated mapping, or ``None`` when the field is absent or null.</span>
+</span><span data-line="309">
+</span><span data-line="310"><span class="sd">    Raises:</span>
+</span><span data-line="311"><span class="sd">        ResponseValidationError: If a present value is not a string mapping.</span>
+</span><span data-line="312"><span class="sd">    """</span>
+</span><span data-line="313">    <span class="n">value</span> <span class="o">=</span> <span class="n">mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+</span><span data-line="314">    <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="315">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="316">    <span class="n">values</span> <span class="o">=</span> <span class="n">expect_mapping</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span data-line="317">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">all</span><span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">values</span><span class="o">.</span><span class="n">values</span><span class="p">()):</span>
+</span><span data-line="318">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.*"</span><span class="p">,</span> <span class="s2">"a string"</span><span class="p">)</span>
+</span><span data-line="319">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, str]"</span><span class="p">,</span> <span class="n">values</span><span class="p">)</span></div>
 
-</span><span data-line="291">
-</span><span data-line="292">
+</span><span data-line="320">
+</span><span data-line="321">
 <div class="viewcode-block" id="expect_int">
 <a class="viewcode-back" href="../../../modules.html#peta.core.validation.expect_int">[docs]</a>
-</span><span data-line="293"><span class="k">def</span><span class="w"> </span><span class="nf">expect_int</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-</span><span data-line="294"><span class="w">    </span><span class="sd">"""Require an integer while rejecting JSON booleans.</span>
-</span><span data-line="295">
-</span><span data-line="296"><span class="sd">    Returns:</span>
-</span><span data-line="297"><span class="sd">        The validated integer.</span>
-</span><span data-line="298">
-</span><span data-line="299"><span class="sd">    Raises:</span>
-</span><span data-line="300"><span class="sd">        ResponseValidationError: If the value is not a genuine integer.</span>
-</span><span data-line="301"><span class="sd">    """</span>
-</span><span data-line="302">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
-</span><span data-line="303">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an integer"</span><span class="p">)</span>
-</span><span data-line="304">    <span class="k">return</span> <span class="n">value</span></div>
+</span><span data-line="322"><span class="k">def</span><span class="w"> </span><span class="nf">expect_int</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">source</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+</span><span data-line="323"><span class="w">    </span><span class="sd">"""Require an integer while rejecting JSON booleans.</span>
+</span><span data-line="324">
+</span><span data-line="325"><span class="sd">    Returns:</span>
+</span><span data-line="326"><span class="sd">        The validated integer.</span>
+</span><span data-line="327">
+</span><span data-line="328"><span class="sd">    Raises:</span>
+</span><span data-line="329"><span class="sd">        ResponseValidationError: If the value is not a genuine integer.</span>
+</span><span data-line="330"><span class="sd">    """</span>
+</span><span data-line="331">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">):</span>
+</span><span data-line="332">        <span class="k">raise</span> <span class="n">ResponseValidationError</span><span class="p">(</span><span class="n">source</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="s2">"an integer"</span><span class="p">)</span>
+</span><span data-line="333">    <span class="k">return</span> <span class="n">value</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
