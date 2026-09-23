@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, get_args
+from typing import TYPE_CHECKING, cast, get_args
 
 import pytest
 
@@ -232,13 +232,33 @@ class TestCorruption:
 
         assert cache.load("k") is None
 
-    def test_an_entry_nested_deeply_enough_to_overflow_is_a_miss(
-        self, cache_dir: Path
+    @staticmethod
+    def _overflow_on_nesting(monkeypatch: pytest.MonkeyPatch) -> None:
+        """Make ``json.loads`` overflow on nested input, as a small stack would.
+
+        Simulated rather than provoked: Python sets the depth at which parsing
+        overflows by the real stack size, so the nesting that raises on one
+        machine parses fine on a CI runner with a larger stack — and a test
+        built on a real overflow passes or fails by platform.
+        """
+        parse = json.loads
+
+        def overflowing(text: str) -> object:
+            if text.startswith("[["):
+                msg = "Stack overflow while decoding a JSON array"
+                raise RecursionError(msg)
+            return cast("object", parse(text))
+
+        monkeypatch.setattr(json, "loads", overflowing)
+
+    def test_an_entry_that_overflows_the_parser_is_a_miss(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        # ``json.loads`` raises RecursionError here, a RuntimeError rather than
-        # a ValueError, so it used to escape ``load`` as a crash.
+        # RecursionError is a RuntimeError rather than a ValueError, so it
+        # used to escape ``load`` as a crash.
         cache_dir.mkdir(parents=True, exist_ok=True)
-        (cache_dir / "k.json").write_text("[" * 60_000 + "]" * 60_000)
+        (cache_dir / "k.json").write_text("[[[]]]")
+        self._overflow_on_nesting(monkeypatch)
 
         assert cache.load("k") is None
 
@@ -255,16 +275,14 @@ class TestCorruption:
         assert cache.load("k") is None
 
     def test_a_valid_envelope_around_an_overflowing_body_is_a_miss(
-        self, cache_dir: Path
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # The envelope parses; the body inside it is what overflows, and it
         # is parsed later, where RecursionError used to escape ``load``.
-        cache.store("k", url=_URL, status=200, body="{}", headers={})
-        path = cache_dir / "k.json"
-        envelope = json.loads(path.read_text())
-        envelope["body"] = "[" * 60_000 + "]" * 60_000
-        path.write_text(json.dumps(envelope))
+        cache.store("k", url=_URL, status=200, body="[[[]]]", headers={})
+        self._overflow_on_nesting(monkeypatch)
 
+        assert (cache_dir / "k.json").exists()
         assert cache.load("k") is None
 
     def test_the_entry_bound_leaves_room_for_the_largest_accepted_body(self) -> None:
