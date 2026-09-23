@@ -230,6 +230,28 @@ class TestStringsBeforeDecoding:
 class TestScanStaysLinear:
     """The scan exists to stop a denial of service, so it must not be one."""
 
+    def test_a_flood_of_short_strings_is_refused_before_the_string_scan(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The string scan calls back into Python once per literal, so a body
+        # of millions of empty strings made the guard itself slow and
+        # memory-hungry. Counting quotes in C first stops it before that.
+        monkeypatch.setattr(validation, "MAX_JSON_VALUES", 10)
+        body = json.dumps({"k": [""] * 20}).encode()
+        calls: list[str] = []
+        scan = validation._without_strings
+
+        def recording(text: str, limit: int) -> tuple[str, bool]:
+            calls.append(text)
+            return scan(text, limit)
+
+        monkeypatch.setattr(validation, "_without_strings", recording)
+
+        with pytest.raises(validation.ResponseLimitError, match="values in total"):
+            _ = validation.json_body(_response(body), source="test")
+
+        assert calls == []
+
     def test_an_unterminated_run_of_escaped_quotes_is_fast(self) -> None:
         # With no closing quote, a literal pattern that insists on one fails,
         # restarts at the next quote — every escaped quote is one — and

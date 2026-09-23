@@ -105,13 +105,15 @@ Every provider must preserve these invariants when it is added or changed:
   because the validators only visit fields peta consumes, and not every
   consumed string goes through ``expect_string``: an ignored ``"padding"``
   array, or a long string inside a list, would be fully allocated by
-  ``json.loads`` and never measured at all. The scan must itself stay linear —
-  it exists to stop a denial of service — so its string pattern lets an
-  unterminated literal end at the end of input; otherwise every escaped quote
-  restarts the match and a run of them costs quadratic time. Dependency
-  traversal is capped at 100 levels; invalid or oversized decoded fields are
-  rejected, not coerced, and a refusal on size reports the limit it broke
-  rather than claiming the value had the wrong type.
+  ``json.loads`` and never measured at all. The scan must itself stay cheap —
+  it exists to stop a denial of service — so quote characters are counted in C
+  before any per-string work, which stops a flood of short strings before the
+  scan visits them. Its string pattern also lets an unterminated literal end
+  at the end of input; otherwise every escaped quote restarts the match and a
+  run of them costs quadratic time. Dependency traversal is capped at 100
+  levels; invalid or oversized decoded fields are rejected, not coerced, and a
+  refusal on size reports the limit it broke rather than claiming the value
+  had the wrong type.
 * Untrusted strings are rendered as data. Terminal control characters,
   OSC/hyperlink sequences, Rich markup, and shell metacharacters must never
   become active output. Filenames are never passed to a shell. Human output is

@@ -179,6 +179,27 @@ def _without_strings(text: str, limit: int) -> tuple[str, bool]:
     return _JSON_STRING.sub(blank, text), too_long
 
 
+def _shape_breach(stripped: str) -> str | None:
+    """Check value count, nesting, and collection sizes once strings are gone.
+
+    Returns:
+        A description of the first limit the document breaks, or ``None``.
+    """
+    # With strings gone, every value is either a container or follows a comma,
+    # so this is an upper bound on the values json.loads would build — and
+    # ``str.count`` runs in C, so the whole-document check costs next to
+    # nothing before the per-collection walk.
+    values = stripped.count(",") + stripped.count("[") + stripped.count("{")
+    if values > MAX_JSON_VALUES:
+        return f"{MAX_JSON_VALUES:,} values in total"
+    open_counts = [0]
+    for match in _STRUCTURAL.finditer(stripped):
+        breach = _step(open_counts, match.group())
+        if breach is not None:
+            return breach
+    return None
+
+
 def structural_breach(text: str, *, string_limit: int | None = None) -> str | None:
     """Measure nesting and per-container size before anything is decoded.
 
@@ -198,23 +219,19 @@ def structural_breach(text: str, *, string_limit: int | None = None) -> str | No
     Returns:
         A description of the first limit the document breaks, or ``None``.
     """
+    # Checked first, in C, because the string scan below calls back into
+    # Python once per literal: a body of twenty million empty strings fits in
+    # the response limit and would make this guard itself the slow, memory-
+    # hungry step it exists to prevent. Every string opens and closes with a
+    # quote, and escaped quotes only overstate the count, so this is a safe
+    # upper bound; grpcio's JSON, the largest measured, holds about 350,000.
+    if text.count('"') > 2 * MAX_JSON_VALUES:
+        return f"{MAX_JSON_VALUES:,} values in total"
     limit = MAX_STRING_LENGTH if string_limit is None else string_limit
     stripped, too_long = _without_strings(text, limit)
     if too_long:
         return f"{limit:,} characters"
-    # With strings gone, every value is either a container or follows a comma,
-    # so this is an upper bound on the values json.loads would build — and
-    # ``str.count`` runs in C, so the whole-document check costs next to
-    # nothing before the per-collection walk.
-    values = stripped.count(",") + stripped.count("[") + stripped.count("{")
-    if values > MAX_JSON_VALUES:
-        return f"{MAX_JSON_VALUES:,} values in total"
-    open_counts = [0]
-    for match in _STRUCTURAL.finditer(stripped):
-        breach = _step(open_counts, match.group())
-        if breach is not None:
-            return breach
-    return None
+    return _shape_breach(stripped)
 
 
 def json_body(response: httpx.Response, *, source: str) -> object:
