@@ -130,7 +130,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="7">
 </span><span data-line="8"><span class="kn">import</span><span class="w"> </span><span class="nn">typer</span>
 </span><span data-line="9">
-</span><span data-line="10"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.output.console</span><span class="w"> </span><span class="kn">import</span> <span class="n">sanitize_terminal</span>
+</span><span data-line="10"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.output.console</span><span class="w"> </span><span class="kn">import</span> <span class="n">inline</span>
 </span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.output.json</span><span class="w"> </span><span class="kn">import</span> <span class="n">format_error</span>
 </span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">redacted_text</span>
 </span><span data-line="13">
@@ -233,11 +233,13 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="99">        <span class="k">if</span> <span class="n">output_format</span> <span class="o">==</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">JSON</span>
 </span><span data-line="100">        <span class="c1"># The JSON branch redacts through ``OutputMessage`` and escapes</span>
 </span><span data-line="101">        <span class="c1"># control characters itself. This one goes straight to a terminal, and</span>
-</span><span data-line="102">        <span class="c1"># the message can quote a URL peta requested or a name an index chose.</span>
-</span><span data-line="103">        <span class="k">else</span> <span class="n">sanitize_terminal</span><span class="p">(</span><span class="n">redacted_text</span><span class="p">(</span><span class="n">message</span><span class="p">))</span>
-</span><span data-line="104">    <span class="p">)</span>
-</span><span data-line="105">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="106">    <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">exit_code</span><span class="p">)</span></div>
+</span><span data-line="102">        <span class="c1"># the message can quote a URL peta requested or text an index chose —</span>
+</span><span data-line="103">        <span class="c1"># a malformed key ends up in a validation error's path — so it is held</span>
+</span><span data-line="104">        <span class="c1"># to one line as well as stripped of controls.</span>
+</span><span data-line="105">        <span class="k">else</span> <span class="n">inline</span><span class="p">(</span><span class="n">redacted_text</span><span class="p">(</span><span class="n">message</span><span class="p">))</span>
+</span><span data-line="106">    <span class="p">)</span>
+</span><span data-line="107">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered</span><span class="p">,</span> <span class="n">err</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="108">    <span class="k">raise</span> <span class="n">typer</span><span class="o">.</span><span class="n">Exit</span><span class="p">(</span><span class="n">code</span><span class="o">=</span><span class="n">exit_code</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

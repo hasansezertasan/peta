@@ -205,8 +205,11 @@ writing anything.</p></li>
 <li><p>JSON objects and arrays are limited to 1,000,000 items each and individual
 metadata strings to 8 MiB. The body limit is what bounds realistic entries;
 the item limit exists for the cheap case it cannot see, a long run of tiny
-values that costs far more as Python objects than as JSON bytes. Nesting is
-limited to 100 levels.</p></li>
+values that costs far more as Python objects than as JSON bytes. A whole
+document is limited to 2,000,000 values, because the per-collection limit
+resets for every collection and dozens of arrays just under it fit in the
+body limit; the largest real document measured, <code class="docutils literal notranslate"><span class="pre">grpcio</span></code>’s JSON, holds
+about 225,000. Nesting is limited to 100 levels.</p></li>
 <li><p>Nesting, item counts, and string lengths are all measured <em>before</em> decoding,
 by one scan of the raw text — decoded from bytes exactly as <code class="docutils literal notranslate"><span class="pre">json.loads</span></code>
 would decode them, and handed to the parser as that same text. Reading the
@@ -246,11 +249,12 @@ meant to be followed. The Rich formatters also append plain blocks after
 rendering — vulnerability and enrichment warnings, artifact details and
 notes — and <code class="docutils literal notranslate"><span class="pre">files</span></code> and <code class="docutils literal notranslate"><span class="pre">why</span></code> never render through Rich at all; each of
 their lines is hardened on its own, since the per-segment pass never sees
-them. The target-environment banner, printed outside the formatters, goes
-through the same boundary: it names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the
-target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>. Doing it to finished Rich output instead
-cannot work — peta’s own styling is escape sequences too, and cannot be told
-apart from an attacker’s.</p></li>
+them. A fatal error printed for a human is held to one line the same way,
+since its message can quote text an index chose. The target-environment
+banner, printed outside the formatters, goes through the same boundary: it
+names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>.
+Doing it to finished Rich output instead cannot work — peta’s own styling is
+escape sequences too, and cannot be told apart from an attacker’s.</p></li>
 <li><p>Credentials are absent from errors, logs, snapshots, cache keys, cache
 payloads, process arguments, and diagnostics. Redaction is applied where a
 diagnostic is <em>built</em> — <code class="docutils literal notranslate"><span class="pre">EnrichmentError</span></code>, <code class="docutils literal notranslate"><span class="pre">OutputMessage</span></code>,
