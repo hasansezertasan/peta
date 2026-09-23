@@ -96,3 +96,24 @@ def test_the_target_banner_cannot_emit_escape_sequences() -> None:
 
     assert "\x1b" not in banner
     assert "/srv/evil" in banner
+
+
+def test_the_target_banner_stays_on_one_line() -> None:
+    # sanitize_terminal keeps newlines for the multi-line formatters, so the
+    # banner escapes its own: a directory named with a line break would
+    # otherwise forge lines of output.
+    target = LocalTarget(
+        paths=("/srv/ok\nTarget environment: trusted\r",),
+        interpreter=None,
+        marker_environment={
+            "platform_python_implementation": "CPython",
+            "python_full_version": "3.14.0",
+            "sys_platform": "linux",
+        },
+    )
+
+    banner = render_target(target)
+
+    assert "\n" not in banner
+    assert "\r" not in banner
+    assert r"/srv/ok\nTarget environment: trusted\r" in banner

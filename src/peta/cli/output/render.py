@@ -45,17 +45,23 @@ def _plain_output(value: str) -> str:
 
 
 def render_target(target: LocalTarget) -> str:
-    """Render the target-environment banner shown above human output.
+    r"""Render the target-environment banner shown above human output.
 
     Printed outside the formatters, so it would otherwise skip the one
     boundary every other human string passes through. It names paths from
     ``--path`` and from the target interpreter's own ``sys.path``, and a
     directory name can carry an escape sequence like any other untrusted text.
 
+    Line breaks are escaped visibly first. :func:`sanitize_terminal` keeps
+    ``\\n`` because the multi-line formatters need it, but the banner is one
+    line, and a directory named with a newline would otherwise add lines of
+    its own choosing to the output.
+
     Returns:
-        The banner with terminal control characters removed.
+        The banner on one line, with terminal control characters removed.
     """
-    return _plain_output(target.describe())
+    banner = target.describe().replace("\r", r"\r").replace("\n", r"\n")
+    return _plain_output(banner)
 
 
 def render_info(
