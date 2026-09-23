@@ -35,6 +35,7 @@ or from PyPI — with clean, Rich-formatted terminal output.
 
 ## Installation
 
+<<<<<<< before updating
 `peta` is an end-user CLI tool; install it into an isolated environment:
 
 ```bash
@@ -124,3 +125,102 @@ peta requests --json          # compatibility alias for --format json
 ## License
 
 MIT
+=======
+`peta` is a standalone end-user tool whose primary command is `peta`. Install it into an isolated environment:
+
+```console
+uv tool install peta
+```
+
+Or run it without installing with `uvx peta`. See the [installation docs](https://hasansezertasan.github.io/peta/installation.html) for pipx and from-source options.
+
+### Verify the installation
+
+The package root is importable after installation:
+
+```pycon
+>>> from peta import __doc__
+>>> isinstance(__doc__, str)
+True
+
+```
+
+<!--
+TODO @hasansezertasan: Add project-specific, runnable examples here.
+
+pytest runs the pycon examples in this file (--doctest-glob=README.md).
+doctest cannot see Markdown and ends an example's expected output at the first
+blank line, so leave a blank line before every closing fence -- as the example
+above does. Without it the closing delimiter is read as part of the expected
+output and the example fails ("Expected: 2 / Got: 2"). Examples with no output
+line at all need the blank line too.
+-->
+## Usage
+
+### CLI
+
+```bash
+peta version
+peta info
+```
+
+## Support :heart:
+
+If you have any questions or need help, feel free to open an issue on the [GitHub repository][peta].
+
+## Motivation
+
+<!-- TODO @hasansezertasan: Explain why this project exists and what problem it solves, or remove this section. -->
+
+## Features
+
+- **CLI Application**: Command-line interface built with Typer
+
+## About
+
+<!-- TODO @hasansezertasan: Add background/context about the project, or remove this section. -->
+
+## Author :person_with_crown:
+
+This project is maintained by [Hasan Sezer Tasan][author], It's me :wave:
+
+## Analysis
+
+- [Snyk Python Package Health Analysis](https://snyk.io/advisor/python/peta)
+- [Libraries.io - PyPI](https://libraries.io/pypi/peta)
+- [Safety DB](https://data.safetycli.com/packages/pypi/peta)
+- [PePy Download Stats](https://www.pepy.tech/projects/peta)
+- [PyPI Download Stats](https://pypistats.org/packages/peta)
+- [Pip Trends Download Stats](https://piptrends.com/package/peta)
+- [PyPI Map Dependency Graph](https://pypimap.com/package/peta)
+
+## Contributing :heart:
+
+Any contributions are welcome! Please follow the [Contributing Guidelines](./.github/CONTRIBUTING.md) to contribute to this project.
+
+## Development :toolbox:
+
+See the [Contributing Guidelines](./.github/CONTRIBUTING.md#your-first-code-contribution)
+for local setup, the common development tasks (exposed via [mise](https://mise.jdx.dev)),
+building and previewing the documentation, and the VS Code debugging configurations.
+
+## Releasing
+
+Versioning and releases are automated with [release-please](https://github.com/googleapis/release-please), driven by [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) PR titles squash-merged into `main`. release-please maintains a release PR that bumps the version and `CHANGELOG.md`; merging it tags the release and publishes to PyPI. See the [Contributing Guidelines](./.github/CONTRIBUTING.md#releasing) for the commit conventions, and the [Repository setup](./docs/maintaining/setup.rst) guide for one-time configuration and optional post-launch integrations such as a social preview, downstream packaging, and Repology.
+
+## Credits
+
+This package was created with [Copier](https://github.com/copier-org/copier) and the [hasansezertasan/copier-pyproject](https://github.com/hasansezertasan/copier-pyproject) project template.
+
+## License :scroll:
+
+This project is licensed under the [MIT License](https://spdx.org/licenses/MIT.html).
+
+## Changelog :memo:
+
+For a detailed list of changes, please refer to the [CHANGELOG](./CHANGELOG.md).
+
+<!-- Refs -->
+[author]: https://github.com/hasansezertasan
+[peta]: https://github.com/hasansezertasan/peta
+>>>>>>> after updating
