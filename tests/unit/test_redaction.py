@@ -184,4 +184,6 @@ class TestDiagnosticModelsRedactThemselves:
         out = render_info(output_format, package, arguments={}, color=False)
 
         assert "s3cret" not in out
-        assert "libraries.io" in out
+        # The non-secret parameter survives, so the URL was redacted rather
+        # than dropped; asserting on it avoids a host-substring check.
+        assert "per_page=2" in out
