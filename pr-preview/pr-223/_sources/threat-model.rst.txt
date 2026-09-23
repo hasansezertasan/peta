@@ -54,9 +54,12 @@ Every provider must preserve these invariants when it is added or changed:
 * Only ``https`` may be requested. Redirects are disabled, so a request cannot
   move to another scheme or origin and credentials cannot be forwarded there.
   Requests have a 10-second timeout and responses are streamed with a 64 MiB
-  decoded-body limit, measured after content decoding so a compressed bomb is
-  bounded by its expanded size. The limit is sized against real data:
-  ``grpcio``'s JSON document is already 9 MiB.
+  decoded-body limit. Only gzip is advertised, and peta decodes it itself in
+  capped steps rather than letting httpx inflate each wire chunk in one call,
+  so a compressed bomb is refused by the step that would cross the limit
+  instead of after a 64 KiB chunk has expanded to 64 MiB. Any other content
+  encoding is refused. The limit is sized against real data: ``grpcio``'s JSON
+  document is already 9 MiB.
 * No request goes to a host chosen by an untrusted response. Every source
   contacts a fixed service except one: the PEP 740 provenance URL, which the
   index response supplies. It is fetched only when its scheme, host, and port
@@ -82,28 +85,34 @@ Every provider must preserve these invariants when it is added or changed:
   values that costs far more as Python objects than as JSON bytes. Nesting is
   limited to 100 levels.
 * Nesting, item counts, and string lengths are all measured *before* decoding,
-  by one scan of the raw text. Nesting, because ``json.loads`` recurses: an
-  over-nested body raises ``RecursionError`` while parsing — 120 KB of
-  brackets is enough — and that is a ``RuntimeError``, which the ``except
-  ValueError`` around each decode does not catch. Sizes, because the
-  validators only visit fields peta consumes, and not every consumed string
-  goes through ``expect_string``: an ignored ``"padding"`` array, or a long
-  string inside a list, would be fully allocated by ``json.loads`` and never
-  measured at all. The scan must itself stay linear — it exists to stop a
-  denial of service — so its string pattern lets an unterminated literal end
-  at the end of input; otherwise every escaped quote restarts the match and a
-  run of them costs quadratic time. Dependency traversal is capped at 100
-  levels; invalid or oversized decoded fields are rejected, not coerced, and a
-  refusal on size reports the limit it broke rather than claiming the value
-  had the wrong type.
+  by one scan of the raw text — decoded from bytes exactly as ``json.loads``
+  would decode them, and handed to the parser as that same text. Reading the
+  declared charset instead let ``charset=utf-16-le`` over a UTF-8 body show
+  the scan harmless text and the parser a bracket bomb. Nesting, because
+  ``json.loads`` recurses: an over-nested body raises ``RecursionError`` while
+  parsing — 120 KB of brackets is enough — and that is a ``RuntimeError``,
+  which the ``except ValueError`` around each decode does not catch. Sizes,
+  because the validators only visit fields peta consumes, and not every
+  consumed string goes through ``expect_string``: an ignored ``"padding"``
+  array, or a long string inside a list, would be fully allocated by
+  ``json.loads`` and never measured at all. The scan must itself stay linear —
+  it exists to stop a denial of service — so its string pattern lets an
+  unterminated literal end at the end of input; otherwise every escaped quote
+  restarts the match and a run of them costs quadratic time. Dependency
+  traversal is capped at 100 levels; invalid or oversized decoded fields are
+  rejected, not coerced, and a refusal on size reports the limit it broke
+  rather than claiming the value had the wrong type.
 * Untrusted strings are rendered as data. Terminal control characters,
   OSC/hyperlink sequences, Rich markup, and shell metacharacters must never
   become active output. Filenames are never passed to a shell. Human output is
   hardened at one boundary rather than per renderer: the plain-text and
   Markdown formatters are sanitized as whole strings, and the Rich formatters
-  per rendered segment, inside :func:`peta.cli.output.console.render`. Doing it
-  to finished Rich output instead cannot work — peta's own styling is escape
-  sequences too, and cannot be told apart from an attacker's.
+  per rendered segment, inside :func:`peta.cli.output.console.render`. The
+  target-environment banner, printed outside the formatters, goes through the
+  same boundary: it names paths from ``--path`` and from the target
+  interpreter's ``sys.path``. Doing it to finished Rich output instead cannot
+  work — peta's own styling is escape sequences too, and cannot be told apart
+  from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache
   payloads, process arguments, and diagnostics. Redaction is applied where a
   diagnostic is *built* — ``EnrichmentError``, ``OutputMessage``,
@@ -123,8 +132,11 @@ Every provider must preserve these invariants when it is added or changed:
   are stored; corrupt, stale-format, untrusted, or oversized entries are
   misses. Replayed entries never pass the transport's size limit, so an entry
   file larger than ``cache.MAX_ENTRY_BYTES`` is a miss before it is read —
-  which also covers entries written by versions that had no limit — and one
-  nested deeply enough to overflow the parser is a miss rather than a crash.
+  which also covers entries written by versions that had no limit — and an
+  entry whose envelope or body is nested deeply enough to overflow the parser
+  is a miss rather than a crash. A stored body over the response limit is also
+  a miss when replayed, so the transport limit holds for cache hits, stale
+  offline answers, and ``304`` revalidations alike.
 * Local inspection uses metadata APIs or a fixed subprocess query only. It must
   never import the inspected distribution or invoke its build backend.
 
