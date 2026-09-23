@@ -73,6 +73,10 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
 <li class="toctree-l1"><a class="reference internal" href="research-tooling-landscape.html">Python package-inspection tooling landscape</a></li>
 </ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Maintainer guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="maintaining/setup.html">Repository setup</a></li>
+</ul>
 
         </div>
       </div>
@@ -90,6 +94,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#using-pip">Using pip</a></li>
 <li><a class="reference internal" href="#using-homebrew">Using Homebrew</a></li>
 <li><a class="reference internal" href="#using-scoop">Using Scoop</a></li>
+<li><a class="reference internal" href="#verify-release-provenance">Verify release provenance</a></li>
 </ul>
 </div><div id="ethical-ad-placement" data-ea-publisher="readthedocs"></div></div>
   </aside>
@@ -163,6 +168,18 @@ environment with your preferred tool manager.</p>
 <a class="reference external" href="https://github.com/hasansezertasan/scoop-bucket">Scoop bucket</a>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">scoop<span class="w"> </span>bucket<span class="w"> </span>add<span class="w"> </span>hasansezertasan<span class="w"> </span>https://github.com/hasansezertasan/scoop-bucket
 </span><span data-line="2">scoop<span class="w"> </span>install<span class="w"> </span>peta
+</span></pre></div>
+</div>
+</section>
+<section id="verify-release-provenance">
+<h2>Verify release provenance<a class="headerlink" href="#verify-release-provenance" title="Link to this heading">#</a></h2>
+<p>Public-repository release distributions include Sigstore-signed build
+provenance. After downloading a wheel or source distribution, verify that the
+release workflow built it from <code class="docutils literal notranslate"><span class="pre">main</span></code> in this repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span data-line="1">gh<span class="w"> </span>attestation<span class="w"> </span>verify<span class="w"> </span>&lt;downloaded-distribution&gt;<span class="w"> </span><span class="se">\</span>
+</span><span data-line="2"><span class="w">  </span>--repo<span class="w"> </span>hasansezertasan/peta<span class="w"> </span><span class="se">\</span>
+</span><span data-line="3"><span class="w">  </span>--signer-workflow<span class="w"> </span>hasansezertasan/peta/.github/workflows/release.yml<span class="w"> </span><span class="se">\</span>
+</span><span data-line="4"><span class="w">  </span>--source-ref<span class="w"> </span>refs/heads/main
 </span></pre></div>
 </div>
 </section>

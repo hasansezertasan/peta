@@ -73,6 +73,10 @@ data-aria-dark="Switch to auto color mode">
 <li class="toctree-l1"><a class="reference internal" href="modules.html">Modules</a></li>
 <li class="toctree-l1"><a class="reference internal" href="research-tooling-landscape.html">Python package-inspection tooling landscape</a></li>
 </ul>
+<p class="caption" role="heading" aria-level="3"><span class="caption-text">Maintainer guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="maintaining/setup.html">Repository setup</a></li>
+</ul>
 
         </div>
       </div>
@@ -174,7 +178,10 @@ decoded-body limit. Only gzip is advertised, and peta decodes it itself in
 capped steps rather than letting httpx inflate each wire chunk in one call,
 so a compressed bomb is refused by the step that would cross the limit
 instead of after a 64 KiB chunk has expanded to 64 MiB. Any other content
-encoding is refused. The limit is sized against real data: <code class="docutils literal notranslate"><span class="pre">grpcio</span></code>’s JSON
+encoding is refused, as is data after the end of a gzip stream — zlib would
+otherwise hold every trailing byte, however many arrive — and a gzip stream
+cut off before its end marker, which would otherwise pass a truncated body
+on as whole. The limit is sized against real data: <code class="docutils literal notranslate"><span class="pre">grpcio</span></code>’s JSON
 document is already 9 MiB.</p></li>
 <li><p>No request goes to a host chosen by an untrusted response. Every source
 contacts a fixed service except one: the PEP 740 provenance URL, which the
