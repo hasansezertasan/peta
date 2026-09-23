@@ -12,8 +12,9 @@ import json
 
 import pytest
 
-from peta.cli.output.render import render_info
+from peta.cli.output.render import render_info, render_target
 from peta.cli.output.selection import OutputFormat
+from peta.core.local import LocalTarget
 from peta.core.models import PackageInfo
 
 pytestmark = pytest.mark.unit
@@ -75,3 +76,23 @@ def test_json_stays_faithful_to_the_bytes_it_was_given() -> None:
 
     assert ESCAPE not in out
     assert ESCAPE in json.loads(out)["result"]["summary"]
+
+
+def test_the_target_banner_cannot_emit_escape_sequences() -> None:
+    # Printed above human output rather than through a formatter, and built
+    # from paths — ``--path`` and the target interpreter's own ``sys.path`` —
+    # whose directory names can carry escape sequences.
+    target = LocalTarget(
+        paths=(f"/srv/evil{OSC_HYPERLINK}dir{ESCAPE}",),
+        interpreter=f"/opt/py{ESCAPE}thon",
+        marker_environment={
+            "platform_python_implementation": "CPython",
+            "python_full_version": "3.14.0",
+            "sys_platform": "linux",
+        },
+    )
+
+    banner = render_target(target)
+
+    assert "\x1b" not in banner
+    assert "/srv/evil" in banner

@@ -228,3 +228,28 @@ class TestScanStaysLinear:
             _ = validation.json_body(_response(body), source="test")
 
         assert time.perf_counter() - started < 1.0
+
+
+class TestScanAndParserReadTheSameText:
+    def test_a_misleading_charset_cannot_hide_nesting(self) -> None:
+        # ``response.text`` follows the declared charset while ``json.loads``
+        # sniffs the bytes. Declaring UTF-16-LE over a UTF-8 body used to
+        # show the scan harmless CJK text and the parser a bracket bomb.
+        depth = validation.MAX_JSON_DEPTH + 1
+        body = ("[" * depth + "]" * depth).encode("utf-8")
+        response = httpx.Response(
+            200,
+            content=body,
+            headers={"content-type": "application/json; charset=utf-16-le"},
+        )
+
+        with pytest.raises(validation.ResponseLimitError, match="levels deep"):
+            _ = validation.json_body(response, source="test")
+
+    @pytest.mark.parametrize("encoding", ["utf-8", "utf-16", "utf-32"])
+    def test_every_json_encoding_still_decodes(self, encoding: str) -> None:
+        body = json.dumps({"name": "requests"}).encode(encoding)
+
+        assert validation.json_body(_response(body), source="test") == {
+            "name": "requests"
+        }

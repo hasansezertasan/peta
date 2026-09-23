@@ -254,6 +254,19 @@ class TestCorruption:
 
         assert cache.load("k") is None
 
+    def test_a_valid_envelope_around_an_overflowing_body_is_a_miss(
+        self, cache_dir: Path
+    ) -> None:
+        # The envelope parses; the body inside it is what overflows, and it
+        # is parsed later, where RecursionError used to escape ``load``.
+        cache.store("k", url=_URL, status=200, body="{}", headers={})
+        path = cache_dir / "k.json"
+        envelope = json.loads(path.read_text())
+        envelope["body"] = "[" * 60_000 + "]" * 60_000
+        path.write_text(json.dumps(envelope))
+
+        assert cache.load("k") is None
+
     def test_the_entry_bound_leaves_room_for_the_largest_accepted_body(self) -> None:
         # An entry wraps its body in an escaped string inside an envelope, so
         # it is bigger than the body; a bound at the body limit would turn
@@ -365,6 +378,24 @@ class TestEndToEndThroughHttp:
         # The point of the exercise: the source was asked exactly once.
         assert len(fake_http.requests) == 1
         assert second.response.json() == {"info": {}}
+
+    def test_a_stored_body_over_the_response_limit_is_refetched(
+        self, fake_http: FakeTransport, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A replayed body never passes the transport, so without this an
+        # entry written before the limit existed would be served at any size.
+        assert cache.settings().directory == cache_dir.parent
+        body = json.dumps({"padding": "x" * 100})
+        cache.store(
+            cache.key_for("GET", _URL), url=_URL, status=200, body=body, headers={}
+        )
+        monkeypatch.setattr(http, "MAX_RESPONSE_BYTES", 50)
+        fake_http.reply(json={})
+
+        fetched = http.get(_URL, ttl=60)
+
+        assert fetched.provenance.freshness == "live"
+        assert len(fake_http.requests) == 1
 
 
 def test_a_cached_entry_is_valid_json_on_disk(cache_dir: Path) -> None:

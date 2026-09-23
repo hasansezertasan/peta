@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import atexit
 import threading
+import zlib
 from dataclasses import dataclass
 from functools import cache as _memoize
 from typing import TYPE_CHECKING, cast
@@ -36,7 +37,29 @@ from peta.core.concurrency import MAX_WORKERS
 from peta.core.output import utc_from, utc_now
 
 if TYPE_CHECKING:
+    from typing import Protocol
+
     from peta.core.cache import CachedResponse
+
+    class _Decompressor(Protocol):
+        """What :mod:`zlib`'s decompressor object offers, as peta uses it.
+
+        Spelled out because the concrete type, ``_Decompressor``, is private.
+        """
+
+        @property
+        def unconsumed_tail(self) -> bytes:
+            """Input left over when a call stopped at ``max_length``."""
+            ...
+
+        def decompress(self, data: bytes, /, max_length: int = 0) -> bytes:
+            """Decompress ``data``, producing at most ``max_length`` bytes."""
+            ...
+
+        def flush(self) -> bytes:
+            """Return whatever output is still pending."""
+            ...
+
 
 __all__ = [
     "DEFAULT_TIMEOUT",
@@ -47,6 +70,7 @@ __all__ = [
     "ResponseTooLargeError",
     "TransportPolicyError",
     "UnsafeURLError",
+    "UnsupportedEncodingError",
     "client",
     "get",
     "keep",
@@ -118,7 +142,10 @@ def _build_client() -> httpx.Client:
     """
     instance = httpx.Client(
         timeout=DEFAULT_TIMEOUT,
-        headers={"user-agent": USER_AGENT},
+        # gzip only, stated rather than left to httpx: it advertises brotli
+        # and zstd as soon as their packages are importable, and _read_body
+        # bounds decompression for gzip alone.
+        headers={"user-agent": USER_AGENT, "accept-encoding": "gzip"},
         follow_redirects=False,
         limits=httpx.Limits(
             max_connections=MAX_CONNECTIONS, max_keepalive_connections=MAX_CONNECTIONS
@@ -236,6 +263,130 @@ afterwards; httpx recomputes the length from the content it is given.
 """
 
 
+class UnsupportedEncodingError(TransportPolicyError):
+    """Raised when a response uses a content encoding peta did not ask for."""
+
+
+def _decompressor(response: httpx.Response) -> _Decompressor | None:
+    """Choose how to decode a body, refusing any encoding peta cannot bound.
+
+    Returns:
+        A gzip decompressor, or ``None`` for a body sent as-is.
+
+    Raises:
+        UnsupportedEncodingError: If the body uses any other encoding.
+    """
+    encoding = cast("str", response.headers.get("content-encoding", "")).strip().lower()
+    if encoding in {"", "identity"}:
+        return None
+    if encoding == "gzip":
+        return zlib.decompressobj(16 + zlib.MAX_WBITS)
+    msg = f"Refusing unrequested content encoding {encoding!r}."
+    raise UnsupportedEncodingError(msg)
+
+
+def _refuse_declared_oversize(response: httpx.Response) -> None:
+    """Refuse a body whose declared length is already over the limit.
+
+    Raises:
+        ResponseTooLargeError: If ``content-length`` exceeds the limit.
+    """
+    declared = cast("str | None", response.headers.get("content-length"))
+    if (
+        declared is not None
+        and declared.isdigit()
+        and int(declared) > MAX_RESPONSE_BYTES
+    ):
+        raise ResponseTooLargeError(_TOO_LARGE)
+
+
+_INFLATE_STEP = 1024 * 1024
+"""Most output one decompression call may produce, in bytes."""
+
+
+def _inflate_into(
+    content: bytearray, decompressor: _Decompressor, chunk: bytes
+) -> None:
+    """Decompress one wire chunk into ``content`` a bounded step at a time.
+
+    Each call is capped with ``max_length`` at one step, and never at more than
+    one byte past the remaining budget, so the call that would cross the limit
+    is the one that detects it, having allocated at most a step. Capping only
+    at the budget would let a single call return the whole budget as a fresh
+    object before it is copied into ``content`` — twice the limit at peak.
+
+    Raises:
+        ResponseTooLargeError: If the decoded body exceeds the limit.
+    """
+    data = chunk
+    while data:
+        budget = MAX_RESPONSE_BYTES - len(content) + 1
+        content += decompressor.decompress(data, max_length=min(budget, _INFLATE_STEP))
+        if len(content) > MAX_RESPONSE_BYTES:
+            raise ResponseTooLargeError(_TOO_LARGE)
+        data = decompressor.unconsumed_tail
+
+
+def _append(
+    content: bytearray, decompressor: _Decompressor | None, chunk: bytes
+) -> None:
+    """Add one chunk of body to ``content``, decoding it if it is compressed.
+
+    Raises:
+        ResponseTooLargeError: If the decoded body exceeds the limit.
+    """
+    if decompressor is not None:
+        _inflate_into(content, decompressor, chunk)
+        return
+    content += chunk
+    if len(content) > MAX_RESPONSE_BYTES:
+        raise ResponseTooLargeError(_TOO_LARGE)
+
+
+def _measured(body: bytes) -> bytes:
+    """Return a body already in memory, if it is within the limit.
+
+    Returns:
+        The body unchanged.
+
+    Raises:
+        ResponseTooLargeError: If the body exceeds the limit.
+    """
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise ResponseTooLargeError(_TOO_LARGE)
+    return body
+
+
+def _read_body(response: httpx.Response) -> bytes:
+    """Read and decode a streamed body without ever holding more than the limit.
+
+    Decoding is done here rather than by httpx, whose streaming decoder
+    inflates each wire chunk in one call: a 64 KiB gzip chunk can expand to
+    64 MiB before any length check sees it. :func:`_inflate_into` caps the
+    output instead.
+
+    Returns:
+        The decoded body.
+    """
+    _refuse_declared_oversize(response)
+    if response.is_stream_consumed:
+        # A response built in memory arrives already read — and already
+        # decoded — by httpx. That never happens to a network stream, which is
+        # what ``send(stream=True)`` yields, so there is no compressed input
+        # left to bound; the body is measured as it stands.
+        return _measured(response.content)
+    decompressor = _decompressor(response)
+    content = bytearray()
+    for chunk in response.iter_raw():
+        _append(content, decompressor, chunk)
+    if decompressor is not None:
+        # All input has been consumed by now — each call ran until the
+        # unconsumed tail was empty — so what flush returns is small, but it
+        # is measured like any other output.
+        _append(content, None, decompressor.flush())
+    return bytes(content)
+
+
 def _within_limit(response: httpx.Response) -> bytes:
     """Read a streamed body, stopping as soon as it grows past the limit.
 
@@ -243,28 +394,20 @@ def _within_limit(response: httpx.Response) -> bytes:
         The decoded body.
 
     Raises:
-        ResponseTooLargeError: If the body exceeds the configured limit.
+        DecodingError: If a compressed body is corrupt, keeping the error
+            inside the ``httpx.RequestError`` contract sources handle.
     """
-    declared = cast("str | None", response.headers.get("content-length"))
-    content = bytearray()
-    # Everything, the declared-size refusal included, sits inside the ``try``:
-    # a streamed response holds a connection checked out of the shared pool
-    # until it is closed, so raising before ``close`` would leak one per
-    # oversized reply and a fan-out across many packages could drain the pool.
+    # Everything sits inside the ``try``: a streamed response holds a
+    # connection checked out of the shared pool until it is closed, so raising
+    # before ``close`` would leak one per refused reply, and a fan-out across
+    # many packages could drain the pool.
     try:
-        if (
-            declared is not None
-            and declared.isdigit()
-            and int(declared) > MAX_RESPONSE_BYTES
-        ):
-            raise ResponseTooLargeError(_TOO_LARGE)
-        for chunk in response.iter_bytes():
-            content.extend(chunk)
-            if len(content) > MAX_RESPONSE_BYTES:
-                raise ResponseTooLargeError(_TOO_LARGE)
+        return _read_body(response)
+    except zlib.error as exc:
+        msg = f"Could not decode the response body: {exc}"
+        raise httpx.DecodingError(msg) from exc
     finally:
         response.close()
-    return bytes(content)
 
 
 def _checked_response(response: httpx.Response) -> httpx.Response:
@@ -396,6 +539,28 @@ def _revalidate(
     return Fetched(response, Provenance("live", utc_now()), cache_key=key)
 
 
+def _replayable(entry: CachedResponse | None) -> CachedResponse | None:
+    """Drop a stored entry whose body is over the response-size limit.
+
+    A replayed body never passes through the transport, so the limit has to
+    be applied here too, or an entry written before the limit existed — or
+    edited on disk — would be served at whatever size it is. Checked where
+    entries are loaded, so a fresh hit, a stale offline answer, and a ``304``
+    revalidation are all covered. Measured in UTF-8 bytes like a live body,
+    and only encoded when the cheap character count cannot already decide.
+
+    Returns:
+        The entry, or ``None`` when its body is over the limit.
+    """
+    if entry is None:
+        return None
+    body = entry.body
+    too_big = len(body) > MAX_RESPONSE_BYTES or (
+        not body.isascii() and len(body.encode("utf-8")) > MAX_RESPONSE_BYTES
+    )
+    return None if too_big else entry
+
+
 def _cached_get(
     url: str, ttl: int, scope: str, headers: dict[str, str] | None = None
 ) -> Fetched:
@@ -405,7 +570,7 @@ def _cached_get(
         The response and where it came from.
     """
     key = cache.key_for("GET", url, scope)
-    entry = None if cache.settings().refresh else cache.load(key)
+    entry = None if cache.settings().refresh else _replayable(cache.load(key))
     if entry is not None and entry.is_fresh(ttl, cache.now()):
         return _served(entry, url)
     if cache.settings().offline:

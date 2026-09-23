@@ -169,6 +169,14 @@ entry for the largest accepted body is bigger than the body. Too small a value
 only costs a refetch, never a failure.
 """
 
+_UNPARSABLE = (ValueError, RecursionError)
+"""Every way a stored body can fail to parse.
+
+``RecursionError`` for a body nested deeply enough to overflow the parser. The
+envelope around it can be perfectly valid, so this is caught where the body is
+parsed rather than where the file is read.
+"""
+
 _ENTRY_VERSION = "1"
 """Mixed into every cache key, so entries never outlive their own format.
 
@@ -533,7 +541,7 @@ def _holds_json(body: str) -> bool:
     """
     try:
         _ = cast("object", json.loads(body))
-    except ValueError:
+    except _UNPARSABLE:
         return False
     return True
 

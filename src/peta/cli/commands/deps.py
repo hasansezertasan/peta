@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from peta.cli.output.render import render_dep_tree, render_why
+from peta.cli.output.render import render_dep_tree, render_target, render_why
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
 from peta.core.deptree import build_tree, find_why
@@ -206,7 +206,7 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
 
     if why is not None:
         if target and selected != OutputFormat.JSON:
-            typer.echo(target.describe())
+            typer.echo(render_target(target))
         _print_why(
             package,
             why,
@@ -219,7 +219,7 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
         )
         return
     rendered_target = (
-        target.describe() if target and selected != OutputFormat.JSON else ""
+        render_target(target) if target and selected != OutputFormat.JSON else ""
     )
     if rendered_target:
         typer.echo(rendered_target)

@@ -11,6 +11,7 @@ from peta.cli.output.selection import OutputFormat
 if TYPE_CHECKING:
     from peta.core.artifacts import ReleaseArtifacts
     from peta.core.cache import Freshness
+    from peta.core.local import LocalTarget
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -19,6 +20,7 @@ __all__ = [
     "render_dep_tree",
     "render_files",
     "render_info",
+    "render_target",
     "render_versions",
     "render_why",
 ]
@@ -40,6 +42,20 @@ def _plain_output(value: str) -> str:
         The rendered value with terminal control characters removed.
     """
     return sanitize_terminal(value)
+
+
+def render_target(target: LocalTarget) -> str:
+    """Render the target-environment banner shown above human output.
+
+    Printed outside the formatters, so it would otherwise skip the one
+    boundary every other human string passes through. It names paths from
+    ``--path`` and from the target interpreter's own ``sys.path``, and a
+    directory name can carry an escape sequence like any other untrusted text.
+
+    Returns:
+        The banner with terminal control characters removed.
+    """
+    return _plain_output(target.describe())
 
 
 def render_info(

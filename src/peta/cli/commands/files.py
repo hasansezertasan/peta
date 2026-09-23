@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typer
 
-from peta.cli.output.render import render_files
+from peta.cli.output.render import render_files, render_target
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core.local import (
     LocalTarget,
@@ -69,5 +69,5 @@ def files(
         )
     rendered = render_files(selected, pkg, arguments=arguments, color=color)
     if target and selected != OutputFormat.JSON:
-        rendered = f"{target.describe()}\n{rendered}"
+        rendered = f"{render_target(target)}\n{rendered}"
     typer.echo(rendered)

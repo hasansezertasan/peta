@@ -3,6 +3,7 @@
 import atexit
 import gzip
 import threading
+import tracemalloc
 from typing import TYPE_CHECKING
 
 import httpx
@@ -135,9 +136,12 @@ def test_a_compressed_response_is_decoded_exactly_once(
     body = b'{"hello": "world"}'
 
     def handle(request: httpx.Request) -> httpx.Response:
+        # ``stream=`` rather than ``content=``: httpx reads and decodes a
+        # ``content=`` response on construction, which a network response
+        # never is, so it would bypass the decoder this test is about.
         return httpx.Response(
             200,
-            content=gzip.compress(body),
+            stream=httpx.ByteStream(gzip.compress(body)),
             headers={"content-encoding": "gzip", "content-type": "application/json"},
             request=request,
         )
@@ -759,3 +763,67 @@ class TestGuardsReachTheUserAsNetworkErrors:
 
         with pytest.raises(remote.NetworkError, match="exceeds"):
             _ = remote.get_package("requests")
+
+
+class TestCompressedBodiesAreBoundedWhileDecoding:
+    """A compressed body is limited by what it expands to, as it expands.
+
+    httpx's streaming decoder inflates each wire chunk in a single call, so a
+    64 KiB gzip chunk could become 64 MiB before any length check ran. peta
+    decodes the body itself, in capped steps.
+    """
+
+    @staticmethod
+    def _streamed(body: bytes, encoding: str = "gzip") -> httpx.Response:
+        # ``stream=`` so httpx does not read and decode the body on
+        # construction, as it never does for a network response.
+        return httpx.Response(
+            200, headers={"content-encoding": encoding}, stream=httpx.ByteStream(body)
+        )
+
+    def test_a_gzip_bomb_is_refused_without_expanding_it(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(http, "MAX_RESPONSE_BYTES", 1024 * 1024)
+        monkeypatch.setattr(http, "_INFLATE_STEP", 64 * 1024)
+        bomb = gzip.compress(b"\0" * (64 * 1024 * 1024))
+        response = self._streamed(bomb)
+
+        tracemalloc.start()
+        try:
+            with pytest.raises(http.ResponseTooLargeError):
+                _ = http._within_limit(response)
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+
+        # The limit plus one step and some slack; decoding in one call would
+        # peak at the full 64 MiB.
+        assert peak < 4 * 1024 * 1024
+        assert response.is_closed
+
+    def test_a_body_just_under_the_limit_decodes_intact(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(http, "MAX_RESPONSE_BYTES", 1024 * 1024)
+        monkeypatch.setattr(http, "_INFLATE_STEP", 64 * 1024)
+        body = b"x" * (1024 * 1024)
+
+        assert http._within_limit(self._streamed(gzip.compress(body))) == body
+
+    def test_an_encoding_peta_did_not_ask_for_is_refused(self) -> None:
+        with pytest.raises(http.UnsupportedEncodingError, match="'br'"):
+            _ = http._within_limit(self._streamed(b"x", encoding="br"))
+
+    def test_a_corrupt_gzip_body_is_a_request_error(self) -> None:
+        # Sources catch httpx.RequestError; a raw zlib.error would escape
+        # them as a traceback.
+        with pytest.raises(httpx.DecodingError):
+            _ = http._within_limit(self._streamed(b"not gzip"))
+
+    def test_only_gzip_is_advertised(self) -> None:
+        # httpx would advertise brotli and zstd as soon as their packages were
+        # importable, and only gzip is decoded under the limit.
+        request = http.client().build_request("GET", _URL)
+
+        assert request.headers["accept-encoding"] == "gzip"

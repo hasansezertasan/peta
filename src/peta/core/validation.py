@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import TYPE_CHECKING, cast
 
@@ -204,10 +205,17 @@ def json_body(response: httpx.Response, *, source: str) -> object:
             :data:`MAX_COLLECTION_ITEMS` items, or any string is longer than
             :data:`MAX_STRING_LENGTH`.
     """
-    breach = _structural_breach(response.text)
+    # Decoded here, once, exactly as ``json.loads`` would decode bytes, and
+    # both the scan and the parser read this same text. ``response.text``
+    # would follow the declared charset while ``response.json()`` sniffs the
+    # bytes, so a response declaring ``charset=utf-16-le`` over a UTF-8 body
+    # showed the scan harmless CJK text and the parser a bracket bomb.
+    content = response.content
+    text = content.decode(json.detect_encoding(content), "surrogatepass")
+    breach = _structural_breach(text)
     if breach is not None:
         raise ResponseLimitError(source, "$", breach)
-    return cast("object", response.json())
+    return cast("object", json.loads(text))
 
 
 def expect_mapping(value: object, *, source: str, path: str) -> dict[str, object]:
