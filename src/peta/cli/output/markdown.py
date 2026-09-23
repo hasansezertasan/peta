@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.console import inline
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -41,9 +42,31 @@ hide text, and escaping them would litter ordinary names like ``my_pkg``.
 
 _BACKTICK_RUN = re.compile(r"`+")
 
+_TABLE_PIPE = re.compile(r"(\\*)\|")
+"""A pipe together with the run of backslashes in front of it."""
+
+
+def _escaped_pipe(match: re.Match[str]) -> str:
+    r"""Leave a pipe with an odd number of backslashes in front of it.
+
+    GFM splits table rows before it parses anything inline, reading
+    backslashes in pairs, so ``\\|`` — two backslashes — leaves the pipe
+    active. A filename carrying ``\\|`` used to become exactly that once one
+    backslash was added, splitting the row and the code span with it.
+
+    Returns:
+        The pipe, preceded by an odd-length run of backslashes.
+    """
+    run = match.group(1)
+    return f"{run}{'' if len(run) % 2 else chr(92)}|"
+
 
 def _one_line(value: object) -> str:
-    return str(value).replace("\r", " ").replace("\n", " ")
+    # Terminal-sanitized *before* any escaping or fence sizing, not only
+    # afterwards by ``_plain_output``: removing a control character later can
+    # join two backtick runs, or a backslash to the character it should not
+    # reach, after the Markdown around them was already decided.
+    return inline(value)
 
 
 def _text(value: object) -> str:
@@ -68,7 +91,7 @@ def _code(value: object, *, in_table: bool = False) -> str:
     """
     content = _one_line(value)
     if in_table:
-        content = content.replace("|", "\\|")
+        content = _TABLE_PIPE.sub(_escaped_pipe, content)
     longest = max(
         (match.end() - match.start() for match in _BACKTICK_RUN.finditer(content)),
         default=0,

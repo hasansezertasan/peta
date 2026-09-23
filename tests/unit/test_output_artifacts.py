@@ -443,6 +443,33 @@ class TestHostileFieldsCannotShapeTheOutput:
 
         assert row.count("|") - row.count("\\|") == 10
 
+    @pytest.mark.parametrize("name", ["a\\|b.whl", "a\\\\|b.whl", "a\\\\\\|b.whl"])
+    def test_backslashes_before_a_pipe_cannot_split_the_row(self, name: str) -> None:
+        # GFM splits rows before inline parsing, reading backslashes in pairs,
+        # so a pipe needs an odd run in front of it. Adding one backslash to
+        # a filename's own ``\\|`` produced an even run and split the row.
+        out = markdown.format_artifacts(_release(_wheel(filename=name)), detailed=True)
+        (row,) = [line for line in out.splitlines() if "b.whl" in line]
+
+        pipes = [
+            index
+            for index, character in enumerate(row)
+            if character == "|"
+            and (len(row[:index]) - len(row[:index].rstrip("\\"))) % 2 == 0
+        ]
+        assert len(pipes) == 10
+
+    def test_a_removed_control_cannot_join_backticks_after_fencing(self) -> None:
+        # Sizing the fence before terminal sanitization let ESC separate two
+        # single backticks; once stripped they formed a run matching the
+        # fence and closed the code span, leaving the image live.
+        name = "pkg`\x1b`![x](https://attacker.invalid/t).whl"
+        release = _release(_wheel(filename=name, yanked=True))
+
+        out = markdown.format_artifacts(release)
+
+        assert "```pkg``![x](https://attacker.invalid/t).whl```" in out
+
     def test_text_notes_cannot_gain_a_forged_line(self) -> None:
         reason = "superseded\n- pkg-1.0.tar.gz yanked: malware"
         release = _release(_wheel(yanked=True, yanked_reason=reason), _sdist())
