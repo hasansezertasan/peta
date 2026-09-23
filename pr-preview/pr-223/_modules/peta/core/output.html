@@ -305,147 +305,158 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="172"><span class="sd">    Absent when the question does not apply — a source read from the local</span>
 </span><span data-line="173"><span class="sd">    environment, or one that never completed a retrieval.</span>
 </span><span data-line="174"><span class="sd">    """</span>
-</span><span data-line="175">    <span class="n">fields</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span></div>
-
+</span><span data-line="175">    <span class="n">fields</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
 </span><span data-line="176">
-</span><span data-line="177">
+</span><span data-line="177">    <span class="k">def</span><span class="w"> </span><span class="nf">__post_init__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="178"><span class="w">        </span><span class="sd">"""Strip credentials from any URL the failure reason names.</span>
+</span><span data-line="179">
+</span><span data-line="180"><span class="sd">        A second boundary alongside :class:`OutputMessage`, because a source</span>
+</span><span data-line="181"><span class="sd">        record is rendered on its own by the human formatters rather than</span>
+</span><span data-line="182"><span class="sd">        through a message, so redacting only the message copy left this one</span>
+</span><span data-line="183"><span class="sd">        carrying the credential.</span>
+</span><span data-line="184"><span class="sd">        """</span>
+</span><span data-line="185">        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">reason</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="186">            <span class="nb">object</span><span class="o">.</span><span class="fm">__setattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"reason"</span><span class="p">,</span> <span class="n">redacted_text</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">reason</span><span class="p">))</span></div>
+
+</span><span data-line="187">
+</span><span data-line="188">
 <div class="viewcode-block" id="OutputEnvelope">
 <a class="viewcode-back" href="../../../modules.html#peta.core.output.OutputEnvelope">[docs]</a>
-</span><span data-line="178"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="179"><span class="k">class</span><span class="w"> </span><span class="nc">OutputEnvelope</span><span class="p">:</span>
-</span><span data-line="180"><span class="w">    </span><span class="sd">"""Stable top-level shape for machine-readable output."""</span>
-</span><span data-line="181">
-</span><span data-line="182">    <span class="n">query</span><span class="p">:</span> <span class="n">OutputQuery</span>
-</span><span data-line="183">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span>
-</span><span data-line="184">    <span class="n">result</span><span class="p">:</span> <span class="nb">object</span>
-</span><span data-line="185">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span>
-</span><span data-line="186">    <span class="n">sources</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="187">    <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="188">    <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
-</span><span data-line="189">    <span class="n">schema_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SCHEMA_VERSION</span>
-</span><span data-line="190">    <span class="n">peta_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">__version__</span>
-</span><span data-line="191">
+</span><span data-line="189"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="190"><span class="k">class</span><span class="w"> </span><span class="nc">OutputEnvelope</span><span class="p">:</span>
+</span><span data-line="191"><span class="w">    </span><span class="sd">"""Stable top-level shape for machine-readable output."""</span>
+</span><span data-line="192">
+</span><span data-line="193">    <span class="n">query</span><span class="p">:</span> <span class="n">OutputQuery</span>
+</span><span data-line="194">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span>
+</span><span data-line="195">    <span class="n">result</span><span class="p">:</span> <span class="nb">object</span>
+</span><span data-line="196">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span>
+</span><span data-line="197">    <span class="n">sources</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="198">    <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="199">    <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">list</span><span class="p">)</span>
+</span><span data-line="200">    <span class="n">schema_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">SCHEMA_VERSION</span>
+</span><span data-line="201">    <span class="n">peta_version</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">__version__</span>
+</span><span data-line="202">
 <div class="viewcode-block" id="OutputEnvelope.to_dict">
 <a class="viewcode-back" href="../../../modules.html#peta.core.output.OutputEnvelope.to_dict">[docs]</a>
-</span><span data-line="192">    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="193"><span class="w">        </span><span class="sd">"""Return a JSON-compatible mapping without absent optional fields.</span>
-</span><span data-line="194">
-</span><span data-line="195"><span class="sd">        Returns:</span>
-</span><span data-line="196"><span class="sd">            The serialized contract mapping.</span>
-</span><span data-line="197"><span class="sd">        """</span>
-</span><span data-line="198">        <span class="n">environment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">target_environment</span>
-</span><span data-line="199">        <span class="n">query</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="200">            <span class="s2">"command"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">command</span><span class="p">,</span>
-</span><span data-line="201">            <span class="s2">"arguments"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="202">            <span class="s2">"target_environment"</span><span class="p">:</span> <span class="p">{</span>
-</span><span data-line="203">                <span class="s2">"implementation"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">implementation</span><span class="p">,</span>
-</span><span data-line="204">                <span class="s2">"python_version"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">python_version</span><span class="p">,</span>
-</span><span data-line="205">                <span class="s2">"platform"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">platform</span><span class="p">,</span>
-</span><span data-line="206">                <span class="s2">"interpreter"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">interpreter</span><span class="p">,</span>
-</span><span data-line="207">                <span class="s2">"paths"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">paths</span><span class="p">),</span>
-</span><span data-line="208">                <span class="s2">"markers"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">markers</span><span class="p">,</span>
-</span><span data-line="209">            <span class="p">},</span>
-</span><span data-line="210">        <span class="p">}</span>
-</span><span data-line="211">        <span class="k">return</span> <span class="p">{</span>
-</span><span data-line="212">            <span class="s2">"schema_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema_version</span><span class="p">,</span>
-</span><span data-line="213">            <span class="s2">"peta_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">peta_version</span><span class="p">,</span>
-</span><span data-line="214">            <span class="s2">"generated_at"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">generated_at</span><span class="p">,</span>
-</span><span data-line="215">            <span class="s2">"query"</span><span class="p">:</span> <span class="n">query</span><span class="p">,</span>
-</span><span data-line="216">            <span class="s2">"status"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
-</span><span data-line="217">            <span class="s2">"sources"</span><span class="p">:</span> <span class="p">[</span><span class="n">_without_none</span><span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">],</span>
-</span><span data-line="218">            <span class="s2">"warnings"</span><span class="p">:</span> <span class="p">[</span><span class="n">_without_none</span><span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="p">],</span>
-</span><span data-line="219">            <span class="s2">"errors"</span><span class="p">:</span> <span class="p">[</span><span class="n">_without_none</span><span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="p">],</span>
-</span><span data-line="220">            <span class="s2">"result"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span>
-</span><span data-line="221">        <span class="p">}</span></div>
+</span><span data-line="203">    <span class="k">def</span><span class="w"> </span><span class="nf">to_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="204"><span class="w">        </span><span class="sd">"""Return a JSON-compatible mapping without absent optional fields.</span>
+</span><span data-line="205">
+</span><span data-line="206"><span class="sd">        Returns:</span>
+</span><span data-line="207"><span class="sd">            The serialized contract mapping.</span>
+</span><span data-line="208"><span class="sd">        """</span>
+</span><span data-line="209">        <span class="n">environment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">target_environment</span>
+</span><span data-line="210">        <span class="n">query</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="211">            <span class="s2">"command"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">command</span><span class="p">,</span>
+</span><span data-line="212">            <span class="s2">"arguments"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="213">            <span class="s2">"target_environment"</span><span class="p">:</span> <span class="p">{</span>
+</span><span data-line="214">                <span class="s2">"implementation"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">implementation</span><span class="p">,</span>
+</span><span data-line="215">                <span class="s2">"python_version"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">python_version</span><span class="p">,</span>
+</span><span data-line="216">                <span class="s2">"platform"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">platform</span><span class="p">,</span>
+</span><span data-line="217">                <span class="s2">"interpreter"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">interpreter</span><span class="p">,</span>
+</span><span data-line="218">                <span class="s2">"paths"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">environment</span><span class="o">.</span><span class="n">paths</span><span class="p">),</span>
+</span><span data-line="219">                <span class="s2">"markers"</span><span class="p">:</span> <span class="n">environment</span><span class="o">.</span><span class="n">markers</span><span class="p">,</span>
+</span><span data-line="220">            <span class="p">},</span>
+</span><span data-line="221">        <span class="p">}</span>
+</span><span data-line="222">        <span class="k">return</span> <span class="p">{</span>
+</span><span data-line="223">            <span class="s2">"schema_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">schema_version</span><span class="p">,</span>
+</span><span data-line="224">            <span class="s2">"peta_version"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">peta_version</span><span class="p">,</span>
+</span><span data-line="225">            <span class="s2">"generated_at"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">generated_at</span><span class="p">,</span>
+</span><span data-line="226">            <span class="s2">"query"</span><span class="p">:</span> <span class="n">query</span><span class="p">,</span>
+</span><span data-line="227">            <span class="s2">"status"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">status</span><span class="p">,</span>
+</span><span data-line="228">            <span class="s2">"sources"</span><span class="p">:</span> <span class="p">[</span><span class="n">_without_none</span><span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">sources</span><span class="p">],</span>
+</span><span data-line="229">            <span class="s2">"warnings"</span><span class="p">:</span> <span class="p">[</span><span class="n">_without_none</span><span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">warnings</span><span class="p">],</span>
+</span><span data-line="230">            <span class="s2">"errors"</span><span class="p">:</span> <span class="p">[</span><span class="n">_without_none</span><span class="p">(</span><span class="n">asdict</span><span class="p">(</span><span class="n">item</span><span class="p">))</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">errors</span><span class="p">],</span>
+</span><span data-line="231">            <span class="s2">"result"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">result</span><span class="p">,</span>
+</span><span data-line="232">        <span class="p">}</span></div>
 </div>
 
-</span><span data-line="222">
-</span><span data-line="223">
-</span><span data-line="224"><span class="k">def</span><span class="w"> </span><span class="nf">_without_none</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
-</span><span data-line="225">    <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">}</span>
-</span><span data-line="226">
-</span><span data-line="227">
-</span><span data-line="228"><span class="k">def</span><span class="w"> </span><span class="nf">_rfc3339</span><span class="p">(</span><span class="n">moment</span><span class="p">:</span> <span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="229">    <span class="k">return</span> <span class="n">moment</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"+00:00"</span><span class="p">,</span> <span class="s2">"Z"</span><span class="p">)</span>
-</span><span data-line="230">
-</span><span data-line="231">
+</span><span data-line="233">
+</span><span data-line="234">
+</span><span data-line="235"><span class="k">def</span><span class="w"> </span><span class="nf">_without_none</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Mapping</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]:</span>
+</span><span data-line="236">    <span class="k">return</span> <span class="p">{</span><span class="n">key</span><span class="p">:</span> <span class="n">value</span> <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">}</span>
+</span><span data-line="237">
+</span><span data-line="238">
+</span><span data-line="239"><span class="k">def</span><span class="w"> </span><span class="nf">_rfc3339</span><span class="p">(</span><span class="n">moment</span><span class="p">:</span> <span class="n">datetime</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="240">    <span class="k">return</span> <span class="n">moment</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">microsecond</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"+00:00"</span><span class="p">,</span> <span class="s2">"Z"</span><span class="p">)</span>
+</span><span data-line="241">
+</span><span data-line="242">
 <div class="viewcode-block" id="utc_now">
 <a class="viewcode-back" href="../../../modules.html#peta.core.output.utc_now">[docs]</a>
-</span><span data-line="232"><span class="k">def</span><span class="w"> </span><span class="nf">utc_now</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="233"><span class="w">    </span><span class="sd">"""Return the current UTC time in RFC 3339 form.</span>
-</span><span data-line="234">
-</span><span data-line="235"><span class="sd">    Returns:</span>
-</span><span data-line="236"><span class="sd">        A second-precision UTC timestamp ending in ``Z``.</span>
-</span><span data-line="237"><span class="sd">    """</span>
-</span><span data-line="238">    <span class="k">return</span> <span class="n">_rfc3339</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">UTC</span><span class="p">))</span></div>
+</span><span data-line="243"><span class="k">def</span><span class="w"> </span><span class="nf">utc_now</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="244"><span class="w">    </span><span class="sd">"""Return the current UTC time in RFC 3339 form.</span>
+</span><span data-line="245">
+</span><span data-line="246"><span class="sd">    Returns:</span>
+</span><span data-line="247"><span class="sd">        A second-precision UTC timestamp ending in ``Z``.</span>
+</span><span data-line="248"><span class="sd">    """</span>
+</span><span data-line="249">    <span class="k">return</span> <span class="n">_rfc3339</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">UTC</span><span class="p">))</span></div>
 
-</span><span data-line="239">
-</span><span data-line="240">
+</span><span data-line="250">
+</span><span data-line="251">
 <div class="viewcode-block" id="utc_from">
 <a class="viewcode-back" href="../../../modules.html#peta.core.output.utc_from">[docs]</a>
-</span><span data-line="241"><span class="k">def</span><span class="w"> </span><span class="nf">utc_from</span><span class="p">(</span><span class="n">timestamp</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="242"><span class="w">    </span><span class="sd">"""Format a Unix timestamp in the same RFC 3339 form as :func:`utc_now`.</span>
-</span><span data-line="243">
-</span><span data-line="244"><span class="sd">    Lets a response served from cache report when it was actually retrieved</span>
-</span><span data-line="245"><span class="sd">    rather than when it was replayed.</span>
-</span><span data-line="246">
-</span><span data-line="247"><span class="sd">    Args:</span>
-</span><span data-line="248"><span class="sd">        timestamp: Seconds since the epoch.</span>
-</span><span data-line="249">
-</span><span data-line="250"><span class="sd">    Returns:</span>
-</span><span data-line="251"><span class="sd">        A second-precision UTC timestamp ending in ``Z``.</span>
-</span><span data-line="252"><span class="sd">    """</span>
-</span><span data-line="253">    <span class="k">return</span> <span class="n">_rfc3339</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">UTC</span><span class="p">))</span></div>
-
+</span><span data-line="252"><span class="k">def</span><span class="w"> </span><span class="nf">utc_from</span><span class="p">(</span><span class="n">timestamp</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="253"><span class="w">    </span><span class="sd">"""Format a Unix timestamp in the same RFC 3339 form as :func:`utc_now`.</span>
 </span><span data-line="254">
-</span><span data-line="255">
+</span><span data-line="255"><span class="sd">    Lets a response served from cache report when it was actually retrieved</span>
+</span><span data-line="256"><span class="sd">    rather than when it was replayed.</span>
+</span><span data-line="257">
+</span><span data-line="258"><span class="sd">    Args:</span>
+</span><span data-line="259"><span class="sd">        timestamp: Seconds since the epoch.</span>
+</span><span data-line="260">
+</span><span data-line="261"><span class="sd">    Returns:</span>
+</span><span data-line="262"><span class="sd">        A second-precision UTC timestamp ending in ``Z``.</span>
+</span><span data-line="263"><span class="sd">    """</span>
+</span><span data-line="264">    <span class="k">return</span> <span class="n">_rfc3339</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">fromtimestamp</span><span class="p">(</span><span class="n">timestamp</span><span class="p">,</span> <span class="n">UTC</span><span class="p">))</span></div>
+
+</span><span data-line="265">
+</span><span data-line="266">
 <div class="viewcode-block" id="make_envelope">
 <a class="viewcode-back" href="../../../modules.html#peta.core.output.make_envelope">[docs]</a>
-</span><span data-line="256"><span class="k">def</span><span class="w"> </span><span class="nf">make_envelope</span><span class="p">(</span>
-</span><span data-line="257">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
-</span><span data-line="258">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="259">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="260">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span><span class="p">,</span>
-</span><span data-line="261">    <span class="n">result</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
-</span><span data-line="262">    <span class="n">sources</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="263">    <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="264">    <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="265">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="266"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OutputEnvelope</span><span class="p">:</span>
-</span><span data-line="267"><span class="w">    </span><span class="sd">"""Build an output envelope using the current runtime as the target.</span>
-</span><span data-line="268">
-</span><span data-line="269"><span class="sd">    Returns:</span>
-</span><span data-line="270"><span class="sd">        A populated, typed output envelope.</span>
-</span><span data-line="271"><span class="sd">    """</span>
-</span><span data-line="272">    <span class="n">supplied</span> <span class="o">=</span> <span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">TARGET_ENVIRONMENT_KEY</span><span class="p">)</span>
-</span><span data-line="273">    <span class="c1"># Stripped rather than passed through: see TARGET_ENVIRONMENT_KEY.</span>
-</span><span data-line="274">    <span class="n">recorded</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="275">        <span class="n">key</span><span class="p">:</span> <span class="n">value</span>
-</span><span data-line="276">        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
-</span><span data-line="277">        <span class="k">if</span> <span class="n">key</span> <span class="o">!=</span> <span class="n">TARGET_ENVIRONMENT_KEY</span>
-</span><span data-line="278">    <span class="p">}</span>
-</span><span data-line="279">    <span class="n">target</span> <span class="o">=</span> <span class="n">TargetEnvironment</span><span class="o">.</span><span class="n">current</span><span class="p">()</span>
-</span><span data-line="280">    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">supplied</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-</span><span data-line="281">        <span class="n">supplied</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, object]"</span><span class="p">,</span> <span class="n">supplied</span><span class="p">)</span>
-</span><span data-line="282">        <span class="n">target</span> <span class="o">=</span> <span class="n">TargetEnvironment</span><span class="p">(</span>
-</span><span data-line="283">            <span class="n">implementation</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">supplied</span><span class="p">[</span><span class="s2">"implementation"</span><span class="p">]),</span>
-</span><span data-line="284">            <span class="n">python_version</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">supplied</span><span class="p">[</span><span class="s2">"python_version"</span><span class="p">]),</span>
-</span><span data-line="285">            <span class="n">platform</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">supplied</span><span class="p">[</span><span class="s2">"platform"</span><span class="p">]),</span>
-</span><span data-line="286">            <span class="n">interpreter</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">supplied</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"interpreter"</span><span class="p">)),</span>
-</span><span data-line="287">            <span class="n">paths</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"list[str]"</span><span class="p">,</span> <span class="n">supplied</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"paths"</span><span class="p">,</span> <span class="p">[]))),</span>
-</span><span data-line="288">            <span class="n">markers</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, str]"</span><span class="p">,</span> <span class="n">supplied</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"markers"</span><span class="p">,</span> <span class="p">{})),</span>
-</span><span data-line="289">        <span class="p">)</span>
-</span><span data-line="290">    <span class="k">return</span> <span class="n">OutputEnvelope</span><span class="p">(</span>
-</span><span data-line="291">        <span class="n">query</span><span class="o">=</span><span class="n">OutputQuery</span><span class="p">(</span>
-</span><span data-line="292">            <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">recorded</span><span class="p">,</span> <span class="n">target_environment</span><span class="o">=</span><span class="n">target</span>
-</span><span data-line="293">        <span class="p">),</span>
-</span><span data-line="294">        <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
-</span><span data-line="295">        <span class="n">result</span><span class="o">=</span><span class="n">result</span><span class="p">,</span>
-</span><span data-line="296">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">(),</span>
-</span><span data-line="297">        <span class="n">sources</span><span class="o">=</span><span class="n">sources</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="298">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="299">        <span class="n">errors</span><span class="o">=</span><span class="n">errors</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="300">    <span class="p">)</span></div>
+</span><span data-line="267"><span class="k">def</span><span class="w"> </span><span class="nf">make_envelope</span><span class="p">(</span>
+</span><span data-line="268">    <span class="n">command</span><span class="p">:</span> <span class="n">CommandName</span><span class="p">,</span>
+</span><span data-line="269">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="270">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="271">    <span class="n">status</span><span class="p">:</span> <span class="n">EnvelopeStatus</span><span class="p">,</span>
+</span><span data-line="272">    <span class="n">result</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span>
+</span><span data-line="273">    <span class="n">sources</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SourceRecord</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="274">    <span class="n">warnings</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="275">    <span class="n">errors</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">OutputMessage</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="276">    <span class="n">generated_at</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="277"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">OutputEnvelope</span><span class="p">:</span>
+</span><span data-line="278"><span class="w">    </span><span class="sd">"""Build an output envelope using the current runtime as the target.</span>
+</span><span data-line="279">
+</span><span data-line="280"><span class="sd">    Returns:</span>
+</span><span data-line="281"><span class="sd">        A populated, typed output envelope.</span>
+</span><span data-line="282"><span class="sd">    """</span>
+</span><span data-line="283">    <span class="n">supplied</span> <span class="o">=</span> <span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">TARGET_ENVIRONMENT_KEY</span><span class="p">)</span>
+</span><span data-line="284">    <span class="c1"># Stripped rather than passed through: see TARGET_ENVIRONMENT_KEY.</span>
+</span><span data-line="285">    <span class="n">recorded</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="286">        <span class="n">key</span><span class="p">:</span> <span class="n">value</span>
+</span><span data-line="287">        <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">arguments</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+</span><span data-line="288">        <span class="k">if</span> <span class="n">key</span> <span class="o">!=</span> <span class="n">TARGET_ENVIRONMENT_KEY</span>
+</span><span data-line="289">    <span class="p">}</span>
+</span><span data-line="290">    <span class="n">target</span> <span class="o">=</span> <span class="n">TargetEnvironment</span><span class="o">.</span><span class="n">current</span><span class="p">()</span>
+</span><span data-line="291">    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">supplied</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+</span><span data-line="292">        <span class="n">supplied</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, object]"</span><span class="p">,</span> <span class="n">supplied</span><span class="p">)</span>
+</span><span data-line="293">        <span class="n">target</span> <span class="o">=</span> <span class="n">TargetEnvironment</span><span class="p">(</span>
+</span><span data-line="294">            <span class="n">implementation</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">supplied</span><span class="p">[</span><span class="s2">"implementation"</span><span class="p">]),</span>
+</span><span data-line="295">            <span class="n">python_version</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">supplied</span><span class="p">[</span><span class="s2">"python_version"</span><span class="p">]),</span>
+</span><span data-line="296">            <span class="n">platform</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">supplied</span><span class="p">[</span><span class="s2">"platform"</span><span class="p">]),</span>
+</span><span data-line="297">            <span class="n">interpreter</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">supplied</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"interpreter"</span><span class="p">)),</span>
+</span><span data-line="298">            <span class="n">paths</span><span class="o">=</span><span class="nb">tuple</span><span class="p">(</span><span class="n">cast</span><span class="p">(</span><span class="s2">"list[str]"</span><span class="p">,</span> <span class="n">supplied</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"paths"</span><span class="p">,</span> <span class="p">[]))),</span>
+</span><span data-line="299">            <span class="n">markers</span><span class="o">=</span><span class="n">cast</span><span class="p">(</span><span class="s2">"dict[str, str]"</span><span class="p">,</span> <span class="n">supplied</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"markers"</span><span class="p">,</span> <span class="p">{})),</span>
+</span><span data-line="300">        <span class="p">)</span>
+</span><span data-line="301">    <span class="k">return</span> <span class="n">OutputEnvelope</span><span class="p">(</span>
+</span><span data-line="302">        <span class="n">query</span><span class="o">=</span><span class="n">OutputQuery</span><span class="p">(</span>
+</span><span data-line="303">            <span class="n">command</span><span class="o">=</span><span class="n">command</span><span class="p">,</span> <span class="n">arguments</span><span class="o">=</span><span class="n">recorded</span><span class="p">,</span> <span class="n">target_environment</span><span class="o">=</span><span class="n">target</span>
+</span><span data-line="304">        <span class="p">),</span>
+</span><span data-line="305">        <span class="n">status</span><span class="o">=</span><span class="n">status</span><span class="p">,</span>
+</span><span data-line="306">        <span class="n">result</span><span class="o">=</span><span class="n">result</span><span class="p">,</span>
+</span><span data-line="307">        <span class="n">generated_at</span><span class="o">=</span><span class="n">generated_at</span> <span class="ow">or</span> <span class="n">utc_now</span><span class="p">(),</span>
+</span><span data-line="308">        <span class="n">sources</span><span class="o">=</span><span class="n">sources</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="309">        <span class="n">warnings</span><span class="o">=</span><span class="n">warnings</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="310">        <span class="n">errors</span><span class="o">=</span><span class="n">errors</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="311">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

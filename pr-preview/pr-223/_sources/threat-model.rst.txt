@@ -57,9 +57,14 @@ Every provider must preserve these invariants when it is added or changed:
   decoded-body limit, measured after content decoding so a compressed bomb is
   bounded by its expanded size. The limit is sized against real data:
   ``grpcio``'s JSON document is already 9 MiB.
-* Peta does not currently refuse private-network destinations, and that is
-  deliberate rather than an oversight. Every host it contacts today is a fixed
-  public service, so there is no attacker-chosen destination to refuse. A
+* No request goes to a host chosen by an untrusted response. Every source
+  contacts a fixed service except one: the PEP 740 provenance URL, which the
+  index response supplies. It is fetched only when its scheme, host, and port
+  match the index's own, which is how PyPI serves it; anything else is
+  reported as a failed lookup without a request being made. That comparison
+  needs no DNS, so rebinding has nothing to race and a proxy is unaffected.
+* Peta does not refuse private-network destinations by address. With the
+  origin rule above there is no attacker-chosen destination to refuse, and a
   check that resolves a hostname and then lets httpx resolve it again does not
   help either: a zero-TTL name can pass with a public address and connect to
   a private one, and resolving locally breaks users whose proxy does the
@@ -71,17 +76,21 @@ Every provider must preserve these invariants when it is added or changed:
   must reject absolute paths, ``..`` traversal, symlinks, duplicate members,
   excessive member counts, and cumulative or per-member size limits before
   writing anything.
-* JSON objects and arrays are limited to 1,000,000 items and individual
+* JSON objects and arrays are limited to 1,000,000 items each and individual
   metadata strings to 8 MiB. The body limit is what bounds realistic entries;
   the item limit exists for the cheap case it cannot see, a long run of tiny
-  values that costs far more as Python objects than as JSON bytes. Nesting is limited to 100 levels and is checked *before*
-  decoding: ``json.loads`` recurses, so an over-nested body raises
-  ``RecursionError`` while parsing, and that is a ``RuntimeError`` which the
-  ``except ValueError`` around each decode does not catch. 120 KB of brackets
-  is enough to reach it, so the response-size limit is far too coarse to help.
-  Dependency traversal is capped at 100 levels; invalid or oversized decoded
-  fields are rejected, not coerced. A refusal on size reports the limit it
-  broke rather than claiming the value had the wrong type.
+  values that costs far more as Python objects than as JSON bytes. Nesting is
+  limited to 100 levels.
+* Nesting and item counts are both measured *before* decoding, by one scan of
+  the raw text. Nesting, because ``json.loads`` recurses: an over-nested body
+  raises ``RecursionError`` while parsing — 120 KB of brackets is enough — and
+  that is a ``RuntimeError``, which the ``except ValueError`` around each
+  decode does not catch. Item counts, because the validators only visit fields
+  peta consumes, so an ignored ``"padding"`` array would be fully allocated by
+  ``json.loads`` and never measured at all. Dependency traversal is capped at
+  100 levels; invalid or oversized decoded fields are rejected, not coerced,
+  and a refusal on size reports the limit it broke rather than claiming the
+  value had the wrong type.
 * Untrusted strings are rendered as data. Terminal control characters,
   OSC/hyperlink sequences, Rich markup, and shell metacharacters must never
   become active output. Filenames are never passed to a shell. Human output is
@@ -92,13 +101,13 @@ Every provider must preserve these invariants when it is added or changed:
   sequences too, and cannot be told apart from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache
   payloads, process arguments, and diagnostics. Redaction is applied where a
-  diagnostic is *built* — ``EnrichmentError`` and ``OutputMessage``, plus the
-  fatal human path — rather than over rendered output or the envelope as a
-  whole. The distinction matters in both directions: a URL peta *requested*
-  can carry peta's API key, while a URL a package *declared* is metadata the
-  output contract promises to report, and the redaction list holds names as
-  ordinary as ``key``, so sweeping every string would silently rewrite a
-  package's homepage.
+  diagnostic is *built* — ``EnrichmentError``, ``OutputMessage``,
+  ``PublisherFailure``, ``SourceRecord``, and the fatal human path — rather
+  than over rendered output or the envelope as a whole. The distinction
+  matters in both directions: a URL peta *requested* can carry peta's API key,
+  while a URL a package *declared* is metadata the output contract promises to
+  report, and the redaction list holds names as ordinary as ``key``, so
+  sweeping every string would silently rewrite a package's homepage.
 * Every refusal the transport makes — unsafe scheme, oversized body — is
   raised as an ``httpx.RequestError``.
   Each source maps that onto its own error type; an exception outside that
@@ -122,9 +131,10 @@ they protect. The existing focused suites provide the baseline:
   response-size limits, timeout configuration, redirects-disabled transport,
   and shared transport behavior.
 * ``tests/unit/test_local.py`` covers validation and timeout behavior for the
-  explicit interpreter inspection boundary, and ``TestInspectionNeverRunsPackageCode``
-  installs a distribution whose module and ``setup.py`` would both leave
-  evidence, then asserts that reading its metadata leaves none.
+  explicit interpreter inspection boundary, and
+  ``TestInspectionNeverRunsPackageCode`` installs a distribution whose module
+  and ``setup.py`` would both leave evidence, then asserts that reading its
+  metadata leaves none.
 * ``tests/unit/test_artifacts.py`` and ``tests/unit/test_output_artifacts.py``
   cover hostile artifact metadata without treating it as executable content.
 * ``tests/unit/test_output_*.py`` and ``tests/unit/test_output_snapshots.py``
@@ -149,8 +159,8 @@ resource-bomb cases if archive extraction is introduced; deeply nested JSON and
 dependency graphs; unsafe schemes, redirects, and origin changes if redirects
 are ever enabled; private-network destinations and DNS rebinding, including a
 name that resolves differently between the check and the connection, when
-user-supplied index URLs arrive; and credentials in every error, log, snapshot, cache,
-and diagnostic path.
+user-supplied index URLs arrive; and credentials in every error, log,
+snapshot, cache, and diagnostic path.
 Each new provider documents its trust boundary, timeout, size, redirect,
 origin, and credential policy here before it is enabled.
 
