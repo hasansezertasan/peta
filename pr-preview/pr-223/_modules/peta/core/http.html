@@ -160,703 +160,681 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="37"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.output</span><span class="w"> </span><span class="kn">import</span> <span class="n">utc_from</span><span class="p">,</span> <span class="n">utc_now</span>
 </span><span data-line="38">
 </span><span data-line="39"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-</span><span data-line="40">    <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Protocol</span>
-</span><span data-line="41">
-</span><span data-line="42">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">CachedResponse</span>
+</span><span data-line="40">    <span class="c1"># zlib's decompressor type is only published under a private name. It is</span>
+</span><span data-line="41">    <span class="c1"># imported for annotations alone and never touched at runtime.</span>
+</span><span data-line="42">    <span class="kn">from</span><span class="w"> </span><span class="nn">zlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">_Decompress</span>  <span class="c1"># pyright: ignore[reportPrivateUsage]</span>
 </span><span data-line="43">
-</span><span data-line="44">    <span class="k">class</span><span class="w"> </span><span class="nc">_Decompressor</span><span class="p">(</span><span class="n">Protocol</span><span class="p">):</span>
-</span><span data-line="45"><span class="w">        </span><span class="sd">"""What :mod:`zlib`'s decompressor object offers, as peta uses it.</span>
+</span><span data-line="44">    <span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.cache</span><span class="w"> </span><span class="kn">import</span> <span class="n">CachedResponse</span>
+</span><span data-line="45">
 </span><span data-line="46">
-</span><span data-line="47"><span class="sd">        Spelled out because the concrete type, ``zlib._Decompress``, is</span>
-</span><span data-line="48"><span class="sd">        private. Members are bare ``...`` stubs, as in a ``.pyi`` file.</span>
-</span><span data-line="49"><span class="sd">        """</span>
-</span><span data-line="50">
-</span><span data-line="51">        <span class="nd">@property</span>
-</span><span data-line="52">        <span class="k">def</span><span class="w"> </span><span class="nf">eof</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span> <span class="o">...</span>
-</span><span data-line="53">
-</span><span data-line="54">        <span class="nd">@property</span>
-</span><span data-line="55">        <span class="k">def</span><span class="w"> </span><span class="nf">unconsumed_tail</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span> <span class="o">...</span>
-</span><span data-line="56">
-</span><span data-line="57">        <span class="nd">@property</span>
-</span><span data-line="58">        <span class="k">def</span><span class="w"> </span><span class="nf">unused_data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span> <span class="o">...</span>
-</span><span data-line="59">
-</span><span data-line="60">        <span class="k">def</span><span class="w"> </span><span class="nf">decompress</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="o">/</span><span class="p">,</span> <span class="n">max_length</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span> <span class="o">...</span>
-</span><span data-line="61">
-</span><span data-line="62">        <span class="k">def</span><span class="w"> </span><span class="nf">flush</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span> <span class="o">...</span>
-</span><span data-line="63">
-</span><span data-line="64">
-</span><span data-line="65"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="66">    <span class="s2">"DEFAULT_TIMEOUT"</span><span class="p">,</span>
-</span><span data-line="67">    <span class="s2">"MAX_RESPONSE_BYTES"</span><span class="p">,</span>
-</span><span data-line="68">    <span class="s2">"USER_AGENT"</span><span class="p">,</span>
-</span><span data-line="69">    <span class="s2">"Fetched"</span><span class="p">,</span>
-</span><span data-line="70">    <span class="s2">"OfflineError"</span><span class="p">,</span>
-</span><span data-line="71">    <span class="s2">"ResponseTooLargeError"</span><span class="p">,</span>
-</span><span data-line="72">    <span class="s2">"TransportPolicyError"</span><span class="p">,</span>
-</span><span data-line="73">    <span class="s2">"UnsafeURLError"</span><span class="p">,</span>
-</span><span data-line="74">    <span class="s2">"UnsupportedEncodingError"</span><span class="p">,</span>
-</span><span data-line="75">    <span class="s2">"client"</span><span class="p">,</span>
-</span><span data-line="76">    <span class="s2">"get"</span><span class="p">,</span>
-</span><span data-line="77">    <span class="s2">"keep"</span><span class="p">,</span>
-</span><span data-line="78">    <span class="s2">"post"</span><span class="p">,</span>
-</span><span data-line="79"><span class="p">]</span>
-</span><span data-line="80">
-</span><span data-line="81"><span class="n">_NOT_MODIFIED</span> <span class="o">=</span> <span class="mi">304</span>
-</span><span data-line="82"><span class="n">_OK</span> <span class="o">=</span> <span class="mi">200</span>
-</span><span data-line="83">
-</span><span data-line="84">
-</span><span data-line="85"><span class="n">DEFAULT_TIMEOUT</span> <span class="o">=</span> <span class="mf">10.0</span>
-</span><span data-line="86"><span class="sd">"""Per-request timeout, in seconds, applied to every outbound request."""</span>
-</span><span data-line="87">
-</span><span data-line="88"><span class="n">MAX_RESPONSE_BYTES</span> <span class="o">=</span> <span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
-</span><span data-line="89"><span class="sd">"""Largest response accepted from an untrusted source, in bytes.</span>
-</span><span data-line="90">
-</span><span data-line="91"><span class="sd">Sized against real PyPI data, not a round guess: ``grpcio``'s JSON document is</span>
-</span><span data-line="92"><span class="sd">already 9 MiB and its Simple API page 6.7 MiB, and both grow with every</span>
-</span><span data-line="93"><span class="sd">release. A 10 MiB cap was 87% used by one popular package. This one leaves</span>
-</span><span data-line="94"><span class="sd">room for years of growth while still bounding what a hostile index can make</span>
-</span><span data-line="95"><span class="sd">peta hold in memory.</span>
-</span><span data-line="96"><span class="sd">"""</span>
-</span><span data-line="97">
-</span><span data-line="98"><span class="n">USER_AGENT</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">PROJECT_NAME</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">__version__</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="99"><span class="sd">"""Identifies peta to the APIs it queries, as their usage guidelines ask."""</span>
-</span><span data-line="100">
-</span><span data-line="101"><span class="n">MAX_CONNECTIONS</span> <span class="o">=</span> <span class="n">MAX_WORKERS</span>
-</span><span data-line="102"><span class="sd">"""The real bound on concurrent requests, whatever the thread count.</span>
-</span><span data-line="103">
-</span><span data-line="104"><span class="sd">Sockets are the scarce resource, not threads, and this limit applies to the</span>
-</span><span data-line="105"><span class="sd">one shared client — so it holds across every concurrent fan-out at once,</span>
-</span><span data-line="106"><span class="sd">which a per-call worker count cannot promise. Matched to</span>
-</span><span data-line="107"><span class="sd">:data:`peta.core.concurrency.MAX_WORKERS` so a fan-out is never throttled by</span>
-</span><span data-line="108"><span class="sd">a bound narrower than the work it was allowed to start.</span>
-</span><span data-line="109"><span class="sd">"""</span>
+</span><span data-line="47"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="48">    <span class="s2">"DEFAULT_TIMEOUT"</span><span class="p">,</span>
+</span><span data-line="49">    <span class="s2">"MAX_RESPONSE_BYTES"</span><span class="p">,</span>
+</span><span data-line="50">    <span class="s2">"USER_AGENT"</span><span class="p">,</span>
+</span><span data-line="51">    <span class="s2">"Fetched"</span><span class="p">,</span>
+</span><span data-line="52">    <span class="s2">"OfflineError"</span><span class="p">,</span>
+</span><span data-line="53">    <span class="s2">"ResponseTooLargeError"</span><span class="p">,</span>
+</span><span data-line="54">    <span class="s2">"TransportPolicyError"</span><span class="p">,</span>
+</span><span data-line="55">    <span class="s2">"UnsafeURLError"</span><span class="p">,</span>
+</span><span data-line="56">    <span class="s2">"UnsupportedEncodingError"</span><span class="p">,</span>
+</span><span data-line="57">    <span class="s2">"client"</span><span class="p">,</span>
+</span><span data-line="58">    <span class="s2">"get"</span><span class="p">,</span>
+</span><span data-line="59">    <span class="s2">"keep"</span><span class="p">,</span>
+</span><span data-line="60">    <span class="s2">"post"</span><span class="p">,</span>
+</span><span data-line="61"><span class="p">]</span>
+</span><span data-line="62">
+</span><span data-line="63"><span class="n">_NOT_MODIFIED</span> <span class="o">=</span> <span class="mi">304</span>
+</span><span data-line="64"><span class="n">_OK</span> <span class="o">=</span> <span class="mi">200</span>
+</span><span data-line="65">
+</span><span data-line="66">
+</span><span data-line="67"><span class="n">DEFAULT_TIMEOUT</span> <span class="o">=</span> <span class="mf">10.0</span>
+</span><span data-line="68"><span class="sd">"""Per-request timeout, in seconds, applied to every outbound request."""</span>
+</span><span data-line="69">
+</span><span data-line="70"><span class="n">MAX_RESPONSE_BYTES</span> <span class="o">=</span> <span class="mi">64</span> <span class="o">*</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+</span><span data-line="71"><span class="sd">"""Largest response accepted from an untrusted source, in bytes.</span>
+</span><span data-line="72">
+</span><span data-line="73"><span class="sd">Sized against real PyPI data, not a round guess: ``grpcio``'s JSON document is</span>
+</span><span data-line="74"><span class="sd">already 9 MiB and its Simple API page 6.7 MiB, and both grow with every</span>
+</span><span data-line="75"><span class="sd">release. A 10 MiB cap was 87% used by one popular package. This one leaves</span>
+</span><span data-line="76"><span class="sd">room for years of growth while still bounding what a hostile index can make</span>
+</span><span data-line="77"><span class="sd">peta hold in memory.</span>
+</span><span data-line="78"><span class="sd">"""</span>
+</span><span data-line="79">
+</span><span data-line="80"><span class="n">USER_AGENT</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">PROJECT_NAME</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">__version__</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="81"><span class="sd">"""Identifies peta to the APIs it queries, as their usage guidelines ask."""</span>
+</span><span data-line="82">
+</span><span data-line="83"><span class="n">MAX_CONNECTIONS</span> <span class="o">=</span> <span class="n">MAX_WORKERS</span>
+</span><span data-line="84"><span class="sd">"""The real bound on concurrent requests, whatever the thread count.</span>
+</span><span data-line="85">
+</span><span data-line="86"><span class="sd">Sockets are the scarce resource, not threads, and this limit applies to the</span>
+</span><span data-line="87"><span class="sd">one shared client — so it holds across every concurrent fan-out at once,</span>
+</span><span data-line="88"><span class="sd">which a per-call worker count cannot promise. Matched to</span>
+</span><span data-line="89"><span class="sd">:data:`peta.core.concurrency.MAX_WORKERS` so a fan-out is never throttled by</span>
+</span><span data-line="90"><span class="sd">a bound narrower than the work it was allowed to start.</span>
+</span><span data-line="91"><span class="sd">"""</span>
+</span><span data-line="92">
+</span><span data-line="93"><span class="n">_INIT_LOCK</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+</span><span data-line="94"><span class="sd">"""Serializes first use, since ``functools.cache`` does not.</span>
+</span><span data-line="95">
+</span><span data-line="96"><span class="sd">``cache`` never holds a lock across the wrapped call, so simultaneous misses</span>
+</span><span data-line="97"><span class="sd">each run it: N threads racing the first request would build N clients, and</span>
+</span><span data-line="98"><span class="sd">each would be pinned for the process's life by its own ``atexit``</span>
+</span><span data-line="99"><span class="sd">registration. That would leave the first requests on separate pools and an</span>
+</span><span data-line="100"><span class="sd">extra pool alive until shutdown — precisely what this module exists to</span>
+</span><span data-line="101"><span class="sd">prevent. Nothing in peta is threaded today, but bounded concurrency is the</span>
+</span><span data-line="102"><span class="sd">next piece of transport work, so the guard goes in with the client rather</span>
+</span><span data-line="103"><span class="sd">than after something has already raced it.</span>
+</span><span data-line="104"><span class="sd">"""</span>
+</span><span data-line="105">
+</span><span data-line="106">
+</span><span data-line="107"><span class="nd">@_memoize</span>
+</span><span data-line="108"><span class="k">def</span><span class="w"> </span><span class="nf">_build_client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Client</span><span class="p">:</span>
+</span><span data-line="109"><span class="w">    </span><span class="sd">"""Construct the pooled client and arrange for it to be closed.</span>
 </span><span data-line="110">
-</span><span data-line="111"><span class="n">_INIT_LOCK</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
-</span><span data-line="112"><span class="sd">"""Serializes first use, since ``functools.cache`` does not.</span>
-</span><span data-line="113">
-</span><span data-line="114"><span class="sd">``cache`` never holds a lock across the wrapped call, so simultaneous misses</span>
-</span><span data-line="115"><span class="sd">each run it: N threads racing the first request would build N clients, and</span>
-</span><span data-line="116"><span class="sd">each would be pinned for the process's life by its own ``atexit``</span>
-</span><span data-line="117"><span class="sd">registration. That would leave the first requests on separate pools and an</span>
-</span><span data-line="118"><span class="sd">extra pool alive until shutdown — precisely what this module exists to</span>
-</span><span data-line="119"><span class="sd">prevent. Nothing in peta is threaded today, but bounded concurrency is the</span>
-</span><span data-line="120"><span class="sd">next piece of transport work, so the guard goes in with the client rather</span>
-</span><span data-line="121"><span class="sd">than after something has already raced it.</span>
-</span><span data-line="122"><span class="sd">"""</span>
-</span><span data-line="123">
-</span><span data-line="124">
-</span><span data-line="125"><span class="nd">@_memoize</span>
-</span><span data-line="126"><span class="k">def</span><span class="w"> </span><span class="nf">_build_client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Client</span><span class="p">:</span>
-</span><span data-line="127"><span class="w">    </span><span class="sd">"""Construct the pooled client and arrange for it to be closed.</span>
-</span><span data-line="128">
-</span><span data-line="129"><span class="sd">    Closing is registered with :mod:`atexit` because the cache holds the only</span>
-</span><span data-line="130"><span class="sd">    reference for the life of the process: without it the pool's sockets are</span>
-</span><span data-line="131"><span class="sd">    reclaimed by the garbage collector at shutdown, which raises a</span>
-</span><span data-line="132"><span class="sd">    ``ResourceWarning`` that this project's ``filterwarnings = ["error"]``</span>
-</span><span data-line="133"><span class="sd">    turns into a test failure.</span>
-</span><span data-line="134">
-</span><span data-line="135"><span class="sd">    Redirects are refused rather than followed. It is already httpx's default,</span>
-</span><span data-line="136"><span class="sd">    and stated anyway because the HTTPS check runs against the URL peta chose:</span>
-</span><span data-line="137"><span class="sd">    a followed redirect would move the request past it, to another scheme or</span>
-</span><span data-line="138"><span class="sd">    origin, and could carry a credentialed header to wherever the response</span>
-</span><span data-line="139"><span class="sd">    pointed.</span>
+</span><span data-line="111"><span class="sd">    Closing is registered with :mod:`atexit` because the cache holds the only</span>
+</span><span data-line="112"><span class="sd">    reference for the life of the process: without it the pool's sockets are</span>
+</span><span data-line="113"><span class="sd">    reclaimed by the garbage collector at shutdown, which raises a</span>
+</span><span data-line="114"><span class="sd">    ``ResourceWarning`` that this project's ``filterwarnings = ["error"]``</span>
+</span><span data-line="115"><span class="sd">    turns into a test failure.</span>
+</span><span data-line="116">
+</span><span data-line="117"><span class="sd">    Redirects are refused rather than followed. It is already httpx's default,</span>
+</span><span data-line="118"><span class="sd">    and stated anyway because the HTTPS check runs against the URL peta chose:</span>
+</span><span data-line="119"><span class="sd">    a followed redirect would move the request past it, to another scheme or</span>
+</span><span data-line="120"><span class="sd">    origin, and could carry a credentialed header to wherever the response</span>
+</span><span data-line="121"><span class="sd">    pointed.</span>
+</span><span data-line="122">
+</span><span data-line="123"><span class="sd">    Returns:</span>
+</span><span data-line="124"><span class="sd">        A new pooled :class:`httpx.Client`.</span>
+</span><span data-line="125"><span class="sd">    """</span>
+</span><span data-line="126">    <span class="n">instance</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span>
+</span><span data-line="127">        <span class="n">timeout</span><span class="o">=</span><span class="n">DEFAULT_TIMEOUT</span><span class="p">,</span>
+</span><span data-line="128">        <span class="c1"># gzip only, stated rather than left to httpx: it advertises brotli</span>
+</span><span data-line="129">        <span class="c1"># and zstd as soon as their packages are importable, and _read_body</span>
+</span><span data-line="130">        <span class="c1"># bounds decompression for gzip alone.</span>
+</span><span data-line="131">        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"user-agent"</span><span class="p">:</span> <span class="n">USER_AGENT</span><span class="p">,</span> <span class="s2">"accept-encoding"</span><span class="p">:</span> <span class="s2">"gzip"</span><span class="p">},</span>
+</span><span data-line="132">        <span class="n">follow_redirects</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span data-line="133">        <span class="n">limits</span><span class="o">=</span><span class="n">httpx</span><span class="o">.</span><span class="n">Limits</span><span class="p">(</span>
+</span><span data-line="134">            <span class="n">max_connections</span><span class="o">=</span><span class="n">MAX_CONNECTIONS</span><span class="p">,</span> <span class="n">max_keepalive_connections</span><span class="o">=</span><span class="n">MAX_CONNECTIONS</span>
+</span><span data-line="135">        <span class="p">),</span>
+</span><span data-line="136">    <span class="p">)</span>
+</span><span data-line="137">    <span class="n">_</span> <span class="o">=</span> <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">close</span><span class="p">)</span>
+</span><span data-line="138">    <span class="k">return</span> <span class="n">instance</span>
+</span><span data-line="139">
 </span><span data-line="140">
-</span><span data-line="141"><span class="sd">    Returns:</span>
-</span><span data-line="142"><span class="sd">        A new pooled :class:`httpx.Client`.</span>
-</span><span data-line="143"><span class="sd">    """</span>
-</span><span data-line="144">    <span class="n">instance</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span>
-</span><span data-line="145">        <span class="n">timeout</span><span class="o">=</span><span class="n">DEFAULT_TIMEOUT</span><span class="p">,</span>
-</span><span data-line="146">        <span class="c1"># gzip only, stated rather than left to httpx: it advertises brotli</span>
-</span><span data-line="147">        <span class="c1"># and zstd as soon as their packages are importable, and _read_body</span>
-</span><span data-line="148">        <span class="c1"># bounds decompression for gzip alone.</span>
-</span><span data-line="149">        <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"user-agent"</span><span class="p">:</span> <span class="n">USER_AGENT</span><span class="p">,</span> <span class="s2">"accept-encoding"</span><span class="p">:</span> <span class="s2">"gzip"</span><span class="p">},</span>
-</span><span data-line="150">        <span class="n">follow_redirects</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span data-line="151">        <span class="n">limits</span><span class="o">=</span><span class="n">httpx</span><span class="o">.</span><span class="n">Limits</span><span class="p">(</span>
-</span><span data-line="152">            <span class="n">max_connections</span><span class="o">=</span><span class="n">MAX_CONNECTIONS</span><span class="p">,</span> <span class="n">max_keepalive_connections</span><span class="o">=</span><span class="n">MAX_CONNECTIONS</span>
-</span><span data-line="153">        <span class="p">),</span>
-</span><span data-line="154">    <span class="p">)</span>
-</span><span data-line="155">    <span class="n">_</span> <span class="o">=</span> <span class="n">atexit</span><span class="o">.</span><span class="n">register</span><span class="p">(</span><span class="n">instance</span><span class="o">.</span><span class="n">close</span><span class="p">)</span>
-</span><span data-line="156">    <span class="k">return</span> <span class="n">instance</span>
-</span><span data-line="157">
-</span><span data-line="158">
 <div class="viewcode-block" id="client">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.client">[docs]</a>
-</span><span data-line="159"><span class="k">def</span><span class="w"> </span><span class="nf">client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Client</span><span class="p">:</span>
-</span><span data-line="160"><span class="w">    </span><span class="sd">"""Return the process-wide pooled client, building it on first use.</span>
-</span><span data-line="161">
-</span><span data-line="162"><span class="sd">    Built on demand rather than at import time because constructing a client</span>
-</span><span data-line="163"><span class="sd">    loads the system CA bundle, which costs tens of milliseconds — a price</span>
-</span><span data-line="164"><span class="sd">    ``peta files`` and ``peta info --local`` should not pay to import a module</span>
-</span><span data-line="165"><span class="sd">    they never send a request through.</span>
-</span><span data-line="166">
-</span><span data-line="167"><span class="sd">    Returns:</span>
-</span><span data-line="168"><span class="sd">        The shared :class:`httpx.Client`.</span>
-</span><span data-line="169"><span class="sd">    """</span>
-</span><span data-line="170">    <span class="k">with</span> <span class="n">_INIT_LOCK</span><span class="p">:</span>
-</span><span data-line="171">        <span class="k">return</span> <span class="n">_build_client</span><span class="p">()</span></div>
+</span><span data-line="141"><span class="k">def</span><span class="w"> </span><span class="nf">client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Client</span><span class="p">:</span>
+</span><span data-line="142"><span class="w">    </span><span class="sd">"""Return the process-wide pooled client, building it on first use.</span>
+</span><span data-line="143">
+</span><span data-line="144"><span class="sd">    Built on demand rather than at import time because constructing a client</span>
+</span><span data-line="145"><span class="sd">    loads the system CA bundle, which costs tens of milliseconds — a price</span>
+</span><span data-line="146"><span class="sd">    ``peta files`` and ``peta info --local`` should not pay to import a module</span>
+</span><span data-line="147"><span class="sd">    they never send a request through.</span>
+</span><span data-line="148">
+</span><span data-line="149"><span class="sd">    Returns:</span>
+</span><span data-line="150"><span class="sd">        The shared :class:`httpx.Client`.</span>
+</span><span data-line="151"><span class="sd">    """</span>
+</span><span data-line="152">    <span class="k">with</span> <span class="n">_INIT_LOCK</span><span class="p">:</span>
+</span><span data-line="153">        <span class="k">return</span> <span class="n">_build_client</span><span class="p">()</span></div>
 
-</span><span data-line="172">
-</span><span data-line="173">
+</span><span data-line="154">
+</span><span data-line="155">
 <div class="viewcode-block" id="Fetched">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.Fetched">[docs]</a>
-</span><span data-line="174"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span data-line="175"><span class="k">class</span><span class="w"> </span><span class="nc">Fetched</span><span class="p">:</span>
-</span><span data-line="176"><span class="w">    </span><span class="sd">"""A response, where it came from, and whether it may still be cached."""</span>
-</span><span data-line="177">
-</span><span data-line="178">    <span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span>
-</span><span data-line="179">    <span class="n">provenance</span><span class="p">:</span> <span class="n">Provenance</span>
-</span><span data-line="180">    <span class="n">cache_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="181"><span class="w">    </span><span class="sd">"""Set only for a live response the caller may still choose to keep.</span>
-</span><span data-line="182">
-</span><span data-line="183"><span class="sd">    ``None`` for anything already stored, or for a response that must never</span>
-</span><span data-line="184"><span class="sd">    be stored, so :func:`keep` is safe to call unconditionally.</span>
-</span><span data-line="185"><span class="sd">    """</span></div>
+</span><span data-line="156"><span class="nd">@dataclass</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span data-line="157"><span class="k">class</span><span class="w"> </span><span class="nc">Fetched</span><span class="p">:</span>
+</span><span data-line="158"><span class="w">    </span><span class="sd">"""A response, where it came from, and whether it may still be cached."""</span>
+</span><span data-line="159">
+</span><span data-line="160">    <span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span>
+</span><span data-line="161">    <span class="n">provenance</span><span class="p">:</span> <span class="n">Provenance</span>
+</span><span data-line="162">    <span class="n">cache_key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="163"><span class="w">    </span><span class="sd">"""Set only for a live response the caller may still choose to keep.</span>
+</span><span data-line="164">
+</span><span data-line="165"><span class="sd">    ``None`` for anything already stored, or for a response that must never</span>
+</span><span data-line="166"><span class="sd">    be stored, so :func:`keep` is safe to call unconditionally.</span>
+</span><span data-line="167"><span class="sd">    """</span></div>
 
-</span><span data-line="186">
-</span><span data-line="187">
+</span><span data-line="168">
+</span><span data-line="169">
 <div class="viewcode-block" id="OfflineError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.OfflineError">[docs]</a>
-</span><span data-line="188"><span class="k">class</span><span class="w"> </span><span class="nc">OfflineError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-</span><span data-line="189"><span class="w">    </span><span class="sd">"""Raised when offline mode is on and the cache cannot answer.</span>
-</span><span data-line="190">
-</span><span data-line="191"><span class="sd">    Distinct from :class:`~peta.core.remote.NetworkError`: nothing went</span>
-</span><span data-line="192"><span class="sd">    wrong, peta was told not to use the network and does not hold the answer.</span>
-</span><span data-line="193"><span class="sd">    Conflating the two would tell a user to check their connection when the</span>
-</span><span data-line="194"><span class="sd">    fix is to drop ``--offline`` or warm the cache.</span>
-</span><span data-line="195"><span class="sd">    """</span>
-</span><span data-line="196">
-</span><span data-line="197">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="198"><span class="w">        </span><span class="sd">"""Name the request that could not be served offline.</span>
-</span><span data-line="199">
-</span><span data-line="200"><span class="sd">        The URL is redacted here rather than at each raise site, so no future</span>
-</span><span data-line="201"><span class="sd">        caller can leak a credential by forgetting to. Libraries.io takes its</span>
-</span><span data-line="202"><span class="sd">        API key in the query string, and this message is surfaced to users:</span>
-</span><span data-line="203"><span class="sd">        for a fatal lookup it becomes the ``offline_unavailable`` error in the</span>
-</span><span data-line="204"><span class="sd">        envelope, and for an optional one it survives as the ``__cause__`` of</span>
-</span><span data-line="205"><span class="sd">        the source failure, where any traceback would print it.</span>
-</span><span data-line="206"><span class="sd">        """</span>
-</span><span data-line="207">        <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="208">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"offline and no cached response for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
+</span><span data-line="170"><span class="k">class</span><span class="w"> </span><span class="nc">OfflineError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
+</span><span data-line="171"><span class="w">    </span><span class="sd">"""Raised when offline mode is on and the cache cannot answer.</span>
+</span><span data-line="172">
+</span><span data-line="173"><span class="sd">    Distinct from :class:`~peta.core.remote.NetworkError`: nothing went</span>
+</span><span data-line="174"><span class="sd">    wrong, peta was told not to use the network and does not hold the answer.</span>
+</span><span data-line="175"><span class="sd">    Conflating the two would tell a user to check their connection when the</span>
+</span><span data-line="176"><span class="sd">    fix is to drop ``--offline`` or warm the cache.</span>
+</span><span data-line="177"><span class="sd">    """</span>
+</span><span data-line="178">
+</span><span data-line="179">    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="180"><span class="w">        </span><span class="sd">"""Name the request that could not be served offline.</span>
+</span><span data-line="181">
+</span><span data-line="182"><span class="sd">        The URL is redacted here rather than at each raise site, so no future</span>
+</span><span data-line="183"><span class="sd">        caller can leak a credential by forgetting to. Libraries.io takes its</span>
+</span><span data-line="184"><span class="sd">        API key in the query string, and this message is surfaced to users:</span>
+</span><span data-line="185"><span class="sd">        for a fatal lookup it becomes the ``offline_unavailable`` error in the</span>
+</span><span data-line="186"><span class="sd">        envelope, and for an optional one it survives as the ``__cause__`` of</span>
+</span><span data-line="187"><span class="sd">        the source failure, where any traceback would print it.</span>
+</span><span data-line="188"><span class="sd">        """</span>
+</span><span data-line="189">        <span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="190">        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="sa">f</span><span class="s2">"offline and no cached response for </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">url</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span></div>
 
-</span><span data-line="209">
-</span><span data-line="210">
+</span><span data-line="191">
+</span><span data-line="192">
 <div class="viewcode-block" id="TransportPolicyError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.TransportPolicyError">[docs]</a>
-</span><span data-line="211"><span class="k">class</span><span class="w"> </span><span class="nc">TransportPolicyError</span><span class="p">(</span><span class="n">httpx</span><span class="o">.</span><span class="n">RequestError</span><span class="p">):</span>
-</span><span data-line="212"><span class="w">    </span><span class="sd">"""A request peta refused, or could not start, before any reply existed.</span>
-</span><span data-line="213">
-</span><span data-line="214"><span class="sd">    Derived from :class:`httpx.RequestError` so that these checks join the</span>
-</span><span data-line="215"><span class="sd">    contract every source already handles. Each one maps a failed request onto</span>
-</span><span data-line="216"><span class="sd">    its own error type by catching ``httpx.RequestError``; an exception outside</span>
-</span><span data-line="217"><span class="sd">    that hierarchy reaches the CLI unhandled, which prints a traceback and no</span>
-</span><span data-line="218"><span class="sd">    message at all. A request peta declined to send has failed in exactly the</span>
-</span><span data-line="219"><span class="sd">    sense those handlers already describe.</span>
-</span><span data-line="220"><span class="sd">    """</span></div>
+</span><span data-line="193"><span class="k">class</span><span class="w"> </span><span class="nc">TransportPolicyError</span><span class="p">(</span><span class="n">httpx</span><span class="o">.</span><span class="n">RequestError</span><span class="p">):</span>
+</span><span data-line="194"><span class="w">    </span><span class="sd">"""A request peta refused, or could not start, before any reply existed.</span>
+</span><span data-line="195">
+</span><span data-line="196"><span class="sd">    Derived from :class:`httpx.RequestError` so that these checks join the</span>
+</span><span data-line="197"><span class="sd">    contract every source already handles. Each one maps a failed request onto</span>
+</span><span data-line="198"><span class="sd">    its own error type by catching ``httpx.RequestError``; an exception outside</span>
+</span><span data-line="199"><span class="sd">    that hierarchy reaches the CLI unhandled, which prints a traceback and no</span>
+</span><span data-line="200"><span class="sd">    message at all. A request peta declined to send has failed in exactly the</span>
+</span><span data-line="201"><span class="sd">    sense those handlers already describe.</span>
+</span><span data-line="202"><span class="sd">    """</span></div>
 
-</span><span data-line="221">
-</span><span data-line="222">
+</span><span data-line="203">
+</span><span data-line="204">
 <div class="viewcode-block" id="UnsafeURLError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.UnsafeURLError">[docs]</a>
-</span><span data-line="223"><span class="k">class</span><span class="w"> </span><span class="nc">UnsafeURLError</span><span class="p">(</span><span class="n">TransportPolicyError</span><span class="p">):</span>
-</span><span data-line="224"><span class="w">    </span><span class="sd">"""Raised before a request to a non-HTTPS URL can be sent."""</span></div>
+</span><span data-line="205"><span class="k">class</span><span class="w"> </span><span class="nc">UnsafeURLError</span><span class="p">(</span><span class="n">TransportPolicyError</span><span class="p">):</span>
+</span><span data-line="206"><span class="w">    </span><span class="sd">"""Raised before a request to a non-HTTPS URL can be sent."""</span></div>
 
-</span><span data-line="225">
-</span><span data-line="226">
+</span><span data-line="207">
+</span><span data-line="208">
 <div class="viewcode-block" id="ResponseTooLargeError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.ResponseTooLargeError">[docs]</a>
-</span><span data-line="227"><span class="k">class</span><span class="w"> </span><span class="nc">ResponseTooLargeError</span><span class="p">(</span><span class="n">TransportPolicyError</span><span class="p">):</span>
-</span><span data-line="228"><span class="w">    </span><span class="sd">"""Raised when an untrusted source exceeds the response-size limit."""</span></div>
+</span><span data-line="209"><span class="k">class</span><span class="w"> </span><span class="nc">ResponseTooLargeError</span><span class="p">(</span><span class="n">TransportPolicyError</span><span class="p">):</span>
+</span><span data-line="210"><span class="w">    </span><span class="sd">"""Raised when an untrusted source exceeds the response-size limit."""</span></div>
 
-</span><span data-line="229">
+</span><span data-line="211">
+</span><span data-line="212">
+</span><span data-line="213"><span class="k">def</span><span class="w"> </span><span class="nf">_checked_url</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="214"><span class="w">    </span><span class="sd">"""Accept only absolute HTTPS URLs before constructing a request.</span>
+</span><span data-line="215">
+</span><span data-line="216"><span class="sd">    Redirects remain disabled on the shared client, so a response cannot move a</span>
+</span><span data-line="217"><span class="sd">    request to another origin or carry any caller-supplied headers there.</span>
+</span><span data-line="218">
+</span><span data-line="219"><span class="sd">    Returns:</span>
+</span><span data-line="220"><span class="sd">        The normalized HTTPS URL.</span>
+</span><span data-line="221">
+</span><span data-line="222"><span class="sd">    Raises:</span>
+</span><span data-line="223"><span class="sd">        UnsafeURLError: If the URL is not absolute HTTPS.</span>
+</span><span data-line="224"><span class="sd">    """</span>
+</span><span data-line="225">    <span class="n">parsed</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="226">    <span class="k">if</span> <span class="n">parsed</span><span class="o">.</span><span class="n">scheme</span> <span class="o">!=</span> <span class="s2">"https"</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">parsed</span><span class="o">.</span><span class="n">host</span><span class="p">:</span>
+</span><span data-line="227">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Refusing unsafe URL </span><span class="si">{</span><span class="n">cache</span><span class="o">.</span><span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="si">!r}</span><span class="s2">; HTTPS is required."</span>
+</span><span data-line="228">        <span class="k">raise</span> <span class="n">UnsafeURLError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+</span><span data-line="229">    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">parsed</span><span class="p">)</span>
 </span><span data-line="230">
-</span><span data-line="231"><span class="k">def</span><span class="w"> </span><span class="nf">_checked_url</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="232"><span class="w">    </span><span class="sd">"""Accept only absolute HTTPS URLs before constructing a request.</span>
+</span><span data-line="231">
+</span><span data-line="232"><span class="n">_TOO_LARGE</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Response exceeds the </span><span class="si">{</span><span class="n">MAX_RESPONSE_BYTES</span><span class="si">}</span><span class="s2">-byte limit."</span>
 </span><span data-line="233">
-</span><span data-line="234"><span class="sd">    Redirects remain disabled on the shared client, so a response cannot move a</span>
-</span><span data-line="235"><span class="sd">    request to another origin or carry any caller-supplied headers there.</span>
-</span><span data-line="236">
-</span><span data-line="237"><span class="sd">    Returns:</span>
-</span><span data-line="238"><span class="sd">        The normalized HTTPS URL.</span>
-</span><span data-line="239">
-</span><span data-line="240"><span class="sd">    Raises:</span>
-</span><span data-line="241"><span class="sd">        UnsafeURLError: If the URL is not absolute HTTPS.</span>
-</span><span data-line="242"><span class="sd">    """</span>
-</span><span data-line="243">    <span class="n">parsed</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="244">    <span class="k">if</span> <span class="n">parsed</span><span class="o">.</span><span class="n">scheme</span> <span class="o">!=</span> <span class="s2">"https"</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">parsed</span><span class="o">.</span><span class="n">host</span><span class="p">:</span>
-</span><span data-line="245">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Refusing unsafe URL </span><span class="si">{</span><span class="n">cache</span><span class="o">.</span><span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="si">!r}</span><span class="s2">; HTTPS is required."</span>
-</span><span data-line="246">        <span class="k">raise</span> <span class="n">UnsafeURLError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="247">    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">parsed</span><span class="p">)</span>
+</span><span data-line="234"><span class="n">_TRANSFER_HEADERS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
+</span><span data-line="235">    <span class="s2">"content-encoding"</span><span class="p">,</span>
+</span><span data-line="236">    <span class="s2">"content-length"</span><span class="p">,</span>
+</span><span data-line="237">    <span class="s2">"transfer-encoding"</span><span class="p">,</span>
+</span><span data-line="238"><span class="p">})</span>
+</span><span data-line="239"><span class="sd">"""Headers that describe the body *on the wire*, not the body peta ends up with.</span>
+</span><span data-line="240">
+</span><span data-line="241"><span class="sd">:func:`_checked_response` hands httpx bytes it has already decoded, so leaving</span>
+</span><span data-line="242"><span class="sd">``content-encoding`` in place would make httpx decompress a second time and</span>
+</span><span data-line="243"><span class="sd">fail on every gzipped response — which is most of them. ``content-length`` and</span>
+</span><span data-line="244"><span class="sd">``transfer-encoding`` describe the same encoded stream and are equally wrong</span>
+</span><span data-line="245"><span class="sd">afterwards; httpx recomputes the length from the content it is given.</span>
+</span><span data-line="246"><span class="sd">"""</span>
+</span><span data-line="247">
 </span><span data-line="248">
-</span><span data-line="249">
-</span><span data-line="250"><span class="n">_TOO_LARGE</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Response exceeds the </span><span class="si">{</span><span class="n">MAX_RESPONSE_BYTES</span><span class="si">}</span><span class="s2">-byte limit."</span>
-</span><span data-line="251">
-</span><span data-line="252"><span class="n">_TRANSFER_HEADERS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span>
-</span><span data-line="253">    <span class="s2">"content-encoding"</span><span class="p">,</span>
-</span><span data-line="254">    <span class="s2">"content-length"</span><span class="p">,</span>
-</span><span data-line="255">    <span class="s2">"transfer-encoding"</span><span class="p">,</span>
-</span><span data-line="256"><span class="p">})</span>
-</span><span data-line="257"><span class="sd">"""Headers that describe the body *on the wire*, not the body peta ends up with.</span>
-</span><span data-line="258">
-</span><span data-line="259"><span class="sd">:func:`_checked_response` hands httpx bytes it has already decoded, so leaving</span>
-</span><span data-line="260"><span class="sd">``content-encoding`` in place would make httpx decompress a second time and</span>
-</span><span data-line="261"><span class="sd">fail on every gzipped response — which is most of them. ``content-length`` and</span>
-</span><span data-line="262"><span class="sd">``transfer-encoding`` describe the same encoded stream and are equally wrong</span>
-</span><span data-line="263"><span class="sd">afterwards; httpx recomputes the length from the content it is given.</span>
-</span><span data-line="264"><span class="sd">"""</span>
-</span><span data-line="265">
-</span><span data-line="266">
 <div class="viewcode-block" id="UnsupportedEncodingError">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.UnsupportedEncodingError">[docs]</a>
-</span><span data-line="267"><span class="k">class</span><span class="w"> </span><span class="nc">UnsupportedEncodingError</span><span class="p">(</span><span class="n">TransportPolicyError</span><span class="p">):</span>
-</span><span data-line="268"><span class="w">    </span><span class="sd">"""Raised when a response uses a content encoding peta did not ask for."""</span></div>
+</span><span data-line="249"><span class="k">class</span><span class="w"> </span><span class="nc">UnsupportedEncodingError</span><span class="p">(</span><span class="n">TransportPolicyError</span><span class="p">):</span>
+</span><span data-line="250"><span class="w">    </span><span class="sd">"""Raised when a response uses a content encoding peta did not ask for."""</span></div>
 
+</span><span data-line="251">
+</span><span data-line="252">
+</span><span data-line="253"><span class="k">def</span><span class="w"> </span><span class="nf">_decompressor</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_Decompress</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="254"><span class="w">    </span><span class="sd">"""Choose how to decode a body, refusing any encoding peta cannot bound.</span>
+</span><span data-line="255">
+</span><span data-line="256"><span class="sd">    Returns:</span>
+</span><span data-line="257"><span class="sd">        A gzip decompressor, or ``None`` for a body sent as-is.</span>
+</span><span data-line="258">
+</span><span data-line="259"><span class="sd">    Raises:</span>
+</span><span data-line="260"><span class="sd">        UnsupportedEncodingError: If the body uses any other encoding.</span>
+</span><span data-line="261"><span class="sd">    """</span>
+</span><span data-line="262">    <span class="n">encoding</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str"</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content-encoding"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</span><span data-line="263">    <span class="k">if</span> <span class="n">encoding</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"identity"</span><span class="p">}:</span>
+</span><span data-line="264">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="265">    <span class="k">if</span> <span class="n">encoding</span> <span class="o">==</span> <span class="s2">"gzip"</span><span class="p">:</span>
+</span><span data-line="266">        <span class="k">return</span> <span class="n">zlib</span><span class="o">.</span><span class="n">decompressobj</span><span class="p">(</span><span class="mi">16</span> <span class="o">+</span> <span class="n">zlib</span><span class="o">.</span><span class="n">MAX_WBITS</span><span class="p">)</span>
+</span><span data-line="267">    <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Refusing unrequested content encoding </span><span class="si">{</span><span class="n">encoding</span><span class="si">!r}</span><span class="s2">."</span>
+</span><span data-line="268">    <span class="k">raise</span> <span class="n">UnsupportedEncodingError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 </span><span data-line="269">
 </span><span data-line="270">
-</span><span data-line="271"><span class="k">def</span><span class="w"> </span><span class="nf">_decompressor</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">_Decompressor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="272"><span class="w">    </span><span class="sd">"""Choose how to decode a body, refusing any encoding peta cannot bound.</span>
+</span><span data-line="271"><span class="k">def</span><span class="w"> </span><span class="nf">_refuse_declared_oversize</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="272"><span class="w">    </span><span class="sd">"""Refuse a body whose declared length is already over the limit.</span>
 </span><span data-line="273">
-</span><span data-line="274"><span class="sd">    Returns:</span>
-</span><span data-line="275"><span class="sd">        A gzip decompressor, or ``None`` for a body sent as-is.</span>
-</span><span data-line="276">
-</span><span data-line="277"><span class="sd">    Raises:</span>
-</span><span data-line="278"><span class="sd">        UnsupportedEncodingError: If the body uses any other encoding.</span>
-</span><span data-line="279"><span class="sd">    """</span>
-</span><span data-line="280">    <span class="n">encoding</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str"</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content-encoding"</span><span class="p">,</span> <span class="s2">""</span><span class="p">))</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
-</span><span data-line="281">    <span class="k">if</span> <span class="n">encoding</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">""</span><span class="p">,</span> <span class="s2">"identity"</span><span class="p">}:</span>
-</span><span data-line="282">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="283">    <span class="k">if</span> <span class="n">encoding</span> <span class="o">==</span> <span class="s2">"gzip"</span><span class="p">:</span>
-</span><span data-line="284">        <span class="k">return</span> <span class="n">zlib</span><span class="o">.</span><span class="n">decompressobj</span><span class="p">(</span><span class="mi">16</span> <span class="o">+</span> <span class="n">zlib</span><span class="o">.</span><span class="n">MAX_WBITS</span><span class="p">)</span>
-</span><span data-line="285">    <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Refusing unrequested content encoding </span><span class="si">{</span><span class="n">encoding</span><span class="si">!r}</span><span class="s2">."</span>
-</span><span data-line="286">    <span class="k">raise</span> <span class="n">UnsupportedEncodingError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-</span><span data-line="287">
+</span><span data-line="274"><span class="sd">    Raises:</span>
+</span><span data-line="275"><span class="sd">        ResponseTooLargeError: If ``content-length`` exceeds the limit.</span>
+</span><span data-line="276"><span class="sd">    """</span>
+</span><span data-line="277">    <span class="n">declared</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content-length"</span><span class="p">))</span>
+</span><span data-line="278">    <span class="k">if</span> <span class="p">(</span>
+</span><span data-line="279">        <span class="n">declared</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+</span><span data-line="280">        <span class="ow">and</span> <span class="n">declared</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span>
+</span><span data-line="281">        <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">declared</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span>
+</span><span data-line="282">    <span class="p">):</span>
+</span><span data-line="283">        <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
+</span><span data-line="284">
+</span><span data-line="285">
+</span><span data-line="286"><span class="n">_INFLATE_STEP</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
+</span><span data-line="287"><span class="sd">"""Most output one decompression call may produce, in bytes."""</span>
 </span><span data-line="288">
-</span><span data-line="289"><span class="k">def</span><span class="w"> </span><span class="nf">_refuse_declared_oversize</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="290"><span class="w">    </span><span class="sd">"""Refuse a body whose declared length is already over the limit.</span>
+</span><span data-line="289"><span class="n">_AFTER_END</span> <span class="o">=</span> <span class="s2">"Unexpected data after the end of the gzip stream."</span>
+</span><span data-line="290"><span class="n">_CUT_SHORT</span> <span class="o">=</span> <span class="s2">"The gzip stream ended before its end-of-stream marker."</span>
 </span><span data-line="291">
-</span><span data-line="292"><span class="sd">    Raises:</span>
-</span><span data-line="293"><span class="sd">        ResponseTooLargeError: If ``content-length`` exceeds the limit.</span>
-</span><span data-line="294"><span class="sd">    """</span>
-</span><span data-line="295">    <span class="n">declared</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"content-length"</span><span class="p">))</span>
-</span><span data-line="296">    <span class="k">if</span> <span class="p">(</span>
-</span><span data-line="297">        <span class="n">declared</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-</span><span data-line="298">        <span class="ow">and</span> <span class="n">declared</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span>
-</span><span data-line="299">        <span class="ow">and</span> <span class="nb">int</span><span class="p">(</span><span class="n">declared</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span>
-</span><span data-line="300">    <span class="p">):</span>
-</span><span data-line="301">        <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
-</span><span data-line="302">
-</span><span data-line="303">
-</span><span data-line="304"><span class="n">_INFLATE_STEP</span> <span class="o">=</span> <span class="mi">1024</span> <span class="o">*</span> <span class="mi">1024</span>
-</span><span data-line="305"><span class="sd">"""Most output one decompression call may produce, in bytes."""</span>
-</span><span data-line="306">
-</span><span data-line="307"><span class="n">_AFTER_END</span> <span class="o">=</span> <span class="s2">"Unexpected data after the end of the gzip stream."</span>
-</span><span data-line="308"><span class="n">_CUT_SHORT</span> <span class="o">=</span> <span class="s2">"The gzip stream ended before its end-of-stream marker."</span>
-</span><span data-line="309">
-</span><span data-line="310">
-</span><span data-line="311"><span class="k">def</span><span class="w"> </span><span class="nf">_inflate_into</span><span class="p">(</span>
-</span><span data-line="312">    <span class="n">content</span><span class="p">:</span> <span class="nb">bytearray</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">:</span> <span class="n">_Decompressor</span><span class="p">,</span> <span class="n">chunk</span><span class="p">:</span> <span class="nb">bytes</span>
-</span><span data-line="313"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="314"><span class="w">    </span><span class="sd">"""Decompress one wire chunk into ``content`` a bounded step at a time.</span>
-</span><span data-line="315">
-</span><span data-line="316"><span class="sd">    Each call is capped with ``max_length`` at one step, and never at more than</span>
-</span><span data-line="317"><span class="sd">    one byte past the remaining budget, so the call that would cross the limit</span>
-</span><span data-line="318"><span class="sd">    is the one that detects it, having allocated at most a step. Capping only</span>
-</span><span data-line="319"><span class="sd">    at the budget would let a single call return the whole budget as a fresh</span>
-</span><span data-line="320"><span class="sd">    object before it is copied into ``content`` — twice the limit at peak.</span>
-</span><span data-line="321">
-</span><span data-line="322"><span class="sd">    Input arriving after the end of the gzip stream is refused rather than</span>
-</span><span data-line="323"><span class="sd">    ignored. zlib keeps it in ``unused_data``, re-copying the whole buffer on</span>
-</span><span data-line="324"><span class="sd">    every call, so a tiny valid member followed by an endless trailer grew</span>
-</span><span data-line="325"><span class="sd">    memory without bound while the decoded body stayed small — 300 MiB of</span>
-</span><span data-line="326"><span class="sd">    trailer peaked at 600 MiB. Taking that leftover as the next input makes</span>
-</span><span data-line="327"><span class="sd">    it reach the end-of-stream check, holding at most one chunk.</span>
-</span><span data-line="328">
-</span><span data-line="329"><span class="sd">    Raises:</span>
-</span><span data-line="330"><span class="sd">        ResponseTooLargeError: If the decoded body exceeds the limit.</span>
-</span><span data-line="331"><span class="sd">        DecodingError: If any data follows the end of the gzip stream.</span>
-</span><span data-line="332"><span class="sd">    """</span>
-</span><span data-line="333">    <span class="n">data</span> <span class="o">=</span> <span class="n">chunk</span>
-</span><span data-line="334">    <span class="k">while</span> <span class="n">data</span><span class="p">:</span>
-</span><span data-line="335">        <span class="k">if</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">eof</span><span class="p">:</span>
-</span><span data-line="336">            <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">_AFTER_END</span><span class="p">)</span>
-</span><span data-line="337">        <span class="n">budget</span> <span class="o">=</span> <span class="n">MAX_RESPONSE_BYTES</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
-</span><span data-line="338">        <span class="n">content</span> <span class="o">+=</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">budget</span><span class="p">,</span> <span class="n">_INFLATE_STEP</span><span class="p">))</span>
-</span><span data-line="339">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span><span class="p">:</span>
-</span><span data-line="340">            <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
-</span><span data-line="341">        <span class="n">data</span> <span class="o">=</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">unconsumed_tail</span> <span class="ow">or</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">unused_data</span>
-</span><span data-line="342">
+</span><span data-line="292">
+</span><span data-line="293"><span class="k">def</span><span class="w"> </span><span class="nf">_inflate_into</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">bytearray</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">:</span> <span class="n">_Decompress</span><span class="p">,</span> <span class="n">chunk</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="294"><span class="w">    </span><span class="sd">"""Decompress one wire chunk into ``content`` a bounded step at a time.</span>
+</span><span data-line="295">
+</span><span data-line="296"><span class="sd">    Each call is capped with ``max_length`` at one step, and never at more than</span>
+</span><span data-line="297"><span class="sd">    one byte past the remaining budget, so the call that would cross the limit</span>
+</span><span data-line="298"><span class="sd">    is the one that detects it, having allocated at most a step. Capping only</span>
+</span><span data-line="299"><span class="sd">    at the budget would let a single call return the whole budget as a fresh</span>
+</span><span data-line="300"><span class="sd">    object before it is copied into ``content`` — twice the limit at peak.</span>
+</span><span data-line="301">
+</span><span data-line="302"><span class="sd">    Input arriving after the end of the gzip stream is refused rather than</span>
+</span><span data-line="303"><span class="sd">    ignored. zlib keeps it in ``unused_data``, re-copying the whole buffer on</span>
+</span><span data-line="304"><span class="sd">    every call, so a tiny valid member followed by an endless trailer grew</span>
+</span><span data-line="305"><span class="sd">    memory without bound while the decoded body stayed small — 300 MiB of</span>
+</span><span data-line="306"><span class="sd">    trailer peaked at 600 MiB. Taking that leftover as the next input makes</span>
+</span><span data-line="307"><span class="sd">    it reach the end-of-stream check, holding at most one chunk.</span>
+</span><span data-line="308">
+</span><span data-line="309"><span class="sd">    Raises:</span>
+</span><span data-line="310"><span class="sd">        ResponseTooLargeError: If the decoded body exceeds the limit.</span>
+</span><span data-line="311"><span class="sd">        DecodingError: If any data follows the end of the gzip stream.</span>
+</span><span data-line="312"><span class="sd">    """</span>
+</span><span data-line="313">    <span class="n">data</span> <span class="o">=</span> <span class="n">chunk</span>
+</span><span data-line="314">    <span class="k">while</span> <span class="n">data</span><span class="p">:</span>
+</span><span data-line="315">        <span class="k">if</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">eof</span><span class="p">:</span>
+</span><span data-line="316">            <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">_AFTER_END</span><span class="p">)</span>
+</span><span data-line="317">        <span class="n">budget</span> <span class="o">=</span> <span class="n">MAX_RESPONSE_BYTES</span> <span class="o">-</span> <span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+</span><span data-line="318">        <span class="n">content</span> <span class="o">+=</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">decompress</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="nb">min</span><span class="p">(</span><span class="n">budget</span><span class="p">,</span> <span class="n">_INFLATE_STEP</span><span class="p">))</span>
+</span><span data-line="319">        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span><span class="p">:</span>
+</span><span data-line="320">            <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
+</span><span data-line="321">        <span class="n">data</span> <span class="o">=</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">unconsumed_tail</span> <span class="ow">or</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">unused_data</span>
+</span><span data-line="322">
+</span><span data-line="323">
+</span><span data-line="324"><span class="k">def</span><span class="w"> </span><span class="nf">_append</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">bytearray</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">:</span> <span class="n">_Decompress</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">chunk</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="325"><span class="w">    </span><span class="sd">"""Add one chunk of body to ``content``, decoding it if it is compressed.</span>
+</span><span data-line="326">
+</span><span data-line="327"><span class="sd">    Raises:</span>
+</span><span data-line="328"><span class="sd">        ResponseTooLargeError: If the decoded body exceeds the limit.</span>
+</span><span data-line="329"><span class="sd">    """</span>
+</span><span data-line="330">    <span class="k">if</span> <span class="n">decompressor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="331">        <span class="n">_inflate_into</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
+</span><span data-line="332">        <span class="k">return</span>
+</span><span data-line="333">    <span class="n">content</span> <span class="o">+=</span> <span class="n">chunk</span>
+</span><span data-line="334">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span><span class="p">:</span>
+</span><span data-line="335">        <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
+</span><span data-line="336">
+</span><span data-line="337">
+</span><span data-line="338"><span class="k">def</span><span class="w"> </span><span class="nf">_measured</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+</span><span data-line="339"><span class="w">    </span><span class="sd">"""Return a body already in memory, if it is within the limit.</span>
+</span><span data-line="340">
+</span><span data-line="341"><span class="sd">    Returns:</span>
+</span><span data-line="342"><span class="sd">        The body unchanged.</span>
 </span><span data-line="343">
-</span><span data-line="344"><span class="k">def</span><span class="w"> </span><span class="nf">_append</span><span class="p">(</span>
-</span><span data-line="345">    <span class="n">content</span><span class="p">:</span> <span class="nb">bytearray</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">:</span> <span class="n">_Decompressor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">chunk</span><span class="p">:</span> <span class="nb">bytes</span>
-</span><span data-line="346"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="347"><span class="w">    </span><span class="sd">"""Add one chunk of body to ``content``, decoding it if it is compressed.</span>
-</span><span data-line="348">
-</span><span data-line="349"><span class="sd">    Raises:</span>
-</span><span data-line="350"><span class="sd">        ResponseTooLargeError: If the decoded body exceeds the limit.</span>
-</span><span data-line="351"><span class="sd">    """</span>
-</span><span data-line="352">    <span class="k">if</span> <span class="n">decompressor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="353">        <span class="n">_inflate_into</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
-</span><span data-line="354">        <span class="k">return</span>
-</span><span data-line="355">    <span class="n">content</span> <span class="o">+=</span> <span class="n">chunk</span>
-</span><span data-line="356">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">content</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span><span class="p">:</span>
-</span><span data-line="357">        <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
-</span><span data-line="358">
-</span><span data-line="359">
-</span><span data-line="360"><span class="k">def</span><span class="w"> </span><span class="nf">_measured</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-</span><span data-line="361"><span class="w">    </span><span class="sd">"""Return a body already in memory, if it is within the limit.</span>
-</span><span data-line="362">
-</span><span data-line="363"><span class="sd">    Returns:</span>
-</span><span data-line="364"><span class="sd">        The body unchanged.</span>
-</span><span data-line="365">
-</span><span data-line="366"><span class="sd">    Raises:</span>
-</span><span data-line="367"><span class="sd">        ResponseTooLargeError: If the body exceeds the limit.</span>
-</span><span data-line="368"><span class="sd">    """</span>
-</span><span data-line="369">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span><span class="p">:</span>
-</span><span data-line="370">        <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
-</span><span data-line="371">    <span class="k">return</span> <span class="n">body</span>
-</span><span data-line="372">
+</span><span data-line="344"><span class="sd">    Raises:</span>
+</span><span data-line="345"><span class="sd">        ResponseTooLargeError: If the body exceeds the limit.</span>
+</span><span data-line="346"><span class="sd">    """</span>
+</span><span data-line="347">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span><span class="p">:</span>
+</span><span data-line="348">        <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
+</span><span data-line="349">    <span class="k">return</span> <span class="n">body</span>
+</span><span data-line="350">
+</span><span data-line="351">
+</span><span data-line="352"><span class="k">def</span><span class="w"> </span><span class="nf">_finish</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">bytearray</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">:</span> <span class="n">_Decompress</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="353"><span class="w">    </span><span class="sd">"""Drain a gzip decoder once the body has ended, refusing a truncated one.</span>
+</span><span data-line="354">
+</span><span data-line="355"><span class="sd">    All input has been consumed by now — every call ran until nothing was</span>
+</span><span data-line="356"><span class="sd">    left — so what ``flush`` returns is small, but it is measured like any</span>
+</span><span data-line="357"><span class="sd">    other output. A stream that never reached its end marker was cut off, and</span>
+</span><span data-line="358"><span class="sd">    handing back the part that arrived would pass a truncated body on as</span>
+</span><span data-line="359"><span class="sd">    whole.</span>
+</span><span data-line="360">
+</span><span data-line="361"><span class="sd">    Raises:</span>
+</span><span data-line="362"><span class="sd">        DecodingError: If the gzip stream never reached its end marker.</span>
+</span><span data-line="363"><span class="sd">    """</span>
+</span><span data-line="364">    <span class="k">if</span> <span class="n">decompressor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="365">        <span class="k">return</span>
+</span><span data-line="366">    <span class="n">_append</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">flush</span><span class="p">())</span>
+</span><span data-line="367">    <span class="k">if</span> <span class="ow">not</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">eof</span><span class="p">:</span>
+</span><span data-line="368">        <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">_CUT_SHORT</span><span class="p">)</span>
+</span><span data-line="369">
+</span><span data-line="370">
+</span><span data-line="371"><span class="k">def</span><span class="w"> </span><span class="nf">_read_body</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+</span><span data-line="372"><span class="w">    </span><span class="sd">"""Read and decode a streamed body without ever holding more than the limit.</span>
 </span><span data-line="373">
-</span><span data-line="374"><span class="k">def</span><span class="w"> </span><span class="nf">_finish</span><span class="p">(</span><span class="n">content</span><span class="p">:</span> <span class="nb">bytearray</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">:</span> <span class="n">_Decompressor</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="375"><span class="w">    </span><span class="sd">"""Drain a gzip decoder once the body has ended, refusing a truncated one.</span>
-</span><span data-line="376">
-</span><span data-line="377"><span class="sd">    All input has been consumed by now — every call ran until nothing was</span>
-</span><span data-line="378"><span class="sd">    left — so what ``flush`` returns is small, but it is measured like any</span>
-</span><span data-line="379"><span class="sd">    other output. A stream that never reached its end marker was cut off, and</span>
-</span><span data-line="380"><span class="sd">    handing back the part that arrived would pass a truncated body on as</span>
-</span><span data-line="381"><span class="sd">    whole.</span>
-</span><span data-line="382">
-</span><span data-line="383"><span class="sd">    Raises:</span>
-</span><span data-line="384"><span class="sd">        DecodingError: If the gzip stream never reached its end marker.</span>
-</span><span data-line="385"><span class="sd">    """</span>
-</span><span data-line="386">    <span class="k">if</span> <span class="n">decompressor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="387">        <span class="k">return</span>
-</span><span data-line="388">    <span class="n">_append</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">flush</span><span class="p">())</span>
-</span><span data-line="389">    <span class="k">if</span> <span class="ow">not</span> <span class="n">decompressor</span><span class="o">.</span><span class="n">eof</span><span class="p">:</span>
-</span><span data-line="390">        <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">_CUT_SHORT</span><span class="p">)</span>
-</span><span data-line="391">
-</span><span data-line="392">
-</span><span data-line="393"><span class="k">def</span><span class="w"> </span><span class="nf">_read_body</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-</span><span data-line="394"><span class="w">    </span><span class="sd">"""Read and decode a streamed body without ever holding more than the limit.</span>
+</span><span data-line="374"><span class="sd">    Decoding is done here rather than by httpx, whose streaming decoder</span>
+</span><span data-line="375"><span class="sd">    inflates each wire chunk in one call: a 64 KiB gzip chunk can expand to</span>
+</span><span data-line="376"><span class="sd">    64 MiB before any length check sees it. :func:`_inflate_into` caps the</span>
+</span><span data-line="377"><span class="sd">    output instead.</span>
+</span><span data-line="378">
+</span><span data-line="379"><span class="sd">    Returns:</span>
+</span><span data-line="380"><span class="sd">        The decoded body.</span>
+</span><span data-line="381"><span class="sd">    """</span>
+</span><span data-line="382">    <span class="n">_refuse_declared_oversize</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="383">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">is_stream_consumed</span><span class="p">:</span>
+</span><span data-line="384">        <span class="c1"># A response built in memory arrives already read — and already</span>
+</span><span data-line="385">        <span class="c1"># decoded — by httpx. That never happens to a network stream, which is</span>
+</span><span data-line="386">        <span class="c1"># what ``send(stream=True)`` yields, so there is no compressed input</span>
+</span><span data-line="387">        <span class="c1"># left to bound; the body is measured as it stands.</span>
+</span><span data-line="388">        <span class="k">return</span> <span class="n">_measured</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</span><span data-line="389">    <span class="n">decompressor</span> <span class="o">=</span> <span class="n">_decompressor</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="390">    <span class="n">content</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+</span><span data-line="391">    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">iter_raw</span><span class="p">():</span>
+</span><span data-line="392">        <span class="n">_append</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
+</span><span data-line="393">    <span class="n">_finish</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">)</span>
+</span><span data-line="394">    <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
 </span><span data-line="395">
-</span><span data-line="396"><span class="sd">    Decoding is done here rather than by httpx, whose streaming decoder</span>
-</span><span data-line="397"><span class="sd">    inflates each wire chunk in one call: a 64 KiB gzip chunk can expand to</span>
-</span><span data-line="398"><span class="sd">    64 MiB before any length check sees it. :func:`_inflate_into` caps the</span>
-</span><span data-line="399"><span class="sd">    output instead.</span>
-</span><span data-line="400">
-</span><span data-line="401"><span class="sd">    Returns:</span>
-</span><span data-line="402"><span class="sd">        The decoded body.</span>
-</span><span data-line="403"><span class="sd">    """</span>
-</span><span data-line="404">    <span class="n">_refuse_declared_oversize</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="405">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">is_stream_consumed</span><span class="p">:</span>
-</span><span data-line="406">        <span class="c1"># A response built in memory arrives already read — and already</span>
-</span><span data-line="407">        <span class="c1"># decoded — by httpx. That never happens to a network stream, which is</span>
-</span><span data-line="408">        <span class="c1"># what ``send(stream=True)`` yields, so there is no compressed input</span>
-</span><span data-line="409">        <span class="c1"># left to bound; the body is measured as it stands.</span>
-</span><span data-line="410">        <span class="k">return</span> <span class="n">_measured</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
-</span><span data-line="411">    <span class="n">decompressor</span> <span class="o">=</span> <span class="n">_decompressor</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="412">    <span class="n">content</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
-</span><span data-line="413">    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">iter_raw</span><span class="p">():</span>
-</span><span data-line="414">        <span class="n">_append</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
-</span><span data-line="415">    <span class="n">_finish</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">)</span>
-</span><span data-line="416">    <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
-</span><span data-line="417">
+</span><span data-line="396">
+</span><span data-line="397"><span class="k">def</span><span class="w"> </span><span class="nf">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+</span><span data-line="398"><span class="w">    </span><span class="sd">"""Read a streamed body, stopping as soon as it grows past the limit.</span>
+</span><span data-line="399">
+</span><span data-line="400"><span class="sd">    Returns:</span>
+</span><span data-line="401"><span class="sd">        The decoded body.</span>
+</span><span data-line="402">
+</span><span data-line="403"><span class="sd">    Raises:</span>
+</span><span data-line="404"><span class="sd">        DecodingError: If a compressed body is corrupt, keeping the error</span>
+</span><span data-line="405"><span class="sd">            inside the ``httpx.RequestError`` contract sources handle.</span>
+</span><span data-line="406"><span class="sd">    """</span>
+</span><span data-line="407">    <span class="c1"># Everything sits inside the ``try``: a streamed response holds a</span>
+</span><span data-line="408">    <span class="c1"># connection checked out of the shared pool until it is closed, so raising</span>
+</span><span data-line="409">    <span class="c1"># before ``close`` would leak one per refused reply, and a fan-out across</span>
+</span><span data-line="410">    <span class="c1"># many packages could drain the pool.</span>
+</span><span data-line="411">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="412">        <span class="k">return</span> <span class="n">_read_body</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="413">    <span class="k">except</span> <span class="n">zlib</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="414">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Could not decode the response body: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="415">        <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</span><span data-line="416">    <span class="k">finally</span><span class="p">:</span>
+</span><span data-line="417">        <span class="n">response</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </span><span data-line="418">
-</span><span data-line="419"><span class="k">def</span><span class="w"> </span><span class="nf">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-</span><span data-line="420"><span class="w">    </span><span class="sd">"""Read a streamed body, stopping as soon as it grows past the limit.</span>
-</span><span data-line="421">
-</span><span data-line="422"><span class="sd">    Returns:</span>
-</span><span data-line="423"><span class="sd">        The decoded body.</span>
-</span><span data-line="424">
-</span><span data-line="425"><span class="sd">    Raises:</span>
-</span><span data-line="426"><span class="sd">        DecodingError: If a compressed body is corrupt, keeping the error</span>
-</span><span data-line="427"><span class="sd">            inside the ``httpx.RequestError`` contract sources handle.</span>
-</span><span data-line="428"><span class="sd">    """</span>
-</span><span data-line="429">    <span class="c1"># Everything sits inside the ``try``: a streamed response holds a</span>
-</span><span data-line="430">    <span class="c1"># connection checked out of the shared pool until it is closed, so raising</span>
-</span><span data-line="431">    <span class="c1"># before ``close`` would leak one per refused reply, and a fan-out across</span>
-</span><span data-line="432">    <span class="c1"># many packages could drain the pool.</span>
-</span><span data-line="433">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="434">        <span class="k">return</span> <span class="n">_read_body</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="435">    <span class="k">except</span> <span class="n">zlib</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="436">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Could not decode the response body: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="437">        <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-</span><span data-line="438">    <span class="k">finally</span><span class="p">:</span>
-</span><span data-line="439">        <span class="n">response</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</span><span data-line="440">
-</span><span data-line="441">
-</span><span data-line="442"><span class="k">def</span><span class="w"> </span><span class="nf">_checked_response</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-</span><span data-line="443"><span class="w">    </span><span class="sd">"""Reject a response whose declared or received body exceeds the limit.</span>
+</span><span data-line="419">
+</span><span data-line="420"><span class="k">def</span><span class="w"> </span><span class="nf">_checked_response</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+</span><span data-line="421"><span class="w">    </span><span class="sd">"""Reject a response whose declared or received body exceeds the limit.</span>
+</span><span data-line="422">
+</span><span data-line="423"><span class="sd">    Returns:</span>
+</span><span data-line="424"><span class="sd">        The accepted response, carrying the already-decoded body.</span>
+</span><span data-line="425"><span class="sd">    """</span>
+</span><span data-line="426">    <span class="n">content</span> <span class="o">=</span> <span class="n">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="427">    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="428">        <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="429">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">multi_items</span><span class="p">()</span>
+</span><span data-line="430">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_TRANSFER_HEADERS</span>
+</span><span data-line="431">    <span class="p">]</span>
+</span><span data-line="432">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
+</span><span data-line="433">        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="n">content</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">request</span>
+</span><span data-line="434">    <span class="p">)</span>
+</span><span data-line="435">
+</span><span data-line="436">
+</span><span data-line="437"><span class="k">def</span><span class="w"> </span><span class="nf">_send</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+</span><span data-line="438"><span class="w">    </span><span class="sd">"""Send and consume a response without allowing an unbounded body in memory.</span>
+</span><span data-line="439">
+</span><span data-line="440"><span class="sd">    Returns:</span>
+</span><span data-line="441"><span class="sd">        The bounded, fully consumed response.</span>
+</span><span data-line="442"><span class="sd">    """</span>
+</span><span data-line="443">    <span class="k">return</span> <span class="n">_checked_response</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
 </span><span data-line="444">
-</span><span data-line="445"><span class="sd">    Returns:</span>
-</span><span data-line="446"><span class="sd">        The accepted response, carrying the already-decoded body.</span>
-</span><span data-line="447"><span class="sd">    """</span>
-</span><span data-line="448">    <span class="n">content</span> <span class="o">=</span> <span class="n">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="449">    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="450">        <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-</span><span data-line="451">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">multi_items</span><span class="p">()</span>
-</span><span data-line="452">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_TRANSFER_HEADERS</span>
-</span><span data-line="453">    <span class="p">]</span>
-</span><span data-line="454">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
-</span><span data-line="455">        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="n">content</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">request</span>
-</span><span data-line="456">    <span class="p">)</span>
-</span><span data-line="457">
+</span><span data-line="445">
+</span><span data-line="446"><span class="k">def</span><span class="w"> </span><span class="nf">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">:</span>
+</span><span data-line="447"><span class="w">    </span><span class="sd">"""Make a request object to bind a replayed response to.</span>
+</span><span data-line="448">
+</span><span data-line="449"><span class="sd">    Deliberately not built through the client: a cache hit must not pay for</span>
+</span><span data-line="450"><span class="sd">    constructing one, which loads the system CA bundle, and an offline</span>
+</span><span data-line="451"><span class="sd">    lookup must not fail because TLS configuration is broken in an</span>
+</span><span data-line="452"><span class="sd">    environment that never intends to make a request.</span>
+</span><span data-line="453">
+</span><span data-line="454"><span class="sd">    Returns:</span>
+</span><span data-line="455"><span class="sd">        A bare request carrying only the method and URL.</span>
+</span><span data-line="456"><span class="sd">    """</span>
+</span><span data-line="457">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
 </span><span data-line="458">
-</span><span data-line="459"><span class="k">def</span><span class="w"> </span><span class="nf">_send</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-</span><span data-line="460"><span class="w">    </span><span class="sd">"""Send and consume a response without allowing an unbounded body in memory.</span>
-</span><span data-line="461">
-</span><span data-line="462"><span class="sd">    Returns:</span>
-</span><span data-line="463"><span class="sd">        The bounded, fully consumed response.</span>
-</span><span data-line="464"><span class="sd">    """</span>
-</span><span data-line="465">    <span class="k">return</span> <span class="n">_checked_response</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</span><span data-line="459">
+</span><span data-line="460"><span class="k">def</span><span class="w"> </span><span class="nf">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+</span><span data-line="461"><span class="w">    </span><span class="sd">"""Rebuild a real response from a stored entry.</span>
+</span><span data-line="462">
+</span><span data-line="463"><span class="sd">    Returned as an ``httpx.Response`` so a cached answer supports everything</span>
+</span><span data-line="464"><span class="sd">    a live one does, ``raise_for_status`` included, and no source needs to</span>
+</span><span data-line="465"><span class="sd">    know whether it was served from disk.</span>
 </span><span data-line="466">
-</span><span data-line="467">
-</span><span data-line="468"><span class="k">def</span><span class="w"> </span><span class="nf">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">:</span>
-</span><span data-line="469"><span class="w">    </span><span class="sd">"""Make a request object to bind a replayed response to.</span>
-</span><span data-line="470">
-</span><span data-line="471"><span class="sd">    Deliberately not built through the client: a cache hit must not pay for</span>
-</span><span data-line="472"><span class="sd">    constructing one, which loads the system CA bundle, and an offline</span>
-</span><span data-line="473"><span class="sd">    lookup must not fail because TLS configuration is broken in an</span>
-</span><span data-line="474"><span class="sd">    environment that never intends to make a request.</span>
-</span><span data-line="475">
-</span><span data-line="476"><span class="sd">    Returns:</span>
-</span><span data-line="477"><span class="sd">        A bare request carrying only the method and URL.</span>
-</span><span data-line="478"><span class="sd">    """</span>
-</span><span data-line="479">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-</span><span data-line="480">
-</span><span data-line="481">
-</span><span data-line="482"><span class="k">def</span><span class="w"> </span><span class="nf">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-</span><span data-line="483"><span class="w">    </span><span class="sd">"""Rebuild a real response from a stored entry.</span>
-</span><span data-line="484">
-</span><span data-line="485"><span class="sd">    Returned as an ``httpx.Response`` so a cached answer supports everything</span>
-</span><span data-line="486"><span class="sd">    a live one does, ``raise_for_status`` included, and no source needs to</span>
-</span><span data-line="487"><span class="sd">    know whether it was served from disk.</span>
-</span><span data-line="488">
-</span><span data-line="489"><span class="sd">    Returns:</span>
-</span><span data-line="490"><span class="sd">        The reconstructed response.</span>
-</span><span data-line="491"><span class="sd">    """</span>
-</span><span data-line="492">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
-</span><span data-line="493">        <span class="n">entry</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">body</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="494">    <span class="p">)</span>
-</span><span data-line="495">
-</span><span data-line="496">
-</span><span data-line="497"><span class="k">def</span><span class="w"> </span><span class="nf">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="498"><span class="w">    </span><span class="sd">"""Present a stored entry as a fetch result, dated when it was stored.</span>
-</span><span data-line="499">
-</span><span data-line="500"><span class="sd">    Returns:</span>
-</span><span data-line="501"><span class="sd">        The replayed response, reporting the source's own retrieval time.</span>
-</span><span data-line="502"><span class="sd">    """</span>
-</span><span data-line="503">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"cached"</span><span class="p">,</span> <span class="n">utc_from</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">stored_at</span><span class="p">)))</span>
-</span><span data-line="504">
-</span><span data-line="505">
-</span><span data-line="506"><span class="k">def</span><span class="w"> </span><span class="nf">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="507"><span class="w">    </span><span class="sd">"""Stop before anything is built when offline mode is on.</span>
-</span><span data-line="508">
-</span><span data-line="509"><span class="sd">    Called ahead of every ``client()`` construction rather than at the point</span>
-</span><span data-line="510"><span class="sd">    of sending: building a client loads the system CA bundle and can fail</span>
-</span><span data-line="511"><span class="sd">    outright where TLS is misconfigured, which must not turn a defined</span>
-</span><span data-line="512"><span class="sd">    offline outcome into a generic transport exception.</span>
-</span><span data-line="513">
-</span><span data-line="514"><span class="sd">    Raises:</span>
-</span><span data-line="515"><span class="sd">        OfflineError: If offline mode is on.</span>
-</span><span data-line="516"><span class="sd">    """</span>
-</span><span data-line="517">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
-</span><span data-line="518">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="519">
-</span><span data-line="520">
-</span><span data-line="521"><span class="k">def</span><span class="w"> </span><span class="nf">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="522"><span class="w">    </span><span class="sd">"""Answer from the cache while offline, even if the entry is stale.</span>
-</span><span data-line="523">
-</span><span data-line="524"><span class="sd">    Past its TTL is not the same as wrong, and a user who asked for offline</span>
-</span><span data-line="525"><span class="sd">    has already said they prefer an old answer to no answer. The staleness is</span>
-</span><span data-line="526"><span class="sd">    not hidden: the result is reported as ``cached`` and dated when it was</span>
-</span><span data-line="527"><span class="sd">    stored, so output says both where the data came from and how old it is.</span>
-</span><span data-line="528">
-</span><span data-line="529"><span class="sd">    Returns:</span>
-</span><span data-line="530"><span class="sd">        The stored response.</span>
-</span><span data-line="531">
-</span><span data-line="532"><span class="sd">    Raises:</span>
-</span><span data-line="533"><span class="sd">        OfflineError: If nothing is stored for this request.</span>
-</span><span data-line="534"><span class="sd">    """</span>
-</span><span data-line="535">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="536">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="537">    <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-</span><span data-line="538">
-</span><span data-line="539">
-</span><span data-line="540"><span class="k">def</span><span class="w"> </span><span class="nf">_revalidate</span><span class="p">(</span>
-</span><span data-line="541">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="542">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="543">    <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="544">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="545"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="546"><span class="w">    </span><span class="sd">"""Ask the source, offering any stored validator to save it resending.</span>
+</span><span data-line="467"><span class="sd">    Returns:</span>
+</span><span data-line="468"><span class="sd">        The reconstructed response.</span>
+</span><span data-line="469"><span class="sd">    """</span>
+</span><span data-line="470">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
+</span><span data-line="471">        <span class="n">entry</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">body</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="472">    <span class="p">)</span>
+</span><span data-line="473">
+</span><span data-line="474">
+</span><span data-line="475"><span class="k">def</span><span class="w"> </span><span class="nf">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="476"><span class="w">    </span><span class="sd">"""Present a stored entry as a fetch result, dated when it was stored.</span>
+</span><span data-line="477">
+</span><span data-line="478"><span class="sd">    Returns:</span>
+</span><span data-line="479"><span class="sd">        The replayed response, reporting the source's own retrieval time.</span>
+</span><span data-line="480"><span class="sd">    """</span>
+</span><span data-line="481">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"cached"</span><span class="p">,</span> <span class="n">utc_from</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">stored_at</span><span class="p">)))</span>
+</span><span data-line="482">
+</span><span data-line="483">
+</span><span data-line="484"><span class="k">def</span><span class="w"> </span><span class="nf">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="485"><span class="w">    </span><span class="sd">"""Stop before anything is built when offline mode is on.</span>
+</span><span data-line="486">
+</span><span data-line="487"><span class="sd">    Called ahead of every ``client()`` construction rather than at the point</span>
+</span><span data-line="488"><span class="sd">    of sending: building a client loads the system CA bundle and can fail</span>
+</span><span data-line="489"><span class="sd">    outright where TLS is misconfigured, which must not turn a defined</span>
+</span><span data-line="490"><span class="sd">    offline outcome into a generic transport exception.</span>
+</span><span data-line="491">
+</span><span data-line="492"><span class="sd">    Raises:</span>
+</span><span data-line="493"><span class="sd">        OfflineError: If offline mode is on.</span>
+</span><span data-line="494"><span class="sd">    """</span>
+</span><span data-line="495">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
+</span><span data-line="496">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="497">
+</span><span data-line="498">
+</span><span data-line="499"><span class="k">def</span><span class="w"> </span><span class="nf">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="500"><span class="w">    </span><span class="sd">"""Answer from the cache while offline, even if the entry is stale.</span>
+</span><span data-line="501">
+</span><span data-line="502"><span class="sd">    Past its TTL is not the same as wrong, and a user who asked for offline</span>
+</span><span data-line="503"><span class="sd">    has already said they prefer an old answer to no answer. The staleness is</span>
+</span><span data-line="504"><span class="sd">    not hidden: the result is reported as ``cached`` and dated when it was</span>
+</span><span data-line="505"><span class="sd">    stored, so output says both where the data came from and how old it is.</span>
+</span><span data-line="506">
+</span><span data-line="507"><span class="sd">    Returns:</span>
+</span><span data-line="508"><span class="sd">        The stored response.</span>
+</span><span data-line="509">
+</span><span data-line="510"><span class="sd">    Raises:</span>
+</span><span data-line="511"><span class="sd">        OfflineError: If nothing is stored for this request.</span>
+</span><span data-line="512"><span class="sd">    """</span>
+</span><span data-line="513">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="514">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="515">    <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="516">
+</span><span data-line="517">
+</span><span data-line="518"><span class="k">def</span><span class="w"> </span><span class="nf">_revalidate</span><span class="p">(</span>
+</span><span data-line="519">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="520">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="521">    <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="522">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="523"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="524"><span class="w">    </span><span class="sd">"""Ask the source, offering any stored validator to save it resending.</span>
+</span><span data-line="525">
+</span><span data-line="526"><span class="sd">    Returns:</span>
+</span><span data-line="527"><span class="sd">        The live response, or the stored one if the source confirmed it.</span>
+</span><span data-line="528"><span class="sd">    """</span>
+</span><span data-line="529">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="530">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="531">    <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
+</span><span data-line="532">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+</span><span data-line="533">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="534">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">validators</span><span class="p">)</span>
+</span><span data-line="535">    <span class="n">response</span> <span class="o">=</span> <span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+</span><span data-line="536">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="n">_NOT_MODIFIED</span> <span class="ow">and</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="537">        <span class="c1"># Restamped by ``keep``, not here: the stored body still has to</span>
+</span><span data-line="538">        <span class="c1"># satisfy the caller's decoder, which a stricter parser or a</span>
+</span><span data-line="539">        <span class="c1"># body-level corruption could now reject. Blessing it before that</span>
+</span><span data-line="540">        <span class="c1"># check would keep an unusable entry fresh for another full TTL.</span>
+</span><span data-line="541">        <span class="c1"># The source confirmed the body just now, so this counts as a</span>
+</span><span data-line="542">        <span class="c1"># current retrieval of it rather than a replay of an old one.</span>
+</span><span data-line="543">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span>
+</span><span data-line="544">            <span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"revalidated"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span>
+</span><span data-line="545">        <span class="p">)</span>
+</span><span data-line="546">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
 </span><span data-line="547">
-</span><span data-line="548"><span class="sd">    Returns:</span>
-</span><span data-line="549"><span class="sd">        The live response, or the stored one if the source confirmed it.</span>
-</span><span data-line="550"><span class="sd">    """</span>
-</span><span data-line="551">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="552">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-</span><span data-line="553">    <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
-</span><span data-line="554">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
-</span><span data-line="555">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="556">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">validators</span><span class="p">)</span>
-</span><span data-line="557">    <span class="n">response</span> <span class="o">=</span> <span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
-</span><span data-line="558">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="n">_NOT_MODIFIED</span> <span class="ow">and</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="559">        <span class="c1"># Restamped by ``keep``, not here: the stored body still has to</span>
-</span><span data-line="560">        <span class="c1"># satisfy the caller's decoder, which a stricter parser or a</span>
-</span><span data-line="561">        <span class="c1"># body-level corruption could now reject. Blessing it before that</span>
-</span><span data-line="562">        <span class="c1"># check would keep an unusable entry fresh for another full TTL.</span>
-</span><span data-line="563">        <span class="c1"># The source confirmed the body just now, so this counts as a</span>
-</span><span data-line="564">        <span class="c1"># current retrieval of it rather than a replay of an old one.</span>
-</span><span data-line="565">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span>
-</span><span data-line="566">            <span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"revalidated"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span>
-</span><span data-line="567">        <span class="p">)</span>
-</span><span data-line="568">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+</span><span data-line="548">
+</span><span data-line="549"><span class="k">def</span><span class="w"> </span><span class="nf">_replayable</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="550"><span class="w">    </span><span class="sd">"""Drop a stored entry whose body is over the response-size limit.</span>
+</span><span data-line="551">
+</span><span data-line="552"><span class="sd">    A replayed body never passes through the transport, so the limit has to</span>
+</span><span data-line="553"><span class="sd">    be applied here too, or an entry written before the limit existed — or</span>
+</span><span data-line="554"><span class="sd">    edited on disk — would be served at whatever size it is. Checked where</span>
+</span><span data-line="555"><span class="sd">    entries are loaded, so a fresh hit, a stale offline answer, and a ``304``</span>
+</span><span data-line="556"><span class="sd">    revalidation are all covered. Measured in UTF-8 bytes like a live body,</span>
+</span><span data-line="557"><span class="sd">    and only encoded when the cheap character count cannot already decide.</span>
+</span><span data-line="558">
+</span><span data-line="559"><span class="sd">    Returns:</span>
+</span><span data-line="560"><span class="sd">        The entry, or ``None`` when its body is over the limit.</span>
+</span><span data-line="561"><span class="sd">    """</span>
+</span><span data-line="562">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="563">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="564">    <span class="n">body</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">body</span>
+</span><span data-line="565">    <span class="n">too_big</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span> <span class="ow">or</span> <span class="p">(</span>
+</span><span data-line="566">        <span class="ow">not</span> <span class="n">body</span><span class="o">.</span><span class="n">isascii</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span>
+</span><span data-line="567">    <span class="p">)</span>
+</span><span data-line="568">    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">too_big</span> <span class="k">else</span> <span class="n">entry</span>
 </span><span data-line="569">
 </span><span data-line="570">
-</span><span data-line="571"><span class="k">def</span><span class="w"> </span><span class="nf">_replayable</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="572"><span class="w">    </span><span class="sd">"""Drop a stored entry whose body is over the response-size limit.</span>
-</span><span data-line="573">
-</span><span data-line="574"><span class="sd">    A replayed body never passes through the transport, so the limit has to</span>
-</span><span data-line="575"><span class="sd">    be applied here too, or an entry written before the limit existed — or</span>
-</span><span data-line="576"><span class="sd">    edited on disk — would be served at whatever size it is. Checked where</span>
-</span><span data-line="577"><span class="sd">    entries are loaded, so a fresh hit, a stale offline answer, and a ``304``</span>
-</span><span data-line="578"><span class="sd">    revalidation are all covered. Measured in UTF-8 bytes like a live body,</span>
-</span><span data-line="579"><span class="sd">    and only encoded when the cheap character count cannot already decide.</span>
-</span><span data-line="580">
-</span><span data-line="581"><span class="sd">    Returns:</span>
-</span><span data-line="582"><span class="sd">        The entry, or ``None`` when its body is over the limit.</span>
-</span><span data-line="583"><span class="sd">    """</span>
-</span><span data-line="584">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="585">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="586">    <span class="n">body</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">body</span>
-</span><span data-line="587">    <span class="n">too_big</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span> <span class="ow">or</span> <span class="p">(</span>
-</span><span data-line="588">        <span class="ow">not</span> <span class="n">body</span><span class="o">.</span><span class="n">isascii</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span>
-</span><span data-line="589">    <span class="p">)</span>
-</span><span data-line="590">    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">too_big</span> <span class="k">else</span> <span class="n">entry</span>
-</span><span data-line="591">
-</span><span data-line="592">
-</span><span data-line="593"><span class="k">def</span><span class="w"> </span><span class="nf">_cached_get</span><span class="p">(</span>
-</span><span data-line="594">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="595"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="596"><span class="w">    </span><span class="sd">"""Serve a GET from the cache when possible, otherwise from the source.</span>
-</span><span data-line="597">
-</span><span data-line="598"><span class="sd">    Returns:</span>
-</span><span data-line="599"><span class="sd">        The response and where it came from.</span>
-</span><span data-line="600"><span class="sd">    """</span>
-</span><span data-line="601">    <span class="n">key</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">key_for</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">scope</span><span class="p">)</span>
-</span><span data-line="602">    <span class="n">entry</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">refresh</span> <span class="k">else</span> <span class="n">_replayable</span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
-</span><span data-line="603">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_fresh</span><span class="p">(</span><span class="n">ttl</span><span class="p">,</span> <span class="n">cache</span><span class="o">.</span><span class="n">now</span><span class="p">()):</span>
-</span><span data-line="604">        <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-</span><span data-line="605">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
-</span><span data-line="606">        <span class="k">return</span> <span class="n">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
-</span><span data-line="607">    <span class="k">return</span> <span class="n">_revalidate</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
-</span><span data-line="608">
-</span><span data-line="609">
+</span><span data-line="571"><span class="k">def</span><span class="w"> </span><span class="nf">_cached_get</span><span class="p">(</span>
+</span><span data-line="572">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="573"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="574"><span class="w">    </span><span class="sd">"""Serve a GET from the cache when possible, otherwise from the source.</span>
+</span><span data-line="575">
+</span><span data-line="576"><span class="sd">    Returns:</span>
+</span><span data-line="577"><span class="sd">        The response and where it came from.</span>
+</span><span data-line="578"><span class="sd">    """</span>
+</span><span data-line="579">    <span class="n">key</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">key_for</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">scope</span><span class="p">)</span>
+</span><span data-line="580">    <span class="n">entry</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">refresh</span> <span class="k">else</span> <span class="n">_replayable</span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+</span><span data-line="581">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_fresh</span><span class="p">(</span><span class="n">ttl</span><span class="p">,</span> <span class="n">cache</span><span class="o">.</span><span class="n">now</span><span class="p">()):</span>
+</span><span data-line="582">        <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="583">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
+</span><span data-line="584">        <span class="k">return</span> <span class="n">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
+</span><span data-line="585">    <span class="k">return</span> <span class="n">_revalidate</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+</span><span data-line="586">
+</span><span data-line="587">
 <div class="viewcode-block" id="keep">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.keep">[docs]</a>
-</span><span data-line="610"><span class="k">def</span><span class="w"> </span><span class="nf">keep</span><span class="p">(</span><span class="n">fetched</span><span class="p">:</span> <span class="n">Fetched</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="611"><span class="w">    </span><span class="sd">"""Store a live response the caller has confirmed it could actually use.</span>
-</span><span data-line="612">
-</span><span data-line="613"><span class="sd">    Storing on arrival would cache a body the source-specific decoder then</span>
-</span><span data-line="614"><span class="sd">    rejects — a ``200`` carrying an error page, or truncated JSON — and every</span>
-</span><span data-line="615"><span class="sd">    later request would replay that same unusable response until the TTL</span>
-</span><span data-line="616"><span class="sd">    expired, up to a month for pinned metadata. A transient upstream fault</span>
-</span><span data-line="617"><span class="sd">    would become a persistent one.</span>
-</span><span data-line="618">
-</span><span data-line="619"><span class="sd">    So nothing is written until the caller has decoded and validated the</span>
-</span><span data-line="620"><span class="sd">    body and says so by calling this. Failing to call it means the response</span>
-</span><span data-line="621"><span class="sd">    is simply not cached, which costs a refetch; the opposite default would</span>
-</span><span data-line="622"><span class="sd">    poison the cache.</span>
-</span><span data-line="623">
-</span><span data-line="624"><span class="sd">    Args:</span>
-</span><span data-line="625"><span class="sd">        fetched: The result to store. Ignored unless it is a live ``200``</span>
-</span><span data-line="626"><span class="sd">            still carrying a cache key, so callers need not check.</span>
-</span><span data-line="627"><span class="sd">    """</span>
-</span><span data-line="628">    <span class="k">if</span> <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="n">_OK</span><span class="p">:</span>
-</span><span data-line="629">        <span class="k">return</span>
-</span><span data-line="630">    <span class="n">cache</span><span class="o">.</span><span class="n">store</span><span class="p">(</span>
-</span><span data-line="631">        <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span><span class="p">,</span>
-</span><span data-line="632">        <span class="n">url</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">url</span><span class="p">),</span>
-</span><span data-line="633">        <span class="n">status</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
-</span><span data-line="634">        <span class="n">body</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
-</span><span data-line="635">        <span class="n">headers</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">),</span>
-</span><span data-line="636">    <span class="p">)</span></div>
+</span><span data-line="588"><span class="k">def</span><span class="w"> </span><span class="nf">keep</span><span class="p">(</span><span class="n">fetched</span><span class="p">:</span> <span class="n">Fetched</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="589"><span class="w">    </span><span class="sd">"""Store a live response the caller has confirmed it could actually use.</span>
+</span><span data-line="590">
+</span><span data-line="591"><span class="sd">    Storing on arrival would cache a body the source-specific decoder then</span>
+</span><span data-line="592"><span class="sd">    rejects — a ``200`` carrying an error page, or truncated JSON — and every</span>
+</span><span data-line="593"><span class="sd">    later request would replay that same unusable response until the TTL</span>
+</span><span data-line="594"><span class="sd">    expired, up to a month for pinned metadata. A transient upstream fault</span>
+</span><span data-line="595"><span class="sd">    would become a persistent one.</span>
+</span><span data-line="596">
+</span><span data-line="597"><span class="sd">    So nothing is written until the caller has decoded and validated the</span>
+</span><span data-line="598"><span class="sd">    body and says so by calling this. Failing to call it means the response</span>
+</span><span data-line="599"><span class="sd">    is simply not cached, which costs a refetch; the opposite default would</span>
+</span><span data-line="600"><span class="sd">    poison the cache.</span>
+</span><span data-line="601">
+</span><span data-line="602"><span class="sd">    Args:</span>
+</span><span data-line="603"><span class="sd">        fetched: The result to store. Ignored unless it is a live ``200``</span>
+</span><span data-line="604"><span class="sd">            still carrying a cache key, so callers need not check.</span>
+</span><span data-line="605"><span class="sd">    """</span>
+</span><span data-line="606">    <span class="k">if</span> <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="n">_OK</span><span class="p">:</span>
+</span><span data-line="607">        <span class="k">return</span>
+</span><span data-line="608">    <span class="n">cache</span><span class="o">.</span><span class="n">store</span><span class="p">(</span>
+</span><span data-line="609">        <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span><span class="p">,</span>
+</span><span data-line="610">        <span class="n">url</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">url</span><span class="p">),</span>
+</span><span data-line="611">        <span class="n">status</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+</span><span data-line="612">        <span class="n">body</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+</span><span data-line="613">        <span class="n">headers</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">),</span>
+</span><span data-line="614">    <span class="p">)</span></div>
 
-</span><span data-line="637">
-</span><span data-line="638">
+</span><span data-line="615">
+</span><span data-line="616">
 <div class="viewcode-block" id="get">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.get">[docs]</a>
-</span><span data-line="639"><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
-</span><span data-line="640">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="641">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="642">    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="643">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="644">    <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="645">    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
-</span><span data-line="646"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="647"><span class="w">    </span><span class="sd">"""Send a GET request, using the cache when the caller allows it.</span>
-</span><span data-line="648">
-</span><span data-line="649"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
-</span><span data-line="650"><span class="sd">    :class:`OfflineError` propagates when offline mode is on and the cache</span>
-</span><span data-line="651"><span class="sd">    cannot answer; each source maps them onto its own error type.</span>
-</span><span data-line="652">
-</span><span data-line="653"><span class="sd">    A live result is not cached until the caller confirms the body was usable</span>
-</span><span data-line="654"><span class="sd">    by passing it to :func:`keep`.</span>
-</span><span data-line="655">
-</span><span data-line="656"><span class="sd">    Args:</span>
-</span><span data-line="657"><span class="sd">        url: The absolute URL to request.</span>
-</span><span data-line="658"><span class="sd">        params: Optional query-string parameters.</span>
-</span><span data-line="659"><span class="sd">        headers: Extra request headers merged onto the shared client's</span>
-</span><span data-line="660"><span class="sd">            defaults, for content negotiation or similar per-source needs.</span>
-</span><span data-line="661"><span class="sd">        ttl: How long a stored response stays usable, in seconds. ``None``</span>
-</span><span data-line="662"><span class="sd">            bypasses the cache entirely, for a URL whose answer should never</span>
-</span><span data-line="663"><span class="sd">            be reused.</span>
-</span><span data-line="664"><span class="sd">        scope: Distinguishes consumers that fetch the same URL but validate</span>
-</span><span data-line="665"><span class="sd">            different parts of it, so neither replays a body the other</span>
-</span><span data-line="666"><span class="sd">            accepted. See :func:`peta.core.cache.key_for`.</span>
-</span><span data-line="667">
-</span><span data-line="668"><span class="sd">    Returns:</span>
-</span><span data-line="669"><span class="sd">        The response and where it came from.</span>
-</span><span data-line="670"><span class="sd">    """</span>
-</span><span data-line="671">    <span class="c1"># Merged here rather than by the client, so a cache hit never constructs</span>
-</span><span data-line="672">    <span class="c1"># one; the result is byte-identical to what ``build_request`` produces.</span>
-</span><span data-line="673">    <span class="c1"># ``params=None`` is not passed through: httpx reads that as "replace the</span>
-</span><span data-line="674">    <span class="c1"># query with nothing" and silently drops any query already in the URL,</span>
-</span><span data-line="675">    <span class="c1"># where ``build_request`` leaves it alone.</span>
-</span><span data-line="676">    <span class="n">built_url</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
-</span><span data-line="677">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">built_url</span><span class="p">))</span>
-</span><span data-line="678">    <span class="k">if</span> <span class="n">ttl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="679">        <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
-</span><span data-line="680">        <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">full</span><span class="p">)</span>
-</span><span data-line="681">        <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
-</span><span data-line="682">            <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
-</span><span data-line="683">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span>
-</span><span data-line="684">    <span class="k">return</span> <span class="n">_cached_get</span><span class="p">(</span><span class="n">full</span><span class="p">,</span> <span class="n">ttl</span><span class="p">,</span> <span class="n">scope</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span></div>
+</span><span data-line="617"><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+</span><span data-line="618">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="619">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="620">    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="621">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="622">    <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="623">    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+</span><span data-line="624"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="625"><span class="w">    </span><span class="sd">"""Send a GET request, using the cache when the caller allows it.</span>
+</span><span data-line="626">
+</span><span data-line="627"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
+</span><span data-line="628"><span class="sd">    :class:`OfflineError` propagates when offline mode is on and the cache</span>
+</span><span data-line="629"><span class="sd">    cannot answer; each source maps them onto its own error type.</span>
+</span><span data-line="630">
+</span><span data-line="631"><span class="sd">    A live result is not cached until the caller confirms the body was usable</span>
+</span><span data-line="632"><span class="sd">    by passing it to :func:`keep`.</span>
+</span><span data-line="633">
+</span><span data-line="634"><span class="sd">    Args:</span>
+</span><span data-line="635"><span class="sd">        url: The absolute URL to request.</span>
+</span><span data-line="636"><span class="sd">        params: Optional query-string parameters.</span>
+</span><span data-line="637"><span class="sd">        headers: Extra request headers merged onto the shared client's</span>
+</span><span data-line="638"><span class="sd">            defaults, for content negotiation or similar per-source needs.</span>
+</span><span data-line="639"><span class="sd">        ttl: How long a stored response stays usable, in seconds. ``None``</span>
+</span><span data-line="640"><span class="sd">            bypasses the cache entirely, for a URL whose answer should never</span>
+</span><span data-line="641"><span class="sd">            be reused.</span>
+</span><span data-line="642"><span class="sd">        scope: Distinguishes consumers that fetch the same URL but validate</span>
+</span><span data-line="643"><span class="sd">            different parts of it, so neither replays a body the other</span>
+</span><span data-line="644"><span class="sd">            accepted. See :func:`peta.core.cache.key_for`.</span>
+</span><span data-line="645">
+</span><span data-line="646"><span class="sd">    Returns:</span>
+</span><span data-line="647"><span class="sd">        The response and where it came from.</span>
+</span><span data-line="648"><span class="sd">    """</span>
+</span><span data-line="649">    <span class="c1"># Merged here rather than by the client, so a cache hit never constructs</span>
+</span><span data-line="650">    <span class="c1"># one; the result is byte-identical to what ``build_request`` produces.</span>
+</span><span data-line="651">    <span class="c1"># ``params=None`` is not passed through: httpx reads that as "replace the</span>
+</span><span data-line="652">    <span class="c1"># query with nothing" and silently drops any query already in the URL,</span>
+</span><span data-line="653">    <span class="c1"># where ``build_request`` leaves it alone.</span>
+</span><span data-line="654">    <span class="n">built_url</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+</span><span data-line="655">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">built_url</span><span class="p">))</span>
+</span><span data-line="656">    <span class="k">if</span> <span class="n">ttl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="657">        <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
+</span><span data-line="658">        <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">full</span><span class="p">)</span>
+</span><span data-line="659">        <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
+</span><span data-line="660">            <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+</span><span data-line="661">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span>
+</span><span data-line="662">    <span class="k">return</span> <span class="n">_cached_get</span><span class="p">(</span><span class="n">full</span><span class="p">,</span> <span class="n">ttl</span><span class="p">,</span> <span class="n">scope</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span></div>
 
-</span><span data-line="685">
-</span><span data-line="686">
+</span><span data-line="663">
+</span><span data-line="664">
 <div class="viewcode-block" id="post">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.post">[docs]</a>
-</span><span data-line="687"><span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="688"><span class="w">    </span><span class="sd">"""Send a JSON POST request over the shared client.</span>
-</span><span data-line="689">
-</span><span data-line="690"><span class="sd">    Never cached: a POST body carries the question, and peta's only POST</span>
-</span><span data-line="691"><span class="sd">    source is an advisory query whose request shape is about to change with</span>
-</span><span data-line="692"><span class="sd">    batching. Offline mode still refuses it rather than pretending.</span>
-</span><span data-line="693">
-</span><span data-line="694"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
-</span><span data-line="695"><span class="sd">    :class:`OfflineError` propagates when offline mode is on.</span>
-</span><span data-line="696">
-</span><span data-line="697"><span class="sd">    Args:</span>
-</span><span data-line="698"><span class="sd">        url: The absolute URL to request.</span>
-</span><span data-line="699"><span class="sd">        json: The request body, serialized as JSON.</span>
-</span><span data-line="700">
-</span><span data-line="701"><span class="sd">    Returns:</span>
-</span><span data-line="702"><span class="sd">        The response and where it came from, always ``live``.</span>
-</span><span data-line="703"><span class="sd">    """</span>
-</span><span data-line="704">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="705">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
-</span><span data-line="706">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"POST"</span><span class="p">,</span> <span class="n">full</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">json</span><span class="p">)</span>
-</span><span data-line="707">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span></div>
+</span><span data-line="665"><span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="666"><span class="w">    </span><span class="sd">"""Send a JSON POST request over the shared client.</span>
+</span><span data-line="667">
+</span><span data-line="668"><span class="sd">    Never cached: a POST body carries the question, and peta's only POST</span>
+</span><span data-line="669"><span class="sd">    source is an advisory query whose request shape is about to change with</span>
+</span><span data-line="670"><span class="sd">    batching. Offline mode still refuses it rather than pretending.</span>
+</span><span data-line="671">
+</span><span data-line="672"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
+</span><span data-line="673"><span class="sd">    :class:`OfflineError` propagates when offline mode is on.</span>
+</span><span data-line="674">
+</span><span data-line="675"><span class="sd">    Args:</span>
+</span><span data-line="676"><span class="sd">        url: The absolute URL to request.</span>
+</span><span data-line="677"><span class="sd">        json: The request body, serialized as JSON.</span>
+</span><span data-line="678">
+</span><span data-line="679"><span class="sd">    Returns:</span>
+</span><span data-line="680"><span class="sd">        The response and where it came from, always ``live``.</span>
+</span><span data-line="681"><span class="sd">    """</span>
+</span><span data-line="682">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="683">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
+</span><span data-line="684">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"POST"</span><span class="p">,</span> <span class="n">full</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">json</span><span class="p">)</span>
+</span><span data-line="685">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

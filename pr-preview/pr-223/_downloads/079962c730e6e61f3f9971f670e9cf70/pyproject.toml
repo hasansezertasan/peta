@@ -278,9 +278,6 @@ ignore_names = [
   "releases",
   "requires_dist",
   "requires_python",
-  # zlib's decompress keyword, declared on the core/http.py Protocol that stands
-  # in for the private zlib._Decompress type and passed only by keyword
-  "max_length",
   # OSV-schema TypedDict fields read via string keys in core/osv.py
   "vulns",
   "details",
