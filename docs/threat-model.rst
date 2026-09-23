@@ -85,8 +85,11 @@ Every provider must preserve these invariants when it is added or changed:
 * JSON objects and arrays are limited to 1,000,000 items each and individual
   metadata strings to 8 MiB. The body limit is what bounds realistic entries;
   the item limit exists for the cheap case it cannot see, a long run of tiny
-  values that costs far more as Python objects than as JSON bytes. Nesting is
-  limited to 100 levels.
+  values that costs far more as Python objects than as JSON bytes. A whole
+  document is limited to 2,000,000 values, because the per-collection limit
+  resets for every collection and dozens of arrays just under it fit in the
+  body limit; the largest real document measured, ``grpcio``'s JSON, holds
+  about 225,000. Nesting is limited to 100 levels.
 * Nesting, item counts, and string lengths are all measured *before* decoding,
   by one scan of the raw text — decoded from bytes exactly as ``json.loads``
   would decode them, and handed to the parser as that same text. Reading the
@@ -126,11 +129,12 @@ Every provider must preserve these invariants when it is added or changed:
   rendering — vulnerability and enrichment warnings, artifact details and
   notes — and ``files`` and ``why`` never render through Rich at all; each of
   their lines is hardened on its own, since the per-segment pass never sees
-  them. The target-environment banner, printed outside the formatters, goes
-  through the same boundary: it names paths from ``--path`` and from the
-  target interpreter's ``sys.path``. Doing it to finished Rich output instead
-  cannot work — peta's own styling is escape sequences too, and cannot be told
-  apart from an attacker's.
+  them. A fatal error printed for a human is held to one line the same way,
+  since its message can quote text an index chose. The target-environment
+  banner, printed outside the formatters, goes through the same boundary: it
+  names paths from ``--path`` and from the target interpreter's ``sys.path``.
+  Doing it to finished Rich output instead cannot work — peta's own styling is
+  escape sequences too, and cannot be told apart from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache
   payloads, process arguments, and diagnostics. Redaction is applied where a
   diagnostic is *built* — ``EnrichmentError``, ``OutputMessage``,
