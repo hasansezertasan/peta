@@ -345,13 +345,18 @@ class TestInspectionNeverRunsPackageCode:
         assert not sentinel.exists()
 
     def test_the_interpreter_query_does_not_execute_the_package(
-        self, tmp_path: Path
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         # The ``--python`` boundary runs a real subprocess, so it is the one
         # place a stray import would actually happen rather than be mocked out.
+        # The child only inherits the environment, so the trap has to be put
+        # on its path explicitly; without that it could never be imported and
+        # this test could never fail.
         sentinel = self._install(tmp_path)
+        monkeypatch.setenv("PYTHONPATH", str(tmp_path))
 
         target = LocalTarget.create(sys.executable)
 
-        assert target.paths
+        assert target.paths is not None
+        assert str(tmp_path) in target.paths
         assert not sentinel.exists()

@@ -232,6 +232,34 @@ class TestCorruption:
 
         assert cache.load("k") is None
 
+    def test_an_entry_nested_deeply_enough_to_overflow_is_a_miss(
+        self, cache_dir: Path
+    ) -> None:
+        # ``json.loads`` raises RecursionError here, a RuntimeError rather than
+        # a ValueError, so it used to escape ``load`` as a crash.
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        (cache_dir / "k.json").write_text("[" * 60_000 + "]" * 60_000)
+
+        assert cache.load("k") is None
+
+    @pytest.mark.usefixtures("cache_dir")
+    def test_an_oversized_entry_is_a_miss_without_being_read(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Replayed entries never pass the transport's size limit, and an entry
+        # written before that limit existed can be any size. The file size is
+        # checked before anything is read.
+        monkeypatch.setattr(cache, "MAX_ENTRY_BYTES", 10)
+        cache.store("k", url=_URL, status=200, body='{"ok": true}', headers={})
+
+        assert cache.load("k") is None
+
+    def test_the_entry_bound_leaves_room_for_the_largest_accepted_body(self) -> None:
+        # An entry wraps its body in an escaped string inside an envelope, so
+        # it is bigger than the body; a bound at the body limit would turn
+        # every large legitimate response into a permanent miss.
+        assert cache.MAX_ENTRY_BYTES >= 2 * http.MAX_RESPONSE_BYTES
+
     def test_a_damaged_entry_is_replaced_by_the_next_store(
         self, cache_dir: Path
     ) -> None:

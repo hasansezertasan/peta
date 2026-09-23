@@ -1,6 +1,7 @@
 """Security limits for decoded untrusted API responses."""
 
 import json
+import time
 
 import httpx
 import pytest
@@ -176,3 +177,54 @@ class TestCollectionSizeBeforeDecoding:
         assert validation.json_body(_response(body), source="test") == {
             "summary": summary
         }
+
+
+class TestStringsBeforeDecoding:
+    """String literals are measured by the same pre-decode scan.
+
+    Not every consumed string reaches :func:`validation.expect_string` —
+    list elements, mapping values, and several hand-written checks only test
+    the type — so the scan is the one place every string is seen.
+    """
+
+    def test_a_long_string_inside_a_list_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(validation, "MAX_STRING_LENGTH", 3)
+        body = b'{"aliases": ["ok", "far too long"]}'
+
+        with pytest.raises(validation.ResponseLimitError, match="at most 3 characters"):
+            _ = validation.json_body(_response(body), source="test")
+
+    def test_a_long_mapping_key_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(validation, "MAX_STRING_LENGTH", 3)
+        body = b'{"far too long": 1}'
+
+        with pytest.raises(validation.ResponseLimitError, match="characters"):
+            _ = validation.json_body(_response(body), source="test")
+
+    def test_a_string_at_the_limit_is_accepted(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(validation, "MAX_STRING_LENGTH", 3)
+        body = b'{"abc": ["xyz"]}'
+
+        assert validation.json_body(_response(body), source="test") == {"abc": ["xyz"]}
+
+
+class TestScanStaysLinear:
+    """The scan exists to stop a denial of service, so it must not be one."""
+
+    def test_an_unterminated_run_of_escaped_quotes_is_fast(self) -> None:
+        # With no closing quote, a literal pattern that insists on one fails,
+        # restarts at the next quote — every escaped quote is one — and
+        # rescans to the end: quadratic. 32 KB took nearly two seconds.
+        body = ('"' + '\\"' * 200_000).encode()
+
+        started = time.perf_counter()
+        with pytest.raises(ValueError, match="Unterminated string"):
+            _ = validation.json_body(_response(body), source="test")
+
+        assert time.perf_counter() - started < 1.0

@@ -81,16 +81,21 @@ Every provider must preserve these invariants when it is added or changed:
   the item limit exists for the cheap case it cannot see, a long run of tiny
   values that costs far more as Python objects than as JSON bytes. Nesting is
   limited to 100 levels.
-* Nesting and item counts are both measured *before* decoding, by one scan of
-  the raw text. Nesting, because ``json.loads`` recurses: an over-nested body
-  raises ``RecursionError`` while parsing — 120 KB of brackets is enough — and
-  that is a ``RuntimeError``, which the ``except ValueError`` around each
-  decode does not catch. Item counts, because the validators only visit fields
-  peta consumes, so an ignored ``"padding"`` array would be fully allocated by
-  ``json.loads`` and never measured at all. Dependency traversal is capped at
-  100 levels; invalid or oversized decoded fields are rejected, not coerced,
-  and a refusal on size reports the limit it broke rather than claiming the
-  value had the wrong type.
+* Nesting, item counts, and string lengths are all measured *before* decoding,
+  by one scan of the raw text. Nesting, because ``json.loads`` recurses: an
+  over-nested body raises ``RecursionError`` while parsing — 120 KB of
+  brackets is enough — and that is a ``RuntimeError``, which the ``except
+  ValueError`` around each decode does not catch. Sizes, because the
+  validators only visit fields peta consumes, and not every consumed string
+  goes through ``expect_string``: an ignored ``"padding"`` array, or a long
+  string inside a list, would be fully allocated by ``json.loads`` and never
+  measured at all. The scan must itself stay linear — it exists to stop a
+  denial of service — so its string pattern lets an unterminated literal end
+  at the end of input; otherwise every escaped quote restarts the match and a
+  run of them costs quadratic time. Dependency traversal is capped at 100
+  levels; invalid or oversized decoded fields are rejected, not coerced, and a
+  refusal on size reports the limit it broke rather than claiming the value
+  had the wrong type.
 * Untrusted strings are rendered as data. Terminal control characters,
   OSC/hyperlink sequences, Rich markup, and shell metacharacters must never
   become active output. Filenames are never passed to a shell. Human output is
@@ -115,7 +120,11 @@ Every provider must preserve these invariants when it is added or changed:
   so a new guard joins the contract or it is not a guard.
 * Cache entries are scoped, validated, owned by the entries directory, written
   atomically, and treated as disposable. Only validated successful responses
-  are stored; corrupt, stale-format, or untrusted entries are misses.
+  are stored; corrupt, stale-format, untrusted, or oversized entries are
+  misses. Replayed entries never pass the transport's size limit, so an entry
+  file larger than ``cache.MAX_ENTRY_BYTES`` is a miss before it is read —
+  which also covers entries written by versions that had no limit — and one
+  nested deeply enough to overflow the parser is a miss rather than a crash.
 * Local inspection uses metadata APIs or a fixed subprocess query only. It must
   never import the inspected distribution or invoke its build backend.
 

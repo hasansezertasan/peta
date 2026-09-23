@@ -37,6 +37,7 @@ __all__ = [
     "FRESHNESS_VALUES",
     "LATEST",
     "MAX_AGE",
+    "MAX_ENTRY_BYTES",
     "CacheSettings",
     "CachedResponse",
     "Freshness",
@@ -141,13 +142,31 @@ permits, which Python 3.14 accepts but some of the project's other tools
 cannot yet parse.
 """
 
-_UNREADABLE = (OSError, ValueError)
+_UNREADABLE = (OSError, ValueError, RecursionError)
 """Every way reading an entry can fail: absent, unopenable, or not JSON.
+
+``RecursionError`` is here because an entry nested deeply enough makes
+``json.loads`` overflow the stack while parsing, and it is a ``RuntimeError``
+rather than a ``ValueError``. An entry is disk data peta does not trust, so a
+corrupt one has to be a miss, not a crash.
 
 A tuple constant rather than an inline ``except (OSError, ValueError)``,
 matching the convention elsewhere in this package: the formatter strips those
 parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but
 some of the project's other tools cannot yet parse.
+"""
+
+MAX_ENTRY_BYTES = 160 * 1024 * 1024
+"""Largest entry file read back, in bytes; anything bigger is a miss.
+
+Replayed entries never pass through the transport, so its response-size limit
+does not apply to them, and ``load`` reads and decodes a whole file at once.
+Entries written by earlier versions — which had no transport limit at all —
+and entries tampered with on disk would otherwise be read in full whatever
+their size. Set at two and a half times ``http.MAX_RESPONSE_BYTES`` because an
+entry stores its body as an escaped JSON string inside an envelope, so an
+entry for the largest accepted body is bigger than the body. Too small a value
+only costs a refetch, never a failure.
 """
 
 _ENTRY_VERSION = "1"
@@ -557,8 +576,11 @@ def load(key: str) -> CachedResponse | None:
     """
     if not settings().enabled:
         return None
+    path = _path_for(key)
     try:
-        raw = cast("object", json.loads(_path_for(key).read_text(encoding="utf-8")))
+        if path.stat().st_size > MAX_ENTRY_BYTES:
+            return None
+        raw = cast("object", json.loads(path.read_text(encoding="utf-8")))
     except _UNREADABLE:
         return None
     return _decode(raw)

@@ -54,13 +54,17 @@ is a ``RuntimeError``, so the ``except ValueError`` each decoder wraps its
 which the response-size limit is far too coarse to stop.
 """
 
-_JSON_STRING = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"', re.DOTALL)
-"""One complete JSON string literal.
+_JSON_STRING = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*(?:"|\\?\Z)', re.DOTALL)
+"""One JSON string literal, or an unterminated one running to the end.
 
-Written as an unrolled loop rather than ``(?:[^"\\]|\\.)*`` so that it runs in
-linear time: the alternation form backtracks catastrophically on a long run of
-escapes, which would hand an attacker the denial of service this scan exists
-to prevent.
+Two properties keep this linear, and both are needed. The body is an unrolled
+loop rather than ``(?:[^"\\]|\\.)*``, whose alternation backtracks
+catastrophically on a long run of escapes. And a literal with no closing quote
+is allowed to end at the end of the input: without that, the match fails, the
+engine restarts from the next ``"`` — every escaped quote is one — and scans to
+the end again, so ``"\\"\\"\\"...`` costs quadratic time. 32 KB of it took
+nearly two seconds; a full-size body would take hours. An unterminated string
+is invalid JSON anyway, and the decoder rejects it once the scan is done.
 """
 
 _OPENING = frozenset("[{")
@@ -144,20 +148,44 @@ def _step(open_counts: list[int], token: str) -> str | None:
     return f"{MAX_COLLECTION_ITEMS:,} items" if too_many else None
 
 
+def _without_strings(text: str) -> tuple[str, bool]:
+    """Remove every string literal, noting whether any was over the limit.
+
+    The raw literal counts its quotes and escapes, so it can only overstate the
+    decoded length: a string under the limit here is under it once decoded,
+    which is the direction that matters.
+
+    Returns:
+        The text with string literals removed, and whether one was too long.
+    """
+    too_long = False
+
+    def blank(match: re.Match[str]) -> str:
+        nonlocal too_long
+        too_long = too_long or len(match.group()) - 2 > MAX_STRING_LENGTH
+        return ""
+
+    return _JSON_STRING.sub(blank, text), too_long
+
+
 def _structural_breach(text: str) -> str | None:
     """Measure nesting and per-container size before anything is decoded.
 
-    Both have to be measured here rather than by the validators. Nesting,
-    because ``json.loads`` recurses and fails while parsing. Size, because the
-    validators only visit fields peta consumes: an ignored ``"padding"`` array
-    of tens of millions of zeros would be fully allocated by ``json.loads``
-    and never measured at all.
+    All three have to be measured here rather than by the validators.
+    Nesting, because ``json.loads`` recurses and fails while parsing. Sizes,
+    because the validators only visit fields peta consumes, and not every
+    string they consume goes through :func:`expect_string`: an ignored
+    ``"padding"`` array, or a long string inside a list, would be fully
+    allocated by ``json.loads`` and never measured at all.
 
     Returns:
         A description of the first limit the document breaks, or ``None``.
     """
+    stripped, too_long = _without_strings(text)
+    if too_long:
+        return f"{MAX_STRING_LENGTH:,} characters"
     open_counts = [0]
-    for match in _STRUCTURAL.finditer(_JSON_STRING.sub("", text)):
+    for match in _STRUCTURAL.finditer(stripped):
         breach = _step(open_counts, match.group())
         if breach is not None:
             return breach
@@ -171,9 +199,10 @@ def json_body(response: httpx.Response, *, source: str) -> object:
         The decoded body.
 
     Raises:
-        ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`, or
+        ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`,
             any one array or object holds more than
-            :data:`MAX_COLLECTION_ITEMS` items.
+            :data:`MAX_COLLECTION_ITEMS` items, or any string is longer than
+            :data:`MAX_STRING_LENGTH`.
     """
     breach = _structural_breach(response.text)
     if breach is not None:
