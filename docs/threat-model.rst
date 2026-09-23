@@ -110,7 +110,15 @@ Every provider must preserve these invariants when it is added or changed:
   become active output. Filenames are never passed to a shell. Human output is
   hardened at one boundary rather than per renderer: the plain-text and
   Markdown formatters are sanitized as whole strings, and the Rich formatters
-  per rendered segment, inside :func:`peta.cli.output.console.render`. The
+  per rendered segment, inside :func:`peta.cli.output.console.render`.
+  Terminal sanitizing alone is not enough for the plain formats, because it
+  keeps the newlines and tabs their own separators need and knows nothing of
+  Markdown. So each untrusted field is also neutralized where it is inserted:
+  in text output its newlines and tabs fold to spaces, so it cannot forge a
+  line or a column; in Markdown it is escaped so it cannot open a link, an
+  image, raw HTML, or an autolink — a package named ``![x](https://...)``
+  would otherwise load a remote image wherever the output is rendered — and
+  code spans get a fence longer than any backtick run inside them. The
   target-environment banner, printed outside the formatters, goes through the
   same boundary: it names paths from ``--path`` and from the target
   interpreter's ``sys.path``. Doing it to finished Rich output instead cannot
@@ -133,13 +141,17 @@ Every provider must preserve these invariants when it is added or changed:
 * Cache entries are scoped, validated, owned by the entries directory, written
   atomically, and treated as disposable. Only validated successful responses
   are stored; corrupt, stale-format, untrusted, or oversized entries are
-  misses. Replayed entries never pass the transport's size limit, so an entry
-  file larger than ``cache.MAX_ENTRY_BYTES`` is a miss before it is read —
-  which also covers entries written by versions that had no limit — and an
-  entry whose envelope or body is nested deeply enough to overflow the parser
-  is a miss rather than a crash. A stored body over the response limit is also
-  a miss when replayed, so the transport limit holds for cache hits, stale
-  offline answers, and ``304`` revalidations alike.
+  misses. Both the entry file and the body stored in it pass the pre-decode
+  scan before they are parsed, since the file-size bound limits bytes rather
+  than the objects ``json.loads`` builds; the envelope's scan allows a long
+  string, because it carries the whole body as one. Replayed entries never
+  pass the transport's size limit, so an entry file larger than
+  ``cache.MAX_ENTRY_BYTES`` is a miss before it is read — which also covers
+  entries written by versions that had no limit — and an entry whose envelope
+  or body is nested deeply enough to overflow the parser is a miss rather than
+  a crash. A stored body over the response limit is also a miss when replayed,
+  so the transport limit holds for cache hits, stale offline answers, and
+  ``304`` revalidations alike.
 * Local inspection uses metadata APIs or a fixed subprocess query only. It must
   never import the inspected distribution or invoke its build backend.
 
