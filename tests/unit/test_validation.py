@@ -153,6 +153,19 @@ class TestCollectionSizeBeforeDecoding:
         with pytest.raises(validation.ResponseLimitError, match="at most 3 items"):
             _ = validation.json_body(_response(body), source="test")
 
+    def test_many_collections_under_the_limit_still_meet_a_document_budget(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Each array is under the per-collection limit, which resets for every
+        # collection; without a document-wide budget, enough of them fill the
+        # response-size limit with millions of values.
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 5)
+        monkeypatch.setattr(validation, "MAX_JSON_VALUES", 10)
+        body = json.dumps({key: [1, 2, 3, 4] for key in "abc"}).encode()
+
+        with pytest.raises(validation.ResponseLimitError, match="10 values in total"):
+            _ = validation.json_body(_response(body), source="test")
+
     def test_the_limit_is_per_collection_not_per_document(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

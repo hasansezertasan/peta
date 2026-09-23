@@ -44,6 +44,16 @@ README with base64-embedded images can reach megabytes, so the ceiling is set
 well above anything ordinary rather than at what was seen.
 """
 
+MAX_JSON_VALUES = 2_000_000
+"""Most values accepted across a whole untrusted document.
+
+:data:`MAX_COLLECTION_ITEMS` bounds one collection, and a document can hold
+many: dozens of arrays each just under it fit in the response-size limit and
+make ``json.loads`` build some sixteen million objects — hundreds of MiB for
+a body of 64. The largest real document measured, ``grpcio``'s JSON, holds
+about 225,000 values, so this leaves ample room while capping that cost.
+"""
+
 MAX_JSON_DEPTH = 100
 """Deepest nesting accepted from an untrusted response.
 
@@ -192,6 +202,13 @@ def structural_breach(text: str, *, string_limit: int | None = None) -> str | No
     stripped, too_long = _without_strings(text, limit)
     if too_long:
         return f"{limit:,} characters"
+    # With strings gone, every value is either a container or follows a comma,
+    # so this is an upper bound on the values json.loads would build — and
+    # ``str.count`` runs in C, so the whole-document check costs next to
+    # nothing before the per-collection walk.
+    values = stripped.count(",") + stripped.count("[") + stripped.count("{")
+    if values > MAX_JSON_VALUES:
+        return f"{MAX_JSON_VALUES:,} values in total"
     open_counts = [0]
     for match in _STRUCTURAL.finditer(stripped):
         breach = _step(open_counts, match.group())
@@ -208,9 +225,9 @@ def json_body(response: httpx.Response, *, source: str) -> object:
 
     Raises:
         ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`,
-            any one array or object holds more than
-            :data:`MAX_COLLECTION_ITEMS` items, or any string is longer than
-            :data:`MAX_STRING_LENGTH`.
+            holds more than :data:`MAX_JSON_VALUES` values, has any array or
+            object with more than :data:`MAX_COLLECTION_ITEMS` items, or any
+            string longer than :data:`MAX_STRING_LENGTH`.
     """
     # Decoded here, once, exactly as ``json.loads`` would decode bytes, and
     # both the scan and the parser read this same text. ``response.text``
