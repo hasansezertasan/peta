@@ -140,9 +140,10 @@ Every provider must preserve these invariants when it is added or changed:
   human is held to one line the same way, since its message can quote text an
   index chose. The target-environment banner, printed outside the formatters,
   goes through the same boundary: it names paths from ``--path`` and from the
-  target interpreter's ``sys.path``. Doing it to finished Rich output instead
-  cannot work — peta's own styling is escape sequences too, and cannot be told
-  apart from an attacker's.
+  target interpreter's ``sys.path``, and it is escaped as Markdown when it
+  heads a Markdown document. Doing it to finished Rich output instead cannot
+  work — peta's own styling is escape sequences too, and cannot be told apart
+  from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache
   payloads, process arguments, and diagnostics. Redaction is applied where a
   diagnostic is *built* — ``EnrichmentError``, ``OutputMessage``,

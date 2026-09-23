@@ -206,7 +206,7 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
 
     if why is not None:
         if target and selected != OutputFormat.JSON:
-            typer.echo(render_target(target))
+            typer.echo(render_target(selected, target))
         _print_why(
             package,
             why,
@@ -219,7 +219,9 @@ def deps(  # ruff: ignore[complex-structure, too-many-arguments]
         )
         return
     rendered_target = (
-        render_target(target) if target and selected != OutputFormat.JSON else ""
+        render_target(selected, target)
+        if target and selected != OutputFormat.JSON
+        else ""
     )
     if rendered_target:
         typer.echo(rendered_target)

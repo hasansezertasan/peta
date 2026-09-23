@@ -44,23 +44,27 @@ def _plain_output(value: str) -> str:
     return sanitize_terminal(value)
 
 
-def render_target(target: LocalTarget) -> str:
+def render_target(output_format: OutputFormat, target: LocalTarget) -> str:
     r"""Render the target-environment banner shown above human output.
 
-    Printed outside the formatters, so it would otherwise skip the one
-    boundary every other human string passes through. It names paths from
-    ``--path`` and from the target interpreter's own ``sys.path``, and a
-    directory name can carry an escape sequence like any other untrusted text.
+    Printed outside the formatters, so it would otherwise skip the boundary
+    every other human string passes through. It names paths from ``--path``
+    and from the target interpreter's own ``sys.path``, and a directory name
+    can carry an escape sequence like any other untrusted text.
 
     Line breaks are escaped visibly first. :func:`sanitize_terminal` keeps
     ``\\n`` because the multi-line formatters need it, but the banner is one
     line, and a directory named with a newline would otherwise add lines of
-    its own choosing to the output.
+    its own choosing to the output. Above a Markdown document it is also
+    escaped as Markdown: a directory named ``![x](https://...)`` would
+    otherwise become an image that loads wherever the output is rendered.
 
     Returns:
-        The banner on one line, with terminal control characters removed.
+        The banner on one line, inert in the selected format.
     """
     banner = target.describe().replace("\r", r"\r").replace("\n", r"\n")
+    if output_format == OutputFormat.MARKDOWN:
+        banner = markdown.format_banner(banner)
     return _plain_output(banner)
 
 

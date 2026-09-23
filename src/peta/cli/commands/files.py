@@ -69,5 +69,5 @@ def files(
         )
     rendered = render_files(selected, pkg, arguments=arguments, color=color)
     if target and selected != OutputFormat.JSON:
-        rendered = f"{render_target(target)}\n{rendered}"
+        rendered = f"{render_target(selected, target)}\n{rendered}"
     typer.echo(rendered)

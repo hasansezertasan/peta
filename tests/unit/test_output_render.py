@@ -104,7 +104,7 @@ def test_the_target_banner_cannot_emit_escape_sequences() -> None:
         },
     )
 
-    banner = render_target(target)
+    banner = render_target(OutputFormat.TEXT, target)
 
     assert "\x1b" not in banner
     assert "/srv/evil" in banner
@@ -124,7 +124,7 @@ def test_the_target_banner_stays_on_one_line() -> None:
         },
     )
 
-    banner = render_target(target)
+    banner = render_target(OutputFormat.TEXT, target)
 
     assert "\n" not in banner
     assert "\r" not in banner
@@ -230,3 +230,23 @@ class TestBlocksAppendedAfterRichRendering:
         )
 
         _assert_inert(out)
+
+
+def test_the_target_banner_is_inert_markdown_above_a_markdown_document() -> None:
+    # Prepended to the document by the CLI rather than built by the Markdown
+    # formatter, so it needs that formatter's escaping explicitly: a --path
+    # directory named like an image would otherwise load a remote URL.
+    target = LocalTarget(
+        paths=("/srv/![x](https://attacker.invalid/t)",),
+        interpreter=None,
+        marker_environment={
+            "platform_python_implementation": "CPython",
+            "python_full_version": "3.14.0",
+            "sys_platform": "linux",
+        },
+    )
+
+    banner = render_target(OutputFormat.MARKDOWN, target)
+
+    assert "![x](" not in banner
+    assert r"!\[x\](https://attacker.invalid/t)" in banner

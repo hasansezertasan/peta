@@ -125,5 +125,5 @@ def info(  # ruff: ignore[complex-structure, too-many-arguments]
         )
     rendered = render_info(selected, pkg, arguments=arguments, color=color)
     if target and selected != OutputFormat.JSON:
-        rendered = f"{render_target(target)}\n{rendered}"
+        rendered = f"{render_target(selected, target)}\n{rendered}"
     typer.echo(rendered)

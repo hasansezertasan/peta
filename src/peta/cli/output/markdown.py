@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "format_artifacts",
+    "format_banner",
     "format_compare",
     "format_dep_tree",
     "format_files",
@@ -76,6 +77,19 @@ def _text(value: object) -> str:
         The value on one line, with every active character escaped.
     """
     return _ACTIVE.sub(r"\\\1", _one_line(value))
+
+
+def format_banner(text: str) -> str:
+    """Escape a line printed above a Markdown document for inertness.
+
+    Public for the target-environment banner, which the CLI prepends to the
+    document rather than building through a formatter here, and which names
+    paths that may carry link or image syntax.
+
+    Returns:
+        The line as inert inline Markdown.
+    """
+    return _text(text)
 
 
 def _code(value: object, *, in_table: bool = False) -> str:

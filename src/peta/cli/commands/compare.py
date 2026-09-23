@@ -149,5 +149,5 @@ def compare(  # ruff: ignore[complex-structure, too-many-arguments]
         )
     rendered = render_compare(selected, a_pkg, b_pkg, arguments=arguments, color=color)
     if target and selected != OutputFormat.JSON:
-        rendered = f"{render_target(target)}\n{rendered}"
+        rendered = f"{render_target(selected, target)}\n{rendered}"
     typer.echo(rendered)
