@@ -97,13 +97,17 @@ html_theme_options = {
 # ``_switcher_base = "/"`` instead.
 _switcher_base = "/peta/"
 _versions_file = Path(__file__).parent / "_static" / "versions.json"
+_switcher_context: dict[str, object] = {}
 if _versions_file.exists():
     _versions = json.loads(_versions_file.read_text(encoding="utf-8"))
     _current = os.environ.get("DOCS_BUILD_VERSION_SLUG") or _versions.get("latest", "")
-    html_context = {
+    _switcher_context = {
         "current_version": _current,
         "versions": [
             ["latest", f"{_switcher_base}latest/"],
             *([slug, f"{_switcher_base}{slug}/"] for slug in _versions["versions"]),
         ],
     }
+# Assigned unconditionally (Sphinx's default is ``{}``) so static analysis sees a
+# plain Sphinx setting rather than a conditionally-defined, "unused" global.
+html_context = _switcher_context
