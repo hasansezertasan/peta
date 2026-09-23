@@ -18,8 +18,15 @@ import json
 import pytest
 
 from peta.cli.output.json import format_error, format_info
+from peta.cli.output.render import render_info
+from peta.cli.output.selection import OutputFormat
 from peta.core.artifacts import PublisherFailure
-from peta.core.models import PackageInfo
+from peta.core.models import (
+    DependencyResolutionFailure,
+    EnrichmentFailure,
+    PackageInfo,
+    ProviderWarning,
+)
 from peta.core.output import OutputMessage, SourceRecord
 from peta.core.validation import EnrichmentError
 
@@ -128,3 +135,53 @@ class TestDeclaredMetadataIsNotRewritten:
         result = json.loads(format_info(package, arguments={}))["result"]
 
         assert result["homepage"] == DECLARED
+
+
+class TestDiagnosticModelsRedactThemselves:
+    """Every model that carries a diagnostic redacts it where it is built.
+
+    Relying on ``EnrichmentError`` left gaps: a provider can report failure as
+    a result rather than an exception, warnings never passed through it, and
+    the human formatters render these models directly rather than through a
+    redacted ``OutputMessage``.
+    """
+
+    def test_an_enrichment_failure_built_directly(self) -> None:
+        failure = EnrichmentFailure(source="future", reason=CREDENTIALED, field=None)
+
+        assert "s3cret" not in failure.reason
+
+    def test_a_provider_warning(self) -> None:
+        warning = ProviderWarning(source="future", code="note", message=CREDENTIALED)
+
+        assert "s3cret" not in warning.message
+
+    def test_a_dependency_resolution_failure(self) -> None:
+        failure = DependencyResolutionFailure(
+            source="pypi", state="failed", reason=CREDENTIALED, retrieved_at=None
+        )
+
+        assert "s3cret" not in failure.reason
+
+    @pytest.mark.parametrize(
+        "output_format", [OutputFormat.RICH, OutputFormat.TEXT, OutputFormat.MARKDOWN]
+    )
+    def test_no_human_format_shows_a_provider_credential(
+        self, output_format: OutputFormat
+    ) -> None:
+        package = PackageInfo(
+            name="x",
+            version="1",
+            source="remote",
+            enrichment_failures=[
+                EnrichmentFailure(source="future", reason=CREDENTIALED, field=None)
+            ],
+            provider_warnings=[
+                ProviderWarning(source="future", code="note", message=CREDENTIALED)
+            ],
+        )
+
+        out = render_info(output_format, package, arguments={}, color=False)
+
+        assert "s3cret" not in out
+        assert "libraries.io" in out

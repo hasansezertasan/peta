@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal
 
+from peta.core.redaction import redacted_text
+
 if TYPE_CHECKING:
     from peta.core.cache import Freshness
     from peta.core.output import SourceRecord
@@ -54,6 +56,16 @@ class EnrichmentFailure:
     field, rather than leaving that to a forgotten default.
     """
 
+    def __post_init__(self) -> None:
+        """Strip credentials from any URL the reason names.
+
+        Redacted here, where every failure is built, rather than trusting each
+        source to have raised an ``EnrichmentError``: a provider can report
+        its failure as a result instead, and the human formatters render this
+        reason directly rather than through a redacted ``OutputMessage``.
+        """
+        self.reason = redacted_text(self.reason)
+
 
 @dataclass(frozen=True)
 class ProviderWarning:
@@ -62,6 +74,10 @@ class ProviderWarning:
     source: str
     code: str
     message: str
+
+    def __post_init__(self) -> None:
+        """Strip credentials from any URL a provider's message names."""
+        object.__setattr__(self, "message", redacted_text(self.message))
 
 
 @dataclass(frozen=True)
@@ -101,6 +117,7 @@ class DependencyResolutionFailure:
     miss deliberately makes no request, and claiming a retrieval time for one
     would make the provenance misleading.
     """
+
     freshness: Freshness | None = None
     """Where the answer came from, when there was one.
 
@@ -108,6 +125,14 @@ class DependencyResolutionFailure:
     holds nothing — so it reports its origin like any other completed
     lookup. A failure or an offline refusal has no origin to report.
     """
+
+    def __post_init__(self) -> None:
+        """Strip credentials from any URL the reason names.
+
+        The reason is usually a network error's text, which quotes the URL
+        it requested, and the tree formatters print it for every failed node.
+        """
+        object.__setattr__(self, "reason", redacted_text(self.reason))
 
 
 @dataclass

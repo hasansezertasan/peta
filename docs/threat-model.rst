@@ -148,9 +148,11 @@ Every provider must preserve these invariants when it is added or changed:
   from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache
   payloads, process arguments, and diagnostics. Redaction is applied where a
-  diagnostic is *built* — ``EnrichmentError``, ``OutputMessage``,
-  ``PublisherFailure``, ``SourceRecord``, and the fatal human path — rather
-  than over rendered output or the envelope as a whole. Both
+  diagnostic is *built* — ``EnrichmentError``, ``EnrichmentFailure``,
+  ``ProviderWarning``, ``DependencyResolutionFailure``, ``OutputMessage``,
+  ``PublisherFailure``, ``SourceRecord``, and the fatal human path — every
+  model that carries a diagnostic, since the human formatters render them
+  directly — rather than over rendered output or the envelope as a whole. Both
   credential-bearing query parameters and URL userinfo —
   ``https://{user}:{token}@index/``, the usual way to configure a private
   index — are removed. The distinction matters in both directions: a URL peta
