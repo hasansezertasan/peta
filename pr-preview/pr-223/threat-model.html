@@ -268,9 +268,11 @@ work — peta’s own styling is escape sequences too, and cannot be told apart
 from an attacker’s.</p></li>
 <li><p>Credentials are absent from errors, logs, snapshots, cache keys, cache
 payloads, process arguments, and diagnostics. Redaction is applied where a
-diagnostic is <em>built</em> — <code class="docutils literal notranslate"><span class="pre">EnrichmentError</span></code>, <code class="docutils literal notranslate"><span class="pre">OutputMessage</span></code>,
-<code class="docutils literal notranslate"><span class="pre">PublisherFailure</span></code>, <code class="docutils literal notranslate"><span class="pre">SourceRecord</span></code>, and the fatal human path — rather
-than over rendered output or the envelope as a whole. Both
+diagnostic is <em>built</em> — <code class="docutils literal notranslate"><span class="pre">EnrichmentError</span></code>, <code class="docutils literal notranslate"><span class="pre">EnrichmentFailure</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ProviderWarning</span></code>, <code class="docutils literal notranslate"><span class="pre">DependencyResolutionFailure</span></code>, <code class="docutils literal notranslate"><span class="pre">OutputMessage</span></code>,
+<code class="docutils literal notranslate"><span class="pre">PublisherFailure</span></code>, <code class="docutils literal notranslate"><span class="pre">SourceRecord</span></code>, and the fatal human path — every
+model that carries a diagnostic, since the human formatters render them
+directly — rather than over rendered output or the envelope as a whole. Both
 credential-bearing query parameters and URL userinfo —
 <code class="docutils literal notranslate"><span class="pre">https://{user}:{token}&#64;index/</span></code>, the usual way to configure a private
 index — are removed. The distinction matters in both directions: a URL peta
