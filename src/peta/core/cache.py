@@ -541,7 +541,7 @@ def _kept_headers(headers: dict[str, str]) -> dict[str, str]:
     }
 
 
-def _atomic_write(directory: Path, key: str, payload: dict[str, object]) -> None:
+def _atomic_write(directory: Path, key: str, text: str) -> None:
     """Write one entry via a temporary file moved into place.
 
     A reader therefore sees either the previous entry or the complete new
@@ -555,7 +555,7 @@ def _atomic_write(directory: Path, key: str, payload: dict[str, object]) -> None
     handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
-            json.dump(payload, stream)
+            _ = stream.write(text)
         _ = Path(temporary).replace(directory / f"{key}.json")
     except OSError:
         Path(temporary).unlink(missing_ok=True)
@@ -615,9 +615,19 @@ def _write(key: str, payload: dict[str, object]) -> None:
     """
     if not settings().enabled:
         return
+    # Serialized as UTF-8 rather than ASCII-escaped: escaping turns a four-byte
+    # character into twelve, so a legitimate body near the response limit
+    # could produce an entry past :data:`MAX_ENTRY_BYTES`. That entry would be
+    # written, refused by every ``load``, and refetched and rewritten on every
+    # run. Escaping now at most doubles the body, and anything still over the
+    # bound is not written at all, so the cache never stores what it will not
+    # read back.
+    text = json.dumps(payload, ensure_ascii=False)
+    if len(text.encode("utf-8")) > MAX_ENTRY_BYTES:
+        return
     directory = entries_directory()
     try:
-        _atomic_write(directory, key, payload)
+        _atomic_write(directory, key, text)
     except OSError:
         return
     _prune(directory, now())

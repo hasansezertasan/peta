@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, get_args
+from typing import TYPE_CHECKING, Self, cast, get_args
 
 import pytest
 
@@ -325,6 +325,33 @@ class TestCorruption:
         assert entry is not None
         assert entry.body == body
 
+    def test_an_entry_too_large_to_read_back_is_not_written(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Writing an entry load() will refuse would make every run refetch
+        # and rewrite it; the cache never stores what it will not read back.
+        monkeypatch.setattr(cache, "MAX_ENTRY_BYTES", 100)
+        cache.store("k", url=_URL, status=200, body=json.dumps("x" * 200), headers={})
+
+        assert not (cache_dir / "k.json").exists()
+
+    def test_non_ascii_bodies_are_stored_as_utf8_not_escaped(
+        self, cache_dir: Path
+    ) -> None:
+        # ASCII escaping turns a four-byte character into twelve bytes, which
+        # let a legitimate body near the response limit produce an entry past
+        # the read bound.
+        body = json.dumps({"summary": "\U0001f40d" * 10}, ensure_ascii=False)
+        cache.store("k", url=_URL, status=200, body=body, headers={})
+
+        stored = (cache_dir / "k.json").read_bytes()
+        entry = cache.load("k")
+
+        assert "\U0001f40d".encode() in stored
+        assert b"\\ud83d" not in stored
+        assert entry is not None
+        assert entry.body == body
+
     def test_the_entry_bound_leaves_room_for_the_largest_accepted_body(self) -> None:
         # An entry wraps its body in an escaped string inside an envelope, so
         # it is bigger than the body; a bound at the body limit would turn
@@ -471,10 +498,24 @@ class TestWriteFailures:
         # failure midway must not leave it behind to accumulate forever.
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        def explode(*_args: object, **_kwargs: object) -> None:
-            raise OSError(28, "No space left on device")
+        opened = cache.os.fdopen
 
-        monkeypatch.setattr(cache.json, "dump", explode)
+        class DiskFull:
+            """A stream that fails partway through, as a full disk would."""
+
+            def __init__(self, fd: int, mode: str, *, encoding: str) -> None:
+                self._stream = opened(fd, mode, encoding=encoding)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                self._stream.close()
+
+            def write(self, _text: str) -> int:
+                raise OSError(28, "No space left on device")
+
+        monkeypatch.setattr(cache.os, "fdopen", DiskFull)
 
         cache.store("k", url=_URL, status=200, body="{}", headers={})
 
