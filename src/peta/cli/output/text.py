@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.console import inline
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -27,25 +28,18 @@ __all__ = [
 ]
 
 
-_SEPARATORS = str.maketrans("\n\r\t", "   ")
-"""Line and column separators, each folded into a space.
-
-This formatter is line-oriented and its tables are tab-separated, so a newline
-or tab inside a value — a yank reason, a filename, a summary — would forge an
-extra line or column of output. The terminal sanitizer keeps both, because the
-formatter's own separators need them, so each untrusted value folds its own.
-Folding rather than escaping matches how a wrapped summary has always been
-shown here, and it is as effective: a space separates neither lines nor tabs.
-"""
-
-
 def _field(value: object) -> str:
     """Render one untrusted value so it cannot add lines or columns.
 
+    This formatter is line-oriented and its tables are tab-separated, so a
+    newline or tab inside a value — a yank reason, a filename, a summary —
+    would forge an extra line or column. :func:`inline` folds both to spaces,
+    which is how a wrapped summary has always been shown here.
+
     Returns:
-        The value with newlines, carriage returns, and tabs folded to spaces.
+        The value on one line, with terminal control characters removed.
     """
-    return str(value).translate(_SEPARATORS)
+    return inline(value)
 
 
 def _value(value: object) -> str:

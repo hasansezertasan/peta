@@ -12,10 +12,22 @@ import json
 
 import pytest
 
-from peta.cli.output.render import render_info, render_target
+from peta.cli.output.render import (
+    render_artifacts,
+    render_files,
+    render_info,
+    render_target,
+    render_why,
+)
 from peta.cli.output.selection import OutputFormat
+from peta.core.artifacts import ArtifactFile, Compatibility, ReleaseArtifacts, Target
 from peta.core.local import LocalTarget
-from peta.core.models import PackageInfo
+from peta.core.models import (
+    DependencyNode,
+    EnrichmentFailure,
+    PackageInfo,
+    Vulnerability,
+)
 
 pytestmark = pytest.mark.unit
 
@@ -117,3 +129,104 @@ def test_the_target_banner_stays_on_one_line() -> None:
     assert "\n" not in banner
     assert "\r" not in banner
     assert r"/srv/ok\nTarget environment: trusted\r" in banner
+
+
+HOSTILE_LINE = f"ok{ESCAPE}{OSC_HYPERLINK}\n  forged line"
+"""A value that tries both terminal controls and a line of its own."""
+
+
+def _assert_inert(out: str) -> None:
+    assert ESCAPE not in out
+    assert "\x1b]8;;" not in out
+    assert "\n  forged line" not in out
+
+
+class TestBlocksAppendedAfterRichRendering:
+    """Plain text that Rich never sees must be hardened on its own.
+
+    The Rich formatters add blocks after ``console.render`` has run — the
+    vulnerability and enrichment blocks, artifact details and notes — and
+    ``files`` and ``why`` never render through Rich at all, so the segment
+    hardening inside ``render`` does not reach any of them.
+    """
+
+    @pytest.mark.parametrize("color", [True, False])
+    def test_vulnerability_and_enrichment_blocks(self, *, color: bool) -> None:
+        package = PackageInfo(
+            name="requests",
+            version="1.0",
+            source="remote",
+            vulnerabilities=[
+                Vulnerability(
+                    id="GHSA-1", aliases=[], summary=HOSTILE_LINE, fixed_in=["2.0"]
+                )
+            ],
+            enrichment_failures=[
+                EnrichmentFailure(source="osv", reason=HOSTILE_LINE, field=None)
+            ],
+        )
+
+        out = render_info(OutputFormat.RICH, package, arguments={}, color=color)
+
+        _assert_inert(out)
+        assert "forged line" in out
+
+    def test_peta_keeps_its_own_color_alongside_them(self) -> None:
+        package = PackageInfo(
+            name="requests",
+            version="1.0",
+            source="remote",
+            enrichment_failures=[
+                EnrichmentFailure(source="osv", reason=HOSTILE_LINE, field=None)
+            ],
+        )
+
+        assert "\x1b[" in render_info(
+            OutputFormat.RICH, package, arguments={}, color=True
+        )
+
+    @pytest.mark.parametrize("detailed", [True, False])
+    def test_artifact_details_and_notes(self, *, detailed: bool) -> None:
+        wheel = ArtifactFile(
+            filename=f"pkg{ESCAPE}-1.0.whl",
+            url="https://files.invalid/pkg-1.0.whl",
+            kind="wheel",
+            compatibility=Compatibility(compatible=True),
+            yanked=True,
+            yanked_reason=HOSTILE_LINE,
+        )
+        release = ReleaseArtifacts(
+            name="pkg", version="1.0", target=Target("3.13"), files=[wheel]
+        )
+
+        out = render_artifacts(
+            OutputFormat.RICH,
+            release,
+            arguments={},
+            color=True,
+            detailed=detailed,
+            retrieved_at="2026-01-01T00:00:00Z",
+        )
+
+        _assert_inert(out)
+
+    def test_file_listing(self) -> None:
+        package = PackageInfo(
+            name="requests", version="1.0", source="local", files=[HOSTILE_LINE]
+        )
+
+        _assert_inert(
+            render_files(OutputFormat.RICH, package, arguments={}, color=True)
+        )
+
+    def test_dependency_paths(self) -> None:
+        out = render_why(
+            OutputFormat.RICH,
+            "requests",
+            [["app", HOSTILE_LINE, "requests"]],
+            DependencyNode("app", ""),
+            arguments={},
+            color=True,
+        )
+
+        _assert_inert(out)

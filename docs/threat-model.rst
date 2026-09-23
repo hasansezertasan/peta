@@ -118,12 +118,19 @@ Every provider must preserve these invariants when it is added or changed:
   line or a column; in Markdown it is escaped so it cannot open a link, an
   image, raw HTML, or an autolink — a package named ``![x](https://...)``
   would otherwise load a remote image wherever the output is rendered — and
-  code spans get a fence longer than any backtick run inside them. The
-  target-environment banner, printed outside the formatters, goes through the
-  same boundary: it names paths from ``--path`` and from the target
-  interpreter's ``sys.path``. Doing it to finished Rich output instead cannot
-  work — peta's own styling is escape sequences too, and cannot be told apart
-  from an attacker's.
+  code spans get a fence longer than any backtick run inside them. A bare URL
+  is deliberately left as it is, even though GFM viewers autolink it: its
+  visible text is its whole target, so nothing is disguised, following it
+  takes a click, and the homepage and project URLs a package declares are
+  meant to be followed. The Rich formatters also append plain blocks after
+  rendering — vulnerability and enrichment warnings, artifact details and
+  notes — and ``files`` and ``why`` never render through Rich at all; each of
+  their lines is hardened on its own, since the per-segment pass never sees
+  them. The target-environment banner, printed outside the formatters, goes
+  through the same boundary: it names paths from ``--path`` and from the
+  target interpreter's ``sys.path``. Doing it to finished Rich output instead
+  cannot work — peta's own styling is escape sequences too, and cannot be told
+  apart from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache
   payloads, process arguments, and diagnostics. Redaction is applied where a
   diagnostic is *built* — ``EnrichmentError``, ``OutputMessage``,

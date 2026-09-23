@@ -13,7 +13,7 @@ from rich.segment import Segment, Segments
 if TYPE_CHECKING:
     from rich.console import RenderableType
 
-__all__ = ["render", "resolve_color", "sanitize_terminal"]
+__all__ = ["inline", "render", "resolve_color", "sanitize_terminal"]
 
 _KEPT_CONTROLS = frozenset({"\n", "\t"})
 _FIRST_PRINTABLE = 0x20
@@ -43,6 +43,23 @@ def sanitize_terminal(value: str) -> str:
         The value with terminal control characters removed.
     """
     return value.translate(_CONTROL_CHARACTERS)
+
+
+_LINE_BREAKS = str.maketrans("\n\r\t", "   ")
+
+
+def inline(value: object) -> str:
+    """Make one untrusted value safe to place on a line of terminal output.
+
+    :func:`sanitize_terminal` keeps newlines and tabs because formatters build
+    their layout from them, so a value inserted into that layout has to give
+    up its own: folded to spaces, they can neither start a forged line nor
+    shift a column.
+
+    Returns:
+        The value on one line, with terminal control characters removed.
+    """
+    return sanitize_terminal(str(value).translate(_LINE_BREAKS))
 
 
 def resolve_color(*, no_color: bool) -> bool:
