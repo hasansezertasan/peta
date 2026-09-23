@@ -1,0 +1,8 @@
+# gitleaks configuration: the default ruleset, minus paths that hold only
+# non-secret material gitleaks misreads as credentials.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "detect-secrets baseline stores SHA-1 hashes of known false positives, not secrets"
+paths = ['''^\.secrets\.baseline$''']
