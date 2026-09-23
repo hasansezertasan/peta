@@ -246,6 +246,16 @@ afterwards; httpx recomputes the length from the content it is given.
 """
 
 
+_BODYLESS = frozenset({204, 304})
+"""Statuses that never carry a body, whatever their headers say.
+
+A ``304`` may keep ``Content-Encoding: gzip`` because the header describes the
+cached representation it vouches for, not a body it sends. Decoding its empty
+stream would fail the end-of-stream check and break every revalidation
+against a server or CDN that does this.
+"""
+
+
 class UnsupportedEncodingError(TransportPolicyError):
     """Raised when a response uses a content encoding peta did not ask for."""
 
@@ -260,7 +270,7 @@ def _decompressor(response: httpx.Response) -> _Decompress | None:
         UnsupportedEncodingError: If the body uses any other encoding.
     """
     encoding = cast("str", response.headers.get("content-encoding", "")).strip().lower()
-    if encoding in {"", "identity"}:
+    if encoding in {"", "identity"} or response.status_code in _BODYLESS:
         return None
     if encoding == "gzip":
         return zlib.decompressobj(16 + zlib.MAX_WBITS)

@@ -855,6 +855,17 @@ class TestCompressedBodiesAreBoundedWhileDecoding:
 
         assert http._within_limit(response) == b'{"a": 1}'
 
+    @pytest.mark.parametrize("status", [204, 304])
+    def test_a_bodyless_status_is_not_decoded(self, status: int) -> None:
+        # A 304 may keep Content-Encoding: gzip for the representation it
+        # vouches for. Decoding its empty stream would fail the end-of-stream
+        # check and break every revalidation against such a server.
+        response = httpx.Response(
+            status, headers={"content-encoding": "gzip"}, stream=httpx.ByteStream(b"")
+        )
+
+        assert http._within_limit(response) == b""
+
     def test_an_encoding_peta_did_not_ask_for_is_refused(self) -> None:
         with pytest.raises(http.UnsupportedEncodingError, match="'br'"):
             _ = http._within_limit(self._streamed(b"x", encoding="br"))
