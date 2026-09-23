@@ -15,6 +15,12 @@ Human-friendly Python package metadata viewer
    modules
    research-tooling-landscape
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Maintainer guide
+
+   maintaining/setup
+
 Indices and tables
 ==================
 

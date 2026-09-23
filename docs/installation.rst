@@ -51,3 +51,17 @@ On Windows, install ``peta`` from the
 
    scoop bucket add hasansezertasan https://github.com/hasansezertasan/scoop-bucket
    scoop install peta
+
+Verify release provenance
+-------------------------
+
+Public-repository release distributions include Sigstore-signed build
+provenance. After downloading a wheel or source distribution, verify that the
+release workflow built it from ``main`` in this repository:
+
+.. code-block:: bash
+
+   gh attestation verify <downloaded-distribution> \
+     --repo hasansezertasan/peta \
+     --signer-workflow hasansezertasan/peta/.github/workflows/release.yml \
+     --source-ref refs/heads/main

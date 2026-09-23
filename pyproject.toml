@@ -66,6 +66,7 @@ dev = [
 style = [
   "actionlint-py==1.7.12.25",
   "basedpyright==1.40.1",
+  "detect-secrets==1.5.0",
   "editorconfig-checker==3.11.1",
   "import-linter==2.15",
   "mypy==2.3.1",
@@ -100,18 +101,25 @@ test = [
   "pytest-asyncio>=0.23.0",
   "dirty-equals",
   "inline-snapshot",
+  "pytest-deadfixtures==3.1.0",
 ]
 docs = [
   "sphinx==9.1.0",
   "shibuya==2026.7.12",
   "sphinx-autobuild==2025.8.25", # 2025.x drops Python 3.10 (requires-python >= 3.11)
   "sphinx-copybutton==0.5.2",
-  "sphinx-design==0.7.0",        # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
+  "sphinx-design==0.7.0", # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
   "sphinx-togglebutton==0.4.5",
   "sphinx-paramlinks==0.6.0",
   "auto-pytabs[sphinx]==0.5.0",
   "myst-parser==5.1.0",
-  "sphinx-click==6.2.0",
+  # Per-page "last updated" footer sourced from git commit dates (ADR-027);
+  # offline, no network. Works from full history (docs CI checks out depth 0).
+  "sphinx-last-updated-by-git==0.3.8",
+  # PEP 440 version parsing/sorting used by tools/build_docs.py to order
+  # published versions and pick the `latest` alias (ADR-027). Also a Sphinx
+  # transitive dependency; pinned here for the explicit direct use.
+  "packaging>=24.0",
 ]
 tool = [
   "commitizen==4.19.0",
@@ -141,7 +149,12 @@ trusted-publishing = "always"
 
 [tool.hatch.version]
 source = "vcs"
-fallback-version = "0.1.0"
+# Last-resort sentinel: only used when a build sees neither a .git directory nor
+# an expanded .git_archival.txt (e.g. an archive of a commit with no reachable
+# tag). "0.0.0" reads clearly as "version could not be determined" rather than
+# masquerading as a real early release. See .git_archival.txt + .gitattributes
+# `export-subst` for the archive path that recovers the real tag-derived version.
+fallback-version = "0.0.0"
 
 
 [tool.hatch.build]
@@ -192,6 +205,11 @@ branch = true
 # `src/**`-only pattern silently misses the installed copy and reports it at 0%.
 omit = ["*/_version.py"]
 parallel = true
+# Store data-file paths relative to the project root so `.coverage` files produced
+# on different runners/OSes merge in the `coverage-combine` CI job without
+# absolute-path mismatches. Complements the `[tool.coverage.paths]` remap below
+# (which unifies the src/ vs site-packages layouts). See ADR-026.
+relative_files = true
 source_pkgs = ["peta", "tests"]
 
 
@@ -231,6 +249,11 @@ ignore_decorators = [
   "@app.after_startup",
   "@app.after_shutdown",
   "@server.call_tool",
+  # A fixture used through ``@pytest.mark.usefixtures("name")`` -- or from
+  # another test module -- is only ever named in a string, which vulture cannot
+  # see. Unused fixtures are caught properly by ``pytest --dead-fixtures`` in
+  # the tox ``style`` env, so this delegates rather than suppresses.
+  "@pytest.fixture",
 ]
 # Public API surfaces vulture cannot see being used: ``main`` entry points are
 # referenced only via pyproject scripts, ``model_config`` is consumed by
@@ -294,7 +317,17 @@ type = "layers"
 # Layers are listed high -> low: a layer may import lower layers but never a
 # higher one. `cli` is the top layer (commands + rendering, including
 # `peta.cli.output`), sitting above `core` (data + I/O).
-layers = ["peta.cli", "peta.core"]
+#
+# `exhaustive` makes the contract fail when a subpackage of `peta` is not named
+# in `layers` — so a new top-level subpackage is a deliberate architecture
+# decision (add it to a layer here) rather than something that silently accretes
+# at the package root. See "Package Structure" in `AGENTS.md`. The
+# `exhaustive_ignores` entries are the non-layer foundations: the metadata and
+# hatch-vcs version modules and the `python -m` dispatcher.
+containers = ["peta"]
+exhaustive = true
+exhaustive_ignores = ["__main__", "__metadata__", "_version"]
+layers = ["cli", "core"]
 
 
 [tool.ruff]
@@ -390,6 +423,12 @@ convention = "pep257"
 ]
 # The Sphinx config is a standalone module, not part of an importable package.
 "docs/conf.py" = ["implicit-namespace-package"]
+# The docs warning-allowlist gate is a standalone script (not an importable
+# package) whose whole job is to print GitHub `::error::` annotations to stdout.
+"docs/check_warnings.py" = ["implicit-namespace-package", "print"]
+# The versioned-docs build orchestrator is a standalone CLI script under tools/,
+# not part of an importable package (ADR-027).
+"tools/build_docs.py" = ["implicit-namespace-package"]
 # Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
 "src/peta/cli/**/*.py" = [
   "function-call-in-default-argument",
@@ -449,7 +488,14 @@ project-includes = ["src"]
 # and would hang/fail under ``tox run`` in CI (where no broker is available).
 # The worker is covered by its pytest TestBroker suite; run it on demand with
 # ``tox -e worker`` when a broker is up (e.g. inside the devcontainer).
-env_list = ["style", "cli", "3.14"]
+env_list = [
+  "style",
+  # Inline ``>>>`` snippets are part of the tested-documentation contract,
+  # so run them in the default CI ``tox run`` invocation.
+  "docs-doctest",
+  "cli",
+  "3.14",
+]
 requires = ["tox>=4"]
 
 
@@ -489,6 +535,10 @@ commands = [
   ["ruff", "check", "--no-fix"],
   ["ruff", "format", "--check", "--diff"],
   ["mypy", "--python-version", "3.14"],
+  # Style runs once on Linux, so explicitly sweep platform-gated branches that
+  # mypy would otherwise prune as unreachable on the host platform.
+  ["mypy", "--platform", "win32"],
+  ["mypy", "--platform", "darwin"],
   ["basedpyright"],
   ["ty", "check"],
   ["pyrefly", "check"],
@@ -497,19 +547,22 @@ commands = [
   ["python", "-m", "slotscheck", "src"],
   ["lint-imports"],
   ["taplo", "lint", "*.toml"],
-  # NOTE: kept in fix mode (not `--check`) because the rendered TOML is not yet
-  # guaranteed taplo-formatted across every component combination. The `*.toml`
+  # A strict `--check` gate, not fix mode: a file that taplo would rewrite
+  # fails CI instead of drifting silently. `.taplo.toml` disables array auto
+  # expand/collapse so the committed layout is the canonical one. The `*.toml`
   # glob is non-recursive, so it scopes taplo to this project's own root TOML
-  # (pyproject/prek/mise) without walking vendored `.tox`/`.venv`/site-packages
-  # trees — no `.taplo.toml` exclude config needed. Making this a strict
-  # `--check` gate is a follow-up that first requires the generated
-  # pyproject/prek to be clean.
-  ["taplo", "format", "*.toml"],
+  # (pyproject/prek/mise/taplo) without walking vendored `.tox`/`.venv`/
+  # site-packages trees.
+  ["taplo", "format", "--check", "--diff", "*.toml"],
   ["validate-pyproject", "pyproject.toml"],
   ["typos", "--diff"],
   ["actionlint"],
   ["ec"],
   ["sphinx-lint", "docs"],
+  # Collects (does not run) the suite and flags fixtures that are never used --
+  # cheap, deterministic, and a natural fit next to the other whole-program
+  # analyzers above (lint-imports, slotscheck).
+  ["pytest", "--dead-fixtures"],
   # ["yamlfmt", "."],
 ]
 # `test` is included so the type checkers that scope tests (e.g. ty) can
@@ -527,10 +580,29 @@ runner = "uv-venv-runner"
 
 
 [tool.tox.env.docs-build]
-commands = [["sphinx-build", "-b", "html", "docs", "docs/_build/html"]]
+# Write the warning stream to a file (`-w`) instead of `-W` turning the first
+# warning into a hard error, then let docs/check_warnings.py own the pass/fail:
+# it diffs the emitted warnings against the docs/expected_warnings.txt allowlist,
+# failing on both unexpected new warnings and expected ones that vanished.
+commands = [
+  [
+    "sphinx-build",
+    "-w",
+    "docs/_build/warnings.txt",
+    "-b",
+    "html",
+    "docs",
+    "docs/_build/html",
+  ],
+  ["python", "docs/check_warnings.py"],
+]
 dependency_groups = ["docs"]
 description = "Build Docs"
 runner = "uv-venv-runner"
+# Keep build log output unbuffered/ordered. Local `tox` runs deliberately do NOT
+# export SOURCE_DATE_EPOCH (an empty value breaks hatchling's reproducible
+# timestamp), so conf.py falls back to the current year.
+set_env = { PYTHONUNBUFFERED = "1" }
 
 
 [tool.tox.env.docs-server]
@@ -538,6 +610,16 @@ commands = [["sphinx-autobuild", "docs", "docs/_build/html"]]
 dependency_groups = ["docs"]
 description = "Start the live-reloading docs server"
 runner = "uv-venv-runner"
+set_env = { PYTHONUNBUFFERED = "1" }
+
+
+[tool.tox.env.docs-doctest]
+# Executes the occasional ``>>>`` snippet that belongs inline with prose.
+commands = [["sphinx-build", "-b", "doctest", "docs", "docs/_build/doctest"]]
+dependency_groups = ["docs"]
+description = "Run documentation doctests"
+runner = "uv-venv-runner"
+set_env = { PYTHONUNBUFFERED = "1" }
 
 
 [tool.tox.env.docs-linkcheck]
@@ -555,6 +637,7 @@ commands = [
 dependency_groups = ["docs"]
 description = "Check documentation for broken links"
 runner = "uv-venv-runner"
+set_env = { PYTHONUNBUFFERED = "1" }
 
 [tool.tox.env.cli]
 commands = [
