@@ -5,38 +5,29 @@ See https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 from __future__ import annotations
 
-<<<<<<< before updating
+import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 # Make documentation-only adapters importable by Sphinx extensions.
 sys.path.insert(0, str(Path(__file__).resolve().parent / "_ext"))
-=======
-import json
-import os
-from datetime import datetime, timezone
-from pathlib import Path
->>>>>>> after updating
 
 # -- Project information -----------------------------------------------------
 project = "peta"
 author = "Hasan Sezer Tasan"
-<<<<<<< before updating
-copyright = f"{datetime.now(tz=UTC):%Y}, Hasan Sezer Tasan"  # ruff: ignore[builtin-variable-shadowing]
-=======
 # Reproducible builds: honor SOURCE_DATE_EPOCH (https://reproducible-builds.org/)
 # so the stamped copyright year is a function of the source (e.g. the last
 # commit date, as exported by the CI docs steps) rather than the clock. Local
 # `tox` runs leave it unset and fall back to the current year below.
 _source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
 _build_date = (
-    datetime.fromtimestamp(int(_source_date_epoch), tz=timezone.utc)
+    datetime.fromtimestamp(int(_source_date_epoch), tz=UTC)
     if _source_date_epoch
-    else datetime.now(tz=timezone.utc)
+    else datetime.now(tz=UTC)
 )
-copyright = f"{_build_date:%Y}, Hasan Sezer Tasan"  # noqa: A001
->>>>>>> after updating
+copyright = f"{_build_date:%Y}, Hasan Sezer Tasan"  # ruff: ignore[builtin-variable-shadowing]
 
 # -- General configuration ---------------------------------------------------
 extensions = [
@@ -59,14 +50,7 @@ extensions = [
 
 # Both reStructuredText and (via MyST) Markdown source files are supported.
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
-<<<<<<< before updating
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "superpowers/**"]
-=======
-# ``_generated`` holds machine-generated reference material (CLI Markdown, etc.)
-# that is ``{include}``d/``literalinclude``d into real pages; exclude it so those
-# fragments are not also built as standalone orphan documents.
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "_generated"]
->>>>>>> after updating
 
 # autosectionlabel can emit duplicate-label warnings across documents; the
 # document prefix keeps them unique, so no blanket suppression is needed.
@@ -123,40 +107,3 @@ if _versions_file.exists():
             *([slug, f"{_switcher_base}{slug}/"] for slug in _versions["versions"]),
         ],
     }
-
-# -- Generated interface schemas and reference material ----------------------
-# Emit the project's machine-readable interface contracts and CLI reference
-# straight from the live ``app`` objects so the reference pages can
-# ``literalinclude`` (or MyST-``{include}``) an always-in-sync description of
-# channels/routes, payload/response schemas, status codes, and CLI commands.
-# Each is derived from the source of truth (the ``description=`` strings and the
-# Pydantic/response models already on the code, and the live Typer app),
-# regenerated on every docs build, and is not committed (``docs/_generated/`` is
-# gitignored). Each generator runs with ``check=True``, so a broken app import or
-# a failed generation raises and fails the docs build.
-import subprocess  # noqa: E402, S404
-import sys  # noqa: E402
-
-_generated_dir = Path(__file__).parent / "_generated"
-_generated_dir.mkdir(exist_ok=True)
-
-# The Typer CLI reference (commands, options, defaults, and any component
-# subcommands) generated from the live ``peta.cli.app`` app; the
-# "CLI reference" page ``{include}``s the emitted Markdown. ``include_cli`` always
-# makes the CLI the primary component, so the documented program name is the bare
-# ``peta`` console script.
-subprocess.run(  # noqa: S603
-    [
-        sys.executable,
-        "-m",
-        "typer",
-        "peta.cli.app",
-        "utils",
-        "docs",
-        "--name",
-        "peta",
-        "--output",
-        str(_generated_dir / "cli.md"),
-    ],
-    check=True,
-)

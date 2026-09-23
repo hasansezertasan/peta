@@ -49,11 +49,7 @@ jobs:
           python-version-file: .python-version
       - name: Setup uv
         if: github.event.action != 'closed'
-<<<<<<< before updating
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
-=======
-        uses: astral-sh/setup-uv@ae62891fec2bb8e7d6c99fc78c9fec3a63790f8d  # v10.0.0
->>>>>>> after updating
         with:
           enable-cache: true
           cache-dependency-glob: |
@@ -67,9 +63,6 @@ jobs:
       - name: Build docs
         if: github.event.action != 'closed'
         # sphinx.ext.githubpages emits .nojekyll so _static/ is served.
-<<<<<<< before updating
-        run: uv run --no-default-groups --group docs sphinx-build -b html docs docs/_build/html
-=======
         env:
           PYTHONUNBUFFERED: "1"
         # Build with -w (warning stream to file) + the allowlist gate, matching
@@ -78,7 +71,6 @@ jobs:
         run: |
           uv run --no-default-groups --group docs sphinx-build -w docs/_build/warnings.txt -b html docs docs/_build/html
           uv run --no-default-groups --group docs python docs/check_warnings.py
->>>>>>> after updating
       - name: Deploy preview
         # action: auto deploys on opened/synchronize/reopened and removes the
         # pr-preview/pr-<N>/ subfolder on closed; the sticky comment is updated

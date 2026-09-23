@@ -9,13 +9,9 @@ Human-friendly Python package metadata viewer
 
    installation
    usage
-<<<<<<< before updating
    output-contract
    configuration
    architecture
-=======
-   cli-reference
->>>>>>> after updating
    modules
    research-tooling-landscape
 

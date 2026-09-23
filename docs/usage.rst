@@ -6,7 +6,6 @@ PyPI JSON API and prints it with Rich formatting. Use ``--format`` with
 ``rich``, ``text``, ``json``, or ``markdown`` on any command. ``--json`` remains
 an alias for ``--format json``.
 
-<<<<<<< before updating
 Commands
 --------
 
@@ -15,22 +14,6 @@ always reflects the installed version of ``peta``. A bare ``peta <package>`` is
 shorthand for ``peta info <package>``.
 
 .. peta-cli::
-=======
-Look up the installed distribution version:
-
-.. literalinclude:: examples/version_lookup.py
-   :language: python
-   :caption: examples/version_lookup.py
-
-For short interactive snippets embedded in prose, the ``docs-doctest`` task
-executes ``>>>`` blocks too:
-
-.. doctest::
-
-   >>> from peta.__metadata__ import PROJECT_NAME
-   >>> PROJECT_NAME
-   'peta'
->>>>>>> after updating
 
 Color
 -----
@@ -43,7 +26,6 @@ precedence over TTY detection. Text, JSON, and Markdown output is always plain. 
 Caching and offline use
 ------------------------
 
-<<<<<<< before updating
 Successful responses are cached on disk, so repeat queries cost a local read
 rather than a request. Package metadata and version listings are kept for an
 hour, and download and dependent counts for a few. A ``name==version`` lookup
@@ -253,13 +235,3 @@ reported as warnings and retain exit code ``0``.
 With JSON output, fatal errors use the same versioned envelope as successful
 results and appear in the ``errors`` array. The exit codes above are unchanged,
 so scripts should inspect both the process status and the envelope.
-=======
-   peta version
-   peta info
-
-Or invoke it programmatically from Python:
-
-.. literalinclude:: examples/cli_usage.py
-   :language: python
-   :caption: examples/cli_usage.py
->>>>>>> after updating

@@ -224,7 +224,6 @@ If the hook flags something:
 
 ### Improving The Documentation
 
-<<<<<<< before updating
 The command and option reference in `docs/usage.rst` is generated from the
 Typer application by the local `cli_reference` Sphinx extension; do not
 maintain a second command list there. When adding or removing a command:
@@ -238,16 +237,6 @@ maintain a second command list there. When adding or removing a command:
 
 Keep conceptual explanations and task-oriented examples hand-written in the
 documentation; only the mechanical command and option inventory is generated.
-=======
-The documentation is built with [Sphinx](https://www.sphinx-doc.org/). Common
-documentation tasks:
-
-- `mise run docs-build` (or `uv run --locked tox run -e docs-build`) — build the HTML docs.
-- `mise run docs-serve` (or `uv run --locked tox run -e docs-server`) — serve them locally with live reload.
-- `uv run --locked tox run -e docs-linkcheck` — check for broken links (also runs weekly in CI).
-
-<!-- TODO @hasansezertasan: Updating, improving and correcting the documentation -->
->>>>>>> after updating
 
 ## Styleguides
 

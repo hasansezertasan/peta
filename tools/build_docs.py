@@ -20,7 +20,7 @@ import io
 import json
 import os
 import shutil
-import subprocess  # noqa: S404
+import subprocess  # ruff: ignore[suspicious-subprocess-import]
 import sys
 import tarfile
 from pathlib import Path
@@ -129,8 +129,8 @@ def _gh_pages_ref() -> str | None:
         The first gh-pages ref that resolves, or ``None`` if none exist.
     """
     for ref in GH_PAGES_REFS:
-        result = subprocess.run(  # noqa: S603
-            ["git", "rev-parse", "--verify", "--quiet", ref],  # noqa: S607
+        result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
+            ["git", "rev-parse", "--verify", "--quiet", ref],  # ruff: ignore[start-process-with-partial-path]
             capture_output=True,
             check=False,
         )
@@ -149,8 +149,8 @@ def existing_versions() -> list[str]:
     ref = _gh_pages_ref()
     if ref is None:
         return []
-    result = subprocess.run(  # noqa: S603
-        ["git", "ls-tree", "--name-only", ref],  # noqa: S607
+    result = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
+        ["git", "ls-tree", "--name-only", ref],  # ruff: ignore[start-process-with-partial-path]
         capture_output=True,
         text=True,
         check=True,
@@ -190,7 +190,7 @@ def write_versions_json(slugs: list[str], latest: str) -> None:
 def build_sphinx() -> None:
     """Run the same warning-gated build the docs-build tox env uses."""
     WARNINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
         [
             sys.executable,
             "-m",
@@ -204,7 +204,7 @@ def build_sphinx() -> None:
         ],
         check=True,
     )
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
         [sys.executable, str(DOCS_DIR / "check_warnings.py")], check=True
     )
 
@@ -228,8 +228,8 @@ def preserve_from_gh_pages(
         RuntimeError: If a required subtree cannot be read from ``ref``, or if
             the interpreter predates ``tarfile``'s ``data`` extraction filter.
     """
-    archive = subprocess.run(  # noqa: S603
-        ["git", "archive", ref, name],  # noqa: S607
+    archive = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
+        ["git", "archive", ref, name],  # ruff: ignore[start-process-with-partial-path]
         capture_output=True,
         check=False,
     )
