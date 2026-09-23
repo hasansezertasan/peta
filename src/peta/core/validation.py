@@ -6,7 +6,7 @@ import json
 import re
 from typing import TYPE_CHECKING, cast
 
-from peta.core.cache import redacted_text
+from peta.core.redaction import redacted_text
 
 if TYPE_CHECKING:
     import httpx
@@ -149,7 +149,7 @@ def _step(open_counts: list[int], token: str) -> str | None:
     return f"{MAX_COLLECTION_ITEMS:,} items" if too_many else None
 
 
-def _without_strings(text: str) -> tuple[str, bool]:
+def _without_strings(text: str, limit: int) -> tuple[str, bool]:
     """Remove every string literal, noting whether any was over the limit.
 
     The raw literal counts its quotes and escapes, so it can only overstate the
@@ -163,13 +163,13 @@ def _without_strings(text: str) -> tuple[str, bool]:
 
     def blank(match: re.Match[str]) -> str:
         nonlocal too_long
-        too_long = too_long or len(match.group()) - 2 > MAX_STRING_LENGTH
+        too_long = too_long or len(match.group()) - 2 > limit
         return ""
 
     return _JSON_STRING.sub(blank, text), too_long
 
 
-def _structural_breach(text: str) -> str | None:
+def structural_breach(text: str, *, string_limit: int | None = None) -> str | None:
     """Measure nesting and per-container size before anything is decoded.
 
     All three have to be measured here rather than by the validators.
@@ -179,12 +179,19 @@ def _structural_breach(text: str) -> str | None:
     ``"padding"`` array, or a long string inside a list, would be fully
     allocated by ``json.loads`` and never measured at all.
 
+    Public because the cache reads JSON back from disk, which it treats as
+    untrusted too, and needs the same bound before it decodes an entry. It
+    passes its own ``string_limit``: an entry carries a whole response body as
+    one string, which may rightly be far longer than any metadata field.
+    ``None`` means :data:`MAX_STRING_LENGTH`, read at call time.
+
     Returns:
         A description of the first limit the document breaks, or ``None``.
     """
-    stripped, too_long = _without_strings(text)
+    limit = MAX_STRING_LENGTH if string_limit is None else string_limit
+    stripped, too_long = _without_strings(text, limit)
     if too_long:
-        return f"{MAX_STRING_LENGTH:,} characters"
+        return f"{limit:,} characters"
     open_counts = [0]
     for match in _STRUCTURAL.finditer(stripped):
         breach = _step(open_counts, match.group())
@@ -212,7 +219,7 @@ def json_body(response: httpx.Response, *, source: str) -> object:
     # showed the scan harmless CJK text and the parser a bracket bomb.
     content = response.content
     text = content.decode(json.detect_encoding(content), "surrogatepass")
-    breach = _structural_breach(text)
+    breach = structural_breach(text)
     if breach is not None:
         raise ResponseLimitError(source, "$", breach)
     return cast("object", json.loads(text))

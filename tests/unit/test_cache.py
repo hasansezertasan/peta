@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, cast, get_args
 
 import pytest
 
-from peta.core import cache, http
+from peta.core import cache, http, validation
 
 if TYPE_CHECKING:
     from tests.transport import FakeTransport
@@ -284,6 +284,45 @@ class TestCorruption:
 
         assert (cache_dir / "k.json").exists()
         assert cache.load("k") is None
+
+    def test_a_padding_array_in_the_envelope_is_refused_before_decoding(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The file-size bound limits bytes, not the objects json.loads builds;
+        # an ignored array of small numbers in a tampered entry used to be
+        # allocated in full before the entry's shape was checked.
+        cache.store("k", url=_URL, status=200, body="{}", headers={})
+        path = cache_dir / "k.json"
+        envelope = json.loads(path.read_text())
+        envelope["padding"] = [0] * 10
+        path.write_text(json.dumps(envelope))
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 5)
+
+        assert cache.load("k") is None
+
+    def test_a_padding_array_in_the_stored_body_is_refused_before_decoding(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cache.store("k", url=_URL, status=200, body=json.dumps([0] * 10), headers={})
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 5)
+
+        assert cache.load("k") is None
+
+    @pytest.mark.usefixtures("cache_dir")
+    def test_a_body_longer_than_the_metadata_string_limit_is_still_a_hit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The envelope carries the whole body as one string. Holding it to
+        # the per-field limit would turn every large response — grpcio's is
+        # 9 MB — into a permanent miss.
+        body = json.dumps(["ab"] * 50)
+        cache.store("k", url=_URL, status=200, body=body, headers={})
+        monkeypatch.setattr(validation, "MAX_STRING_LENGTH", 10)
+
+        entry = cache.load("k")
+
+        assert entry is not None
+        assert entry.body == body
 
     def test_the_entry_bound_leaves_room_for_the_largest_accepted_body(self) -> None:
         # An entry wraps its body in an escaped string inside an envelope, so

@@ -30,7 +30,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypeAliasType, cast
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from peta.core.redaction import redacted, redacted_text
+from peta.core.validation import structural_breach
 
 __all__ = [
     "DAILY",
@@ -100,30 +102,6 @@ tree especially — would leave every file behind for good. Comfortably longer
 than any TTL, so pruning never discards an entry that could still have been
 served, and short enough that an abandoned cache does not grow without limit.
 """
-
-_CREDENTIAL_PARAMS = frozenset({
-    "access_token",
-    "api_key",
-    "apikey",
-    "key",
-    "password",
-    "secret",
-    "token",
-})
-"""Query parameters redacted before a URL is hashed, stored, or reported.
-
-Libraries.io takes its API key in the query string, so the URL peta requests
-contains a credential. It must never reach the cache — neither in a file name
-derived from it nor in the stored entry — because the cache outlives the
-process and is world-readable in the user's home directory.
-
-Redacting rather than including is also correct for the key: the response
-depends on which package was asked about, not on who asked, so two users with
-different keys should share one entry.
-"""
-
-_URL_IN_TEXT = re.compile(r"https?://[^\s'\"]+")
-"""URLs that can appear inside an error message or other diagnostic string."""
 
 _STORED_HEADERS = frozenset({"content-type", "etag", "last-modified"})
 """Response headers worth keeping, as an allowlist rather than a denylist.
@@ -321,56 +299,6 @@ def reset() -> None:
     _PRUNED.clear()
 
 
-def redacted(url: str) -> str:
-    """Rewrite a URL with credential-bearing query parameters removed.
-
-    Public because the cache is not the only place a request URL is retained:
-    an error that names the URL it could not answer would otherwise carry the
-    credential into a message, a log, or a traceback.
-
-    Args:
-        url: A request URL, possibly carrying a credential.
-
-    Returns:
-        The URL with any parameter named in :data:`_CREDENTIAL_PARAMS` dropped.
-    """
-    parts = urlsplit(url)
-    if not parts.query:
-        return url
-    kept = [
-        (name, value)
-        for name, value in parse_qsl(parts.query, keep_blank_values=True)
-        if name.lower() not in _CREDENTIAL_PARAMS
-    ]
-    return urlunsplit(parts._replace(query=urlencode(kept)))
-
-
-def _redacted_match(url: str) -> str:
-    """Redact one URL found inside free text, however malformed it is.
-
-    :func:`redacted` parses, and a URL lifted out of untrusted metadata need
-    not parse — ``https://[`` alone raises. Dropping the query outright is the
-    safe answer for one of those: the credential cannot survive, and text that
-    was never a real URL loses nothing that mattered.
-
-    Returns:
-        The URL with credential-bearing parameters removed.
-    """
-    try:
-        return redacted(url)
-    except ValueError:
-        return url.split("?", 1)[0]
-
-
-def redacted_text(value: str) -> str:
-    """Redact credentials from every URL embedded in an arbitrary string.
-
-    Returns:
-        The original text with credentials removed from each HTTP(S) URL.
-    """
-    return _URL_IN_TEXT.sub(lambda match: _redacted_match(match.group()), value)
-
-
 def key_for(method: str, url: str, scope: str = "") -> str:
     """Derive the cache key for one request.
 
@@ -539,6 +467,8 @@ def _holds_json(body: str) -> bool:
     Returns:
         ``True`` if the body parses.
     """
+    if structural_breach(body) is not None:
+        return False
     try:
         _ = cast("object", json.loads(body))
     except _UNPARSABLE:
@@ -588,7 +518,16 @@ def load(key: str) -> CachedResponse | None:
     try:
         if path.stat().st_size > MAX_ENTRY_BYTES:
             return None
-        raw = cast("object", json.loads(path.read_text(encoding="utf-8")))
+        text = path.read_text(encoding="utf-8")
+        # Scanned before decoding for the same reason a live response is: the
+        # file size bounds bytes, not the objects ``json.loads`` builds from
+        # them, and an ignored array of small numbers in a tampered entry
+        # would be allocated in full before its shape is ever checked. The
+        # body is one string in the envelope and may exceed the metadata
+        # string limit; the file-size check above already bounds it.
+        if structural_breach(text, string_limit=MAX_ENTRY_BYTES) is not None:
+            return None
+        raw = cast("object", json.loads(text))
     except _UNREADABLE:
         return None
     return _decode(raw)
