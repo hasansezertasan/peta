@@ -62,7 +62,7 @@ def test_json_error_messages_carry_no_credential() -> None:
     )
 
     assert "s3cret" not in json.dumps(output)
-    assert "libraries.io" in json.dumps(output)
+    assert output["errors"][0]["message"] == "GET https://libraries.io/api failed"
 
 
 def test_info_basic() -> None:

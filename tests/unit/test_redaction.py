@@ -50,8 +50,9 @@ class TestDiagnosticsAreRedacted:
     def test_an_output_message_loses_its_credential(self) -> None:
         message = OutputMessage(code="network_error", message=f"GET {CREDENTIALED}")
 
-        assert "s3cret" not in message.message
-        assert "libraries.io" in message.message
+        # An exact comparison, not ``"libraries.io" in ...``: it pins that the
+        # credential went and everything else in the URL stayed.
+        assert message.message == "GET https://libraries.io/api/pypi/x?per_page=2"
 
     def test_a_json_error_envelope_carries_no_credential(self) -> None:
         rendered = format_error(
