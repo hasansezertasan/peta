@@ -121,29 +121,36 @@ Every provider must preserve these invariants when it is added or changed:
   line or a column; in Markdown it is escaped so it cannot open a link, an
   image, raw HTML, or an autolink — a package named ``![x](https://...)``
   would otherwise load a remote image wherever the output is rendered — and
-  code spans get a fence longer than any backtick run inside them. A bare URL
-  is deliberately left as it is, even though GFM viewers autolink it: its
-  visible text is its whole target, so nothing is disguised, following it
-  takes a click, and the homepage and project URLs a package declares are
-  meant to be followed. The Rich formatters also append plain blocks after
-  rendering — vulnerability and enrichment warnings, artifact details and
-  notes — and ``files`` and ``why`` never render through Rich at all; each of
-  their lines is hardened on its own, since the per-segment pass never sees
-  them. A fatal error printed for a human is held to one line the same way,
-  since its message can quote text an index chose. The target-environment
-  banner, printed outside the formatters, goes through the same boundary: it
-  names paths from ``--path`` and from the target interpreter's ``sys.path``.
-  Doing it to finished Rich output instead cannot work — peta's own styling is
-  escape sequences too, and cannot be told apart from an attacker's.
+  code spans get a fence longer than any backtick run inside them. Each value
+  is terminal-sanitized before it is escaped or measured, since removing a
+  control character afterwards can join two backtick runs, and a pipe in a
+  table keeps an odd run of backslashes in front of it, since GFM splits rows
+  by reading backslashes in pairs. A bare URL is deliberately left as it is,
+  even though GFM viewers autolink it: its visible text is its whole target,
+  so nothing is disguised, following it takes a click, and the homepage and
+  project URLs a package declares are meant to be followed. The Rich
+  formatters also append plain blocks after rendering — vulnerability and
+  enrichment warnings, artifact details and notes — and ``files`` and ``why``
+  never render through Rich at all; each of their lines is hardened on its
+  own, since the per-segment pass never sees them. A fatal error printed for a
+  human is held to one line the same way, since its message can quote text an
+  index chose. The target-environment banner, printed outside the formatters,
+  goes through the same boundary: it names paths from ``--path`` and from the
+  target interpreter's ``sys.path``. Doing it to finished Rich output instead
+  cannot work — peta's own styling is escape sequences too, and cannot be told
+  apart from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache
   payloads, process arguments, and diagnostics. Redaction is applied where a
   diagnostic is *built* — ``EnrichmentError``, ``OutputMessage``,
   ``PublisherFailure``, ``SourceRecord``, and the fatal human path — rather
-  than over rendered output or the envelope as a whole. The distinction
-  matters in both directions: a URL peta *requested* can carry peta's API key,
-  while a URL a package *declared* is metadata the output contract promises to
-  report, and the redaction list holds names as ordinary as ``key``, so
-  sweeping every string would silently rewrite a package's homepage.
+  than over rendered output or the envelope as a whole. Both
+  credential-bearing query parameters and URL userinfo —
+  ``https://user:token@index/``, the usual way to configure a private index —
+  are removed. The distinction matters in both directions: a URL peta
+  *requested* can carry peta's API key, while a URL a package *declared* is
+  metadata the output contract promises to report, and the redaction list
+  holds names as ordinary as ``key``, so sweeping every string would silently
+  rewrite a package's homepage.
 * Every refusal the transport makes — unsafe scheme, oversized body — is
   raised as an ``httpx.RequestError``.
   Each source maps that onto its own error type; an exception outside that

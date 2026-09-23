@@ -241,29 +241,36 @@ in text output its newlines and tabs fold to spaces, so it cannot forge a
 line or a column; in Markdown it is escaped so it cannot open a link, an
 image, raw HTML, or an autolink — a package named <code class="docutils literal notranslate"><span class="pre">![x](https://...)</span></code>
 would otherwise load a remote image wherever the output is rendered — and
-code spans get a fence longer than any backtick run inside them. A bare URL
-is deliberately left as it is, even though GFM viewers autolink it: its
-visible text is its whole target, so nothing is disguised, following it
-takes a click, and the homepage and project URLs a package declares are
-meant to be followed. The Rich formatters also append plain blocks after
-rendering — vulnerability and enrichment warnings, artifact details and
-notes — and <code class="docutils literal notranslate"><span class="pre">files</span></code> and <code class="docutils literal notranslate"><span class="pre">why</span></code> never render through Rich at all; each of
-their lines is hardened on its own, since the per-segment pass never sees
-them. A fatal error printed for a human is held to one line the same way,
-since its message can quote text an index chose. The target-environment
-banner, printed outside the formatters, goes through the same boundary: it
-names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>.
-Doing it to finished Rich output instead cannot work — peta’s own styling is
-escape sequences too, and cannot be told apart from an attacker’s.</p></li>
+code spans get a fence longer than any backtick run inside them. Each value
+is terminal-sanitized before it is escaped or measured, since removing a
+control character afterwards can join two backtick runs, and a pipe in a
+table keeps an odd run of backslashes in front of it, since GFM splits rows
+by reading backslashes in pairs. A bare URL is deliberately left as it is,
+even though GFM viewers autolink it: its visible text is its whole target,
+so nothing is disguised, following it takes a click, and the homepage and
+project URLs a package declares are meant to be followed. The Rich
+formatters also append plain blocks after rendering — vulnerability and
+enrichment warnings, artifact details and notes — and <code class="docutils literal notranslate"><span class="pre">files</span></code> and <code class="docutils literal notranslate"><span class="pre">why</span></code>
+never render through Rich at all; each of their lines is hardened on its
+own, since the per-segment pass never sees them. A fatal error printed for a
+human is held to one line the same way, since its message can quote text an
+index chose. The target-environment banner, printed outside the formatters,
+goes through the same boundary: it names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the
+target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>. Doing it to finished Rich output instead
+cannot work — peta’s own styling is escape sequences too, and cannot be told
+apart from an attacker’s.</p></li>
 <li><p>Credentials are absent from errors, logs, snapshots, cache keys, cache
 payloads, process arguments, and diagnostics. Redaction is applied where a
 diagnostic is <em>built</em> — <code class="docutils literal notranslate"><span class="pre">EnrichmentError</span></code>, <code class="docutils literal notranslate"><span class="pre">OutputMessage</span></code>,
 <code class="docutils literal notranslate"><span class="pre">PublisherFailure</span></code>, <code class="docutils literal notranslate"><span class="pre">SourceRecord</span></code>, and the fatal human path — rather
-than over rendered output or the envelope as a whole. The distinction
-matters in both directions: a URL peta <em>requested</em> can carry peta’s API key,
-while a URL a package <em>declared</em> is metadata the output contract promises to
-report, and the redaction list holds names as ordinary as <code class="docutils literal notranslate"><span class="pre">key</span></code>, so
-sweeping every string would silently rewrite a package’s homepage.</p></li>
+than over rendered output or the envelope as a whole. Both
+credential-bearing query parameters and URL userinfo —
+<code class="docutils literal notranslate"><span class="pre">https://user:token&#64;index/</span></code>, the usual way to configure a private index —
+are removed. The distinction matters in both directions: a URL peta
+<em>requested</em> can carry peta’s API key, while a URL a package <em>declared</em> is
+metadata the output contract promises to report, and the redaction list
+holds names as ordinary as <code class="docutils literal notranslate"><span class="pre">key</span></code>, so sweeping every string would silently
+rewrite a package’s homepage.</p></li>
 <li><p>Every refusal the transport makes — unsafe scheme, oversized body — is
 raised as an <code class="docutils literal notranslate"><span class="pre">httpx.RequestError</span></code>.
 Each source maps that onto its own error type; an exception outside that
