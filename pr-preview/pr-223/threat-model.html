@@ -238,12 +238,19 @@ in text output its newlines and tabs fold to spaces, so it cannot forge a
 line or a column; in Markdown it is escaped so it cannot open a link, an
 image, raw HTML, or an autolink — a package named <code class="docutils literal notranslate"><span class="pre">![x](https://...)</span></code>
 would otherwise load a remote image wherever the output is rendered — and
-code spans get a fence longer than any backtick run inside them. The
-target-environment banner, printed outside the formatters, goes through the
-same boundary: it names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the target
-interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>. Doing it to finished Rich output instead cannot
-work — peta’s own styling is escape sequences too, and cannot be told apart
-from an attacker’s.</p></li>
+code spans get a fence longer than any backtick run inside them. A bare URL
+is deliberately left as it is, even though GFM viewers autolink it: its
+visible text is its whole target, so nothing is disguised, following it
+takes a click, and the homepage and project URLs a package declares are
+meant to be followed. The Rich formatters also append plain blocks after
+rendering — vulnerability and enrichment warnings, artifact details and
+notes — and <code class="docutils literal notranslate"><span class="pre">files</span></code> and <code class="docutils literal notranslate"><span class="pre">why</span></code> never render through Rich at all; each of
+their lines is hardened on its own, since the per-segment pass never sees
+them. The target-environment banner, printed outside the formatters, goes
+through the same boundary: it names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the
+target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>. Doing it to finished Rich output instead
+cannot work — peta’s own styling is escape sequences too, and cannot be told
+apart from an attacker’s.</p></li>
 <li><p>Credentials are absent from errors, logs, snapshots, cache keys, cache
 payloads, process arguments, and diagnostics. Redaction is applied where a
 diagnostic is <em>built</em> — <code class="docutils literal notranslate"><span class="pre">EnrichmentError</span></code>, <code class="docutils literal notranslate"><span class="pre">OutputMessage</span></code>,

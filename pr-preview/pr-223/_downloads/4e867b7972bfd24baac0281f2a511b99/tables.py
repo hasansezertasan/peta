@@ -8,7 +8,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.tree import Tree
 
-from peta.cli.output.console import render as _render
+from peta.cli.output.console import inline, render as _render
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -18,6 +18,8 @@ from peta.cli.output.summary import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from rich.console import RenderableType
 
     from peta.core.artifacts import ReleaseArtifacts
@@ -36,6 +38,20 @@ __all__ = [
 
 def _to_string(renderable: RenderableType, *, color: bool) -> str:
     return _render(renderable, color=color)
+
+
+def _lines(lines: Iterable[str]) -> str:
+    """Join plain lines that are appended to, or stand in for, Rich output.
+
+    These never pass through :func:`peta.cli.output.console.render`, so its
+    per-segment hardening does not reach them. Each element is by design one
+    line, so hardening each element with :func:`inline` covers every
+    untrusted value in it and leaves the layout's own line breaks alone.
+
+    Returns:
+        The lines, each made inert, joined by newlines.
+    """
+    return "\n".join(inline(line) for line in lines)
 
 
 def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
@@ -93,7 +109,7 @@ def _vuln_block(pkg: PackageInfo) -> str:
         lines.append(f"  {v.id}{severity}: {v.summary} (fix: {fixed})")
     # Leading blank line separates the block from the panel above; no
     # trailing newline, since ``typer.echo`` supplies exactly one.
-    return "\n\n" + "\n".join(lines)
+    return "\n\n" + _lines(lines)
 
 
 def _enrichment_block(*packages: PackageInfo) -> str:
@@ -119,7 +135,7 @@ def _enrichment_block(*packages: PackageInfo) -> str:
     )
     if not warnings:
         return ""
-    return "\n\n" + "\n".join(["⚠ Enrichment warnings:", *warnings])
+    return "\n\n" + _lines(["⚠ Enrichment warnings:", *warnings])
 
 
 def render_info(pkg: PackageInfo, *, color: bool) -> str:
@@ -178,8 +194,8 @@ def render_why(target: str, paths: list[list[str]], *, color: bool) -> str:
     """
     del color
     if not paths:
-        return f"'{target}' is not a dependency."
-    return "\n".join(" → ".join(path) for path in paths)
+        return inline(f"'{target}' is not a dependency.")
+    return _lines(" → ".join(path) for path in paths)
 
 
 def render_files(pkg: PackageInfo, *, color: bool) -> str:
@@ -193,10 +209,10 @@ def render_files(pkg: PackageInfo, *, color: bool) -> str:
     """
     del color
     if not pkg.files:
-        return f"No file information available for {pkg.name}."
-    lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)\n"]
+        return inline(f"No file information available for {pkg.name}.")
+    lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)", ""]
     lines.extend(f"  {f}" for f in pkg.files)
-    return "\n".join(lines)
+    return _lines(lines)
 
 
 def _license_value(pkg: PackageInfo) -> str:
@@ -288,7 +304,7 @@ def _artifact_lines(release: ReleaseArtifacts) -> str:
         lines.extend([file.filename, detail, f"  {digest} · {file_flags(file)}"])
         if file.publishers:
             lines.append(f"  published by {file_publishers(file)}")
-    return "\n".join(lines)
+    return _lines(lines)
 
 
 def _artifact_notes(release: ReleaseArtifacts) -> str:
@@ -324,7 +340,7 @@ def _artifact_notes(release: ReleaseArtifacts) -> str:
     )
     if not lines:
         return ""
-    return "\n\n" + "\n".join(lines)
+    return "\n\n" + _lines(lines)
 
 
 def render_artifacts(
@@ -336,7 +352,9 @@ def render_artifacts(
         The summary panel, the file table when asked for, and any notes.
     """
     if not release.files:
-        return f"No distribution files published for {release.name} {release.version}."
+        return inline(
+            f"No distribution files published for {release.name} {release.version}."
+        )
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column("Field", style="bold cyan")
     table.add_column("Value")

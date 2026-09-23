@@ -136,7 +136,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="13"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
 </span><span data-line="14">    <span class="kn">from</span><span class="w"> </span><span class="nn">rich.console</span><span class="w"> </span><span class="kn">import</span> <span class="n">RenderableType</span>
 </span><span data-line="15">
-</span><span data-line="16"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"render"</span><span class="p">,</span> <span class="s2">"resolve_color"</span><span class="p">,</span> <span class="s2">"sanitize_terminal"</span><span class="p">]</span>
+</span><span data-line="16"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"inline"</span><span class="p">,</span> <span class="s2">"render"</span><span class="p">,</span> <span class="s2">"resolve_color"</span><span class="p">,</span> <span class="s2">"sanitize_terminal"</span><span class="p">]</span>
 </span><span data-line="17">
 </span><span data-line="18"><span class="n">_KEPT_CONTROLS</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">({</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"</span><span class="se">\t</span><span class="s2">"</span><span class="p">})</span>
 </span><span data-line="19"><span class="n">_FIRST_PRINTABLE</span> <span class="o">=</span> <span class="mh">0x20</span>
@@ -171,73 +171,93 @@ data-aria-dark="Switch to auto color mode">
 
 </span><span data-line="46">
 </span><span data-line="47">
-<div class="viewcode-block" id="resolve_color">
-<a class="viewcode-back" href="../../../../modules.html#peta.cli.output.console.resolve_color">[docs]</a>
-</span><span data-line="48"><span class="k">def</span><span class="w"> </span><span class="nf">resolve_color</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">no_color</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="49"><span class="w">    </span><span class="sd">"""Decide whether Rich output should include color.</span>
+</span><span data-line="48"><span class="n">_LINE_BREAKS</span> <span class="o">=</span> <span class="nb">str</span><span class="o">.</span><span class="n">maketrans</span><span class="p">(</span><span class="s2">"</span><span class="se">\n\r\t</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"   "</span><span class="p">)</span>
+</span><span data-line="49">
 </span><span data-line="50">
-</span><span data-line="51"><span class="sd">    Precedence: an explicit ``--no-color`` flag always wins; otherwise the</span>
-</span><span data-line="52"><span class="sd">    ``NO_COLOR`` environment variable (any non-empty value) disables color;</span>
-</span><span data-line="53"><span class="sd">    otherwise color follows whether stdout is a terminal.</span>
-</span><span data-line="54">
-</span><span data-line="55"><span class="sd">    Returns:</span>
-</span><span data-line="56"><span class="sd">        ``True`` if color should be rendered, ``False`` otherwise.</span>
-</span><span data-line="57"><span class="sd">    """</span>
-</span><span data-line="58">    <span class="k">if</span> <span class="n">no_color</span><span class="p">:</span>
-</span><span data-line="59">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="60">    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"NO_COLOR"</span><span class="p">):</span>
-</span><span data-line="61">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="62">    <span class="k">return</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">isatty</span><span class="p">()</span></div>
+<div class="viewcode-block" id="inline">
+<a class="viewcode-back" href="../../../../modules.html#peta.cli.output.console.inline">[docs]</a>
+</span><span data-line="51"><span class="k">def</span><span class="w"> </span><span class="nf">inline</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">object</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="52"><span class="w">    </span><span class="sd">"""Make one untrusted value safe to place on a line of terminal output.</span>
+</span><span data-line="53">
+</span><span data-line="54"><span class="sd">    :func:`sanitize_terminal` keeps newlines and tabs because formatters build</span>
+</span><span data-line="55"><span class="sd">    their layout from them, so a value inserted into that layout has to give</span>
+</span><span data-line="56"><span class="sd">    up its own: folded to spaces, they can neither start a forged line nor</span>
+</span><span data-line="57"><span class="sd">    shift a column.</span>
+</span><span data-line="58">
+</span><span data-line="59"><span class="sd">    Returns:</span>
+</span><span data-line="60"><span class="sd">        The value on one line, with terminal control characters removed.</span>
+</span><span data-line="61"><span class="sd">    """</span>
+</span><span data-line="62">    <span class="k">return</span> <span class="n">sanitize_terminal</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)</span><span class="o">.</span><span class="n">translate</span><span class="p">(</span><span class="n">_LINE_BREAKS</span><span class="p">))</span></div>
 
 </span><span data-line="63">
 </span><span data-line="64">
-</span><span data-line="65"><span class="k">def</span><span class="w"> </span><span class="nf">_hardened</span><span class="p">(</span><span class="n">segment</span><span class="p">:</span> <span class="n">Segment</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Segment</span><span class="p">:</span>
-</span><span data-line="66"><span class="w">    </span><span class="sd">"""Make one rendered segment's text inert, leaving its style alone.</span>
+<div class="viewcode-block" id="resolve_color">
+<a class="viewcode-back" href="../../../../modules.html#peta.cli.output.console.resolve_color">[docs]</a>
+</span><span data-line="65"><span class="k">def</span><span class="w"> </span><span class="nf">resolve_color</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">no_color</span><span class="p">:</span> <span class="nb">bool</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="66"><span class="w">    </span><span class="sd">"""Decide whether Rich output should include color.</span>
 </span><span data-line="67">
-</span><span data-line="68"><span class="sd">    Safe to do after Rich has measured and padded the row: every control</span>
-</span><span data-line="69"><span class="sd">    character this removes is one Rich already counted as occupying no cells,</span>
-</span><span data-line="70"><span class="sd">    so the table's borders stay where Rich put them.</span>
+</span><span data-line="68"><span class="sd">    Precedence: an explicit ``--no-color`` flag always wins; otherwise the</span>
+</span><span data-line="69"><span class="sd">    ``NO_COLOR`` environment variable (any non-empty value) disables color;</span>
+</span><span data-line="70"><span class="sd">    otherwise color follows whether stdout is a terminal.</span>
 </span><span data-line="71">
 </span><span data-line="72"><span class="sd">    Returns:</span>
-</span><span data-line="73"><span class="sd">        The segment with its text made safe.</span>
+</span><span data-line="73"><span class="sd">        ``True`` if color should be rendered, ``False`` otherwise.</span>
 </span><span data-line="74"><span class="sd">    """</span>
-</span><span data-line="75">    <span class="k">return</span> <span class="n">Segment</span><span class="p">(</span><span class="n">sanitize_terminal</span><span class="p">(</span><span class="n">segment</span><span class="o">.</span><span class="n">text</span><span class="p">),</span> <span class="n">segment</span><span class="o">.</span><span class="n">style</span><span class="p">,</span> <span class="n">segment</span><span class="o">.</span><span class="n">control</span><span class="p">)</span>
-</span><span data-line="76">
-</span><span data-line="77">
+</span><span data-line="75">    <span class="k">if</span> <span class="n">no_color</span><span class="p">:</span>
+</span><span data-line="76">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="77">    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"NO_COLOR"</span><span class="p">):</span>
+</span><span data-line="78">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="79">    <span class="k">return</span> <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">isatty</span><span class="p">()</span></div>
+
+</span><span data-line="80">
+</span><span data-line="81">
+</span><span data-line="82"><span class="k">def</span><span class="w"> </span><span class="nf">_hardened</span><span class="p">(</span><span class="n">segment</span><span class="p">:</span> <span class="n">Segment</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Segment</span><span class="p">:</span>
+</span><span data-line="83"><span class="w">    </span><span class="sd">"""Make one rendered segment's text inert, leaving its style alone.</span>
+</span><span data-line="84">
+</span><span data-line="85"><span class="sd">    Safe to do after Rich has measured and padded the row: every control</span>
+</span><span data-line="86"><span class="sd">    character this removes is one Rich already counted as occupying no cells,</span>
+</span><span data-line="87"><span class="sd">    so the table's borders stay where Rich put them.</span>
+</span><span data-line="88">
+</span><span data-line="89"><span class="sd">    Returns:</span>
+</span><span data-line="90"><span class="sd">        The segment with its text made safe.</span>
+</span><span data-line="91"><span class="sd">    """</span>
+</span><span data-line="92">    <span class="k">return</span> <span class="n">Segment</span><span class="p">(</span><span class="n">sanitize_terminal</span><span class="p">(</span><span class="n">segment</span><span class="o">.</span><span class="n">text</span><span class="p">),</span> <span class="n">segment</span><span class="o">.</span><span class="n">style</span><span class="p">,</span> <span class="n">segment</span><span class="o">.</span><span class="n">control</span><span class="p">)</span>
+</span><span data-line="93">
+</span><span data-line="94">
 <div class="viewcode-block" id="render">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.output.console.render">[docs]</a>
-</span><span data-line="78"><span class="k">def</span><span class="w"> </span><span class="nf">render</span><span class="p">(</span><span class="n">renderable</span><span class="p">:</span> <span class="n">RenderableType</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="79"><span class="w">    </span><span class="sd">"""Render a Rich renderable to a string, with or without ANSI color.</span>
-</span><span data-line="80">
-</span><span data-line="81"><span class="sd">    Rendering happens in two steps so that untrusted metadata can be made</span>
-</span><span data-line="82"><span class="sd">    inert *after* Rich has laid it out but *before* Rich turns styles into</span>
-</span><span data-line="83"><span class="sd">    escape sequences. Sanitizing the finished string instead would have to</span>
-</span><span data-line="84"><span class="sd">    tell peta's own color codes from an attacker's, which it cannot; sanitizing</span>
-</span><span data-line="85"><span class="sd">    every renderer's inputs instead would leave each new call site free to</span>
-</span><span data-line="86"><span class="sd">    forget.</span>
-</span><span data-line="87">
-</span><span data-line="88"><span class="sd">    Markup and emoji substitution are disabled because both let metadata</span>
-</span><span data-line="89"><span class="sd">    change which characters are printed: a ``[bold]`` or a ``:pile_of_poo:``</span>
-</span><span data-line="90"><span class="sd">    in a package summary is data, not an instruction. Highlighting stays on —</span>
-</span><span data-line="91"><span class="sd">    it only colors what is already there, and peta's output has always had it.</span>
-</span><span data-line="92">
-</span><span data-line="93"><span class="sd">    Returns:</span>
-</span><span data-line="94"><span class="sd">        The rendered text: ANSI-colored when ``color`` is ``True``, plain</span>
-</span><span data-line="95"><span class="sd">        otherwise. Has no trailing newline; callers (e.g. ``typer.echo``)</span>
-</span><span data-line="96"><span class="sd">        supply exactly one.</span>
-</span><span data-line="97"><span class="sd">    """</span>
-</span><span data-line="98">    <span class="n">buf</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
-</span><span data-line="99">    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">(</span>
-</span><span data-line="100">        <span class="n">file</span><span class="o">=</span><span class="n">buf</span><span class="p">,</span>
-</span><span data-line="101">        <span class="n">force_terminal</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
-</span><span data-line="102">        <span class="n">no_color</span><span class="o">=</span><span class="ow">not</span> <span class="n">color</span><span class="p">,</span>
-</span><span data-line="103">        <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
-</span><span data-line="104">        <span class="n">markup</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span data-line="105">        <span class="n">emoji</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span data-line="106">    <span class="p">)</span>
-</span><span data-line="107">    <span class="n">laid_out</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">renderable</span><span class="p">,</span> <span class="n">console</span><span class="o">.</span><span class="n">options</span><span class="p">)</span>
-</span><span data-line="108">    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">Segments</span><span class="p">([</span><span class="n">_hardened</span><span class="p">(</span><span class="n">segment</span><span class="p">)</span> <span class="k">for</span> <span class="n">segment</span> <span class="ow">in</span> <span class="n">laid_out</span><span class="p">]),</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
-</span><span data-line="109">    <span class="k">return</span> <span class="n">buf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span></div>
+</span><span data-line="95"><span class="k">def</span><span class="w"> </span><span class="nf">render</span><span class="p">(</span><span class="n">renderable</span><span class="p">:</span> <span class="n">RenderableType</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span> <span class="n">width</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="96"><span class="w">    </span><span class="sd">"""Render a Rich renderable to a string, with or without ANSI color.</span>
+</span><span data-line="97">
+</span><span data-line="98"><span class="sd">    Rendering happens in two steps so that untrusted metadata can be made</span>
+</span><span data-line="99"><span class="sd">    inert *after* Rich has laid it out but *before* Rich turns styles into</span>
+</span><span data-line="100"><span class="sd">    escape sequences. Sanitizing the finished string instead would have to</span>
+</span><span data-line="101"><span class="sd">    tell peta's own color codes from an attacker's, which it cannot; sanitizing</span>
+</span><span data-line="102"><span class="sd">    every renderer's inputs instead would leave each new call site free to</span>
+</span><span data-line="103"><span class="sd">    forget.</span>
+</span><span data-line="104">
+</span><span data-line="105"><span class="sd">    Markup and emoji substitution are disabled because both let metadata</span>
+</span><span data-line="106"><span class="sd">    change which characters are printed: a ``[bold]`` or a ``:pile_of_poo:``</span>
+</span><span data-line="107"><span class="sd">    in a package summary is data, not an instruction. Highlighting stays on —</span>
+</span><span data-line="108"><span class="sd">    it only colors what is already there, and peta's output has always had it.</span>
+</span><span data-line="109">
+</span><span data-line="110"><span class="sd">    Returns:</span>
+</span><span data-line="111"><span class="sd">        The rendered text: ANSI-colored when ``color`` is ``True``, plain</span>
+</span><span data-line="112"><span class="sd">        otherwise. Has no trailing newline; callers (e.g. ``typer.echo``)</span>
+</span><span data-line="113"><span class="sd">        supply exactly one.</span>
+</span><span data-line="114"><span class="sd">    """</span>
+</span><span data-line="115">    <span class="n">buf</span> <span class="o">=</span> <span class="n">StringIO</span><span class="p">()</span>
+</span><span data-line="116">    <span class="n">console</span> <span class="o">=</span> <span class="n">Console</span><span class="p">(</span>
+</span><span data-line="117">        <span class="n">file</span><span class="o">=</span><span class="n">buf</span><span class="p">,</span>
+</span><span data-line="118">        <span class="n">force_terminal</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+</span><span data-line="119">        <span class="n">no_color</span><span class="o">=</span><span class="ow">not</span> <span class="n">color</span><span class="p">,</span>
+</span><span data-line="120">        <span class="n">width</span><span class="o">=</span><span class="n">width</span><span class="p">,</span>
+</span><span data-line="121">        <span class="n">markup</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span data-line="122">        <span class="n">emoji</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span data-line="123">    <span class="p">)</span>
+</span><span data-line="124">    <span class="n">laid_out</span> <span class="o">=</span> <span class="n">console</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="n">renderable</span><span class="p">,</span> <span class="n">console</span><span class="o">.</span><span class="n">options</span><span class="p">)</span>
+</span><span data-line="125">    <span class="n">console</span><span class="o">.</span><span class="n">print</span><span class="p">(</span><span class="n">Segments</span><span class="p">([</span><span class="n">_hardened</span><span class="p">(</span><span class="n">segment</span><span class="p">)</span> <span class="k">for</span> <span class="n">segment</span> <span class="ow">in</span> <span class="n">laid_out</span><span class="p">]),</span> <span class="n">end</span><span class="o">=</span><span class="s2">""</span><span class="p">)</span>
+</span><span data-line="126">    <span class="k">return</span> <span class="n">buf</span><span class="o">.</span><span class="n">getvalue</span><span class="p">()</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
