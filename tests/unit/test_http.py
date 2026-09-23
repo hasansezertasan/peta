@@ -823,6 +823,22 @@ class TestCompressedBodiesAreBoundedWhileDecoding:
             200, headers={"content-encoding": "gzip"}, stream=Chunks()
         )
 
+    def test_compressed_input_that_decodes_to_nothing_is_still_bounded(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Non-final empty stored blocks cost wire bytes and CPU but decode to
+        # nothing, and httpx's read timeout restarts with every chunk, so only
+        # a cap on wire bytes stops an endless run of them.
+        monkeypatch.setattr(http, "MAX_RESPONSE_BYTES", 64 * 1024)
+        header = gzip.compress(b"")[:10]
+        empty_block = b"\x00\x00\x00\xff\xff"
+        response = self._chunked(header, *([empty_block * 1024] * 64))
+
+        with pytest.raises(http.ResponseTooLargeError):
+            _ = http._within_limit(response)
+
+        assert response.is_closed
+
     def test_data_after_the_end_of_the_gzip_stream_is_refused(self) -> None:
         # zlib keeps anything after the end marker in ``unused_data``, copying
         # it again on every call; a small valid member with an endless trailer

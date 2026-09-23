@@ -388,6 +388,9 @@ def _read_body(response: httpx.Response) -> bytes:
 
     Returns:
         The decoded body.
+
+    Raises:
+        ResponseTooLargeError: If more wire bytes arrive than the limit allows.
     """
     _refuse_declared_oversize(response)
     if response.is_stream_consumed:
@@ -398,7 +401,17 @@ def _read_body(response: httpx.Response) -> bytes:
         return _measured(response.content)
     decompressor = _decompressor(response)
     content = bytearray()
+    received = 0
     for chunk in response.iter_raw():
+        # Wire bytes are capped as well as decoded ones. A gzip stream can be
+        # an endless run of empty blocks that decodes to nothing, and httpx's
+        # read timeout restarts with every chunk, so bounding only the output
+        # let a hostile index keep peta reading and inflating indefinitely.
+        # Legitimate compressed input is never larger than what it decodes to
+        # by more than a few bytes, so the same limit serves for both.
+        received += len(chunk)
+        if received > MAX_RESPONSE_BYTES:
+            raise ResponseTooLargeError(_TOO_LARGE)
         _append(content, decompressor, chunk)
     _finish(content, decompressor)
     return bytes(content)
