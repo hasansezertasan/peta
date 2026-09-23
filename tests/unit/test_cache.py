@@ -300,6 +300,7 @@ class TestCorruption:
 
         assert cache.load("k") is None
 
+    @pytest.mark.usefixtures("cache_dir")
     def test_a_padding_array_in_the_stored_body_is_refused_before_decoding(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
