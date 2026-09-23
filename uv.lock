@@ -436,6 +436,19 @@ wheels = [
 ]
 
 [[package]]
+name = "detect-secrets"
+version = "1.5.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyyaml" },
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/69/67/382a863fff94eae5a0cf05542179169a1c49a4c8784a9480621e2066ca7d/detect_secrets-1.5.0.tar.gz", hash = "sha256:6bb46dcc553c10df51475641bb30fd69d25645cc12339e46c824c1e0c388898a", size = 97351, upload-time = "2024-05-06T17:46:19.721Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4e/5e/4f5fe4b89fde1dc3ed0eb51bd4ce4c0bca406246673d370ea2ad0c58d747/detect_secrets-1.5.0-py3-none-any.whl", hash = "sha256:e24e7b9b5a35048c313e983f76c4bd09dad89f045ff059e354f9943bf45aa060", size = 120341, upload-time = "2024-05-06T17:46:16.628Z" },
+]
+
+[[package]]
 name = "dirty-equals"
 version = "0.11"
 source = { registry = "https://pypi.org/simple" }
@@ -913,6 +926,7 @@ dev = [
     { name = "coverage" },
     { name = "coverage-enable-subprocess" },
     { name = "debugpy" },
+    { name = "detect-secrets" },
     { name = "dirty-equals" },
     { name = "editorconfig-checker" },
     { name = "import-linter" },
@@ -922,6 +936,7 @@ dev = [
     { name = "pyrefly" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pytest-deadfixtures" },
     { name = "pytest-mock" },
     { name = "pytest-rerunfailures" },
     { name = "pytest-sugar" },
@@ -941,12 +956,13 @@ dev = [
 docs = [
     { name = "auto-pytabs", extra = ["sphinx"] },
     { name = "myst-parser" },
+    { name = "packaging" },
     { name = "shibuya" },
     { name = "sphinx" },
     { name = "sphinx-autobuild" },
-    { name = "sphinx-click" },
     { name = "sphinx-copybutton" },
     { name = "sphinx-design" },
+    { name = "sphinx-last-updated-by-git" },
     { name = "sphinx-paramlinks" },
     { name = "sphinx-togglebutton" },
 ]
@@ -956,6 +972,7 @@ prek = [
 style = [
     { name = "actionlint-py" },
     { name = "basedpyright" },
+    { name = "detect-secrets" },
     { name = "editorconfig-checker" },
     { name = "import-linter" },
     { name = "mypy" },
@@ -977,6 +994,7 @@ test = [
     { name = "inline-snapshot" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
+    { name = "pytest-deadfixtures" },
     { name = "pytest-mock" },
     { name = "pytest-rerunfailures" },
     { name = "pytest-sugar" },
@@ -1001,6 +1019,7 @@ dev = [
     { name = "coverage", extras = ["toml"], specifier = "==7.16.1" },
     { name = "coverage-enable-subprocess", specifier = "==1.0" },
     { name = "debugpy", specifier = "==1.8.22" },
+    { name = "detect-secrets", specifier = "==1.5.0" },
     { name = "dirty-equals" },
     { name = "editorconfig-checker", specifier = "==3.11.1" },
     { name = "import-linter", specifier = "==2.15" },
@@ -1010,6 +1029,7 @@ dev = [
     { name = "pyrefly", specifier = "==1.3.1" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-deadfixtures", specifier = "==3.1.0" },
     { name = "pytest-mock", specifier = "==3.15.1" },
     { name = "pytest-rerunfailures", specifier = "==16.7" },
     { name = "pytest-sugar" },
@@ -1029,12 +1049,13 @@ dev = [
 docs = [
     { name = "auto-pytabs", extras = ["sphinx"], specifier = "==0.5.0" },
     { name = "myst-parser", specifier = "==5.1.0" },
+    { name = "packaging", specifier = ">=24.0" },
     { name = "shibuya", specifier = "==2026.7.12" },
     { name = "sphinx", specifier = "==9.1.0" },
     { name = "sphinx-autobuild", specifier = "==2025.8.25" },
-    { name = "sphinx-click", specifier = "==6.2.0" },
     { name = "sphinx-copybutton", specifier = "==0.5.2" },
     { name = "sphinx-design", specifier = "==0.7.0" },
+    { name = "sphinx-last-updated-by-git", specifier = "==0.3.8" },
     { name = "sphinx-paramlinks", specifier = "==0.6.0" },
     { name = "sphinx-togglebutton", specifier = "==0.4.5" },
 ]
@@ -1042,6 +1063,7 @@ prek = [{ name = "prek", specifier = "==0.5.3" }]
 style = [
     { name = "actionlint-py", specifier = "==1.7.12.25" },
     { name = "basedpyright", specifier = "==1.40.1" },
+    { name = "detect-secrets", specifier = "==1.5.0" },
     { name = "editorconfig-checker", specifier = "==3.11.1" },
     { name = "import-linter", specifier = "==2.15" },
     { name = "mypy", specifier = "==2.3.1" },
@@ -1063,6 +1085,7 @@ test = [
     { name = "inline-snapshot" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "pytest-asyncio", specifier = ">=0.23.0" },
+    { name = "pytest-deadfixtures", specifier = "==3.1.0" },
     { name = "pytest-mock", specifier = "==3.15.1" },
     { name = "pytest-rerunfailures", specifier = "==16.7" },
     { name = "pytest-sugar" },
@@ -1225,6 +1248,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/43/7c/d36d04db312ecf4298932ef77e6e4a9e8ad017906e24e34f0b0c361a2473/pytest_asyncio-1.4.0.tar.gz", hash = "sha256:c6c0d2259945122819f171a32ecea2c349ead889ee28176caaf492143424be42", size = 58514, upload-time = "2026-05-26T09:56:04.083Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/03/e2/08a497ef684b88559c9cc5f4ad53a37e7b99e727094a86d6ea32536d5d3c/pytest_asyncio-1.4.0-py3-none-any.whl", hash = "sha256:933ca923a23075a87fb7070c0ec272a6848489824d887c85c812670932835aa1", size = 16930, upload-time = "2026-05-26T09:56:02.576Z" },
+]
+
+[[package]]
+name = "pytest-deadfixtures"
+version = "3.1.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/b5/6fc6a3096e5bc3124c61af17c53d09290a5bfbca51fb8b94068d1e770d0e/pytest_deadfixtures-3.1.0.tar.gz", hash = "sha256:a8010e771183176fa9d918c8c49293ca5568597c8e1453ed2bbd41bcee67bde5", size = 9294, upload-time = "2026-01-15T20:05:40.825Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/d0/67f83859706d11717498e1ef5e75f1c61835fd972c902f5bc9cbd9cb5659/pytest_deadfixtures-3.1.0-py2.py3-none-any.whl", hash = "sha256:898ba131c7472bd05551b73e2b99a51898fc3b8255c0589cf8b3c3c804e8f502", size = 7070, upload-time = "2026-01-15T20:05:39.599Z" },
 ]
 
 [[package]]
@@ -1562,20 +1597,6 @@ wheels = [
 ]
 
 [[package]]
-name = "sphinx-click"
-version = "6.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "click" },
-    { name = "docutils" },
-    { name = "sphinx" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/ed/a9767cd1b8b7fbdf260a89d5c8c86e20e3536b9878579e5ab7965a291e55/sphinx_click-6.2.0.tar.gz", hash = "sha256:fc78b4154a4e5159462e36de55b8643747da6cda86b3b52a8bb62289e603776c", size = 27035, upload-time = "2025-12-04T19:33:05.437Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/bd/cb244695f67f77b0a36200ce1670fc42a6fe2770847e870daab99cc2b177/sphinx_click-6.2.0-py3-none-any.whl", hash = "sha256:1fb1851cb4f2c286d43cbcd57f55db6ef5a8d208bfc3370f19adde232e5803d7", size = 8939, upload-time = "2025-12-04T19:33:04.037Z" },
-]
-
-[[package]]
 name = "sphinx-copybutton"
 version = "0.5.2"
 source = { registry = "https://pypi.org/simple" }
@@ -1597,6 +1618,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/13/7b/804f311da4663a4aecc6cf7abd83443f3d4ded970826d0c958edc77d4527/sphinx_design-0.7.0.tar.gz", hash = "sha256:d2a3f5b19c24b916adb52f97c5f00efab4009ca337812001109084a740ec9b7a", size = 2203582, upload-time = "2026-01-19T13:12:53.297Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/30/cf/45dd359f6ca0c3762ce0490f681da242f0530c49c81050c035c016bfdd3a/sphinx_design-0.7.0-py3-none-any.whl", hash = "sha256:f82bf179951d58f55dca78ab3706aeafa496b741a91b1911d371441127d64282", size = 2220350, upload-time = "2026-01-19T13:12:51.077Z" },
+]
+
+[[package]]
+name = "sphinx-last-updated-by-git"
+version = "0.3.8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sphinx" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/03/fd/de1685b6dab173dff31da24e0d3b29f02873fc24a1cdbb7678721ddc8581/sphinx_last_updated_by_git-0.3.8.tar.gz", hash = "sha256:c145011f4609d841805b69a9300099fc02fed8f5bb9e5bcef77d97aea97b7761", size = 10785, upload-time = "2024-08-11T07:15:54.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/fb/e496f16fa11fbe2dbdd0b5e306ede153dfed050aae4766fc89d500720dc7/sphinx_last_updated_by_git-0.3.8-py3-none-any.whl", hash = "sha256:6382c8285ac1f222483a58569b78c0371af5e55f7fbf9c01e5e8a72d6fdfa499", size = 8580, upload-time = "2024-08-11T07:15:53.244Z" },
 ]
 
 [[package]]

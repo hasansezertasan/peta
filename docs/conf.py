@@ -5,6 +5,8 @@ See https://www.sphinx-doc.org/en/master/usage/configuration.html
 
 from __future__ import annotations
 
+import json
+import os
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -15,12 +17,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "_ext"))
 # -- Project information -----------------------------------------------------
 project = "peta"
 author = "Hasan Sezer Tasan"
-copyright = f"{datetime.now(tz=UTC):%Y}, Hasan Sezer Tasan"  # ruff: ignore[builtin-variable-shadowing]
+# Reproducible builds: honor SOURCE_DATE_EPOCH (https://reproducible-builds.org/)
+# so the stamped copyright year is a function of the source (e.g. the last
+# commit date, as exported by the CI docs steps) rather than the clock. Local
+# `tox` runs leave it unset and fall back to the current year below.
+_source_date_epoch = os.environ.get("SOURCE_DATE_EPOCH")
+_build_date = (
+    datetime.fromtimestamp(int(_source_date_epoch), tz=UTC)
+    if _source_date_epoch
+    else datetime.now(tz=UTC)
+)
+copyright = f"{_build_date:%Y}, Hasan Sezer Tasan"  # ruff: ignore[builtin-variable-shadowing]
 
 # -- General configuration ---------------------------------------------------
 extensions = [
     "cli_reference",
     "sphinx.ext.autodoc",
+    "sphinx.ext.doctest",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosectionlabel",
@@ -32,7 +45,7 @@ extensions = [
     "sphinx_paramlinks",
     "auto_pytabs.sphinx_ext",
     "myst_parser",
-    "sphinx_click",
+    "sphinx_last_updated_by_git",
 ]
 
 # Both reStructuredText and (via MyST) Markdown source files are supported.
@@ -73,3 +86,28 @@ html_theme_options = {
     "accent_color": "amber",
     "github_url": "https://github.com/hasansezertasan/peta",
 }
+
+# -- Versioned docs switcher (ADR-027) ---------------------------------------
+# tools/build_docs.py writes docs/_static/versions.json into each CI build from
+# the gh-pages directory listing. When present, feed the Shibuya theme's native
+# version switcher (components/nav-versions.html) via html_context. Absent (e.g.
+# a local ``tox -e docs-build`` run) the switcher simply does not render.
+# GitHub Pages serves a project site under ``/<repo>/``, so switcher links are
+# rooted at that base path (not the domain root); a custom root domain would set
+# ``_switcher_base = "/"`` instead.
+_switcher_base = "/peta/"
+_versions_file = Path(__file__).parent / "_static" / "versions.json"
+_switcher_context: dict[str, object] = {}
+if _versions_file.exists():
+    _versions = json.loads(_versions_file.read_text(encoding="utf-8"))
+    _current = os.environ.get("DOCS_BUILD_VERSION_SLUG") or _versions.get("latest", "")
+    _switcher_context = {
+        "current_version": _current,
+        "versions": [
+            ["latest", f"{_switcher_base}latest/"],
+            *([slug, f"{_switcher_base}{slug}/"] for slug in _versions["versions"]),
+        ],
+    }
+# Assigned unconditionally (Sphinx's default is ``{}``) so static analysis sees a
+# plain Sphinx setting rather than a conditionally-defined, "unused" global.
+html_context = _switcher_context
