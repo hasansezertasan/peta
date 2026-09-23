@@ -173,16 +173,20 @@ of security-relevant claims such as <code class="docutils literal notranslate"><
 <ul class="simple">
 <li><p>Only <code class="docutils literal notranslate"><span class="pre">https</span></code> may be requested. Redirects are disabled, so a request cannot
 move to another scheme or origin and credentials cannot be forwarded there.
-Requests have a 10-second timeout and responses are streamed with a 64 MiB
-decoded-body limit. Only gzip is advertised, and peta decodes it itself in
-capped steps rather than letting httpx inflate each wire chunk in one call,
-so a compressed bomb is refused by the step that would cross the limit
-instead of after a 64 KiB chunk has expanded to 64 MiB. Any other content
-encoding is refused, as is data after the end of a gzip stream — zlib would
-otherwise hold every trailing byte, however many arrive — and a gzip stream
-cut off before its end marker, which would otherwise pass a truncated body
-on as whole. The limit is sized against real data: <code class="docutils literal notranslate"><span class="pre">grpcio</span></code>’s JSON
-document is already 9 MiB.</p></li>
+Requests have a 10-second timeout per connect, read, and write step, and
+responses are streamed with a 64 MiB limit on decoded bytes and the same
+limit on wire bytes — a gzip stream of empty blocks decodes to nothing, so
+only the wire cap stops it. The timeout restarts with every chunk, so it is
+not a total deadline: a response trickling in slowly within those caps can
+hold a command for a long time, which is a known limitation. Only gzip is
+advertised, and peta decodes it itself in capped steps rather than letting
+httpx inflate each wire chunk in one call, so a compressed bomb is refused
+by the step that would cross the limit instead of after a 64 KiB chunk has
+expanded to 64 MiB. Any other content encoding is refused, as is data after
+the end of a gzip stream — zlib would otherwise hold every trailing byte,
+however many arrive — and a gzip stream cut off before its end marker, which
+would otherwise pass a truncated body on as whole. The limit is sized
+against real data: <code class="docutils literal notranslate"><span class="pre">grpcio</span></code>’s JSON document is already 9 MiB.</p></li>
 <li><p>No request goes to a host chosen by an untrusted response. Every source
 contacts a fixed service except one: the PEP 740 provenance URL, which the
 index response supplies. It is fetched only when its scheme, host, and port
@@ -265,8 +269,8 @@ diagnostic is <em>built</em> — <code class="docutils literal notranslate"><spa
 <code class="docutils literal notranslate"><span class="pre">PublisherFailure</span></code>, <code class="docutils literal notranslate"><span class="pre">SourceRecord</span></code>, and the fatal human path — rather
 than over rendered output or the envelope as a whole. Both
 credential-bearing query parameters and URL userinfo —
-<code class="docutils literal notranslate"><span class="pre">https://user:token&#64;index/</span></code>, the usual way to configure a private index —
-are removed. The distinction matters in both directions: a URL peta
+<code class="docutils literal notranslate"><span class="pre">https://{user}:{token}&#64;index/</span></code>, the usual way to configure a private
+index — are removed. The distinction matters in both directions: a URL peta
 <em>requested</em> can carry peta’s API key, while a URL a package <em>declared</em> is
 metadata the output contract promises to report, and the redaction list
 holds names as ordinary as <code class="docutils literal notranslate"><span class="pre">key</span></code>, so sweeping every string would silently
@@ -282,14 +286,16 @@ are stored; corrupt, stale-format, untrusted, or oversized entries are
 misses. Both the entry file and the body stored in it pass the pre-decode
 scan before they are parsed, since the file-size bound limits bytes rather
 than the objects <code class="docutils literal notranslate"><span class="pre">json.loads</span></code> builds; the envelope’s scan allows a long
-string, because it carries the whole body as one. Replayed entries never
-pass the transport’s size limit, so an entry file larger than
-<code class="docutils literal notranslate"><span class="pre">cache.MAX_ENTRY_BYTES</span></code> is a miss before it is read — which also covers
-entries written by versions that had no limit — and an entry whose envelope
-or body is nested deeply enough to overflow the parser is a miss rather than
-a crash. A stored body over the response limit is also a miss when replayed,
-so the transport limit holds for cache hits, stale offline answers, and
-<code class="docutils literal notranslate"><span class="pre">304</span></code> revalidations alike.</p></li>
+string, because it carries the whole body as one. Entries are written as
+UTF-8 rather than ASCII-escaped, and one that would still exceed the read
+bound is not written at all, so the cache never stores what it will refuse
+to read back. Replayed entries never pass the transport’s size limit, so an
+entry file larger than <code class="docutils literal notranslate"><span class="pre">cache.MAX_ENTRY_BYTES</span></code> is a miss before it is read
+— which also covers entries written by versions that had no limit — and an
+entry whose envelope or body is nested deeply enough to overflow the parser
+is a miss rather than a crash. A stored body over the response limit is also
+a miss when replayed, so the transport limit holds for cache hits, stale
+offline answers, and <code class="docutils literal notranslate"><span class="pre">304</span></code> revalidations alike.</p></li>
 <li><p>Local inspection uses metadata APIs or a fixed subprocess query only. It must
 never import the inspected distribution or invoke its build backend.</p></li>
 </ul>

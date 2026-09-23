@@ -182,7 +182,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="57"><span class="sd">    """</span>
 </span><span data-line="58">    <span class="n">parts</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
 </span><span data-line="59">    <span class="k">if</span> <span class="s2">"@"</span> <span class="ow">in</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">:</span>
-</span><span data-line="60">        <span class="c1"># ``https://user:token@index/`` is how a private index is usually</span>
+</span><span data-line="60">        <span class="c1"># ``https://{user}:{token}@index/`` is how a private index is usually</span>
 </span><span data-line="61">        <span class="c1"># configured, and the userinfo is the credential itself.</span>
 </span><span data-line="62">        <span class="n">parts</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">netloc</span><span class="o">=</span><span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">rpartition</span><span class="p">(</span><span class="s2">"@"</span><span class="p">)[</span><span class="mi">2</span><span class="p">])</span>
 </span><span data-line="63">        <span class="n">url</span> <span class="o">=</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>

@@ -703,7 +703,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="541">    <span class="p">}</span>
 </span><span data-line="542">
 </span><span data-line="543">
-</span><span data-line="544"><span class="k">def</span><span class="w"> </span><span class="nf">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="544"><span class="k">def</span><span class="w"> </span><span class="nf">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 </span><span data-line="545"><span class="w">    </span><span class="sd">"""Write one entry via a temporary file moved into place.</span>
 </span><span data-line="546">
 </span><span data-line="547"><span class="sd">    A reader therefore sees either the previous entry or the complete new</span>
@@ -717,7 +717,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="555">    <span class="n">handle</span><span class="p">,</span> <span class="n">temporary</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkstemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">directory</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">".tmp"</span><span class="p">)</span>
 </span><span data-line="556">    <span class="k">try</span><span class="p">:</span>
 </span><span data-line="557">        <span class="k">with</span> <span class="n">os</span><span class="o">.</span><span class="n">fdopen</span><span class="p">(</span><span class="n">handle</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"utf-8"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
-</span><span data-line="558">            <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">stream</span><span class="p">)</span>
+</span><span data-line="558">            <span class="n">_</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
 </span><span data-line="559">        <span class="n">_</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">temporary</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">directory</span> <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">.json"</span><span class="p">)</span>
 </span><span data-line="560">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
 </span><span data-line="561">        <span class="n">Path</span><span class="p">(</span><span class="n">temporary</span><span class="p">)</span><span class="o">.</span><span class="n">unlink</span><span class="p">(</span><span class="n">missing_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -777,38 +777,48 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="615"><span class="sd">    """</span>
 </span><span data-line="616">    <span class="k">if</span> <span class="ow">not</span> <span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">enabled</span><span class="p">:</span>
 </span><span data-line="617">        <span class="k">return</span>
-</span><span data-line="618">    <span class="n">directory</span> <span class="o">=</span> <span class="n">entries_directory</span><span class="p">()</span>
-</span><span data-line="619">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="620">        <span class="n">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">payload</span><span class="p">)</span>
-</span><span data-line="621">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
-</span><span data-line="622">        <span class="k">return</span>
-</span><span data-line="623">    <span class="n">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">now</span><span class="p">())</span>
-</span><span data-line="624">
-</span><span data-line="625">
+</span><span data-line="618">    <span class="c1"># Serialized as UTF-8 rather than ASCII-escaped: escaping turns a four-byte</span>
+</span><span data-line="619">    <span class="c1"># character into twelve, so a legitimate body near the response limit</span>
+</span><span data-line="620">    <span class="c1"># could produce an entry past :data:`MAX_ENTRY_BYTES`. That entry would be</span>
+</span><span data-line="621">    <span class="c1"># written, refused by every ``load``, and refetched and rewritten on every</span>
+</span><span data-line="622">    <span class="c1"># run. Escaping now at most doubles the body, and anything still over the</span>
+</span><span data-line="623">    <span class="c1"># bound is not written at all, so the cache never stores what it will not</span>
+</span><span data-line="624">    <span class="c1"># read back.</span>
+</span><span data-line="625">    <span class="n">text</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">,</span> <span class="n">ensure_ascii</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span><span data-line="626">    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">text</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">MAX_ENTRY_BYTES</span><span class="p">:</span>
+</span><span data-line="627">        <span class="k">return</span>
+</span><span data-line="628">    <span class="n">directory</span> <span class="o">=</span> <span class="n">entries_directory</span><span class="p">()</span>
+</span><span data-line="629">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="630">        <span class="n">_atomic_write</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+</span><span data-line="631">    <span class="k">except</span> <span class="ne">OSError</span><span class="p">:</span>
+</span><span data-line="632">        <span class="k">return</span>
+</span><span data-line="633">    <span class="n">_prune</span><span class="p">(</span><span class="n">directory</span><span class="p">,</span> <span class="n">now</span><span class="p">())</span>
+</span><span data-line="634">
+</span><span data-line="635">
 <div class="viewcode-block" id="store">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.store">[docs]</a>
-</span><span data-line="626"><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span>
-</span><span data-line="627">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
-</span><span data-line="628"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="629"><span class="w">    </span><span class="sd">"""Store one successful response.</span>
-</span><span data-line="630">
-</span><span data-line="631"><span class="sd">    Args:</span>
-</span><span data-line="632"><span class="sd">        key: The cache key.</span>
-</span><span data-line="633"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
-</span><span data-line="634"><span class="sd">        status: The response status.</span>
-</span><span data-line="635"><span class="sd">        body: The decoded response body.</span>
-</span><span data-line="636"><span class="sd">        headers: Response headers; only an allowlist is kept.</span>
-</span><span data-line="637"><span class="sd">    """</span>
-</span><span data-line="638">    <span class="n">_write</span><span class="p">(</span>
-</span><span data-line="639">        <span class="n">key</span><span class="p">,</span>
-</span><span data-line="640">        <span class="p">{</span>
-</span><span data-line="641">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">),</span>
-</span><span data-line="642">            <span class="s2">"status"</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
-</span><span data-line="643">            <span class="s2">"body"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
-</span><span data-line="644">            <span class="s2">"headers"</span><span class="p">:</span> <span class="n">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span>
-</span><span data-line="645">            <span class="s2">"at"</span><span class="p">:</span> <span class="n">now</span><span class="p">(),</span>
-</span><span data-line="646">        <span class="p">},</span>
-</span><span data-line="647">    <span class="p">)</span></div>
+</span><span data-line="636"><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">(</span>
+</span><span data-line="637">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">status</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">body</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span>
+</span><span data-line="638"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="639"><span class="w">    </span><span class="sd">"""Store one successful response.</span>
+</span><span data-line="640">
+</span><span data-line="641"><span class="sd">    Args:</span>
+</span><span data-line="642"><span class="sd">        key: The cache key.</span>
+</span><span data-line="643"><span class="sd">        url: The request URL, stored with credentials redacted.</span>
+</span><span data-line="644"><span class="sd">        status: The response status.</span>
+</span><span data-line="645"><span class="sd">        body: The decoded response body.</span>
+</span><span data-line="646"><span class="sd">        headers: Response headers; only an allowlist is kept.</span>
+</span><span data-line="647"><span class="sd">    """</span>
+</span><span data-line="648">    <span class="n">_write</span><span class="p">(</span>
+</span><span data-line="649">        <span class="n">key</span><span class="p">,</span>
+</span><span data-line="650">        <span class="p">{</span>
+</span><span data-line="651">            <span class="s2">"url"</span><span class="p">:</span> <span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">),</span>
+</span><span data-line="652">            <span class="s2">"status"</span><span class="p">:</span> <span class="n">status</span><span class="p">,</span>
+</span><span data-line="653">            <span class="s2">"body"</span><span class="p">:</span> <span class="n">body</span><span class="p">,</span>
+</span><span data-line="654">            <span class="s2">"headers"</span><span class="p">:</span> <span class="n">_kept_headers</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span>
+</span><span data-line="655">            <span class="s2">"at"</span><span class="p">:</span> <span class="n">now</span><span class="p">(),</span>
+</span><span data-line="656">        <span class="p">},</span>
+</span><span data-line="657">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

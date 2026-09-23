@@ -532,319 +532,332 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="388">
 </span><span data-line="389"><span class="sd">    Returns:</span>
 </span><span data-line="390"><span class="sd">        The decoded body.</span>
-</span><span data-line="391"><span class="sd">    """</span>
-</span><span data-line="392">    <span class="n">_refuse_declared_oversize</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="393">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">is_stream_consumed</span><span class="p">:</span>
-</span><span data-line="394">        <span class="c1"># A response built in memory arrives already read — and already</span>
-</span><span data-line="395">        <span class="c1"># decoded — by httpx. That never happens to a network stream, which is</span>
-</span><span data-line="396">        <span class="c1"># what ``send(stream=True)`` yields, so there is no compressed input</span>
-</span><span data-line="397">        <span class="c1"># left to bound; the body is measured as it stands.</span>
-</span><span data-line="398">        <span class="k">return</span> <span class="n">_measured</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
-</span><span data-line="399">    <span class="n">decompressor</span> <span class="o">=</span> <span class="n">_decompressor</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="400">    <span class="n">content</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
-</span><span data-line="401">    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">iter_raw</span><span class="p">():</span>
-</span><span data-line="402">        <span class="n">_append</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
-</span><span data-line="403">    <span class="n">_finish</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">)</span>
-</span><span data-line="404">    <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
-</span><span data-line="405">
-</span><span data-line="406">
-</span><span data-line="407"><span class="k">def</span><span class="w"> </span><span class="nf">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
-</span><span data-line="408"><span class="w">    </span><span class="sd">"""Read a streamed body, stopping as soon as it grows past the limit.</span>
-</span><span data-line="409">
-</span><span data-line="410"><span class="sd">    Returns:</span>
-</span><span data-line="411"><span class="sd">        The decoded body.</span>
-</span><span data-line="412">
-</span><span data-line="413"><span class="sd">    Raises:</span>
-</span><span data-line="414"><span class="sd">        DecodingError: If a compressed body is corrupt, keeping the error</span>
-</span><span data-line="415"><span class="sd">            inside the ``httpx.RequestError`` contract sources handle.</span>
-</span><span data-line="416"><span class="sd">    """</span>
-</span><span data-line="417">    <span class="c1"># Everything sits inside the ``try``: a streamed response holds a</span>
-</span><span data-line="418">    <span class="c1"># connection checked out of the shared pool until it is closed, so raising</span>
-</span><span data-line="419">    <span class="c1"># before ``close`` would leak one per refused reply, and a fan-out across</span>
-</span><span data-line="420">    <span class="c1"># many packages could drain the pool.</span>
-</span><span data-line="421">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="422">        <span class="k">return</span> <span class="n">_read_body</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="423">    <span class="k">except</span> <span class="n">zlib</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="424">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Could not decode the response body: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="425">        <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-</span><span data-line="426">    <span class="k">finally</span><span class="p">:</span>
-</span><span data-line="427">        <span class="n">response</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</span><span data-line="428">
-</span><span data-line="429">
-</span><span data-line="430"><span class="k">def</span><span class="w"> </span><span class="nf">_checked_response</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-</span><span data-line="431"><span class="w">    </span><span class="sd">"""Reject a response whose declared or received body exceeds the limit.</span>
-</span><span data-line="432">
-</span><span data-line="433"><span class="sd">    Returns:</span>
-</span><span data-line="434"><span class="sd">        The accepted response, carrying the already-decoded body.</span>
-</span><span data-line="435"><span class="sd">    """</span>
-</span><span data-line="436">    <span class="n">content</span> <span class="o">=</span> <span class="n">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
-</span><span data-line="437">    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="438">        <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-</span><span data-line="439">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">multi_items</span><span class="p">()</span>
-</span><span data-line="440">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_TRANSFER_HEADERS</span>
-</span><span data-line="441">    <span class="p">]</span>
-</span><span data-line="442">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
-</span><span data-line="443">        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="n">content</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">request</span>
-</span><span data-line="444">    <span class="p">)</span>
+</span><span data-line="391">
+</span><span data-line="392"><span class="sd">    Raises:</span>
+</span><span data-line="393"><span class="sd">        ResponseTooLargeError: If more wire bytes arrive than the limit allows.</span>
+</span><span data-line="394"><span class="sd">    """</span>
+</span><span data-line="395">    <span class="n">_refuse_declared_oversize</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="396">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">is_stream_consumed</span><span class="p">:</span>
+</span><span data-line="397">        <span class="c1"># A response built in memory arrives already read — and already</span>
+</span><span data-line="398">        <span class="c1"># decoded — by httpx. That never happens to a network stream, which is</span>
+</span><span data-line="399">        <span class="c1"># what ``send(stream=True)`` yields, so there is no compressed input</span>
+</span><span data-line="400">        <span class="c1"># left to bound; the body is measured as it stands.</span>
+</span><span data-line="401">        <span class="k">return</span> <span class="n">_measured</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+</span><span data-line="402">    <span class="n">decompressor</span> <span class="o">=</span> <span class="n">_decompressor</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="403">    <span class="n">content</span> <span class="o">=</span> <span class="nb">bytearray</span><span class="p">()</span>
+</span><span data-line="404">    <span class="n">received</span> <span class="o">=</span> <span class="mi">0</span>
+</span><span data-line="405">    <span class="k">for</span> <span class="n">chunk</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">iter_raw</span><span class="p">():</span>
+</span><span data-line="406">        <span class="c1"># Wire bytes are capped as well as decoded ones. A gzip stream can be</span>
+</span><span data-line="407">        <span class="c1"># an endless run of empty blocks that decodes to nothing, and httpx's</span>
+</span><span data-line="408">        <span class="c1"># read timeout restarts with every chunk, so bounding only the output</span>
+</span><span data-line="409">        <span class="c1"># let a hostile index keep peta reading and inflating indefinitely.</span>
+</span><span data-line="410">        <span class="c1"># Legitimate compressed input is never larger than what it decodes to</span>
+</span><span data-line="411">        <span class="c1"># by more than a few bytes, so the same limit serves for both.</span>
+</span><span data-line="412">        <span class="n">received</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">chunk</span><span class="p">)</span>
+</span><span data-line="413">        <span class="k">if</span> <span class="n">received</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span><span class="p">:</span>
+</span><span data-line="414">            <span class="k">raise</span> <span class="n">ResponseTooLargeError</span><span class="p">(</span><span class="n">_TOO_LARGE</span><span class="p">)</span>
+</span><span data-line="415">        <span class="n">_append</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">,</span> <span class="n">chunk</span><span class="p">)</span>
+</span><span data-line="416">    <span class="n">_finish</span><span class="p">(</span><span class="n">content</span><span class="p">,</span> <span class="n">decompressor</span><span class="p">)</span>
+</span><span data-line="417">    <span class="k">return</span> <span class="nb">bytes</span><span class="p">(</span><span class="n">content</span><span class="p">)</span>
+</span><span data-line="418">
+</span><span data-line="419">
+</span><span data-line="420"><span class="k">def</span><span class="w"> </span><span class="nf">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bytes</span><span class="p">:</span>
+</span><span data-line="421"><span class="w">    </span><span class="sd">"""Read a streamed body, stopping as soon as it grows past the limit.</span>
+</span><span data-line="422">
+</span><span data-line="423"><span class="sd">    Returns:</span>
+</span><span data-line="424"><span class="sd">        The decoded body.</span>
+</span><span data-line="425">
+</span><span data-line="426"><span class="sd">    Raises:</span>
+</span><span data-line="427"><span class="sd">        DecodingError: If a compressed body is corrupt, keeping the error</span>
+</span><span data-line="428"><span class="sd">            inside the ``httpx.RequestError`` contract sources handle.</span>
+</span><span data-line="429"><span class="sd">    """</span>
+</span><span data-line="430">    <span class="c1"># Everything sits inside the ``try``: a streamed response holds a</span>
+</span><span data-line="431">    <span class="c1"># connection checked out of the shared pool until it is closed, so raising</span>
+</span><span data-line="432">    <span class="c1"># before ``close`` would leak one per refused reply, and a fan-out across</span>
+</span><span data-line="433">    <span class="c1"># many packages could drain the pool.</span>
+</span><span data-line="434">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="435">        <span class="k">return</span> <span class="n">_read_body</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="436">    <span class="k">except</span> <span class="n">zlib</span><span class="o">.</span><span class="n">error</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="437">        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Could not decode the response body: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="438">        <span class="k">raise</span> <span class="n">httpx</span><span class="o">.</span><span class="n">DecodingError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</span><span data-line="439">    <span class="k">finally</span><span class="p">:</span>
+</span><span data-line="440">        <span class="n">response</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</span><span data-line="441">
+</span><span data-line="442">
+</span><span data-line="443"><span class="k">def</span><span class="w"> </span><span class="nf">_checked_response</span><span class="p">(</span><span class="n">response</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+</span><span data-line="444"><span class="w">    </span><span class="sd">"""Reject a response whose declared or received body exceeds the limit.</span>
 </span><span data-line="445">
-</span><span data-line="446">
-</span><span data-line="447"><span class="k">def</span><span class="w"> </span><span class="nf">_send</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-</span><span data-line="448"><span class="w">    </span><span class="sd">"""Send and consume a response without allowing an unbounded body in memory.</span>
-</span><span data-line="449">
-</span><span data-line="450"><span class="sd">    Returns:</span>
-</span><span data-line="451"><span class="sd">        The bounded, fully consumed response.</span>
-</span><span data-line="452"><span class="sd">    """</span>
-</span><span data-line="453">    <span class="k">return</span> <span class="n">_checked_response</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
-</span><span data-line="454">
-</span><span data-line="455">
-</span><span data-line="456"><span class="k">def</span><span class="w"> </span><span class="nf">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">:</span>
-</span><span data-line="457"><span class="w">    </span><span class="sd">"""Make a request object to bind a replayed response to.</span>
+</span><span data-line="446"><span class="sd">    Returns:</span>
+</span><span data-line="447"><span class="sd">        The accepted response, carrying the already-decoded body.</span>
+</span><span data-line="448"><span class="sd">    """</span>
+</span><span data-line="449">    <span class="n">content</span> <span class="o">=</span> <span class="n">_within_limit</span><span class="p">(</span><span class="n">response</span><span class="p">)</span>
+</span><span data-line="450">    <span class="n">headers</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="451">        <span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+</span><span data-line="452">        <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">multi_items</span><span class="p">()</span>
+</span><span data-line="453">        <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_TRANSFER_HEADERS</span>
+</span><span data-line="454">    <span class="p">]</span>
+</span><span data-line="455">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
+</span><span data-line="456">        <span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span> <span class="n">content</span><span class="o">=</span><span class="n">content</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">response</span><span class="o">.</span><span class="n">request</span>
+</span><span data-line="457">    <span class="p">)</span>
 </span><span data-line="458">
-</span><span data-line="459"><span class="sd">    Deliberately not built through the client: a cache hit must not pay for</span>
-</span><span data-line="460"><span class="sd">    constructing one, which loads the system CA bundle, and an offline</span>
-</span><span data-line="461"><span class="sd">    lookup must not fail because TLS configuration is broken in an</span>
-</span><span data-line="462"><span class="sd">    environment that never intends to make a request.</span>
-</span><span data-line="463">
-</span><span data-line="464"><span class="sd">    Returns:</span>
-</span><span data-line="465"><span class="sd">        A bare request carrying only the method and URL.</span>
-</span><span data-line="466"><span class="sd">    """</span>
-</span><span data-line="467">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="459">
+</span><span data-line="460"><span class="k">def</span><span class="w"> </span><span class="nf">_send</span><span class="p">(</span><span class="n">request</span><span class="p">:</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+</span><span data-line="461"><span class="w">    </span><span class="sd">"""Send and consume a response without allowing an unbounded body in memory.</span>
+</span><span data-line="462">
+</span><span data-line="463"><span class="sd">    Returns:</span>
+</span><span data-line="464"><span class="sd">        The bounded, fully consumed response.</span>
+</span><span data-line="465"><span class="sd">    """</span>
+</span><span data-line="466">    <span class="k">return</span> <span class="n">_checked_response</span><span class="p">(</span><span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">request</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</span><span data-line="467">
 </span><span data-line="468">
-</span><span data-line="469">
-</span><span data-line="470"><span class="k">def</span><span class="w"> </span><span class="nf">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
-</span><span data-line="471"><span class="w">    </span><span class="sd">"""Rebuild a real response from a stored entry.</span>
-</span><span data-line="472">
-</span><span data-line="473"><span class="sd">    Returned as an ``httpx.Response`` so a cached answer supports everything</span>
-</span><span data-line="474"><span class="sd">    a live one does, ``raise_for_status`` included, and no source needs to</span>
-</span><span data-line="475"><span class="sd">    know whether it was served from disk.</span>
+</span><span data-line="469"><span class="k">def</span><span class="w"> </span><span class="nf">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">:</span>
+</span><span data-line="470"><span class="w">    </span><span class="sd">"""Make a request object to bind a replayed response to.</span>
+</span><span data-line="471">
+</span><span data-line="472"><span class="sd">    Deliberately not built through the client: a cache hit must not pay for</span>
+</span><span data-line="473"><span class="sd">    constructing one, which loads the system CA bundle, and an offline</span>
+</span><span data-line="474"><span class="sd">    lookup must not fail because TLS configuration is broken in an</span>
+</span><span data-line="475"><span class="sd">    environment that never intends to make a request.</span>
 </span><span data-line="476">
 </span><span data-line="477"><span class="sd">    Returns:</span>
-</span><span data-line="478"><span class="sd">        The reconstructed response.</span>
+</span><span data-line="478"><span class="sd">        A bare request carrying only the method and URL.</span>
 </span><span data-line="479"><span class="sd">    """</span>
-</span><span data-line="480">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
-</span><span data-line="481">        <span class="n">entry</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">body</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="482">    <span class="p">)</span>
-</span><span data-line="483">
-</span><span data-line="484">
-</span><span data-line="485"><span class="k">def</span><span class="w"> </span><span class="nf">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="486"><span class="w">    </span><span class="sd">"""Present a stored entry as a fetch result, dated when it was stored.</span>
-</span><span data-line="487">
-</span><span data-line="488"><span class="sd">    Returns:</span>
-</span><span data-line="489"><span class="sd">        The replayed response, reporting the source's own retrieval time.</span>
-</span><span data-line="490"><span class="sd">    """</span>
-</span><span data-line="491">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"cached"</span><span class="p">,</span> <span class="n">utc_from</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">stored_at</span><span class="p">)))</span>
-</span><span data-line="492">
-</span><span data-line="493">
-</span><span data-line="494"><span class="k">def</span><span class="w"> </span><span class="nf">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="495"><span class="w">    </span><span class="sd">"""Stop before anything is built when offline mode is on.</span>
+</span><span data-line="480">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="481">
+</span><span data-line="482">
+</span><span data-line="483"><span class="k">def</span><span class="w"> </span><span class="nf">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">:</span>
+</span><span data-line="484"><span class="w">    </span><span class="sd">"""Rebuild a real response from a stored entry.</span>
+</span><span data-line="485">
+</span><span data-line="486"><span class="sd">    Returned as an ``httpx.Response`` so a cached answer supports everything</span>
+</span><span data-line="487"><span class="sd">    a live one does, ``raise_for_status`` included, and no source needs to</span>
+</span><span data-line="488"><span class="sd">    know whether it was served from disk.</span>
+</span><span data-line="489">
+</span><span data-line="490"><span class="sd">    Returns:</span>
+</span><span data-line="491"><span class="sd">        The reconstructed response.</span>
+</span><span data-line="492"><span class="sd">    """</span>
+</span><span data-line="493">    <span class="k">return</span> <span class="n">httpx</span><span class="o">.</span><span class="n">Response</span><span class="p">(</span>
+</span><span data-line="494">        <span class="n">entry</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">body</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">entry</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="n">request</span><span class="o">=</span><span class="n">_bind</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="495">    <span class="p">)</span>
 </span><span data-line="496">
-</span><span data-line="497"><span class="sd">    Called ahead of every ``client()`` construction rather than at the point</span>
-</span><span data-line="498"><span class="sd">    of sending: building a client loads the system CA bundle and can fail</span>
-</span><span data-line="499"><span class="sd">    outright where TLS is misconfigured, which must not turn a defined</span>
-</span><span data-line="500"><span class="sd">    offline outcome into a generic transport exception.</span>
-</span><span data-line="501">
-</span><span data-line="502"><span class="sd">    Raises:</span>
-</span><span data-line="503"><span class="sd">        OfflineError: If offline mode is on.</span>
-</span><span data-line="504"><span class="sd">    """</span>
-</span><span data-line="505">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
-</span><span data-line="506">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="507">
-</span><span data-line="508">
-</span><span data-line="509"><span class="k">def</span><span class="w"> </span><span class="nf">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="510"><span class="w">    </span><span class="sd">"""Answer from the cache while offline, even if the entry is stale.</span>
-</span><span data-line="511">
-</span><span data-line="512"><span class="sd">    Past its TTL is not the same as wrong, and a user who asked for offline</span>
-</span><span data-line="513"><span class="sd">    has already said they prefer an old answer to no answer. The staleness is</span>
-</span><span data-line="514"><span class="sd">    not hidden: the result is reported as ``cached`` and dated when it was</span>
-</span><span data-line="515"><span class="sd">    stored, so output says both where the data came from and how old it is.</span>
-</span><span data-line="516">
-</span><span data-line="517"><span class="sd">    Returns:</span>
-</span><span data-line="518"><span class="sd">        The stored response.</span>
-</span><span data-line="519">
-</span><span data-line="520"><span class="sd">    Raises:</span>
-</span><span data-line="521"><span class="sd">        OfflineError: If nothing is stored for this request.</span>
-</span><span data-line="522"><span class="sd">    """</span>
-</span><span data-line="523">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="524">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="525">    <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-</span><span data-line="526">
-</span><span data-line="527">
-</span><span data-line="528"><span class="k">def</span><span class="w"> </span><span class="nf">_revalidate</span><span class="p">(</span>
-</span><span data-line="529">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="530">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="531">    <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="532">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="533"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="534"><span class="w">    </span><span class="sd">"""Ask the source, offering any stored validator to save it resending.</span>
-</span><span data-line="535">
-</span><span data-line="536"><span class="sd">    Returns:</span>
-</span><span data-line="537"><span class="sd">        The live response, or the stored one if the source confirmed it.</span>
-</span><span data-line="538"><span class="sd">    """</span>
-</span><span data-line="539">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="540">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-</span><span data-line="541">    <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
-</span><span data-line="542">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
-</span><span data-line="543">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="544">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">validators</span><span class="p">)</span>
-</span><span data-line="545">    <span class="n">response</span> <span class="o">=</span> <span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
-</span><span data-line="546">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="n">_NOT_MODIFIED</span> <span class="ow">and</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="547">        <span class="c1"># Restamped by ``keep``, not here: the stored body still has to</span>
-</span><span data-line="548">        <span class="c1"># satisfy the caller's decoder, which a stricter parser or a</span>
-</span><span data-line="549">        <span class="c1"># body-level corruption could now reject. Blessing it before that</span>
-</span><span data-line="550">        <span class="c1"># check would keep an unusable entry fresh for another full TTL.</span>
-</span><span data-line="551">        <span class="c1"># The source confirmed the body just now, so this counts as a</span>
-</span><span data-line="552">        <span class="c1"># current retrieval of it rather than a replay of an old one.</span>
-</span><span data-line="553">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span>
-</span><span data-line="554">            <span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"revalidated"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span>
-</span><span data-line="555">        <span class="p">)</span>
-</span><span data-line="556">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
-</span><span data-line="557">
-</span><span data-line="558">
-</span><span data-line="559"><span class="k">def</span><span class="w"> </span><span class="nf">_replayable</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="560"><span class="w">    </span><span class="sd">"""Drop a stored entry whose body is over the response-size limit.</span>
-</span><span data-line="561">
-</span><span data-line="562"><span class="sd">    A replayed body never passes through the transport, so the limit has to</span>
-</span><span data-line="563"><span class="sd">    be applied here too, or an entry written before the limit existed — or</span>
-</span><span data-line="564"><span class="sd">    edited on disk — would be served at whatever size it is. Checked where</span>
-</span><span data-line="565"><span class="sd">    entries are loaded, so a fresh hit, a stale offline answer, and a ``304``</span>
-</span><span data-line="566"><span class="sd">    revalidation are all covered. Measured in UTF-8 bytes like a live body,</span>
-</span><span data-line="567"><span class="sd">    and only encoded when the cheap character count cannot already decide.</span>
-</span><span data-line="568">
-</span><span data-line="569"><span class="sd">    Returns:</span>
-</span><span data-line="570"><span class="sd">        The entry, or ``None`` when its body is over the limit.</span>
-</span><span data-line="571"><span class="sd">    """</span>
-</span><span data-line="572">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="573">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="574">    <span class="n">body</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">body</span>
-</span><span data-line="575">    <span class="n">too_big</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span> <span class="ow">or</span> <span class="p">(</span>
-</span><span data-line="576">        <span class="ow">not</span> <span class="n">body</span><span class="o">.</span><span class="n">isascii</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span>
-</span><span data-line="577">    <span class="p">)</span>
-</span><span data-line="578">    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">too_big</span> <span class="k">else</span> <span class="n">entry</span>
-</span><span data-line="579">
-</span><span data-line="580">
-</span><span data-line="581"><span class="k">def</span><span class="w"> </span><span class="nf">_cached_get</span><span class="p">(</span>
-</span><span data-line="582">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="583"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="584"><span class="w">    </span><span class="sd">"""Serve a GET from the cache when possible, otherwise from the source.</span>
-</span><span data-line="585">
-</span><span data-line="586"><span class="sd">    Returns:</span>
-</span><span data-line="587"><span class="sd">        The response and where it came from.</span>
-</span><span data-line="588"><span class="sd">    """</span>
-</span><span data-line="589">    <span class="n">key</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">key_for</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">scope</span><span class="p">)</span>
-</span><span data-line="590">    <span class="n">entry</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">refresh</span> <span class="k">else</span> <span class="n">_replayable</span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
-</span><span data-line="591">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_fresh</span><span class="p">(</span><span class="n">ttl</span><span class="p">,</span> <span class="n">cache</span><span class="o">.</span><span class="n">now</span><span class="p">()):</span>
-</span><span data-line="592">        <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
-</span><span data-line="593">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
-</span><span data-line="594">        <span class="k">return</span> <span class="n">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
-</span><span data-line="595">    <span class="k">return</span> <span class="n">_revalidate</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
-</span><span data-line="596">
-</span><span data-line="597">
+</span><span data-line="497">
+</span><span data-line="498"><span class="k">def</span><span class="w"> </span><span class="nf">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span><span class="p">,</span> <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="499"><span class="w">    </span><span class="sd">"""Present a stored entry as a fetch result, dated when it was stored.</span>
+</span><span data-line="500">
+</span><span data-line="501"><span class="sd">    Returns:</span>
+</span><span data-line="502"><span class="sd">        The replayed response, reporting the source's own retrieval time.</span>
+</span><span data-line="503"><span class="sd">    """</span>
+</span><span data-line="504">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"cached"</span><span class="p">,</span> <span class="n">utc_from</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">stored_at</span><span class="p">)))</span>
+</span><span data-line="505">
+</span><span data-line="506">
+</span><span data-line="507"><span class="k">def</span><span class="w"> </span><span class="nf">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="508"><span class="w">    </span><span class="sd">"""Stop before anything is built when offline mode is on.</span>
+</span><span data-line="509">
+</span><span data-line="510"><span class="sd">    Called ahead of every ``client()`` construction rather than at the point</span>
+</span><span data-line="511"><span class="sd">    of sending: building a client loads the system CA bundle and can fail</span>
+</span><span data-line="512"><span class="sd">    outright where TLS is misconfigured, which must not turn a defined</span>
+</span><span data-line="513"><span class="sd">    offline outcome into a generic transport exception.</span>
+</span><span data-line="514">
+</span><span data-line="515"><span class="sd">    Raises:</span>
+</span><span data-line="516"><span class="sd">        OfflineError: If offline mode is on.</span>
+</span><span data-line="517"><span class="sd">    """</span>
+</span><span data-line="518">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
+</span><span data-line="519">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="520">
+</span><span data-line="521">
+</span><span data-line="522"><span class="k">def</span><span class="w"> </span><span class="nf">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="523"><span class="w">    </span><span class="sd">"""Answer from the cache while offline, even if the entry is stale.</span>
+</span><span data-line="524">
+</span><span data-line="525"><span class="sd">    Past its TTL is not the same as wrong, and a user who asked for offline</span>
+</span><span data-line="526"><span class="sd">    has already said they prefer an old answer to no answer. The staleness is</span>
+</span><span data-line="527"><span class="sd">    not hidden: the result is reported as ``cached`` and dated when it was</span>
+</span><span data-line="528"><span class="sd">    stored, so output says both where the data came from and how old it is.</span>
+</span><span data-line="529">
+</span><span data-line="530"><span class="sd">    Returns:</span>
+</span><span data-line="531"><span class="sd">        The stored response.</span>
+</span><span data-line="532">
+</span><span data-line="533"><span class="sd">    Raises:</span>
+</span><span data-line="534"><span class="sd">        OfflineError: If nothing is stored for this request.</span>
+</span><span data-line="535"><span class="sd">    """</span>
+</span><span data-line="536">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="537">        <span class="k">raise</span> <span class="n">OfflineError</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="538">    <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="539">
+</span><span data-line="540">
+</span><span data-line="541"><span class="k">def</span><span class="w"> </span><span class="nf">_revalidate</span><span class="p">(</span>
+</span><span data-line="542">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="543">    <span class="n">key</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="544">    <span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="545">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="546"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="547"><span class="w">    </span><span class="sd">"""Ask the source, offering any stored validator to save it resending.</span>
+</span><span data-line="548">
+</span><span data-line="549"><span class="sd">    Returns:</span>
+</span><span data-line="550"><span class="sd">        The live response, or the stored one if the source confirmed it.</span>
+</span><span data-line="551"><span class="sd">    """</span>
+</span><span data-line="552">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="553">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="554">    <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
+</span><span data-line="555">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+</span><span data-line="556">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="557">        <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">entry</span><span class="o">.</span><span class="n">validators</span><span class="p">)</span>
+</span><span data-line="558">    <span class="n">response</span> <span class="o">=</span> <span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">)</span>
+</span><span data-line="559">    <span class="k">if</span> <span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">==</span> <span class="n">_NOT_MODIFIED</span> <span class="ow">and</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="560">        <span class="c1"># Restamped by ``keep``, not here: the stored body still has to</span>
+</span><span data-line="561">        <span class="c1"># satisfy the caller's decoder, which a stricter parser or a</span>
+</span><span data-line="562">        <span class="c1"># body-level corruption could now reject. Blessing it before that</span>
+</span><span data-line="563">        <span class="c1"># check would keep an unusable entry fresh for another full TTL.</span>
+</span><span data-line="564">        <span class="c1"># The source confirmed the body just now, so this counts as a</span>
+</span><span data-line="565">        <span class="c1"># current retrieval of it rather than a replay of an old one.</span>
+</span><span data-line="566">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span>
+</span><span data-line="567">            <span class="n">_replay</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"revalidated"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span>
+</span><span data-line="568">        <span class="p">)</span>
+</span><span data-line="569">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">response</span><span class="p">,</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()),</span> <span class="n">cache_key</span><span class="o">=</span><span class="n">key</span><span class="p">)</span>
+</span><span data-line="570">
+</span><span data-line="571">
+</span><span data-line="572"><span class="k">def</span><span class="w"> </span><span class="nf">_replayable</span><span class="p">(</span><span class="n">entry</span><span class="p">:</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">CachedResponse</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="573"><span class="w">    </span><span class="sd">"""Drop a stored entry whose body is over the response-size limit.</span>
+</span><span data-line="574">
+</span><span data-line="575"><span class="sd">    A replayed body never passes through the transport, so the limit has to</span>
+</span><span data-line="576"><span class="sd">    be applied here too, or an entry written before the limit existed — or</span>
+</span><span data-line="577"><span class="sd">    edited on disk — would be served at whatever size it is. Checked where</span>
+</span><span data-line="578"><span class="sd">    entries are loaded, so a fresh hit, a stale offline answer, and a ``304``</span>
+</span><span data-line="579"><span class="sd">    revalidation are all covered. Measured in UTF-8 bytes like a live body,</span>
+</span><span data-line="580"><span class="sd">    and only encoded when the cheap character count cannot already decide.</span>
+</span><span data-line="581">
+</span><span data-line="582"><span class="sd">    Returns:</span>
+</span><span data-line="583"><span class="sd">        The entry, or ``None`` when its body is over the limit.</span>
+</span><span data-line="584"><span class="sd">    """</span>
+</span><span data-line="585">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="586">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="587">    <span class="n">body</span> <span class="o">=</span> <span class="n">entry</span><span class="o">.</span><span class="n">body</span>
+</span><span data-line="588">    <span class="n">too_big</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span> <span class="ow">or</span> <span class="p">(</span>
+</span><span data-line="589">        <span class="ow">not</span> <span class="n">body</span><span class="o">.</span><span class="n">isascii</span><span class="p">()</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">body</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"utf-8"</span><span class="p">))</span> <span class="o">&gt;</span> <span class="n">MAX_RESPONSE_BYTES</span>
+</span><span data-line="590">    <span class="p">)</span>
+</span><span data-line="591">    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">too_big</span> <span class="k">else</span> <span class="n">entry</span>
+</span><span data-line="592">
+</span><span data-line="593">
+</span><span data-line="594"><span class="k">def</span><span class="w"> </span><span class="nf">_cached_get</span><span class="p">(</span>
+</span><span data-line="595">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span data-line="596"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="597"><span class="w">    </span><span class="sd">"""Serve a GET from the cache when possible, otherwise from the source.</span>
+</span><span data-line="598">
+</span><span data-line="599"><span class="sd">    Returns:</span>
+</span><span data-line="600"><span class="sd">        The response and where it came from.</span>
+</span><span data-line="601"><span class="sd">    """</span>
+</span><span data-line="602">    <span class="n">key</span> <span class="o">=</span> <span class="n">cache</span><span class="o">.</span><span class="n">key_for</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">url</span><span class="p">,</span> <span class="n">scope</span><span class="p">)</span>
+</span><span data-line="603">    <span class="n">entry</span> <span class="o">=</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">refresh</span> <span class="k">else</span> <span class="n">_replayable</span><span class="p">(</span><span class="n">cache</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">key</span><span class="p">))</span>
+</span><span data-line="604">    <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">entry</span><span class="o">.</span><span class="n">is_fresh</span><span class="p">(</span><span class="n">ttl</span><span class="p">,</span> <span class="n">cache</span><span class="o">.</span><span class="n">now</span><span class="p">()):</span>
+</span><span data-line="605">        <span class="k">return</span> <span class="n">_served</span><span class="p">(</span><span class="n">entry</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span>
+</span><span data-line="606">    <span class="k">if</span> <span class="n">cache</span><span class="o">.</span><span class="n">settings</span><span class="p">()</span><span class="o">.</span><span class="n">offline</span><span class="p">:</span>
+</span><span data-line="607">        <span class="k">return</span> <span class="n">_serve_offline</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">entry</span><span class="p">)</span>
+</span><span data-line="608">    <span class="k">return</span> <span class="n">_revalidate</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span>
+</span><span data-line="609">
+</span><span data-line="610">
 <div class="viewcode-block" id="keep">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.keep">[docs]</a>
-</span><span data-line="598"><span class="k">def</span><span class="w"> </span><span class="nf">keep</span><span class="p">(</span><span class="n">fetched</span><span class="p">:</span> <span class="n">Fetched</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="599"><span class="w">    </span><span class="sd">"""Store a live response the caller has confirmed it could actually use.</span>
-</span><span data-line="600">
-</span><span data-line="601"><span class="sd">    Storing on arrival would cache a body the source-specific decoder then</span>
-</span><span data-line="602"><span class="sd">    rejects — a ``200`` carrying an error page, or truncated JSON — and every</span>
-</span><span data-line="603"><span class="sd">    later request would replay that same unusable response until the TTL</span>
-</span><span data-line="604"><span class="sd">    expired, up to a month for pinned metadata. A transient upstream fault</span>
-</span><span data-line="605"><span class="sd">    would become a persistent one.</span>
-</span><span data-line="606">
-</span><span data-line="607"><span class="sd">    So nothing is written until the caller has decoded and validated the</span>
-</span><span data-line="608"><span class="sd">    body and says so by calling this. Failing to call it means the response</span>
-</span><span data-line="609"><span class="sd">    is simply not cached, which costs a refetch; the opposite default would</span>
-</span><span data-line="610"><span class="sd">    poison the cache.</span>
-</span><span data-line="611">
-</span><span data-line="612"><span class="sd">    Args:</span>
-</span><span data-line="613"><span class="sd">        fetched: The result to store. Ignored unless it is a live ``200``</span>
-</span><span data-line="614"><span class="sd">            still carrying a cache key, so callers need not check.</span>
-</span><span data-line="615"><span class="sd">    """</span>
-</span><span data-line="616">    <span class="k">if</span> <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="n">_OK</span><span class="p">:</span>
-</span><span data-line="617">        <span class="k">return</span>
-</span><span data-line="618">    <span class="n">cache</span><span class="o">.</span><span class="n">store</span><span class="p">(</span>
-</span><span data-line="619">        <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span><span class="p">,</span>
-</span><span data-line="620">        <span class="n">url</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">url</span><span class="p">),</span>
-</span><span data-line="621">        <span class="n">status</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
-</span><span data-line="622">        <span class="n">body</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
-</span><span data-line="623">        <span class="n">headers</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">),</span>
-</span><span data-line="624">    <span class="p">)</span></div>
+</span><span data-line="611"><span class="k">def</span><span class="w"> </span><span class="nf">keep</span><span class="p">(</span><span class="n">fetched</span><span class="p">:</span> <span class="n">Fetched</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="612"><span class="w">    </span><span class="sd">"""Store a live response the caller has confirmed it could actually use.</span>
+</span><span data-line="613">
+</span><span data-line="614"><span class="sd">    Storing on arrival would cache a body the source-specific decoder then</span>
+</span><span data-line="615"><span class="sd">    rejects — a ``200`` carrying an error page, or truncated JSON — and every</span>
+</span><span data-line="616"><span class="sd">    later request would replay that same unusable response until the TTL</span>
+</span><span data-line="617"><span class="sd">    expired, up to a month for pinned metadata. A transient upstream fault</span>
+</span><span data-line="618"><span class="sd">    would become a persistent one.</span>
+</span><span data-line="619">
+</span><span data-line="620"><span class="sd">    So nothing is written until the caller has decoded and validated the</span>
+</span><span data-line="621"><span class="sd">    body and says so by calling this. Failing to call it means the response</span>
+</span><span data-line="622"><span class="sd">    is simply not cached, which costs a refetch; the opposite default would</span>
+</span><span data-line="623"><span class="sd">    poison the cache.</span>
+</span><span data-line="624">
+</span><span data-line="625"><span class="sd">    Args:</span>
+</span><span data-line="626"><span class="sd">        fetched: The result to store. Ignored unless it is a live ``200``</span>
+</span><span data-line="627"><span class="sd">            still carrying a cache key, so callers need not check.</span>
+</span><span data-line="628"><span class="sd">    """</span>
+</span><span data-line="629">    <span class="k">if</span> <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span> <span class="o">!=</span> <span class="n">_OK</span><span class="p">:</span>
+</span><span data-line="630">        <span class="k">return</span>
+</span><span data-line="631">    <span class="n">cache</span><span class="o">.</span><span class="n">store</span><span class="p">(</span>
+</span><span data-line="632">        <span class="n">fetched</span><span class="o">.</span><span class="n">cache_key</span><span class="p">,</span>
+</span><span data-line="633">        <span class="n">url</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">url</span><span class="p">),</span>
+</span><span data-line="634">        <span class="n">status</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="p">,</span>
+</span><span data-line="635">        <span class="n">body</span><span class="o">=</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+</span><span data-line="636">        <span class="n">headers</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span><span class="n">fetched</span><span class="o">.</span><span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">),</span>
+</span><span data-line="637">    <span class="p">)</span></div>
 
-</span><span data-line="625">
-</span><span data-line="626">
+</span><span data-line="638">
+</span><span data-line="639">
 <div class="viewcode-block" id="get">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.get">[docs]</a>
-</span><span data-line="627"><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
-</span><span data-line="628">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="629">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="630">    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="631">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="632">    <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="633">    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
-</span><span data-line="634"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="635"><span class="w">    </span><span class="sd">"""Send a GET request, using the cache when the caller allows it.</span>
-</span><span data-line="636">
-</span><span data-line="637"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
-</span><span data-line="638"><span class="sd">    :class:`OfflineError` propagates when offline mode is on and the cache</span>
-</span><span data-line="639"><span class="sd">    cannot answer; each source maps them onto its own error type.</span>
-</span><span data-line="640">
-</span><span data-line="641"><span class="sd">    A live result is not cached until the caller confirms the body was usable</span>
-</span><span data-line="642"><span class="sd">    by passing it to :func:`keep`.</span>
-</span><span data-line="643">
-</span><span data-line="644"><span class="sd">    Args:</span>
-</span><span data-line="645"><span class="sd">        url: The absolute URL to request.</span>
-</span><span data-line="646"><span class="sd">        params: Optional query-string parameters.</span>
-</span><span data-line="647"><span class="sd">        headers: Extra request headers merged onto the shared client's</span>
-</span><span data-line="648"><span class="sd">            defaults, for content negotiation or similar per-source needs.</span>
-</span><span data-line="649"><span class="sd">        ttl: How long a stored response stays usable, in seconds. ``None``</span>
-</span><span data-line="650"><span class="sd">            bypasses the cache entirely, for a URL whose answer should never</span>
-</span><span data-line="651"><span class="sd">            be reused.</span>
-</span><span data-line="652"><span class="sd">        scope: Distinguishes consumers that fetch the same URL but validate</span>
-</span><span data-line="653"><span class="sd">            different parts of it, so neither replays a body the other</span>
-</span><span data-line="654"><span class="sd">            accepted. See :func:`peta.core.cache.key_for`.</span>
-</span><span data-line="655">
-</span><span data-line="656"><span class="sd">    Returns:</span>
-</span><span data-line="657"><span class="sd">        The response and where it came from.</span>
-</span><span data-line="658"><span class="sd">    """</span>
-</span><span data-line="659">    <span class="c1"># Merged here rather than by the client, so a cache hit never constructs</span>
-</span><span data-line="660">    <span class="c1"># one; the result is byte-identical to what ``build_request`` produces.</span>
-</span><span data-line="661">    <span class="c1"># ``params=None`` is not passed through: httpx reads that as "replace the</span>
-</span><span data-line="662">    <span class="c1"># query with nothing" and silently drops any query already in the URL,</span>
-</span><span data-line="663">    <span class="c1"># where ``build_request`` leaves it alone.</span>
-</span><span data-line="664">    <span class="n">built_url</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
-</span><span data-line="665">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">built_url</span><span class="p">))</span>
-</span><span data-line="666">    <span class="k">if</span> <span class="n">ttl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="667">        <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
-</span><span data-line="668">        <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">full</span><span class="p">)</span>
-</span><span data-line="669">        <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
-</span><span data-line="670">            <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
-</span><span data-line="671">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span>
-</span><span data-line="672">    <span class="k">return</span> <span class="n">_cached_get</span><span class="p">(</span><span class="n">full</span><span class="p">,</span> <span class="n">ttl</span><span class="p">,</span> <span class="n">scope</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span></div>
+</span><span data-line="640"><span class="k">def</span><span class="w"> </span><span class="nf">get</span><span class="p">(</span>
+</span><span data-line="641">    <span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="642">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="643">    <span class="n">params</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="644">    <span class="n">headers</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="645">    <span class="n">ttl</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="646">    <span class="n">scope</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span><span class="p">,</span>
+</span><span data-line="647"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="648"><span class="w">    </span><span class="sd">"""Send a GET request, using the cache when the caller allows it.</span>
+</span><span data-line="649">
+</span><span data-line="650"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
+</span><span data-line="651"><span class="sd">    :class:`OfflineError` propagates when offline mode is on and the cache</span>
+</span><span data-line="652"><span class="sd">    cannot answer; each source maps them onto its own error type.</span>
+</span><span data-line="653">
+</span><span data-line="654"><span class="sd">    A live result is not cached until the caller confirms the body was usable</span>
+</span><span data-line="655"><span class="sd">    by passing it to :func:`keep`.</span>
+</span><span data-line="656">
+</span><span data-line="657"><span class="sd">    Args:</span>
+</span><span data-line="658"><span class="sd">        url: The absolute URL to request.</span>
+</span><span data-line="659"><span class="sd">        params: Optional query-string parameters.</span>
+</span><span data-line="660"><span class="sd">        headers: Extra request headers merged onto the shared client's</span>
+</span><span data-line="661"><span class="sd">            defaults, for content negotiation or similar per-source needs.</span>
+</span><span data-line="662"><span class="sd">        ttl: How long a stored response stays usable, in seconds. ``None``</span>
+</span><span data-line="663"><span class="sd">            bypasses the cache entirely, for a URL whose answer should never</span>
+</span><span data-line="664"><span class="sd">            be reused.</span>
+</span><span data-line="665"><span class="sd">        scope: Distinguishes consumers that fetch the same URL but validate</span>
+</span><span data-line="666"><span class="sd">            different parts of it, so neither replays a body the other</span>
+</span><span data-line="667"><span class="sd">            accepted. See :func:`peta.core.cache.key_for`.</span>
+</span><span data-line="668">
+</span><span data-line="669"><span class="sd">    Returns:</span>
+</span><span data-line="670"><span class="sd">        The response and where it came from.</span>
+</span><span data-line="671"><span class="sd">    """</span>
+</span><span data-line="672">    <span class="c1"># Merged here rather than by the client, so a cache hit never constructs</span>
+</span><span data-line="673">    <span class="c1"># one; the result is byte-identical to what ``build_request`` produces.</span>
+</span><span data-line="674">    <span class="c1"># ``params=None`` is not passed through: httpx reads that as "replace the</span>
+</span><span data-line="675">    <span class="c1"># query with nothing" and silently drops any query already in the URL,</span>
+</span><span data-line="676">    <span class="c1"># where ``build_request`` leaves it alone.</span>
+</span><span data-line="677">    <span class="n">built_url</span> <span class="o">=</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">)</span> <span class="k">if</span> <span class="n">params</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">httpx</span><span class="o">.</span><span class="n">URL</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">params</span><span class="o">=</span><span class="n">params</span><span class="p">)</span>
+</span><span data-line="678">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">built_url</span><span class="p">))</span>
+</span><span data-line="679">    <span class="k">if</span> <span class="n">ttl</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="680">        <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
+</span><span data-line="681">        <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"GET"</span><span class="p">,</span> <span class="n">full</span><span class="p">)</span>
+</span><span data-line="682">        <span class="k">if</span> <span class="n">headers</span><span class="p">:</span>
+</span><span data-line="683">            <span class="n">request</span><span class="o">.</span><span class="n">headers</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">headers</span><span class="p">)</span>
+</span><span data-line="684">        <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span>
+</span><span data-line="685">    <span class="k">return</span> <span class="n">_cached_get</span><span class="p">(</span><span class="n">full</span><span class="p">,</span> <span class="n">ttl</span><span class="p">,</span> <span class="n">scope</span><span class="p">,</span> <span class="n">headers</span><span class="o">=</span><span class="n">headers</span><span class="p">)</span></div>
 
-</span><span data-line="673">
-</span><span data-line="674">
+</span><span data-line="686">
+</span><span data-line="687">
 <div class="viewcode-block" id="post">
 <a class="viewcode-back" href="../../../modules.html#peta.core.http.post">[docs]</a>
-</span><span data-line="675"><span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
-</span><span data-line="676"><span class="w">    </span><span class="sd">"""Send a JSON POST request over the shared client.</span>
-</span><span data-line="677">
-</span><span data-line="678"><span class="sd">    Never cached: a POST body carries the question, and peta's only POST</span>
-</span><span data-line="679"><span class="sd">    source is an advisory query whose request shape is about to change with</span>
-</span><span data-line="680"><span class="sd">    batching. Offline mode still refuses it rather than pretending.</span>
-</span><span data-line="681">
-</span><span data-line="682"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
-</span><span data-line="683"><span class="sd">    :class:`OfflineError` propagates when offline mode is on.</span>
-</span><span data-line="684">
-</span><span data-line="685"><span class="sd">    Args:</span>
-</span><span data-line="686"><span class="sd">        url: The absolute URL to request.</span>
-</span><span data-line="687"><span class="sd">        json: The request body, serialized as JSON.</span>
-</span><span data-line="688">
-</span><span data-line="689"><span class="sd">    Returns:</span>
-</span><span data-line="690"><span class="sd">        The response and where it came from, always ``live``.</span>
-</span><span data-line="691"><span class="sd">    """</span>
-</span><span data-line="692">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="693">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
-</span><span data-line="694">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"POST"</span><span class="p">,</span> <span class="n">full</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">json</span><span class="p">)</span>
-</span><span data-line="695">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span></div>
+</span><span data-line="688"><span class="k">def</span><span class="w"> </span><span class="nf">post</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">json</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Fetched</span><span class="p">:</span>
+</span><span data-line="689"><span class="w">    </span><span class="sd">"""Send a JSON POST request over the shared client.</span>
+</span><span data-line="690">
+</span><span data-line="691"><span class="sd">    Never cached: a POST body carries the question, and peta's only POST</span>
+</span><span data-line="692"><span class="sd">    source is an advisory query whose request shape is about to change with</span>
+</span><span data-line="693"><span class="sd">    batching. Offline mode still refuses it rather than pretending.</span>
+</span><span data-line="694">
+</span><span data-line="695"><span class="sd">    A transport-level ``httpx.RequestError`` propagates untouched, and an</span>
+</span><span data-line="696"><span class="sd">    :class:`OfflineError` propagates when offline mode is on.</span>
+</span><span data-line="697">
+</span><span data-line="698"><span class="sd">    Args:</span>
+</span><span data-line="699"><span class="sd">        url: The absolute URL to request.</span>
+</span><span data-line="700"><span class="sd">        json: The request body, serialized as JSON.</span>
+</span><span data-line="701">
+</span><span data-line="702"><span class="sd">    Returns:</span>
+</span><span data-line="703"><span class="sd">        The response and where it came from, always ``live``.</span>
+</span><span data-line="704"><span class="sd">    """</span>
+</span><span data-line="705">    <span class="n">full</span> <span class="o">=</span> <span class="n">_checked_url</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="706">    <span class="n">_refuse_offline</span><span class="p">(</span><span class="n">full</span><span class="p">)</span>
+</span><span data-line="707">    <span class="n">request</span> <span class="o">=</span> <span class="n">client</span><span class="p">()</span><span class="o">.</span><span class="n">build_request</span><span class="p">(</span><span class="s2">"POST"</span><span class="p">,</span> <span class="n">full</span><span class="p">,</span> <span class="n">json</span><span class="o">=</span><span class="n">json</span><span class="p">)</span>
+</span><span data-line="708">    <span class="k">return</span> <span class="n">Fetched</span><span class="p">(</span><span class="n">_send</span><span class="p">(</span><span class="n">request</span><span class="p">),</span> <span class="n">Provenance</span><span class="p">(</span><span class="s2">"live"</span><span class="p">,</span> <span class="n">utc_now</span><span class="p">()))</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
