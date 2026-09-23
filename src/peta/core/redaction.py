@@ -34,6 +34,9 @@ depends on which package was asked about, not on who asked, so two users with
 different keys should share one entry.
 """
 
+_USERINFO = re.compile(r"^(https?://)[^/@]*@")
+"""The ``user:password@`` part of a URL too malformed for ``urlsplit``."""
+
 _URL_IN_TEXT = re.compile(r"https?://[^\s'\"]+")
 """URLs that can appear inside an error message or other diagnostic string."""
 
@@ -49,9 +52,15 @@ def redacted(url: str) -> str:
         url: A request URL, possibly carrying a credential.
 
     Returns:
-        The URL with any parameter named in :data:`_CREDENTIAL_PARAMS` dropped.
+        The URL without userinfo, and with any parameter named in
+        :data:`_CREDENTIAL_PARAMS` dropped.
     """
     parts = urlsplit(url)
+    if "@" in parts.netloc:
+        # ``https://user:token@index/`` is how a private index is usually
+        # configured, and the userinfo is the credential itself.
+        parts = parts._replace(netloc=parts.netloc.rpartition("@")[2])
+        url = urlunsplit(parts)
     if not parts.query:
         return url
     kept = [
@@ -76,7 +85,7 @@ def _redacted_match(url: str) -> str:
     try:
         return redacted(url)
     except ValueError:
-        return url.split("?", 1)[0]
+        return _USERINFO.sub(r"\1", url.split("?", 1)[0])
 
 
 def redacted_text(value: str) -> str:
