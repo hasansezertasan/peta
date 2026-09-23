@@ -18,8 +18,9 @@ import json
 import pytest
 
 from peta.cli.output.json import format_error, format_info
+from peta.core.artifacts import PublisherFailure
 from peta.core.models import PackageInfo
-from peta.core.output import OutputMessage
+from peta.core.output import OutputMessage, SourceRecord
 from peta.core.validation import EnrichmentError
 
 pytestmark = pytest.mark.unit
@@ -61,6 +62,23 @@ class TestDiagnosticsAreRedacted:
 
         assert "s3cret" not in rendered
         assert json.loads(rendered)["errors"][0]["code"] == "network_error"
+
+    def test_a_publisher_failure_loses_its_credential(self) -> None:
+        # Provenance failures never pass through OutputMessage on their way
+        # to human output: they become a source record and are rendered
+        # directly, so they need their own boundary.
+        failure = PublisherFailure("pkg-1.0.whl", f"GET {CREDENTIALED} failed")
+
+        assert failure.reason == "GET https://libraries.io/api/pypi/x?per_page=2 failed"
+        assert "s3cret" not in failure.description
+
+    def test_a_source_record_loses_its_credential(self) -> None:
+        record = SourceRecord(name="provenance", state="failed", reason=CREDENTIALED)
+
+        assert record.reason == "https://libraries.io/api/pypi/x?per_page=2"
+
+    def test_a_source_record_without_a_reason_is_left_alone(self) -> None:
+        assert SourceRecord(name="pypi", state="success").reason is None
 
     def test_redaction_survives_text_around_the_url(self) -> None:
         message = OutputMessage(

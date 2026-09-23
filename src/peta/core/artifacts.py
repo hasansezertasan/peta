@@ -30,9 +30,10 @@ from packaging.tags import compatible_tags, cpython_tags, sys_tags
 from packaging.utils import InvalidWheelFilename, parse_wheel_filename
 
 from peta.core import cache, http, validation
-from peta.core.cache import Provenance
+from peta.core.cache import Provenance, redacted_text
 from peta.core.concurrency import gather
 from peta.core.index import (
+    PYPI_SIMPLE_URL,
     files_for_version,
     get_project_page,
     is_published,
@@ -221,6 +222,15 @@ class PublisherFailure:
 
     filename: str
     reason: str
+
+    def __post_init__(self) -> None:
+        """Strip credentials from any URL the reason names.
+
+        The reason is usually ``str(exc)`` on a failed provenance request, and
+        httpx quotes the request URL in those; a signed or keyed provenance
+        URL would otherwise reach the source record and every human format.
+        """
+        object.__setattr__(self, "reason", redacted_text(self.reason))
 
     @property
     def description(self) -> str:
@@ -545,7 +555,25 @@ class _Lookup:
     retrieval: Provenance | None = None
 
 
-def _publisher_for(file: ArtifactFile) -> _Lookup:
+def _on_origin(url: str, index_url: str) -> bool:
+    """Whether a URL an index handed back points at that same index.
+
+    Returns:
+        ``True`` when scheme, host, and port all match the index's; ``False``
+        for anything else, a URL too malformed to parse included.
+    """
+    try:
+        candidate, index = httpx.URL(url), httpx.URL(index_url)
+    except httpx.InvalidURL:
+        return False
+    return (candidate.scheme, candidate.host, candidate.port) == (
+        index.scheme,
+        index.host,
+        index.port,
+    )
+
+
+def _publisher_for(file: ArtifactFile, index_url: str) -> _Lookup:
     """Fetch one file's PEP 740 provenance document and read its publishers.
 
     Every failure is returned rather than raised: this evidence is optional,
@@ -559,6 +587,14 @@ def _publisher_for(file: ArtifactFile) -> _Lookup:
     url = file.provenance_url
     if url is None:
         return _Lookup()
+    # The provenance URL is chosen by the index response, so fetching it
+    # unchecked would let whoever controls that response aim peta at any host
+    # — an internal one included. PyPI serves provenance from its own origin,
+    # so anything else is refused before a request exists. This needs no DNS
+    # lookup, so it cannot be raced by rebinding and works through a proxy.
+    if not _on_origin(url, index_url):
+        msg = "provenance URL is not on the index's origin; not fetched"
+        return _Lookup(failure=PublisherFailure(file.filename, msg))
     try:
         fetched = http.get(url, ttl=cache.DAILY, scope="provenance")
         _ = fetched.response.raise_for_status()
@@ -604,14 +640,14 @@ class _Outcome:
     retrieval: Provenance | None
 
 
-def _with_publishers(files: list[ArtifactFile]) -> _Outcome:
+def _with_publishers(files: list[ArtifactFile], index_url: str) -> _Outcome:
     """Attach each file's Trusted Publisher identities, fetched concurrently.
 
     Returns:
         The files with publishers filled in, one record per failed lookup, the
         files actually reached, and where the completed lookups came from.
     """
-    lookups = gather([partial(_publisher_for, file) for file in files])
+    lookups = gather([partial(_publisher_for, file, index_url) for file in files])
     pairs = list(zip(files, lookups, strict=True))
     return _Outcome(
         files=[replace(f, publishers=lookup.publishers) for f, lookup in pairs],
@@ -654,7 +690,7 @@ def get_release(
     selected = version or latest_version(page["versions"])
     evaluated = target or Target()
     files = [_artifact(entry, evaluated) for entry in files_for_version(page, selected)]
-    outcome = _with_publishers(files) if publishers else None
+    outcome = _with_publishers(files, PYPI_SIMPLE_URL) if publishers else None
     release = ReleaseArtifacts(
         name=page["name"],
         version=selected,

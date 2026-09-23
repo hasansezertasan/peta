@@ -132,3 +132,47 @@ class TestNestingDepth:
         assert validation.json_body(_response(body), source="test") == {
             "summary": summary
         }
+
+
+class TestCollectionSizeBeforeDecoding:
+    """Collections have to be measured before ``json.loads`` builds them.
+
+    The validators only visit fields peta consumes, so an array peta ignores
+    is never measured afterwards — yet ``json.loads`` has already allocated
+    every element of it. Measuring in the pre-decode scan covers the fields
+    no validator will ever look at.
+    """
+
+    def test_an_ignored_padding_array_is_refused_before_decoding(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 3)
+        body = b'{"name": "x", "padding": [0, 0, 0, 0]}'
+
+        with pytest.raises(validation.ResponseLimitError, match="at most 3 items"):
+            _ = validation.json_body(_response(body), source="test")
+
+    def test_the_limit_is_per_collection_not_per_document(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Two collections each under the limit are fine however many items
+        # the document holds in total; a document-wide count would reject
+        # large but ordinary index pages.
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 3)
+        body = b'{"a": [1, 2, 3], "b": [4, 5, 6]}'
+
+        assert validation.json_body(_response(body), source="test") == {
+            "a": [1, 2, 3],
+            "b": [4, 5, 6],
+        }
+
+    def test_commas_inside_strings_are_not_items(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 3)
+        summary = "a, b, c, d, e, f"
+        body = json.dumps({"summary": summary}).encode()
+
+        assert validation.json_body(_response(body), source="test") == {
+            "summary": summary
+        }

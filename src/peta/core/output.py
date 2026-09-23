@@ -174,6 +174,17 @@ class SourceRecord:
     """
     fields: list[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        """Strip credentials from any URL the failure reason names.
+
+        A second boundary alongside :class:`OutputMessage`, because a source
+        record is rendered on its own by the human formatters rather than
+        through a message, so redacting only the message copy left this one
+        carrying the credential.
+        """
+        if self.reason is not None:
+            object.__setattr__(self, "reason", redacted_text(self.reason))
+
 
 @dataclass(frozen=True)
 class OutputEnvelope:

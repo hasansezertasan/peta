@@ -65,6 +65,12 @@ to prevent.
 
 _OPENING = frozenset("[{")
 _CLOSING = frozenset("]}")
+_STRUCTURAL = re.compile(r"[\[\]{},]")
+"""The only characters that change a document's shape once strings are gone.
+
+Matching them with a regex lets the scan skip every other byte in C rather
+than visiting each one in a Python loop.
+"""
 
 
 class EnrichmentError(Exception):
@@ -113,33 +119,65 @@ class ResponseLimitError(ResponseValidationError):
         super().__init__(source, path, f"at most {limit}")
 
 
-def _nesting_depth(text: str) -> int:
-    """Measure how deeply a JSON document nests, ignoring string contents.
+def _step(open_counts: list[int], token: str) -> str | None:
+    """Apply one structural token to the scan, reporting any limit it breaks.
+
+    ``open_counts`` holds an item count per container still open, over a
+    sentinel for the top level so that malformed input — a stray ``,`` or
+    ``]`` — cannot underflow it; the decoder rejects such input afterwards.
+    Counting commas plus one overstates an empty container by one item, which
+    is harmless for an upper bound.
 
     Returns:
-        The greatest nesting depth the document reaches.
+        A description of the limit broken, or ``None``.
     """
-    depth = deepest = 0
-    for character in _JSON_STRING.sub("", text):
-        if character in _OPENING:
-            depth += 1
-            deepest = max(deepest, depth)
-        elif character in _CLOSING:
-            depth -= 1
-    return deepest
+    if token in _OPENING:
+        open_counts.append(1)
+        too_deep = len(open_counts) - 1 > MAX_JSON_DEPTH
+        return f"{MAX_JSON_DEPTH} levels deep" if too_deep else None
+    if token in _CLOSING:
+        if len(open_counts) > 1:
+            _ = open_counts.pop()
+        return None
+    open_counts[-1] += 1
+    too_many = open_counts[-1] > MAX_COLLECTION_ITEMS
+    return f"{MAX_COLLECTION_ITEMS:,} items" if too_many else None
+
+
+def _structural_breach(text: str) -> str | None:
+    """Measure nesting and per-container size before anything is decoded.
+
+    Both have to be measured here rather than by the validators. Nesting,
+    because ``json.loads`` recurses and fails while parsing. Size, because the
+    validators only visit fields peta consumes: an ignored ``"padding"`` array
+    of tens of millions of zeros would be fully allocated by ``json.loads``
+    and never measured at all.
+
+    Returns:
+        A description of the first limit the document breaks, or ``None``.
+    """
+    open_counts = [0]
+    for match in _STRUCTURAL.finditer(_JSON_STRING.sub("", text)):
+        breach = _step(open_counts, match.group())
+        if breach is not None:
+            return breach
+    return None
 
 
 def json_body(response: httpx.Response, *, source: str) -> object:
-    """Decode a JSON response, refusing one nested deeply enough to crash.
+    """Decode a JSON response, refusing one shaped to exhaust the process.
 
     Returns:
         The decoded body.
 
     Raises:
-        ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`.
+        ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`, or
+            any one array or object holds more than
+            :data:`MAX_COLLECTION_ITEMS` items.
     """
-    if _nesting_depth(response.text) > MAX_JSON_DEPTH:
-        raise ResponseLimitError(source, "$", f"{MAX_JSON_DEPTH} levels deep")
+    breach = _structural_breach(response.text)
+    if breach is not None:
+        raise ResponseLimitError(source, "$", breach)
     return cast("object", response.json())
 
 
