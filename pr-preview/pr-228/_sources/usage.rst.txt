@@ -245,15 +245,18 @@ aliases on the same side counts once.
 ``--artifacts`` also fetches each release's file listing from PyPI and compares
 the release date (the first upload), the available artifacts, wheel
 compatibility (with the ``--python`` interpreter's version when one is given,
-otherwise the running one), sizes, yanked state, and whether
+otherwise the running one; a non-CPython ``--python`` target is reported as
+unknown rather than judged with CPython tags), sizes, yanked state, and whether
 PEP 740 provenance is available. Files are paired by role — a wheel for the
 same tags, or the source distribution — because filenames embed the version.
 Two different releases necessarily ship different files with different
 digests and sizes, so those differences are *expected*: they are counted in a
 single line instead of listed, and JSON keeps them with ``"expected": true``.
 Under an unchanged filename the same difference is not expected — a file
-re-uploaded under a published name — and is listed like any other change. The
-listing is optional evidence: a failed lookup never fails the command.
+re-uploaded under a published name — and is listed like any other change. A file
+with no upload time, or a verdict peta could not read, is a gap in the
+evidence and never reported as a change. The listing is optional evidence: a
+failed lookup never fails the command.
 
 When one side has no evidence for a group — its advisory lookup failed, or
 its file listing could not be retrieved — the group is shown as unknown rather
