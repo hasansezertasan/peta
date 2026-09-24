@@ -156,7 +156,7 @@ def _release(version: str, filename: str, sha256: str | None = None) -> ReleaseE
 def _expected_upgrade() -> tuple[PackageInfo, PackageInfo, ChangeSet]:
     """Two releases whose only artifact difference is the expected new digest."""
     a, b = _pkg(), _pkg(version="6.0")
-    a_side = _release("5.2", "django-5.2.tar.gz")
+    a_side = _release("5.2", "django-5.2.tar.gz", sha256="a" * 64)
     b_side = _release("6.0", "django-6.0.tar.gz", sha256="b" * 64)
     return a, b, diff_packages(a, b, a_release=a_side, b_release=b_side)
 
@@ -192,7 +192,7 @@ class TestExpectedDifferences:
                 "group": "artifacts",
                 "kind": "artifact_hash_changed",
                 "subject": "sdist .tar.gz",
-                "before": None,
+                "before": "a" * 64,
                 "after": "b" * 64,
                 "expected": True,
             }

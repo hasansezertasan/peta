@@ -685,8 +685,10 @@ def _file_changes(slot: str, a: ArtifactFile, b: ArtifactFile) -> Iterator[Chang
         ("artifact_hash_changed", a.sha256, b.sha256),
         ("artifact_size_changed", a.size, b.size),
     )
+    # Both must be known: ``size`` and the digest are optional in the index,
+    # and a side without one is a gap, not a different file.
     for kind, before, after in per_file:
-        if before != after:
+        if before is not None and after is not None and before != after:
             yield Change("artifacts", kind, slot, before, after, expected=expected)
     fields: tuple[tuple[ChangeGroup, ChangeKind, Value, Value], ...] = (
         ("artifacts", "artifact_yanked_changed", a.yanked, b.yanked),

@@ -606,6 +606,14 @@ class TestArtifacts:
         diff = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b)
         assert diff.in_group("release") == []
 
+    def test_missing_size_or_digest_is_not_a_change(self) -> None:
+        a = _evidence("5.2", _file("django-5.2.tar.gz"))
+        b = _evidence("5.2", _file("django-5.2.tar.gz", size=None, sha256=None))
+        changes = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b).in_group(
+            "artifacts"
+        )
+        assert changes == []
+
     def test_partly_dated_release_has_no_date(self) -> None:
         """The undated file may be the first upload."""
         a = _evidence(
