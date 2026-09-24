@@ -254,9 +254,9 @@ Under an unchanged filename the same difference is not expected — a file
 re-uploaded under a published name — and is listed like any other change. With
 ``--python``, compatibility is reported as unknown: marker values give the
 target's version and platform but not its ABI, so its tags — free-threaded,
-32-bit, or not CPython at all — cannot be rebuilt faithfully. A file with no
-upload time, or a verdict peta could not read, is a gap in the evidence and
-never reported as a change; a release with any undated file has no known
+32-bit, or not CPython at all — cannot be rebuilt faithfully. A missing upload
+time, size, or digest, or a verdict peta could not read, is a gap in the
+evidence and never reported as a change; a release with any undated file has no known
 release date. A version PyPI does not list is an ``empty`` lookup, not a
 failure. The listing is optional evidence: a
 failed lookup never fails the command.
