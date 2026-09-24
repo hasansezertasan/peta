@@ -49,8 +49,13 @@ _QUERY_SEPARATOR = re.compile(r"[&;]")
 _MAX_QUERY_FIELDS = 1000
 """Most query fields a URL may have before its query is dropped unparsed."""
 
-_USERINFO = re.compile(r"^(https?://)[^/@]*@", re.IGNORECASE)
-"""The ``user:password@`` part of a URL too malformed for ``urlsplit``."""
+_USERINFO = re.compile(r"^(https?://)[^/?#]*@", re.IGNORECASE)
+"""The ``user:password@`` part of a URL too malformed for ``urlsplit``.
+
+Stops only at the characters that end an authority, so the greedy match
+backs up to the *last* ``@`` — the same one :func:`redacted` splits on. A raw
+``@`` in a password used to end the match early and leave the rest behind.
+"""
 
 _URL_IN_TEXT = re.compile(r"https?://[^\s'\"]+", re.IGNORECASE)
 """URLs that can appear inside an error message or other diagnostic string.

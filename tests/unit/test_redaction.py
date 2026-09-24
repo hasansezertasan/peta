@@ -96,6 +96,8 @@ class TestDiagnosticsAreRedacted:
             ),
             # Too malformed for urlsplit, so the fallback has to drop it too.
             ("see https://{userinfo}@[bad/x now", "see https://[bad/x now"),
+            # A raw "@" in the password must not end the match early.
+            ("see https://{userinfo}@more@[bad/x now", "see https://[bad/x now"),
         ],
     )
     def test_userinfo_credentials_are_removed(
