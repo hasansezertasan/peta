@@ -43,7 +43,9 @@ def _resolve_and_enrich(
     return enrich(pkg, no_osv=no_osv, no_stats=no_stats)
 
 
-def _release_evidence(pkg: PackageInfo, target: Target) -> ReleaseEvidence:
+def _release_evidence(
+    pkg: PackageInfo, target: Target, compatibility_unknown: str | None
+) -> ReleaseEvidence:
     """Fetch one side's artifact listing from PyPI, never failing the command.
 
     The listing is optional evidence: the metadata comparison stands without
@@ -61,34 +63,49 @@ def _release_evidence(pkg: PackageInfo, target: Target) -> ReleaseEvidence:
         return ReleaseEvidence(
             reason=f"{pkg.name} {pkg.version} is not published on PyPI"
         )
-    return ReleaseEvidence(release=release, retrieval=retrieval)
+    return ReleaseEvidence(
+        release=release,
+        retrieval=retrieval,
+        compatibility_unknown=compatibility_unknown,
+    )
 
 
-def _artifact_target(target: LocalTarget | None) -> Target:
+def _artifact_target(target: LocalTarget | None) -> tuple[Target, str | None]:
     """Judge wheel compatibility against the Python the comparison is about.
 
     With ``--python`` that is the named interpreter's version, not the one
-    running peta; without it, the two are the same.
+    running peta; without it, the two are the same. :class:`Target` builds
+    CPython tags for a named version, so a non-CPython target is not judged
+    at all: evaluating a PyPy interpreter as CPython would produce confident,
+    wrong verdicts.
 
     Returns:
-        The compatibility target.
+        The compatibility target, and why its verdicts cannot be trusted, if
+        they cannot.
     """
     if target is None:
-        return Target()
-    return parse_target(target.marker_environment.get("python_version"))
+        return Target(), None
+    markers = target.marker_environment
+    implementation = markers.get("implementation_name", "cpython")
+    if implementation != "cpython":
+        return Target(), (
+            f"wheel compatibility not evaluated for a {implementation} target"
+        )
+    return parse_target(markers.get("python_version")), None
 
 
 def _fetch_releases(
-    a_pkg: PackageInfo, b_pkg: PackageInfo, target: Target
+    a_pkg: PackageInfo, b_pkg: PackageInfo, target: LocalTarget | None
 ) -> tuple[ReleaseEvidence, ReleaseEvidence]:
     """Fetch both sides' artifact listings at once.
 
     Returns:
         The two listings, in argument order.
     """
+    evaluated, gap = _artifact_target(target)
     first, second = gather([
-        partial(_release_evidence, a_pkg, target),
-        partial(_release_evidence, b_pkg, target),
+        partial(_release_evidence, a_pkg, evaluated, gap),
+        partial(_release_evidence, b_pkg, evaluated, gap),
     ])
     return first, second
 
@@ -203,9 +220,7 @@ def compare(  # ruff: ignore[complex-structure, too-many-arguments]
             exit_code=2,
             source="pypi",
         )
-    releases = (
-        _fetch_releases(a_pkg, b_pkg, _artifact_target(target)) if artifacts else None
-    )
+    releases = _fetch_releases(a_pkg, b_pkg, target) if artifacts else None
     diff = diff_packages(
         a_pkg,
         b_pkg,

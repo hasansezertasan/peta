@@ -600,6 +600,39 @@ class TestArtifacts:
             )
         ]
 
+    def test_missing_upload_time_is_not_a_date_change(self) -> None:
+        a = _evidence("5.2", _file("django-5.2.tar.gz", upload_time=None))
+        b = _evidence("6.0", _file("django-6.0.tar.gz"))
+        diff = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b)
+        assert diff.in_group("release") == []
+
+    def test_unreadable_compatibility_is_not_a_change(self) -> None:
+        a = _evidence("5.2", _file("django-5.2.tar.gz"))
+        b = _evidence(
+            "6.0",
+            _file("django-6.0.tar.gz", compatibility=Compatibility(compatible=None)),
+        )
+        diff = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b)
+        assert "artifact_compatibility_changed" not in _kinds(diff.changes)
+
+    def test_unjudgeable_target_skips_compatibility(self) -> None:
+        gap = "wheel compatibility not evaluated for a pypy target"
+        a = replace(
+            _evidence("5.2", _file("django-5.2.tar.gz")), compatibility_unknown=gap
+        )
+        b = replace(
+            _evidence(
+                "6.0",
+                _file(
+                    "django-6.0.tar.gz", compatibility=Compatibility(compatible=False)
+                ),
+            ),
+            compatibility_unknown=gap,
+        )
+        diff = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b)
+        assert "artifact_compatibility_changed" not in _kinds(diff.changes)
+        assert [(e.group, e.reason) for e in diff.unknown] == [("artifacts", gap)]
+
     def test_missing_listing_is_unknown(self) -> None:
         a = _evidence("5.2", _file("django-5.2.tar.gz"))
         b = ReleaseEvidence(reason="django 6.0: network down")

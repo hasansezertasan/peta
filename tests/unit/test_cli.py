@@ -679,6 +679,31 @@ class TestCompareChanges:
         targets = {call.kwargs["target"].python for call in mg.call_args_list}
         assert targets == {expected}
 
+    def test_non_cpython_target_is_not_judged_as_cpython(self) -> None:
+        from peta.cli.commands.compare import _artifact_target
+        from peta.core.local import LocalTarget
+
+        pypy = LocalTarget(
+            None,
+            "/opt/pypy/bin/python",
+            {"implementation_name": "pypy", "python_version": "3.11"},
+        )
+        target, gap = _artifact_target(pypy)
+        assert target.python is None
+        assert gap == "wheel compatibility not evaluated for a pypy target"
+
+    def test_cpython_target_is_judged_at_its_version(self) -> None:
+        from peta.cli.commands.compare import _artifact_target
+        from peta.core.local import LocalTarget
+
+        cpython = LocalTarget(
+            None,
+            "/usr/bin/python3.12",
+            {"implementation_name": "cpython", "python_version": "3.12"},
+        )
+        target, gap = _artifact_target(cpython)
+        assert (target.python, gap) == ("3.12", None)
+
     @patch("peta.cli.commands.compare.get_release")
     @patch("peta.core.resolve.local_get_package")
     def test_artifacts_without_a_target_use_the_running_python(

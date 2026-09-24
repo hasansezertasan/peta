@@ -57,6 +57,13 @@ class ReleaseEvidence:
     retrieval: Provenance | None = None
     reason: str | None = None
     """Why the listing is missing; ``None`` whenever :attr:`release` is set."""
+    compatibility_unknown: str | None = None
+    """Why wheel compatibility could not be judged for this side, if it could not.
+
+    Set when the target cannot be evaluated faithfully — a non-CPython
+    interpreter, whose tags :class:`~peta.core.artifacts.Target` does not
+    build — so the listing is still compared but its verdicts are not.
+    """
 
 
 def diff_packages(
@@ -95,13 +102,9 @@ def diff_packages(
     else:
         changes.extend(vulnerabilities)
     if a_release is not None and b_release is not None:
-        artifacts = _artifact_side_changes(a_release, b_release)
-        if isinstance(artifacts, Unknown):
-            unknown.extend(
-                Unknown(group, artifacts.reason) for group in _ARTIFACT_GROUPS
-            )
-        else:
-            changes.extend(artifacts)
+        artifact_changes, artifact_unknown = _artifact_outcome(a_release, b_release)
+        changes.extend(artifact_changes)
+        unknown.extend(artifact_unknown)
     order = {group: index for index, group in enumerate(CHANGE_GROUPS)}
     changes.sort(key=lambda change: order[change.group])
     return ChangeSet(changes=tuple(changes), unknown=tuple(unknown))
@@ -531,20 +534,28 @@ _SDIST_SUFFIXES = (".tar.gz", ".tar.bz2", ".tar.xz", ".tgz", ".zip", ".tar")
 """Archive formats, longest first so ``.tar.gz`` is not read as ``.tar``."""
 
 
-def _artifact_side_changes(
+def _artifact_outcome(
     a: ReleaseEvidence, b: ReleaseEvidence
-) -> list[Change] | Unknown:
+) -> tuple[list[Change], list[Unknown]]:
+    """Compare both listings, and name whatever could not be compared.
+
+    Returns:
+        The artifact changes, and the unknown records alongside them.
+    """
     if a.release is None or b.release is None:
         # Deduplicated: comparing a release with itself would otherwise
         # state the same reason twice.
         reasons = dict.fromkeys(side.reason for side in (a, b) if side.reason)
-        return Unknown(
-            "artifacts", "; ".join(reasons) or "artifact listing unavailable"
-        )
-    return [
+        reason = "; ".join(reasons) or "artifact listing unavailable"
+        return [], [Unknown(group, reason) for group in _ARTIFACT_GROUPS]
+    gaps = dict.fromkeys(
+        side.compatibility_unknown for side in (a, b) if side.compatibility_unknown
+    )
+    changes = [
         *_release_date_changes(a.release, b.release),
-        *_artifact_changes(a.release, b.release),
+        *_artifact_changes(a.release, b.release, judge_compatibility=not gaps),
     ]
+    return changes, [Unknown("artifacts", gap) for gap in gaps]
 
 
 def _release_date(release: ReleaseArtifacts) -> str | None:
@@ -558,8 +569,17 @@ def _release_date(release: ReleaseArtifacts) -> str | None:
 
 
 def _release_date_changes(a: ReleaseArtifacts, b: ReleaseArtifacts) -> Iterator[Change]:
+    """Report a moved release date, when both sides know theirs.
+
+    ``upload_time`` is optional in the index, so a side without one has no
+    date to compare; reporting ``null → date`` would present a gap in the
+    evidence as a change.
+
+    Yields:
+        The change, when both dates are known and differ.
+    """
     before, after = _release_date(a), _release_date(b)
-    if before != after:
+    if before is not None and after is not None and before != after:
         yield Change("release", "release_date_changed", "release_date", before, after)
 
 
@@ -611,7 +631,9 @@ def _by_artifact_slot(files: list[ArtifactFile]) -> dict[str, ArtifactFile]:
     return slots
 
 
-def _artifact_changes(a: ReleaseArtifacts, b: ReleaseArtifacts) -> Iterator[Change]:
+def _artifact_changes(
+    a: ReleaseArtifacts, b: ReleaseArtifacts, *, judge_compatibility: bool
+) -> Iterator[Change]:
     a_slots, b_slots = _by_artifact_slot(a.files), _by_artifact_slot(b.files)
     for slot in sorted(a_slots.keys() | b_slots.keys()):
         before, after = a_slots.get(slot), b_slots.get(slot)
@@ -619,6 +641,9 @@ def _artifact_changes(a: ReleaseArtifacts, b: ReleaseArtifacts) -> Iterator[Chan
             yield _presence_change(slot, before, after)
             continue
         yield from _file_changes(slot, before, after)
+        # Skipped when the target cannot be judged faithfully.
+        if judge_compatibility:
+            yield from _compatibility_change(slot, before, after)
 
 
 def _presence_change(
@@ -655,12 +680,6 @@ def _file_changes(slot: str, a: ArtifactFile, b: ArtifactFile) -> Iterator[Chang
     fields: tuple[tuple[ChangeGroup, ChangeKind, Value, Value], ...] = (
         ("artifacts", "artifact_yanked_changed", a.yanked, b.yanked),
         (
-            "artifacts",
-            "artifact_compatibility_changed",
-            a.compatibility.compatible,
-            b.compatibility.compatible,
-        ),
-        (
             "provenance",
             "provenance_changed",
             a.provenance_url is not None,
@@ -670,3 +689,19 @@ def _file_changes(slot: str, a: ArtifactFile, b: ArtifactFile) -> Iterator[Chang
     for group, kind, before, after in fields:
         if before != after:
             yield Change(group, kind, slot, before, after)
+
+
+def _compatibility_change(
+    slot: str, a: ArtifactFile, b: ArtifactFile
+) -> Iterator[Change]:
+    """Report a changed compatibility verdict, when both verdicts are known.
+
+    ``None`` means peta could not read the evidence, so ``True → None`` is a
+    gap, not a file that stopped being installable.
+
+    Yields:
+        The change, when both verdicts are known and differ.
+    """
+    before, after = a.compatibility.compatible, b.compatibility.compatible
+    if before is not None and after is not None and before != after:
+        yield Change("artifacts", "artifact_compatibility_changed", slot, before, after)
