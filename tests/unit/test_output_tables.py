@@ -224,3 +224,54 @@ def test_render_versions() -> None:
         "requests", [{"version": "2.31.0", "upload_time": "2023-05-22"}], color=False
     )
     assert "2.31.0" in out
+
+
+class TestHostileMetadata:
+    """Rendering attacker-controlled metadata into a terminal.
+
+    Sanitizing the *finished* Rich output would be the obvious implementation
+    and is wrong twice over, so both mistakes are pinned here: it cannot tell
+    peta's own escape sequences from an attacker's, and anything it removes
+    leaves the table's borders short of where Rich placed them.
+    """
+
+    HOSTILE = (
+        "hi\x1b[31m\x1b]8;;https://attacker.invalid\x07click here\x1b]8;;\x07"
+        " [bold]markup[/bold]"
+    )
+
+    @pytest.mark.parametrize("color", [True, False])
+    def test_metadata_cannot_emit_escape_sequences(self, *, color: bool) -> None:
+        out = render_info(_pkg(summary=self.HOSTILE), color=color)
+
+        assert "\x1b[31m" not in out
+        assert "\x1b]8;;" not in out
+
+    @pytest.mark.parametrize("color", [True, False])
+    def test_metadata_cannot_activate_rich_markup(self, *, color: bool) -> None:
+        out = render_info(_pkg(summary=self.HOSTILE), color=color)
+
+        assert "[bold]markup[/bold]" in out
+
+    def test_peta_keeps_its_own_color(self) -> None:
+        out = render_info(_pkg(summary=self.HOSTILE), color=True)
+
+        assert "\x1b[" in out
+
+    @pytest.mark.parametrize(
+        "summary", ["a plain summary", HOSTILE, "https://x/?key=install"]
+    )
+    def test_the_table_stays_aligned(self, summary: str) -> None:
+        # Control characters cost no cells, so removing them after Rich has
+        # measured the row must not move a border.
+        out = render_info(_pkg(summary=summary), color=False)
+
+        assert len({len(line) for line in out.splitlines() if line}) == 1
+
+    def test_a_declared_url_keeps_its_query(self) -> None:
+        # ``key`` is one of the names peta redacts from its *own* request
+        # URLs. Applying that to declared metadata would silently rewrite a
+        # package's homepage, which the output contract promises to report.
+        out = render_info(_pkg(homepage="https://x/?key=install"), color=False)
+
+        assert "key=install" in out

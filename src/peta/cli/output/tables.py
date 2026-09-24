@@ -6,9 +6,10 @@ from typing import TYPE_CHECKING
 
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from rich.tree import Tree
 
-from peta.cli.output.console import render as _render
+from peta.cli.output.console import inline, render as _render
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -18,6 +19,10 @@ from peta.cli.output.summary import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+    from rich.console import RenderableType
+
     from peta.core.artifacts import ReleaseArtifacts
     from peta.core.models import DependencyNode, PackageInfo
 
@@ -32,8 +37,22 @@ __all__ = [
 ]
 
 
-def _to_string(renderable: object, *, color: bool) -> str:
+def _to_string(renderable: RenderableType, *, color: bool) -> str:
     return _render(renderable, color=color)
+
+
+def _lines(lines: Iterable[str]) -> str:
+    """Join plain lines that are appended to, or stand in for, Rich output.
+
+    These never pass through :func:`peta.cli.output.console.render`, so its
+    per-segment hardening does not reach them. Each element is by design one
+    line, so hardening each element with :func:`inline` covers every
+    untrusted value in it and leaves the layout's own line breaks alone.
+
+    Returns:
+        The lines, each made inert, joined by newlines.
+    """
+    return "\n".join(inline(line) for line in lines)
 
 
 def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
@@ -91,7 +110,7 @@ def _vuln_block(pkg: PackageInfo) -> str:
         lines.append(f"  {v.id}{severity}: {v.summary} (fix: {fixed})")
     # Leading blank line separates the block from the panel above; no
     # trailing newline, since ``typer.echo`` supplies exactly one.
-    return "\n\n" + "\n".join(lines)
+    return "\n\n" + _lines(lines)
 
 
 def _enrichment_block(*packages: PackageInfo) -> str:
@@ -117,7 +136,7 @@ def _enrichment_block(*packages: PackageInfo) -> str:
     )
     if not warnings:
         return ""
-    return "\n\n" + "\n".join(["⚠ Enrichment warnings:", *warnings])
+    return "\n\n" + _lines(["⚠ Enrichment warnings:", *warnings])
 
 
 def render_info(pkg: PackageInfo, *, color: bool) -> str:
@@ -129,8 +148,8 @@ def render_info(pkg: PackageInfo, *, color: bool) -> str:
     source_label = "local" if pkg.source == "local" else "pypi"
     panel = Panel(
         _info_table(pkg),
-        title=f"{pkg.name} {pkg.version}",
-        subtitle=f"source: {source_label}",
+        title=Text(f"{pkg.name} {pkg.version}"),
+        subtitle=Text(f"source: {source_label}"),
     )
     return _to_string(panel, color=color) + _vuln_block(pkg) + _enrichment_block(pkg)
 
@@ -148,7 +167,7 @@ def _node_label(node: DependencyNode) -> str:
 
 def _add_children(branch: Tree, node: DependencyNode) -> None:
     for child in node.children:
-        _add_children(branch.add(_node_label(child)), child)
+        _add_children(branch.add(Text(_node_label(child))), child)
 
 
 def render_dep_tree(node: DependencyNode, *, color: bool) -> str:
@@ -160,7 +179,7 @@ def render_dep_tree(node: DependencyNode, *, color: bool) -> str:
     root_label = f"Declared metadata tree: {node.name} {node.selected_version}".rstrip()
     if node.state != "satisfied":
         root_label += f" ({node.state.replace('_', ' ')})"
-    tree = Tree(root_label)
+    tree = Tree(Text(root_label))
     _add_children(tree, node)
     return _to_string(tree, color=color)
 
@@ -176,8 +195,8 @@ def render_why(target: str, paths: list[list[str]], *, color: bool) -> str:
     """
     del color
     if not paths:
-        return f"'{target}' is not a dependency."
-    return "\n".join(" → ".join(path) for path in paths)
+        return inline(f"'{target}' is not a dependency.")
+    return _lines(" → ".join(path) for path in paths)
 
 
 def render_files(pkg: PackageInfo, *, color: bool) -> str:
@@ -191,10 +210,10 @@ def render_files(pkg: PackageInfo, *, color: bool) -> str:
     """
     del color
     if not pkg.files:
-        return f"No file information available for {pkg.name}."
-    lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)\n"]
+        return inline(f"No file information available for {pkg.name}.")
+    lines = [f"{pkg.name} {pkg.version} ({len(pkg.files)} files)", ""]
     lines.extend(f"  {f}" for f in pkg.files)
-    return "\n".join(lines)
+    return _lines(lines)
 
 
 def _license_value(pkg: PackageInfo) -> str:
@@ -238,10 +257,10 @@ def render_compare(a: PackageInfo, b: PackageInfo, *, color: bool) -> str:
     Returns:
         The comparison table rendered as text.
     """
-    table = Table(title=f"{a.name} vs {b.name}")
+    table = Table(title=Text(f"{a.name} vs {b.name}"))
     table.add_column("Field", style="bold cyan")
-    table.add_column(a.name)
-    table.add_column(b.name)
+    table.add_column(Text(a.name))
+    table.add_column(Text(b.name))
     for label, a_value, b_value in _compare_rows(a, b):
         table.add_row(label, a_value, b_value)
     return _to_string(table, color=color) + _enrichment_block(a, b)
@@ -253,7 +272,7 @@ def render_versions(name: str, versions: list[dict[str, str]], *, color: bool) -
     Returns:
         The version table rendered as text.
     """
-    table = Table(title=f"{name} versions ({len(versions)} shown)")
+    table = Table(title=Text(f"{name} versions ({len(versions)} shown)"))
     table.add_column("Version", style="bold")
     table.add_column("Released")
     for v in versions:
@@ -286,7 +305,7 @@ def _artifact_lines(release: ReleaseArtifacts) -> str:
         lines.extend([file.filename, detail, f"  {digest} · {file_flags(file)}"])
         if file.publishers:
             lines.append(f"  published by {file_publishers(file)}")
-    return "\n".join(lines)
+    return _lines(lines)
 
 
 def _artifact_notes(release: ReleaseArtifacts) -> str:
@@ -322,7 +341,7 @@ def _artifact_notes(release: ReleaseArtifacts) -> str:
     )
     if not lines:
         return ""
-    return "\n\n" + "\n".join(lines)
+    return "\n\n" + _lines(lines)
 
 
 def render_artifacts(
@@ -334,14 +353,16 @@ def render_artifacts(
         The summary panel, the file table when asked for, and any notes.
     """
     if not release.files:
-        return f"No distribution files published for {release.name} {release.version}."
+        return inline(
+            f"No distribution files published for {release.name} {release.version}."
+        )
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column("Field", style="bold cyan")
     table.add_column("Value")
     for label, value in summary_rows(release):
         table.add_row(label, value)
     panel = Panel(
-        table, title=f"{release.name} {release.version}", subtitle="artifacts"
+        table, title=Text(f"{release.name} {release.version}"), subtitle="artifacts"
     )
     rendered = _to_string(panel, color=color)
     if detailed:

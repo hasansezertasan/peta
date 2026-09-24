@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from peta.cli.output.render import render_info
+from peta.cli.output.render import render_info, render_target
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
 from peta.core.enrich import enrich
@@ -125,5 +125,5 @@ def info(  # ruff: ignore[complex-structure, too-many-arguments]
         )
     rendered = render_info(selected, pkg, arguments=arguments, color=color)
     if target and selected != OutputFormat.JSON:
-        rendered = f"{target.describe()}\n{rendered}"
+        rendered = f"{render_target(selected, target)}\n{rendered}"
     typer.echo(rendered)

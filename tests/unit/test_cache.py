@@ -5,11 +5,11 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, get_args
+from typing import TYPE_CHECKING, Self, cast, get_args
 
 import pytest
 
-from peta.core import cache, http
+from peta.core import cache, http, validation
 
 if TYPE_CHECKING:
     from tests.transport import FakeTransport
@@ -232,6 +232,132 @@ class TestCorruption:
 
         assert cache.load("k") is None
 
+    @staticmethod
+    def _overflow_on_nesting(monkeypatch: pytest.MonkeyPatch) -> None:
+        """Make ``json.loads`` overflow on nested input, as a small stack would.
+
+        Simulated rather than provoked: Python sets the depth at which parsing
+        overflows by the real stack size, so the nesting that raises on one
+        machine parses fine on a CI runner with a larger stack — and a test
+        built on a real overflow passes or fails by platform.
+        """
+        parse = json.loads
+
+        def overflowing(text: str) -> object:
+            if text.startswith("[["):
+                msg = "Stack overflow while decoding a JSON array"
+                raise RecursionError(msg)
+            return cast("object", parse(text))
+
+        monkeypatch.setattr(json, "loads", overflowing)
+
+    def test_an_entry_that_overflows_the_parser_is_a_miss(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # RecursionError is a RuntimeError rather than a ValueError, so it
+        # used to escape ``load`` as a crash.
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        (cache_dir / "k.json").write_text("[[[]]]")
+        self._overflow_on_nesting(monkeypatch)
+
+        assert cache.load("k") is None
+
+    @pytest.mark.usefixtures("cache_dir")
+    def test_an_oversized_entry_is_a_miss_without_being_read(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Replayed entries never pass the transport's size limit, and an entry
+        # written before that limit existed can be any size. The file size is
+        # checked before anything is read.
+        monkeypatch.setattr(cache, "MAX_ENTRY_BYTES", 10)
+        cache.store("k", url=_URL, status=200, body='{"ok": true}', headers={})
+
+        assert cache.load("k") is None
+
+    def test_a_valid_envelope_around_an_overflowing_body_is_a_miss(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The envelope parses; the body inside it is what overflows, and it
+        # is parsed later, where RecursionError used to escape ``load``.
+        cache.store("k", url=_URL, status=200, body="[[[]]]", headers={})
+        self._overflow_on_nesting(monkeypatch)
+
+        assert (cache_dir / "k.json").exists()
+        assert cache.load("k") is None
+
+    def test_a_padding_array_in_the_envelope_is_refused_before_decoding(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The file-size bound limits bytes, not the objects json.loads builds;
+        # an ignored array of small numbers in a tampered entry used to be
+        # allocated in full before the entry's shape was checked.
+        cache.store("k", url=_URL, status=200, body="{}", headers={})
+        path = cache_dir / "k.json"
+        envelope = json.loads(path.read_text())
+        envelope["padding"] = [0] * 10
+        path.write_text(json.dumps(envelope))
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 5)
+
+        assert cache.load("k") is None
+
+    @pytest.mark.usefixtures("cache_dir")
+    def test_a_padding_array_in_the_stored_body_is_refused_before_decoding(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        cache.store("k", url=_URL, status=200, body=json.dumps([0] * 10), headers={})
+        monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 5)
+
+        assert cache.load("k") is None
+
+    @pytest.mark.usefixtures("cache_dir")
+    def test_a_body_longer_than_the_metadata_string_limit_is_still_a_hit(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # The envelope carries the whole body as one string. Holding it to
+        # the per-field limit would turn every large response — grpcio's is
+        # 9 MB — into a permanent miss.
+        body = json.dumps(["ab"] * 50)
+        cache.store("k", url=_URL, status=200, body=body, headers={})
+        monkeypatch.setattr(validation, "MAX_STRING_LENGTH", 10)
+
+        entry = cache.load("k")
+
+        assert entry is not None
+        assert entry.body == body
+
+    def test_an_entry_too_large_to_read_back_is_not_written(
+        self, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Writing an entry load() will refuse would make every run refetch
+        # and rewrite it; the cache never stores what it will not read back.
+        monkeypatch.setattr(cache, "MAX_ENTRY_BYTES", 100)
+        cache.store("k", url=_URL, status=200, body=json.dumps("x" * 200), headers={})
+
+        assert not (cache_dir / "k.json").exists()
+
+    def test_non_ascii_bodies_are_stored_as_utf8_not_escaped(
+        self, cache_dir: Path
+    ) -> None:
+        # ASCII escaping turns a four-byte character into twelve bytes, which
+        # let a legitimate body near the response limit produce an entry past
+        # the read bound.
+        body = json.dumps({"summary": "\U0001f40d" * 10}, ensure_ascii=False)
+        cache.store("k", url=_URL, status=200, body=body, headers={})
+
+        stored = (cache_dir / "k.json").read_bytes()
+        entry = cache.load("k")
+
+        assert "\U0001f40d".encode() in stored
+        assert b"\\ud83d" not in stored
+        assert entry is not None
+        assert entry.body == body
+
+    def test_the_entry_bound_leaves_room_for_the_largest_accepted_body(self) -> None:
+        # An entry wraps its body in an escaped string inside an envelope, so
+        # it is bigger than the body; a bound at the body limit would turn
+        # every large legitimate response into a permanent miss.
+        assert cache.MAX_ENTRY_BYTES >= 2 * http.MAX_RESPONSE_BYTES
+
     def test_a_damaged_entry_is_replaced_by_the_next_store(
         self, cache_dir: Path
     ) -> None:
@@ -338,6 +464,24 @@ class TestEndToEndThroughHttp:
         assert len(fake_http.requests) == 1
         assert second.response.json() == {"info": {}}
 
+    def test_a_stored_body_over_the_response_limit_is_refetched(
+        self, fake_http: FakeTransport, cache_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # A replayed body never passes the transport, so without this an
+        # entry written before the limit existed would be served at any size.
+        assert cache.settings().directory == cache_dir.parent
+        body = json.dumps({"padding": "x" * 100})
+        cache.store(
+            cache.key_for("GET", _URL), url=_URL, status=200, body=body, headers={}
+        )
+        monkeypatch.setattr(http, "MAX_RESPONSE_BYTES", 50)
+        fake_http.reply(json={})
+
+        fetched = http.get(_URL, ttl=60)
+
+        assert fetched.provenance.freshness == "live"
+        assert len(fake_http.requests) == 1
+
 
 def test_a_cached_entry_is_valid_json_on_disk(cache_dir: Path) -> None:
     cache.store("k", url=_URL, status=200, body="{}", headers={"etag": "e"})
@@ -354,10 +498,24 @@ class TestWriteFailures:
         # failure midway must not leave it behind to accumulate forever.
         cache_dir.mkdir(parents=True, exist_ok=True)
 
-        def explode(*_args: object, **_kwargs: object) -> None:
-            raise OSError(28, "No space left on device")
+        opened = cache.os.fdopen
 
-        monkeypatch.setattr(cache.json, "dump", explode)
+        class DiskFull:
+            """A stream that fails partway through, as a full disk would."""
+
+            def __init__(self, fd: int, mode: str, *, encoding: str) -> None:
+                self._stream = opened(fd, mode, encoding=encoding)
+
+            def __enter__(self) -> Self:
+                return self
+
+            def __exit__(self, *_exc: object) -> None:
+                self._stream.close()
+
+            def write(self, _text: str) -> int:
+                raise OSError(28, "No space left on device")
+
+        monkeypatch.setattr(cache.os, "fdopen", DiskFull)
 
         cache.store("k", url=_URL, status=200, body="{}", headers={})
 
@@ -530,3 +688,29 @@ class TestStuckEntries:
         monkeypatch.setattr(cache, "_ENTRY_VERSION", "99")
 
         assert cache.key_for("GET", _URL) != before
+
+
+class TestRedactedText:
+    """Removing credentials from URLs embedded in free-form text."""
+
+    def test_a_credential_inside_a_message_is_removed(self) -> None:
+        text = "GET https://libraries.io/api?api_key=s3cret&q=x failed"
+
+        redacted = cache.redacted_text(text)
+
+        assert "s3cret" not in redacted
+        assert "q=x" in redacted
+        assert redacted.startswith("GET https://libraries.io/api?")
+
+    def test_text_without_a_url_is_untouched(self) -> None:
+        assert cache.redacted_text("nothing to see") == "nothing to see"
+
+    @pytest.mark.parametrize(
+        "text",
+        ["https://[", "see https://[::1 here", "https://[bad]host/?token=s3cret"],
+    )
+    def test_an_unparsable_url_does_not_raise(self, text: str) -> None:
+        # Metadata decides this text, so a URL-shaped string that no parser
+        # accepts is an input, not a bug. Raising here would turn any hostile
+        # summary into a crash.
+        assert "s3cret" not in cache.redacted_text(text)

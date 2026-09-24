@@ -7,7 +7,9 @@ from typing import TYPE_CHECKING, NoReturn
 
 import typer
 
+from peta.cli.output.console import inline
 from peta.cli.output.json import format_error
+from peta.core.cache import redacted_text
 
 if TYPE_CHECKING:
     from peta.core.output import CommandName, MessageCode
@@ -95,7 +97,12 @@ def fail(
             command, arguments=arguments, code=code, message=message, source=source
         )
         if output_format == OutputFormat.JSON
-        else message
+        # The JSON branch redacts through ``OutputMessage`` and escapes
+        # control characters itself. This one goes straight to a terminal, and
+        # the message can quote a URL peta requested or text an index chose —
+        # a malformed key ends up in a validation error's path — so it is held
+        # to one line as well as stripped of controls.
+        else inline(redacted_text(message))
     )
     typer.echo(rendered, err=True)
     raise typer.Exit(code=exit_code)

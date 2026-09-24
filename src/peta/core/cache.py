@@ -30,13 +30,16 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, TypeAliasType, cast
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+from peta.core.redaction import redacted, redacted_text
+from peta.core.validation import structural_breach
 
 __all__ = [
     "DAILY",
     "FRESHNESS_VALUES",
     "LATEST",
     "MAX_AGE",
+    "MAX_ENTRY_BYTES",
     "CacheSettings",
     "CachedResponse",
     "Freshness",
@@ -48,6 +51,7 @@ __all__ = [
     "load",
     "now",
     "redacted",
+    "redacted_text",
     "reset",
     "settings",
     "store",
@@ -99,27 +103,6 @@ than any TTL, so pruning never discards an entry that could still have been
 served, and short enough that an abandoned cache does not grow without limit.
 """
 
-_CREDENTIAL_PARAMS = frozenset({
-    "access_token",
-    "api_key",
-    "apikey",
-    "key",
-    "password",
-    "secret",
-    "token",
-})
-"""Query parameters redacted before a URL is hashed, stored, or reported.
-
-Libraries.io takes its API key in the query string, so the URL peta requests
-contains a credential. It must never reach the cache — neither in a file name
-derived from it nor in the stored entry — because the cache outlives the
-process and is world-readable in the user's home directory.
-
-Redacting rather than including is also correct for the key: the response
-depends on which package was asked about, not on who asked, so two users with
-different keys should share one entry.
-"""
-
 _STORED_HEADERS = frozenset({"content-type", "etag", "last-modified"})
 """Response headers worth keeping, as an allowlist rather than a denylist.
 
@@ -137,13 +120,39 @@ permits, which Python 3.14 accepts but some of the project's other tools
 cannot yet parse.
 """
 
-_UNREADABLE = (OSError, ValueError)
+_UNREADABLE = (OSError, ValueError, RecursionError)
 """Every way reading an entry can fail: absent, unopenable, or not JSON.
+
+``RecursionError`` is here because an entry nested deeply enough makes
+``json.loads`` overflow the stack while parsing, and it is a ``RuntimeError``
+rather than a ``ValueError``. An entry is disk data peta does not trust, so a
+corrupt one has to be a miss, not a crash.
 
 A tuple constant rather than an inline ``except (OSError, ValueError)``,
 matching the convention elsewhere in this package: the formatter strips those
 parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but
 some of the project's other tools cannot yet parse.
+"""
+
+MAX_ENTRY_BYTES = 160 * 1024 * 1024
+"""Largest entry file read back, in bytes; anything bigger is a miss.
+
+Replayed entries never pass through the transport, so its response-size limit
+does not apply to them, and ``load`` reads and decodes a whole file at once.
+Entries written by earlier versions — which had no transport limit at all —
+and entries tampered with on disk would otherwise be read in full whatever
+their size. Set at two and a half times ``http.MAX_RESPONSE_BYTES`` because an
+entry stores its body as an escaped JSON string inside an envelope, so an
+entry for the largest accepted body is bigger than the body. Too small a value
+only costs a refetch, never a failure.
+"""
+
+_UNPARSABLE = (ValueError, RecursionError)
+"""Every way a stored body can fail to parse.
+
+``RecursionError`` for a body nested deeply enough to overflow the parser. The
+envelope around it can be perfectly valid, so this is caught where the body is
+parsed rather than where the file is read.
 """
 
 _ENTRY_VERSION = "1"
@@ -288,30 +297,6 @@ def reset() -> None:
     """Discard configured settings, restoring the defaults."""
     _SETTINGS.clear()
     _PRUNED.clear()
-
-
-def redacted(url: str) -> str:
-    """Rewrite a URL with credential-bearing query parameters removed.
-
-    Public because the cache is not the only place a request URL is retained:
-    an error that names the URL it could not answer would otherwise carry the
-    credential into a message, a log, or a traceback.
-
-    Args:
-        url: A request URL, possibly carrying a credential.
-
-    Returns:
-        The URL with any parameter named in :data:`_CREDENTIAL_PARAMS` dropped.
-    """
-    parts = urlsplit(url)
-    if not parts.query:
-        return url
-    kept = [
-        (name, value)
-        for name, value in parse_qsl(parts.query, keep_blank_values=True)
-        if name.lower() not in _CREDENTIAL_PARAMS
-    ]
-    return urlunsplit(parts._replace(query=urlencode(kept)))
 
 
 def key_for(method: str, url: str, scope: str = "") -> str:
@@ -482,9 +467,11 @@ def _holds_json(body: str) -> bool:
     Returns:
         ``True`` if the body parses.
     """
+    if structural_breach(body) is not None:
+        return False
     try:
         _ = cast("object", json.loads(body))
-    except ValueError:
+    except _UNPARSABLE:
         return False
     return True
 
@@ -527,8 +514,20 @@ def load(key: str) -> CachedResponse | None:
     """
     if not settings().enabled:
         return None
+    path = _path_for(key)
     try:
-        raw = cast("object", json.loads(_path_for(key).read_text(encoding="utf-8")))
+        if path.stat().st_size > MAX_ENTRY_BYTES:
+            return None
+        text = path.read_text(encoding="utf-8")
+        # Scanned before decoding for the same reason a live response is: the
+        # file size bounds bytes, not the objects ``json.loads`` builds from
+        # them, and an ignored array of small numbers in a tampered entry
+        # would be allocated in full before its shape is ever checked. The
+        # body is one string in the envelope and may exceed the metadata
+        # string limit; the file-size check above already bounds it.
+        if structural_breach(text, string_limit=MAX_ENTRY_BYTES) is not None:
+            return None
+        raw = cast("object", json.loads(text))
     except _UNREADABLE:
         return None
     return _decode(raw)
@@ -542,7 +541,7 @@ def _kept_headers(headers: dict[str, str]) -> dict[str, str]:
     }
 
 
-def _atomic_write(directory: Path, key: str, payload: dict[str, object]) -> None:
+def _atomic_write(directory: Path, key: str, text: str) -> None:
     """Write one entry via a temporary file moved into place.
 
     A reader therefore sees either the previous entry or the complete new
@@ -556,7 +555,7 @@ def _atomic_write(directory: Path, key: str, payload: dict[str, object]) -> None
     handle, temporary = tempfile.mkstemp(dir=directory, suffix=".tmp")
     try:
         with os.fdopen(handle, "w", encoding="utf-8") as stream:
-            json.dump(payload, stream)
+            _ = stream.write(text)
         _ = Path(temporary).replace(directory / f"{key}.json")
     except OSError:
         Path(temporary).unlink(missing_ok=True)
@@ -616,9 +615,19 @@ def _write(key: str, payload: dict[str, object]) -> None:
     """
     if not settings().enabled:
         return
+    # Serialized as UTF-8 rather than ASCII-escaped: escaping turns a four-byte
+    # character into twelve, so a legitimate body near the response limit
+    # could produce an entry past :data:`MAX_ENTRY_BYTES`. That entry would be
+    # written, refused by every ``load``, and refetched and rewritten on every
+    # run. Escaping now at most doubles the body, and anything still over the
+    # bound is not written at all, so the cache never stores what it will not
+    # read back.
+    text = json.dumps(payload, ensure_ascii=False)
+    if len(text.encode("utf-8")) > MAX_ENTRY_BYTES:
+        return
     directory = entries_directory()
     try:
-        _atomic_write(directory, key, payload)
+        _atomic_write(directory, key, text)
     except OSError:
         return
     _prune(directory, now())

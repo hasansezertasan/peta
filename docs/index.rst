@@ -12,6 +12,7 @@ Human-friendly Python package metadata viewer
    output-contract
    configuration
    architecture
+   threat-model
    modules
    research-tooling-landscape
 

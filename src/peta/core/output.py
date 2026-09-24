@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Literal, TypeAliasType, cast
 from packaging.markers import default_environment
 
 from peta._version import __version__
+from peta.core.cache import redacted_text
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -135,11 +136,25 @@ class OutputQuery:
 
 @dataclass(frozen=True)
 class OutputMessage:
-    """A structured warning or error."""
+    """A structured warning or error.
+
+    Credentials are stripped from the message on construction. This is the one
+    channel every diagnostic reaches the user through — fatal errors and
+    per-source warnings alike — so redacting here covers the ones peta builds
+    today and the ones added later, which redacting at each call site would
+    not. Result fields are deliberately left alone: a query string a package
+    declared is metadata to report, not a secret to hide.
+    """
 
     code: MessageCode
     message: str
     source: str | None = None
+
+    def __post_init__(self) -> None:
+        """Strip credentials from any URL the message names."""
+        # ``object.__setattr__`` because the dataclass is frozen; normalizing
+        # a field on construction is the standard exception to that.
+        object.__setattr__(self, "message", redacted_text(self.message))
 
 
 @dataclass(frozen=True)
@@ -158,6 +173,17 @@ class SourceRecord:
     environment, or one that never completed a retrieval.
     """
     fields: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        """Strip credentials from any URL the failure reason names.
+
+        A second boundary alongside :class:`OutputMessage`, because a source
+        record is rendered on its own by the human formatters rather than
+        through a message, so redacting only the message copy left this one
+        carrying the credential.
+        """
+        if self.reason is not None:
+            object.__setattr__(self, "reason", redacted_text(self.reason))
 
 
 @dataclass(frozen=True)

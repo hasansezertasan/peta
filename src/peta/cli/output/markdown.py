@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.console import inline
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "format_artifacts",
+    "format_banner",
     "format_compare",
     "format_dep_tree",
     "format_files",
@@ -27,13 +30,98 @@ __all__ = [
 ]
 
 
+_ACTIVE = re.compile(r"([\\`\[\]<|])")
+"""The characters that let untrusted text become active Markdown.
+
+``[`` and ``]`` open links and images — ``![x](https://...)`` in a package
+name would load a remote image wherever the output is rendered — and ``<``
+opens raw HTML and autolinks. A backtick ends a code span early, ``|`` ends a
+table cell, and a trailing backslash would escape whatever peta writes next.
+Emphasis characters are left alone on purpose: they cannot load anything or
+hide text, and escaping them would litter ordinary names like ``my_pkg``.
+"""
+
+_BACKTICK_RUN = re.compile(r"`+")
+
+_TABLE_PIPE = re.compile(r"(\\*)\|")
+"""A pipe together with the run of backslashes in front of it."""
+
+
+def _escaped_pipe(match: re.Match[str]) -> str:
+    r"""Leave a pipe with an odd number of backslashes in front of it.
+
+    GFM splits table rows before it parses anything inline, reading
+    backslashes in pairs, so ``\\|`` — two backslashes — leaves the pipe
+    active. A filename carrying ``\\|`` used to become exactly that once one
+    backslash was added, splitting the row and the code span with it.
+
+    Returns:
+        The pipe, preceded by an odd-length run of backslashes.
+    """
+    run = match.group(1)
+    return f"{run}{'' if len(run) % 2 else chr(92)}|"
+
+
+def _one_line(value: object) -> str:
+    # Terminal-sanitized *before* any escaping or fence sizing, not only
+    # afterwards by ``_plain_output``: removing a control character later can
+    # join two backtick runs, or a backslash to the character it should not
+    # reach, after the Markdown around them was already decided.
+    return inline(value)
+
+
+def _text(value: object) -> str:
+    """Render untrusted text as inert inline Markdown.
+
+    Returns:
+        The value on one line, with every active character escaped.
+    """
+    return _ACTIVE.sub(r"\\\1", _one_line(value))
+
+
+def format_banner(text: str) -> str:
+    """Escape a line printed above a Markdown document for inertness.
+
+    Public for the target-environment banner, which the CLI prepends to the
+    document rather than building through a formatter here, and which names
+    paths that may carry link or image syntax.
+
+    Returns:
+        The line as inert inline Markdown.
+    """
+    return _text(text)
+
+
+def _code(value: object, *, in_table: bool = False) -> str:
+    """Render untrusted text as a code span it cannot break out of.
+
+    The fence is one backtick longer than any run of backticks inside the
+    value, which is how CommonMark lets a code span contain them. Inside a
+    table a ``|`` still ends the cell even within a code span, so there it is
+    escaped too; elsewhere the backslash would be printed literally.
+
+    Returns:
+        The value as a code span.
+    """
+    content = _one_line(value)
+    if in_table:
+        content = _TABLE_PIPE.sub(_escaped_pipe, content)
+    longest = max(
+        (match.end() - match.start() for match in _BACKTICK_RUN.finditer(content)),
+        default=0,
+    )
+    fence = "`" * (longest + 1)
+    pad = " " if content.startswith("`") or content.endswith("`") else ""
+    return f"{fence}{pad}{content}{pad}{fence}"
+
+
 def _cell(value: object) -> str:
     if value is None:
         return "—"
     if isinstance(value, list):
         items = cast("list[object]", value)
-        return ", ".join(str(item) for item in items) or "—"
-    return str(value).replace("|", "\\|").replace("\n", " ")
+        return ", ".join(_text(item) for item in items) or "—"
+    return _text(value)
 
 
 def _security_lines(pkg: PackageInfo) -> list[str]:
@@ -44,12 +132,10 @@ def _security_lines(pkg: PackageInfo) -> list[str]:
             severity = (
                 f" ({_cell(vulnerability.severity)})" if vulnerability.severity else ""
             )
-            fixed = ", ".join(
-                f"`{_cell(version)}`" for version in vulnerability.fixed_in
-            )
+            fixed = ", ".join(_code(version) for version in vulnerability.fixed_in)
             fix_text = fixed or "no known fix"
             description = f"{_cell(vulnerability.summary)} (fix: {fix_text})"
-            lines.append(f"- `{_cell(vulnerability.id)}`{severity}: {description}")
+            lines.append(f"- {_code(vulnerability.id)}{severity}: {description}")
     lines.extend(_warning_lines(pkg))
     return lines
 
@@ -58,7 +144,7 @@ def _warning_lines(*packages: PackageInfo) -> list[str]:
     prefixed = len(packages) > 1
 
     def item(name: str, source: str, reason: str) -> str:
-        owner = f"`{_cell(name)}` — " if prefixed else ""
+        owner = f"{_code(name)} — " if prefixed else ""
         return f"- {owner}**{_cell(source)}:** {_cell(reason)}"
 
     warnings = [
@@ -103,7 +189,12 @@ def format_info(pkg: PackageInfo) -> str:
         ("Downloads", pkg.download_count),
         ("Dependents", pkg.dependent_count),
     ]
-    lines = [f"# {pkg.name} {pkg.version}", "", "| Field | Value |", "| --- | --- |"]
+    lines = [
+        f"# {_text(pkg.name)} {_text(pkg.version)}",
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+    ]
     lines.extend(f"| {name} | {_cell(value)} |" for name, value in rows)
     lines.extend(_security_lines(pkg))
     return "\n".join(lines)
@@ -149,7 +240,9 @@ def _tree_lines(node: DependencyNode, depth: int = 0) -> list[str]:
     )
     failure = node.resolution_failure
     unresolved = f" _(unresolved: {_cell(failure.reason)})_" if failure else ""
-    lines = [f"{'  ' * depth}- `{node.name}{suffix}`{selected}{state}{unresolved}"]
+    lines = [
+        f"{'  ' * depth}- {_code(node.name + suffix)}{selected}{state}{unresolved}"
+    ]
     for child in node.children:
         lines.extend(_tree_lines(child, depth + 1))
     return lines
@@ -162,7 +255,7 @@ def format_dep_tree(node: DependencyNode) -> str:
         A heading and nested Markdown list.
     """
     return "\n".join([
-        f"# Declared metadata tree for {node.name}",
+        f"# Declared metadata tree for {_text(node.name)}",
         "",
         *_tree_lines(node),
     ])
@@ -174,8 +267,8 @@ def format_why(target: str, paths: list[list[str]]) -> str:
     Returns:
         A heading and one list item per path.
     """
-    lines = [f"# Why {target}?", ""]
-    lines.extend(f"- {' → '.join(f'`{name}`' for name in path)}" for path in paths)
+    lines = [f"# Why {_text(target)}?", ""]
+    lines.extend(f"- {' → '.join(_code(name) for name in path)}" for path in paths)
     return "\n".join(lines)
 
 
@@ -185,8 +278,8 @@ def format_files(pkg: PackageInfo) -> str:
     Returns:
         A heading and Markdown list.
     """
-    lines = [f"# Files for {pkg.name} {pkg.version}", ""]
-    lines.extend(f"- `{path}`" for path in pkg.files or [])
+    lines = [f"# Files for {_text(pkg.name)} {_text(pkg.version)}", ""]
+    lines.extend(f"- {_code(path)}" for path in pkg.files or [])
     return "\n".join(lines)
 
 
@@ -196,7 +289,12 @@ def format_versions(name: str, versions: list[dict[str, str]]) -> str:
     Returns:
         A heading and Markdown table.
     """
-    lines = [f"# Versions for {name}", "", "| Version | Uploaded |", "| --- | --- |"]
+    lines = [
+        f"# Versions for {_text(name)}",
+        "",
+        "| Version | Uploaded |",
+        "| --- | --- |",
+    ]
     lines.extend(
         f"| {_cell(item['version'])} | {_cell(item['upload_time'])} |"
         for item in versions
@@ -222,13 +320,13 @@ def _artifact_rows(release: ReleaseArtifacts) -> list[str]:
     return [
         "| "
         + " | ".join([
-            f"`{_cell(file.filename)}`",
+            _code(file.filename, in_table=True),
             file.kind,
             _cell(file_size(file)),
             _cell(file.upload_time),
             _cell(file.requires_python),
             verdict(file),
-            f"`{_cell(file.sha256)}`" if file.sha256 else "—",
+            _code(file.sha256, in_table=True) if file.sha256 else "—",
             _cell(file_flags(file)),
             _cell(file_publishers(file)),
         ])
@@ -253,12 +351,12 @@ def _artifact_notes(release: ReleaseArtifacts) -> list[str]:
         A trailing Markdown section, empty when there is nothing to report.
     """
     notes = [
-        f"- `{_cell(file.filename)}`: {_cell(file.compatibility.reason)}"
+        f"- {_code(file.filename)}: {_cell(file.compatibility.reason)}"
         for file in release.files
         if file.compatibility.reason
     ]
     notes.extend(
-        f"- `{_cell(file.filename)}` **yanked:** {_yanked_reason(file)}"
+        f"- {_code(file.filename)} **yanked:** {_yanked_reason(file)}"
         for file in release.files
         if file.yanked
     )
@@ -278,7 +376,7 @@ def format_artifacts(release: ReleaseArtifacts, *, detailed: bool = False) -> st
         A summary table, an optional per-file table, and any notes.
     """
     lines = [
-        f"# Artifacts for {release.name} {release.version}",
+        f"# Artifacts for {_text(release.name)} {_text(release.version)}",
         "",
         "| Field | Value |",
         "| --- | --- |",

@@ -349,6 +349,35 @@ class TestPublishers:
             _file(filename="pkg-1.0.tar.gz"),
         )
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://169.254.169.254/latest/meta-data",
+            "https://internal.example/provenance",
+            "https://pypi.org.attacker.invalid/integrity/pkg/1.0/whl/provenance",
+            "https://pypi.org:8443/integrity/pkg/1.0/whl/provenance",
+            "http://pypi.org/integrity/pkg/1.0/whl/provenance",
+            "not a url at all [",
+        ],
+    )
+    def test_a_provenance_url_off_the_index_origin_is_never_requested(
+        self, fake_http: FakeTransport, url: str
+    ) -> None:
+        # The index response chooses this URL, so an unchecked fetch would let
+        # whoever controls that response aim peta at any host. PyPI serves
+        # provenance from its own origin; anything else is refused before a
+        # request exists — no DNS lookup, so rebinding has nothing to race.
+        fake_http.reply(url="/simple/", json=_page(_file(provenance=url)))
+
+        release, _ = get_release("pkg", publishers=True)
+
+        assert release is not None
+        (failure,) = release.publisher_failures
+        assert "not on the index's origin" in failure.reason
+        assert [str(request.url) for request in fake_http.requests] == [
+            "https://pypi.org/simple/pkg/"
+        ]
+
     def test_reads_the_trusted_publisher_identity(
         self, fake_http: FakeTransport
     ) -> None:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.console import inline
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -13,7 +14,7 @@ from peta.cli.output.summary import (
 )
 
 if TYPE_CHECKING:
-    from peta.core.artifacts import ReleaseArtifacts
+    from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -27,13 +28,27 @@ __all__ = [
 ]
 
 
+def _field(value: object) -> str:
+    """Render one untrusted value so it cannot add lines or columns.
+
+    This formatter is line-oriented and its tables are tab-separated, so a
+    newline or tab inside a value — a yank reason, a filename, a summary —
+    would forge an extra line or column. :func:`inline` folds both to spaces,
+    which is how a wrapped summary has always been shown here.
+
+    Returns:
+        The value on one line, with terminal control characters removed.
+    """
+    return inline(value)
+
+
 def _value(value: object) -> str:
     if value is None:
         return "-"
     if isinstance(value, list):
         items = cast("list[object]", value)
-        return ", ".join(str(item) for item in items) or "-"
-    return str(value).replace("\n", " ")
+        return ", ".join(_field(item) for item in items) or "-"
+    return _field(value)
 
 
 def _security_lines(pkg: PackageInfo) -> list[str]:
@@ -41,10 +56,14 @@ def _security_lines(pkg: PackageInfo) -> list[str]:
     if pkg.vulnerabilities:
         lines.extend(["", "Vulnerabilities:"])
         for vulnerability in pkg.vulnerabilities:
-            severity = f" [{vulnerability.severity}]" if vulnerability.severity else ""
-            fixed = ", ".join(vulnerability.fixed_in) or "no known fix"
-            description = f"{vulnerability.summary} (fix: {fixed})"
-            lines.append(f"- {vulnerability.id}{severity}: {description}")
+            severity = (
+                f" [{_field(vulnerability.severity)}]" if vulnerability.severity else ""
+            )
+            fixed = _value(vulnerability.fixed_in) if vulnerability.fixed_in else ""
+            description = (
+                f"{_value(vulnerability.summary)} (fix: {fixed or 'no known fix'})"
+            )
+            lines.append(f"- {_field(vulnerability.id)}{severity}: {description}")
     lines.extend(_warning_lines(pkg))
     return lines
 
@@ -53,20 +72,20 @@ def _warning_lines(*packages: PackageInfo) -> list[str]:
     prefixed = len(packages) > 1
 
     def owner(name: str) -> str:
-        return f"{name}: " if prefixed else ""
+        return f"{_field(name)}: " if prefixed else ""
 
     warnings = [
-        f"- {owner(pkg.name)}{failure.source}: {failure.reason}"
+        f"- {owner(pkg.name)}{_field(failure.source)}: {_field(failure.reason)}"
         for pkg in packages
         for failure in pkg.enrichment_failures
     ]
     warnings.extend(
-        f"- {owner(pkg.name)}{conflict.field}: {conflict.description}"
+        f"- {owner(pkg.name)}{_field(conflict.field)}: {_field(conflict.description)}"
         for pkg in packages
         for conflict in pkg.enrichment_conflicts
     )
     warnings.extend(
-        f"- {owner(pkg.name)}{w.source}: {w.message}"
+        f"- {owner(pkg.name)}{_field(w.source)}: {_field(w.message)}"
         for pkg in packages
         for w in pkg.provider_warnings
     )
@@ -118,7 +137,7 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
         ("Dependencies", a.dependencies, b.dependencies),
         ("Vulnerabilities", _vulnerability_count(a), _vulnerability_count(b)),
     ]
-    lines = [f"Field\t{a.name}\t{b.name}"]
+    lines = [f"Field\t{_field(a.name)}\t{_field(b.name)}"]
     lines.extend(
         f"{field}\t{_value(a_value)}\t{_value(b_value)}"
         for field, a_value, b_value in rows
@@ -128,16 +147,18 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
 
 
 def _tree_lines(node: DependencyNode, depth: int = 0) -> list[str]:
-    suffix = f" {node.version_spec}" if node.version_spec else ""
+    suffix = f" {_field(node.version_spec)}" if node.version_spec else ""
     state = (
         f" ({node.state.replace('_', ' ')})"
         if node.state != "satisfied" and node.resolution_failure is None
         else ""
     )
-    selected = f" (selected {node.selected_version})" if node.selected_version else ""
+    selected = (
+        f" (selected {_field(node.selected_version)})" if node.selected_version else ""
+    )
     failure = node.resolution_failure
-    unresolved = f" (unresolved: {failure.reason})" if failure else ""
-    lines = [f"{'  ' * depth}{node.name}{suffix}{selected}{state}{unresolved}"]
+    unresolved = f" (unresolved: {_field(failure.reason)})" if failure else ""
+    lines = [f"{'  ' * depth}{_field(node.name)}{suffix}{selected}{state}{unresolved}"]
     for child in node.children:
         lines.extend(_tree_lines(child, depth + 1))
     return lines
@@ -158,8 +179,8 @@ def format_why(target: str, paths: list[list[str]]) -> str:
     Returns:
         A heading and one path per line.
     """
-    lines = [f"Why {target}?"]
-    lines.extend(" -> ".join(path) for path in paths)
+    lines = [f"Why {_field(target)}?"]
+    lines.extend(" -> ".join(_field(name) for name in path) for path in paths)
     return "\n".join(lines)
 
 
@@ -169,7 +190,10 @@ def format_files(pkg: PackageInfo) -> str:
     Returns:
         A heading and one path per line.
     """
-    return "\n".join([f"Files for {pkg.name} {pkg.version}", *(pkg.files or [])])
+    return "\n".join([
+        f"Files for {_field(pkg.name)} {_field(pkg.version)}",
+        *(_field(path) for path in pkg.files or []),
+    ])
 
 
 def format_versions(name: str, versions: list[dict[str, str]]) -> str:
@@ -178,8 +202,10 @@ def format_versions(name: str, versions: list[dict[str, str]]) -> str:
     Returns:
         A heading and one version per line.
     """
-    lines = [f"Versions for {name}", "Version\tUploaded"]
-    lines.extend(f"{item['version']}\t{item['upload_time']}" for item in versions)
+    lines = [f"Versions for {_field(name)}", "Version\tUploaded"]
+    lines.extend(
+        f"{_field(item['version'])}\t{_field(item['upload_time'])}" for item in versions
+    )
     return "\n".join(lines)
 
 
@@ -205,26 +231,38 @@ def format_artifacts(release: ReleaseArtifacts, *, detailed: bool = False) -> st
     Returns:
         A summary block, an optional tab-separated file table, and any notes.
     """
-    lines = [f"Artifacts for {release.name} {release.version}"]
-    lines.extend(f"{label}: {value}" for label, value in summary_rows(release))
+    lines = [f"Artifacts for {_field(release.name)} {_field(release.version)}"]
+    lines.extend(f"{label}: {_field(value)}" for label, value in summary_rows(release))
     if detailed and release.files:
         lines.extend(["", "\t".join(_ARTIFACT_COLUMNS)])
         lines.extend(
-            "\t".join([
-                file.filename,
-                file.kind,
-                file_size(file),
-                file.upload_time or "-",
-                file.requires_python or "-",
-                verdict(file),
-                file.sha256 or "-",
-                file_flags(file),
-                file_publishers(file),
-            ])
+            "\t".join(
+                _field(column)
+                for column in (
+                    file.filename,
+                    file.kind,
+                    file_size(file),
+                    file.upload_time or "-",
+                    file.requires_python or "-",
+                    verdict(file),
+                    file.sha256 or "-",
+                    file_flags(file),
+                    file_publishers(file),
+                )
+            )
             for file in release.files
         )
     lines.extend(_artifact_notes(release))
     return "\n".join(lines)
+
+
+def _yanked_reason(file: ArtifactFile) -> str:
+    """Render a yank reason, naming the absence of one explicitly.
+
+    Returns:
+        The reason PyPI recorded, or a stand-in when it recorded none.
+    """
+    return _field(file.yanked_reason or "no reason given")
 
 
 def _artifact_notes(release: ReleaseArtifacts) -> list[str]:
@@ -234,17 +272,17 @@ def _artifact_notes(release: ReleaseArtifacts) -> list[str]:
         Trailing note lines, empty when there is nothing to report.
     """
     notes = [
-        f"- {file.filename}: {file.compatibility.reason}"
+        f"- {_field(file.filename)}: {_field(file.compatibility.reason)}"
         for file in release.files
         if file.compatibility.reason
     ]
     notes.extend(
-        f"- {file.filename} yanked: {file.yanked_reason or 'no reason given'}"
+        f"- {_field(file.filename)} yanked: {_yanked_reason(file)}"
         for file in release.files
         if file.yanked
     )
     notes.extend(
-        f"- provenance lookup failed: {f.description}"
+        f"- provenance lookup failed: {_field(f.description)}"
         for f in release.publisher_failures
     )
     if not notes:

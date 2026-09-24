@@ -270,7 +270,7 @@ def deps(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
         str | None, typer.Option("--why", help="Show why TARGET is a dependency.")
     ] = None,
     depth: Annotated[
-        int, typer.Option("--depth", min=1, help="Max recursion depth.")
+        int, typer.Option("--depth", min=1, max=100, help="Max recursion depth.")
     ] = 10,
     python: Annotated[
         str | None, typer.Option("--python", help="Target Python interpreter.")

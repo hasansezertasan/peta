@@ -1,6 +1,7 @@
 """Unit tests for the four artifact renderers."""
 
 import json as jsonlib
+import re
 from dataclasses import replace
 from typing import cast
 
@@ -397,3 +398,91 @@ class TestJson:
         sources = cast("list[dict[str, object]]", data["sources"])
         assert [s["name"] for s in sources] == ["pypi"]
         assert sources[0]["fields"] == ["result.files"]
+
+
+class TestHostileFieldsCannotShapeTheOutput:
+    """Untrusted fields must not become structure in the plain formats.
+
+    The terminal sanitizer keeps newlines and tabs because the formatters'
+    own separators need them, and it knows nothing of Markdown. So each
+    untrusted value is neutralized where the formatter inserts it.
+    """
+
+    TRACKER = "![x](https://attacker.invalid/track)"
+
+    def test_markdown_cannot_load_a_remote_image(self) -> None:
+        out = markdown.format_artifacts(_release(name=self.TRACKER), detailed=True)
+
+        assert "![x](" not in out
+        assert r"!\[x\](https://attacker.invalid/track)" in out
+
+    def test_markdown_cannot_emit_raw_html(self) -> None:
+        reason = "<img src=https://attacker.invalid/t>"
+        release = _release(_wheel(yanked=True, yanked_reason=reason))
+
+        out = markdown.format_artifacts(release)
+
+        assert re.search(r"(?<!\\)<img", out) is None
+        assert r"\<img" in out
+
+    def test_markdown_code_spans_cannot_be_broken_out_of(self) -> None:
+        # A single backtick in the filename used to end the code span, leaving
+        # the rest of the name as live Markdown.
+        name = "pkg`![x](https://attacker.invalid/t)`.whl"
+        release = _release(_wheel(filename=name, yanked=True))
+
+        out = markdown.format_artifacts(release)
+
+        assert f"``{name}``" in out
+
+    def test_a_pipe_in_a_filename_cannot_add_a_table_column(self) -> None:
+        release = _release(_wheel(filename="a|b.whl"))
+
+        out = markdown.format_artifacts(release, detailed=True)
+        (row,) = [line for line in out.splitlines() if "a\\|b.whl" in line]
+
+        assert row.count("|") - row.count("\\|") == 10
+
+    @pytest.mark.parametrize("name", ["a\\|b.whl", "a\\\\|b.whl", "a\\\\\\|b.whl"])
+    def test_backslashes_before_a_pipe_cannot_split_the_row(self, name: str) -> None:
+        # GFM splits rows before inline parsing, reading backslashes in pairs,
+        # so a pipe needs an odd run in front of it. Adding one backslash to
+        # a filename's own ``\\|`` produced an even run and split the row.
+        out = markdown.format_artifacts(_release(_wheel(filename=name)), detailed=True)
+        (row,) = [line for line in out.splitlines() if "b.whl" in line]
+
+        pipes = [
+            index
+            for index, character in enumerate(row)
+            if character == "|"
+            and (len(row[:index]) - len(row[:index].rstrip("\\"))) % 2 == 0
+        ]
+        assert len(pipes) == 10
+
+    def test_a_removed_control_cannot_join_backticks_after_fencing(self) -> None:
+        # Sizing the fence before terminal sanitization let ESC separate two
+        # single backticks; once stripped they formed a run matching the
+        # fence and closed the code span, leaving the image live.
+        name = "pkg`\x1b`![x](https://attacker.invalid/t).whl"
+        release = _release(_wheel(filename=name, yanked=True))
+
+        out = markdown.format_artifacts(release)
+
+        assert "```pkg``![x](https://attacker.invalid/t).whl```" in out
+
+    def test_text_notes_cannot_gain_a_forged_line(self) -> None:
+        reason = "superseded\n- pkg-1.0.tar.gz yanked: malware"
+        release = _release(_wheel(yanked=True, yanked_reason=reason), _sdist())
+
+        out = text.format_artifacts(release)
+
+        assert "\n- pkg-1.0.tar.gz yanked" not in out
+        assert "superseded - pkg-1.0.tar.gz yanked: malware" in out
+
+    def test_a_tab_cannot_add_a_text_column(self) -> None:
+        release = _release(_wheel(filename="pkg\tforged-1.0.whl"))
+
+        out = text.format_artifacts(release, detailed=True)
+        (row,) = [line for line in out.splitlines() if "forged" in line]
+
+        assert row.count("\t") == len(text._ARTIFACT_COLUMNS) - 1

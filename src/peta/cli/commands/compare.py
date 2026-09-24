@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from peta.cli.output.render import render_compare
+from peta.cli.output.render import render_compare, render_target
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
 from peta.core.concurrency import gather
@@ -149,5 +149,5 @@ def compare(  # ruff: ignore[complex-structure, too-many-arguments]
         )
     rendered = render_compare(selected, a_pkg, b_pkg, arguments=arguments, color=color)
     if target and selected != OutputFormat.JSON:
-        rendered = f"{target.describe()}\n{rendered}"
+        rendered = f"{render_target(selected, target)}\n{rendered}"
     typer.echo(rendered)

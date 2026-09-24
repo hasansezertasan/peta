@@ -5,11 +5,13 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from peta.cli.output import json, markdown, tables, text
+from peta.cli.output.console import sanitize_terminal
 from peta.cli.output.selection import OutputFormat
 
 if TYPE_CHECKING:
     from peta.core.artifacts import ReleaseArtifacts
     from peta.core.cache import Freshness
+    from peta.core.local import LocalTarget
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -18,9 +20,52 @@ __all__ = [
     "render_dep_tree",
     "render_files",
     "render_info",
+    "render_target",
     "render_versions",
     "render_why",
 ]
+
+
+def _plain_output(value: str) -> str:
+    """Make the plain-text renderers safe to paste into a terminal.
+
+    Text and Markdown carry no styling of peta's own, so the finished string
+    can be hardened wholesale. The Rich renderers cannot: their output is
+    mostly escape sequences peta itself emitted, so they are hardened per
+    rendered segment inside :func:`peta.cli.output.console.render`.
+
+    Credentials are not this function's business. They are stripped where a
+    diagnostic is built, so that a URL a package merely *declared* is reported
+    as declared rather than quietly rewritten.
+
+    Returns:
+        The rendered value with terminal control characters removed.
+    """
+    return sanitize_terminal(value)
+
+
+def render_target(output_format: OutputFormat, target: LocalTarget) -> str:
+    r"""Render the target-environment banner shown above human output.
+
+    Printed outside the formatters, so it would otherwise skip the boundary
+    every other human string passes through. It names paths from ``--path``
+    and from the target interpreter's own ``sys.path``, and a directory name
+    can carry an escape sequence like any other untrusted text.
+
+    Line breaks are escaped visibly first. :func:`sanitize_terminal` keeps
+    ``\\n`` because the multi-line formatters need it, but the banner is one
+    line, and a directory named with a newline would otherwise add lines of
+    its own choosing to the output. Above a Markdown document it is also
+    escaped as Markdown: a directory named ``![x](https://...)`` would
+    otherwise become an image that loads wherever the output is rendered.
+
+    Returns:
+        The banner on one line, inert in the selected format.
+    """
+    banner = target.describe().replace("\r", r"\r").replace("\n", r"\n")
+    if output_format == OutputFormat.MARKDOWN:
+        banner = markdown.format_banner(banner)
+    return _plain_output(banner)
 
 
 def render_info(
@@ -38,9 +83,9 @@ def render_info(
     if output_format == OutputFormat.JSON:
         return json.format_info(pkg, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_info(pkg)
+        return _plain_output(markdown.format_info(pkg))
     if output_format == OutputFormat.TEXT:
-        return text.format_info(pkg)
+        return _plain_output(text.format_info(pkg))
     return tables.render_info(pkg, color=color)
 
 
@@ -60,9 +105,9 @@ def render_compare(
     if output_format == OutputFormat.JSON:
         return json.format_compare(a, b, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_compare(a, b)
+        return _plain_output(markdown.format_compare(a, b))
     if output_format == OutputFormat.TEXT:
-        return text.format_compare(a, b)
+        return _plain_output(text.format_compare(a, b))
     return tables.render_compare(a, b, color=color)
 
 
@@ -81,9 +126,9 @@ def render_dep_tree(
     if output_format == OutputFormat.JSON:
         return json.format_dep_tree(tree, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_dep_tree(tree)
+        return _plain_output(markdown.format_dep_tree(tree))
     if output_format == OutputFormat.TEXT:
-        return text.format_dep_tree(tree)
+        return _plain_output(text.format_dep_tree(tree))
     return tables.render_dep_tree(tree, color=color)
 
 
@@ -104,9 +149,9 @@ def render_why(
     if output_format == OutputFormat.JSON:
         return json.format_why(target, paths, arguments=arguments, tree=tree)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_why(target, paths)
+        return _plain_output(markdown.format_why(target, paths))
     if output_format == OutputFormat.TEXT:
-        return text.format_why(target, paths)
+        return _plain_output(text.format_why(target, paths))
     return tables.render_why(target, paths, color=color)
 
 
@@ -125,9 +170,9 @@ def render_files(
     if output_format == OutputFormat.JSON:
         return json.format_files(pkg, arguments=arguments)
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_files(pkg)
+        return _plain_output(markdown.format_files(pkg))
     if output_format == OutputFormat.TEXT:
-        return text.format_files(pkg)
+        return _plain_output(text.format_files(pkg))
     return tables.render_files(pkg, color=color)
 
 
@@ -155,9 +200,9 @@ def render_versions(
             freshness=freshness,
         )
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_versions(package, versions)
+        return _plain_output(markdown.format_versions(package, versions))
     if output_format == OutputFormat.TEXT:
-        return text.format_versions(package, versions)
+        return _plain_output(text.format_versions(package, versions))
     return tables.render_versions(package, versions, color=color)
 
 
@@ -186,7 +231,7 @@ def render_artifacts(
             publishers=publishers,
         )
     if output_format == OutputFormat.MARKDOWN:
-        return markdown.format_artifacts(release, detailed=detailed)
+        return _plain_output(markdown.format_artifacts(release, detailed=detailed))
     if output_format == OutputFormat.TEXT:
-        return text.format_artifacts(release, detailed=detailed)
+        return _plain_output(text.format_artifacts(release, detailed=detailed))
     return tables.render_artifacts(release, color=color, detailed=detailed)
