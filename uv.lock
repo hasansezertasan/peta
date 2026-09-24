@@ -1038,7 +1038,7 @@ dev = [
     { name = "slotscheck", specifier = "==0.21.0" },
     { name = "sphinx-lint", specifier = "==1.0.2" },
     { name = "taplo", specifier = "==0.9.3" },
-    { name = "tox", specifier = "==4.63.0" },
+    { name = "tox", specifier = "==4.64.0" },
     { name = "tox-uv", specifier = "==1.36.0" },
     { name = "ty", specifier = "==0.0.83" },
     { name = "typos", specifier = "==1.50.2" },
@@ -1779,7 +1779,7 @@ wheels = [
 
 [[package]]
 name = "tox"
-version = "4.63.0"
+version = "4.64.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cachetools" },
@@ -1793,9 +1793,9 @@ dependencies = [
     { name = "tomli-w" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/35/93/ce52def83be73dcb86c0c5985f40808917f09828c1616d4018206c3dbba3/tox-4.63.0.tar.gz", hash = "sha256:fb7105ef125b371e31797cfa615e5a160de3d8ef29b86dca7fcbd9048da3a9d8", size = 310965, upload-time = "2026-09-19T16:45:35.275Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b0/b3/698c3897f87961da7d1bb4df801ad973a92871a0bca09f1ed8e6ed6adc22/tox-4.64.0.tar.gz", hash = "sha256:618aae7f71a6d6854e04ff78155c2d0883218a2ea7d3d9f15f4eb59415ff78a2", size = 314163, upload-time = "2026-09-24T00:09:53.53Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/4d/d0e37d254b4ad5492d63ea60981365a5122261b5954a9d952d8b15283e26/tox-4.63.0-py3-none-any.whl", hash = "sha256:e8c560a9124e127c5e0547912d2ae1ef948dbba2fdea0b8d506e609a126b2e47", size = 229324, upload-time = "2026-09-19T16:45:33.829Z" },
+    { url = "https://files.pythonhosted.org/packages/17/ca/c38ed5761674fa581f31f69afc26a8a0b9f701af83d2aac4cf5e671ebf7d/tox-4.64.0-py3-none-any.whl", hash = "sha256:0c6d857b5ab6b60e2ae0dc8ca297de2ba50842bf8f1cb78b50b5d97775d1a9c9", size = 231379, upload-time = "2026-09-24T00:09:51.708Z" },
 ]
 
 [[package]]
