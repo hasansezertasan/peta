@@ -272,14 +272,16 @@ diagnostic is <em>built</em> — <code class="docutils literal notranslate"><spa
 <code class="docutils literal notranslate"><span class="pre">ProviderWarning</span></code>, <code class="docutils literal notranslate"><span class="pre">DependencyResolutionFailure</span></code>, <code class="docutils literal notranslate"><span class="pre">OutputMessage</span></code>,
 <code class="docutils literal notranslate"><span class="pre">PublisherFailure</span></code>, <code class="docutils literal notranslate"><span class="pre">SourceRecord</span></code>, and the fatal human path — every
 model that carries a diagnostic, since the human formatters render them
-directly — rather than over rendered output or the envelope as a whole. Both
-credential-bearing query parameters and URL userinfo —
-<code class="docutils literal notranslate"><span class="pre">https://{user}:{token}&#64;index/</span></code>, the usual way to configure a private
-index — are removed. The distinction matters in both directions: a URL peta
-<em>requested</em> can carry peta’s API key, while a URL a package <em>declared</em> is
-metadata the output contract promises to report, and the redaction list
-holds names as ordinary as <code class="docutils literal notranslate"><span class="pre">key</span></code>, so sweeping every string would silently
-rewrite a package’s homepage.</p></li>
+directly — rather than over rendered output or the envelope as a whole.
+Credential-bearing query parameters — signed-URL signatures and credentials
+among them — and URL userinfo — <code class="docutils literal notranslate"><span class="pre">https://{user}:{token}&#64;index/</span></code>, the usual
+way to configure a private index — are removed, and a query with more fields
+than any real URL has is dropped unparsed, since redaction itself must not
+be a way to exhaust memory. The distinction matters in both directions: a
+URL peta <em>requested</em> can carry peta’s API key, while a URL a package
+<em>declared</em> is metadata the output contract promises to report, and the
+redaction list holds names as ordinary as <code class="docutils literal notranslate"><span class="pre">key</span></code>, so sweeping every string
+would silently rewrite a package’s homepage.</p></li>
 <li><p>Every refusal the transport makes — unsafe scheme, oversized body — is
 raised as an <code class="docutils literal notranslate"><span class="pre">httpx.RequestError</span></code>.
 Each source maps that onto its own error type; an exception outside that

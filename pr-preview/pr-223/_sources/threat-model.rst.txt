@@ -152,14 +152,16 @@ Every provider must preserve these invariants when it is added or changed:
   ``ProviderWarning``, ``DependencyResolutionFailure``, ``OutputMessage``,
   ``PublisherFailure``, ``SourceRecord``, and the fatal human path — every
   model that carries a diagnostic, since the human formatters render them
-  directly — rather than over rendered output or the envelope as a whole. Both
-  credential-bearing query parameters and URL userinfo —
-  ``https://{user}:{token}@index/``, the usual way to configure a private
-  index — are removed. The distinction matters in both directions: a URL peta
-  *requested* can carry peta's API key, while a URL a package *declared* is
-  metadata the output contract promises to report, and the redaction list
-  holds names as ordinary as ``key``, so sweeping every string would silently
-  rewrite a package's homepage.
+  directly — rather than over rendered output or the envelope as a whole.
+  Credential-bearing query parameters — signed-URL signatures and credentials
+  among them — and URL userinfo — ``https://{user}:{token}@index/``, the usual
+  way to configure a private index — are removed, and a query with more fields
+  than any real URL has is dropped unparsed, since redaction itself must not
+  be a way to exhaust memory. The distinction matters in both directions: a
+  URL peta *requested* can carry peta's API key, while a URL a package
+  *declared* is metadata the output contract promises to report, and the
+  redaction list holds names as ordinary as ``key``, so sweeping every string
+  would silently rewrite a package's homepage.
 * Every refusal the transport makes — unsafe scheme, oversized body — is
   raised as an ``httpx.RequestError``.
   Each source maps that onto its own error type; an exception outside that
