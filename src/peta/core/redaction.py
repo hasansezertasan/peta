@@ -21,6 +21,16 @@ _CREDENTIAL_PARAMS = frozenset({
     "password",
     "secret",
     "token",
+    # Signed URLs, which an index can use for provenance or file links: the
+    # signature authorizes the request on its own, and the credential and
+    # session-token parameters beside it identify the signer.
+    "sig",
+    "signature",
+    "x-amz-credential",
+    "x-amz-security-token",
+    "x-amz-signature",
+    "x-goog-credential",
+    "x-goog-signature",
 })
 """Query parameters redacted before a URL is hashed, stored, or reported.
 
@@ -33,6 +43,9 @@ Redacting rather than including is also correct for the key: the response
 depends on which package was asked about, not on who asked, so two users with
 different keys should share one entry.
 """
+
+_MAX_QUERY_FIELDS = 1000
+"""Most query fields a URL may have before its query is dropped unparsed."""
 
 _USERINFO = re.compile(r"^(https?://)[^/@]*@")
 """The ``user:password@`` part of a URL too malformed for ``urlsplit``."""
@@ -63,6 +76,11 @@ def redacted(url: str) -> str:
         url = urlunsplit(parts)
     if not parts.query:
         return url
+    if parts.query.count("&") + parts.query.count(";") >= _MAX_QUERY_FIELDS:
+        # Dropped whole, unread. A diagnostic can quote a URL an index chose,
+        # and parsing millions of empty fields would allocate a tuple for
+        # each before anything was reported; no real URL has this many.
+        return urlunsplit(parts._replace(query=""))
     kept = [
         (name, value)
         for name, value in parse_qsl(parts.query, keep_blank_values=True)

@@ -187,3 +187,46 @@ class TestDiagnosticModelsRedactThemselves:
         # The non-secret parameter survives, so the URL was redacted rather
         # than dropped; asserting on it avoids a host-substring check.
         assert "per_page=2" in out
+
+
+class TestRedactionCoversSignedAndHostileUrls:
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            (
+                "https://files.example/p?X-Amz-Credential=a&X-Amz-Signature=b&X-Amz-Expires=60",
+                "https://files.example/p?X-Amz-Expires=60",
+            ),
+            (
+                "https://storage.example/o?X-Goog-Signature=b&alt=media",
+                "https://storage.example/o?alt=media",
+            ),
+            (
+                "https://cdn.example/f?Signature=b&Expires=1",
+                "https://cdn.example/f?Expires=1",
+            ),
+        ],
+    )
+    def test_signed_url_credentials_are_removed(self, url: str, expected: str) -> None:
+        # A failed provenance fetch quotes its URL, and a signature authorizes
+        # the request on its own.
+        assert OutputMessage(code="network_error", message=url).message == expected
+
+    def test_a_query_with_absurdly_many_fields_is_dropped_unparsed(self) -> None:
+        # A diagnostic can quote a URL an index chose; parsing millions of
+        # empty fields would allocate a tuple for each before reporting.
+        url = "https://x.example/?" + "a=&" * 5000
+
+        assert OutputMessage(code="network_error", message=url).message == (
+            "https://x.example/"
+        )
+
+    def test_an_ordinary_query_is_still_parsed_field_by_field(self) -> None:
+        url = (
+            "https://x.example/?" + "&".join(f"f{i}=1" for i in range(50)) + "&token=t"
+        )
+
+        message = OutputMessage(code="network_error", message=url).message
+
+        assert "token" not in message
+        assert "f49=1" in message
