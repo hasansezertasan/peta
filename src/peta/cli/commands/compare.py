@@ -10,7 +10,7 @@ import typer
 from peta.cli.output.render import render_compare, render_target
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core import http
-from peta.core.artifacts import Target, get_release, parse_target
+from peta.core.artifacts import Target, get_release
 from peta.core.concurrency import gather
 from peta.core.diff import ReleaseEvidence, diff_packages
 from peta.core.enrich import enrich
@@ -60,8 +60,12 @@ def _release_evidence(
     except (NetworkError, http.OfflineError) as exc:
         return ReleaseEvidence(reason=f"{pkg.name} {pkg.version}: {exc}")
     if release is None:
+        # PyPI answered: this is a completed lookup that found nothing, so
+        # the retrieval is kept and the listing is recorded as empty rather
+        # than failed.
         return ReleaseEvidence(
-            reason=f"{pkg.name} {pkg.version} is not published on PyPI"
+            retrieval=retrieval,
+            reason=f"{pkg.name} {pkg.version} is not published on PyPI",
         )
     return ReleaseEvidence(
         release=release,
@@ -71,27 +75,25 @@ def _release_evidence(
 
 
 def _artifact_target(target: LocalTarget | None) -> tuple[Target, str | None]:
-    """Judge wheel compatibility against the Python the comparison is about.
+    """Choose what wheel compatibility is judged against, if anything.
 
-    With ``--python`` that is the named interpreter's version, not the one
-    running peta; without it, the two are the same. :class:`Target` builds
-    CPython tags for a named version, so a non-CPython target is not judged
-    at all: evaluating a PyPy interpreter as CPython would produce confident,
-    wrong verdicts.
+    Without ``--python`` the markers, and so the tags, are the running
+    interpreter's, and :class:`Target` evaluates exactly those. A named
+    interpreter is not judged: its marker values give its version and
+    platform but not its ABI, so its tags — free-threaded, 32-bit, or not
+    CPython at all — cannot be rebuilt faithfully, and approximating them
+    with the host's would produce confident, wrong verdicts.
 
     Returns:
         The compatibility target, and why its verdicts cannot be trusted, if
         they cannot.
     """
-    if target is None:
+    if target is None or target.interpreter is None:
         return Target(), None
-    markers = target.marker_environment
-    implementation = markers.get("implementation_name", "cpython")
-    if implementation != "cpython":
-        return Target(), (
-            f"wheel compatibility not evaluated for a {implementation} target"
-        )
-    return parse_target(markers.get("python_version")), None
+    return Target(), (
+        "wheel compatibility not evaluated for a --python target, "
+        "whose ABI and platform tags cannot be reconstructed"
+    )
 
 
 def _fetch_releases(

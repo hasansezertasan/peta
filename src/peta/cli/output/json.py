@@ -337,12 +337,16 @@ def _release_record(
 ) -> SourceRecord:
     """Record one side's artifact listing lookup.
 
+    A release PyPI does not list is ``empty``, not ``failed``: the source
+    answered, and the answer was that there is nothing to list.
+
     Returns:
-        A ``pypi`` record for the listing, successful or failed.
+        A ``pypi`` record for the listing: successful, empty, or failed.
     """
     target = f"{pkg.name} {pkg.version}"
     fields = ["result.diff"]
-    if evidence.release is None:
+    retrieval = evidence.retrieval
+    if evidence.release is None and retrieval is None:
         return SourceRecord(
             name="pypi",
             state="failed",
@@ -350,13 +354,14 @@ def _release_record(
             reason=evidence.reason,
             fields=fields,
         )
-    retrieval = evidence.retrieval
+    listed = evidence.release is not None and bool(evidence.release.files)
     return SourceRecord(
         name="pypi",
-        state="success" if evidence.release.files else "empty",
+        state="success" if listed else "empty",
         target=target,
         retrieved_at=retrieval.retrieved_at if retrieval else timestamp,
         freshness=retrieval.freshness if retrieval else None,
+        reason=evidence.reason,
         fields=fields,
     )
 
@@ -367,7 +372,7 @@ def _release_warnings(
     return [
         OutputMessage(code="enrichment_failed", message=side.reason, source="pypi")
         for side in releases or ()
-        if side.release is None and side.reason
+        if side.release is None and side.retrieval is None and side.reason
     ]
 
 

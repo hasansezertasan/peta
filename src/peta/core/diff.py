@@ -55,6 +55,12 @@ class ReleaseEvidence:
 
     release: ReleaseArtifacts | None = None
     retrieval: Provenance | None = None
+    """Where the listing came from; set whenever the source answered.
+
+    Kept even when :attr:`release` is ``None``: a project page that lists no
+    such version is a completed lookup that found nothing, which is a
+    different outcome from a lookup that failed.
+    """
     reason: str | None = None
     """Why the listing is missing; ``None`` whenever :attr:`release` is set."""
     compatibility_unknown: str | None = None
@@ -561,11 +567,16 @@ def _artifact_outcome(
 def _release_date(release: ReleaseArtifacts) -> str | None:
     """Date a release by its first upload, which is when it was published.
 
+    Unknown as soon as any file is undated: that file may be the first
+    upload, so the earliest of the dated ones is not the release date.
+
     Returns:
-        The earliest ``YYYY-MM-DD`` upload date, or ``None`` if none is known.
+        The earliest ``YYYY-MM-DD`` upload date, or ``None`` if it is unknown.
     """
-    dates = [f.upload_time[:10] for f in release.files if f.upload_time]
-    return min(dates, default=None)
+    dates = [f.upload_time[:10] if f.upload_time else None for f in release.files]
+    if not dates or None in dates:
+        return None
+    return min(date for date in dates if date is not None)
 
 
 def _release_date_changes(a: ReleaseArtifacts, b: ReleaseArtifacts) -> Iterator[Change]:

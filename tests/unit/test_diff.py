@@ -606,6 +606,17 @@ class TestArtifacts:
         diff = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b)
         assert diff.in_group("release") == []
 
+    def test_partly_dated_release_has_no_date(self) -> None:
+        """The undated file may be the first upload."""
+        a = _evidence(
+            "5.2",
+            _file("django-5.2.tar.gz", upload_time="2026-05-01T00:00:00Z"),
+            _file("django-5.2-py3-none-any.whl", upload_time=None),
+        )
+        b = _evidence("6.0", _file("django-6.0.tar.gz"))
+        diff = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b)
+        assert diff.in_group("release") == []
+
     def test_unreadable_compatibility_is_not_a_change(self) -> None:
         a = _evidence("5.2", _file("django-5.2.tar.gz"))
         b = _evidence(

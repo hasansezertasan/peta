@@ -656,9 +656,10 @@ class TestCompareChanges:
 
     @patch("peta.cli.commands.compare.get_release")
     @patch("peta.core.resolve.local_get_package")
-    def test_artifacts_are_judged_against_the_target_python(
+    def test_python_target_compatibility_is_unknown(
         self, ml: MagicMock, mg: MagicMock
     ) -> None:
+        """A named interpreter's ABI tags cannot be rebuilt, so it is not judged."""
         ml.return_value = _pkg()
         mg.return_value = (self._release("5.2"), _LIVE)
         r = runner.invoke(
@@ -675,11 +676,26 @@ class TestCompareChanges:
             ],
         )
         assert r.exit_code == 0, r.output
-        expected = f"{sys.version_info.major}.{sys.version_info.minor}"
-        targets = {call.kwargs["target"].python for call in mg.call_args_list}
-        assert targets == {expected}
+        assert json.loads(r.output)["result"]["diff"]["unknown"] == [
+            {
+                "group": "artifacts",
+                "reason": (
+                    "wheel compatibility not evaluated for a --python target, "
+                    "whose ABI and platform tags cannot be reconstructed"
+                ),
+            }
+        ]
 
-    def test_non_cpython_target_is_not_judged_as_cpython(self) -> None:
+    def test_path_only_target_is_judged_as_the_running_python(
+        self, tmp_path: Path
+    ) -> None:
+        from peta.cli.commands.compare import _artifact_target
+        from peta.core.local import LocalTarget
+
+        target, gap = _artifact_target(LocalTarget.create(None, (str(tmp_path),)))
+        assert (target.python, gap) == (None, None)
+
+    def test_non_cpython_target_is_not_judged(self) -> None:
         from peta.cli.commands.compare import _artifact_target
         from peta.core.local import LocalTarget
 
@@ -688,21 +704,8 @@ class TestCompareChanges:
             "/opt/pypy/bin/python",
             {"implementation_name": "pypy", "python_version": "3.11"},
         )
-        target, gap = _artifact_target(pypy)
-        assert target.python is None
-        assert gap == "wheel compatibility not evaluated for a pypy target"
-
-    def test_cpython_target_is_judged_at_its_version(self) -> None:
-        from peta.cli.commands.compare import _artifact_target
-        from peta.core.local import LocalTarget
-
-        cpython = LocalTarget(
-            None,
-            "/usr/bin/python3.12",
-            {"implementation_name": "cpython", "python_version": "3.12"},
-        )
-        target, gap = _artifact_target(cpython)
-        assert (target.python, gap) == ("3.12", None)
+        _, gap = _artifact_target(pypy)
+        assert gap is not None
 
     @patch("peta.cli.commands.compare.get_release")
     @patch("peta.core.resolve.local_get_package")
@@ -739,6 +742,35 @@ class TestCompareChanges:
         )
         assert r.exit_code == 0
         assert "? unknown: requests 2.31.0 is not published on PyPI\n" in r.output
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.local_get_package")
+    def test_unpublished_release_is_an_empty_lookup_not_a_failure(
+        self, ml: MagicMock, mg: MagicMock
+    ) -> None:
+        ml.return_value = _pkg()
+        mg.return_value = (None, _LIVE)
+        r = runner.invoke(
+            app,
+            [
+                "compare",
+                "requests",
+                "requests",
+                "--artifacts",
+                "--json",
+                *self._OFFLINE_ENRICHMENT,
+            ],
+        )
+        assert r.exit_code == 0
+        data = json.loads(r.output)
+        assert data["status"] == "success"
+        assert data["warnings"] == []
+        listing = [s for s in data["sources"] if s["fields"] == ["result.diff"]]
+        assert {(s["state"], s["retrieved_at"]) for s in listing} == {
+            ("empty", _LIVE.retrieved_at)
+        }
+        unknown = {e["group"] for e in data["result"]["diff"]["unknown"]}
+        assert {"artifacts", "provenance"} <= unknown
 
 
 class TestDeps:
