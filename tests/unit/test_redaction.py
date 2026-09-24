@@ -212,6 +212,20 @@ class TestRedactionCoversSignedAndHostileUrls:
         # the request on its own.
         assert OutputMessage(code="network_error", message=url).message == expected
 
+    @pytest.mark.parametrize(
+        ("url", "expected"),
+        [
+            # parse_qsl splits only on "&", so this read as one field "ok".
+            ("https://x.example/?ok=1;token=s3cret", "https://x.example/?ok=1"),
+            # A percent-encoded name is judged by what it decodes to.
+            ("https://x.example/?%74oken=s3cret&q=a%20b", "https://x.example/?q=a%20b"),
+        ],
+    )
+    def test_every_field_is_judged_whatever_its_spelling(
+        self, url: str, expected: str
+    ) -> None:
+        assert OutputMessage(code="network_error", message=url).message == expected
+
     def test_a_query_with_absurdly_many_fields_is_dropped_unparsed(self) -> None:
         # A diagnostic can quote a URL an index chose; parsing millions of
         # empty fields would allocate a tuple for each before reporting.

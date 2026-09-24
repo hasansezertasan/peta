@@ -9,7 +9,7 @@ through the validators' pre-decode scan.
 from __future__ import annotations
 
 import re
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from urllib.parse import unquote_plus, urlsplit, urlunsplit
 
 __all__ = ["redacted", "redacted_text"]
 
@@ -43,6 +43,8 @@ Redacting rather than including is also correct for the key: the response
 depends on which package was asked about, not on who asked, so two users with
 different keys should share one entry.
 """
+
+_QUERY_SEPARATOR = re.compile(r"[&;]")
 
 _MAX_QUERY_FIELDS = 1000
 """Most query fields a URL may have before its query is dropped unparsed."""
@@ -81,12 +83,16 @@ def redacted(url: str) -> str:
         # and parsing millions of empty fields would allocate a tuple for
         # each before anything was reported; no real URL has this many.
         return urlunsplit(parts._replace(query=""))
+    # Split on ``;`` as well as ``&`` rather than through ``parse_qsl``, which
+    # only splits on ``&``: ``?ok=1;token=s3cret`` read as one field named
+    # ``ok`` and kept the token. Each field is judged by its decoded name, so
+    # ``%74oken`` is caught too, and a kept field passes through verbatim.
     kept = [
-        (name, value)
-        for name, value in parse_qsl(parts.query, keep_blank_values=True)
-        if name.lower() not in _CREDENTIAL_PARAMS
+        field
+        for field in _QUERY_SEPARATOR.split(parts.query)
+        if unquote_plus(field.partition("=")[0]).lower() not in _CREDENTIAL_PARAMS
     ]
-    return urlunsplit(parts._replace(query=urlencode(kept)))
+    return urlunsplit(parts._replace(query="&".join(kept)))
 
 
 def _redacted_match(url: str) -> str:
