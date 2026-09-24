@@ -49,11 +49,15 @@ _QUERY_SEPARATOR = re.compile(r"[&;]")
 _MAX_QUERY_FIELDS = 1000
 """Most query fields a URL may have before its query is dropped unparsed."""
 
-_USERINFO = re.compile(r"^(https?://)[^/@]*@")
+_USERINFO = re.compile(r"^(https?://)[^/@]*@", re.IGNORECASE)
 """The ``user:password@`` part of a URL too malformed for ``urlsplit``."""
 
-_URL_IN_TEXT = re.compile(r"https?://[^\s'\"]+")
-"""URLs that can appear inside an error message or other diagnostic string."""
+_URL_IN_TEXT = re.compile(r"https?://[^\s'\"]+", re.IGNORECASE)
+"""URLs that can appear inside an error message or other diagnostic string.
+
+Case-insensitive because URL schemes are: ``HTTPS://…?token=…`` is as real a
+URL as the lowercase spelling, and matching only that let it pass unredacted.
+"""
 
 
 def redacted(url: str) -> str:

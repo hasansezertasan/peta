@@ -226,6 +226,23 @@ class TestRedactionCoversSignedAndHostileUrls:
     ) -> None:
         assert OutputMessage(code="network_error", message=url).message == expected
 
+    @pytest.mark.parametrize(
+        ("message", "expected"),
+        [
+            # urlsplit normalizes the scheme to lowercase, an equivalent URL.
+            ("see HTTPS://x.example/?token=s3cret", "see https://x.example/"),
+            ("see HtTp://{userinfo}@[bad/x now", "see HtTp://[bad/x now"),
+        ],
+    )
+    def test_the_scheme_is_matched_in_any_case(
+        self, message: str, expected: str
+    ) -> None:
+        # URL schemes are case-insensitive, and a lowercase-only pattern let an
+        # uppercase URL skip redaction entirely.
+        text = message.format(userinfo="user:s3cret")
+
+        assert OutputMessage(code="network_error", message=text).message == expected
+
     def test_a_query_with_absurdly_many_fields_is_dropped_unparsed(self) -> None:
         # A diagnostic can quote a URL an index chose; parsing millions of
         # empty fields would allocate a tuple for each before reporting.
