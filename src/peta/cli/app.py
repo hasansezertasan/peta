@@ -208,8 +208,8 @@ def info(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
 @app.command()
 def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
     ctx: typer.Context,
-    a: Annotated[str, typer.Argument(help="First package name.")],
-    b: Annotated[str, typer.Argument(help="Second package name.")],
+    a: Annotated[str, typer.Argument(help="First package, as name or name==version.")],
+    b: Annotated[str, typer.Argument(help="Second package, as name or name==version.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
     output_format: Annotated[
         OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
@@ -233,8 +233,19 @@ def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
         list[str] | None,
         typer.Option("--path", help="Metadata search path; repeatable."),
     ] = None,
+    changes_only: Annotated[
+        bool,
+        typer.Option("--changes-only", help="Show only the grouped semantic changes."),
+    ] = False,
+    artifacts: Annotated[
+        bool,
+        typer.Option(
+            "--artifacts",
+            help="Also compare release dates, artifacts, and provenance (PyPI).",
+        ),
+    ] = False,
 ) -> None:
-    """Compare two packages' metadata side by side."""
+    """Compare two packages, or two releases of one, and explain what changed."""
     if path is None:
         path = []
     compare_mod.compare(
@@ -249,6 +260,8 @@ def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
         no_stats=no_stats,
         python=python,
         paths=tuple(path),
+        changes_only=changes_only,
+        artifacts=artifacts,
     )
 
 

@@ -510,6 +510,269 @@ class TestCompare:
         mdep.assert_not_called()
 
 
+class TestCompareChanges:
+    """``--changes-only`` and ``--artifacts`` on ``peta compare``."""
+
+    _OFFLINE_ENRICHMENT = ("--no-osv", "--no-stats")
+
+    @staticmethod
+    def _release(version: str, *, yanked: bool = False) -> ReleaseArtifacts:
+        filename = f"django-{version}.tar.gz"
+        file = ArtifactFile(
+            filename=filename,
+            url=f"https://files.example/{filename}",
+            kind="sdist",
+            compatibility=Compatibility(compatible=True),
+            yanked=yanked,
+        )
+        return ReleaseArtifacts("django", version, Target(), [file])
+
+    @patch("peta.core.resolve.remote_get_package")
+    def test_same_project_releases(self, mr: MagicMock) -> None:
+        mr.side_effect = [
+            _pkg(name="Django", version="5.2", source="remote"),
+            _pkg(
+                name="django",
+                version="6.0",
+                source="remote",
+                dependencies=["urllib3>=2"],
+            ),
+        ]
+        r = runner.invoke(
+            app,
+            [
+                "compare",
+                "django==5.2",
+                "django==6.0",
+                "--changes-only",
+                "--format",
+                "text",
+                *self._OFFLINE_ENRICHMENT,
+            ],
+        )
+        assert r.exit_code == 0, r.output
+        assert [call.args for call in mr.call_args_list] == [
+            ("django", "5.2"),
+            ("django", "6.0"),
+        ]
+        assert r.output.splitlines() == [
+            "Django 5.2 -> django 6.0",
+            "Changes:",
+            "Release:",
+            "  ~ version: 5.2 -> 6.0",
+            "Dependencies:",
+            "  ~ urllib3 specifier: any -> >=2",
+        ]
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_default_output_keeps_the_side_by_side_table(self, ml: MagicMock) -> None:
+        ml.side_effect = [_pkg(), _pkg(name="httpx", version="0.27.0")]
+        r = runner.invoke(app, ["compare", "requests", "httpx", "--format", "text"])
+        assert r.exit_code == 0
+        assert r.output.startswith("Field\trequests\thttpx")
+        assert "~ project: requests -> httpx" in r.output
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.local_get_package")
+    def test_artifacts_are_not_fetched_by_default(
+        self, ml: MagicMock, mg: MagicMock
+    ) -> None:
+        ml.return_value = _pkg()
+        r = runner.invoke(app, ["compare", "requests", "requests", "--json"])
+        assert r.exit_code == 0
+        mg.assert_not_called()
+        arguments = json.loads(r.output)["query"]["arguments"]
+        assert arguments["artifacts"] is False
+        assert arguments["changes_only"] is False
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_artifacts_are_diffed(self, mr: MagicMock, mg: MagicMock) -> None:
+        mr.side_effect = [
+            _pkg(name="django", version="5.2", source="remote"),
+            _pkg(name="django", version="6.0", source="remote"),
+        ]
+        mg.side_effect = [
+            (self._release("5.2"), _LIVE),
+            (self._release("6.0", yanked=True), _LIVE),
+        ]
+        r = runner.invoke(
+            app,
+            [
+                "compare",
+                "django==5.2",
+                "django==6.0",
+                "--artifacts",
+                "--json",
+                *self._OFFLINE_ENRICHMENT,
+            ],
+        )
+        assert r.exit_code == 0, r.output
+        assert [call.args for call in mg.call_args_list] == [
+            ("django", "5.2"),
+            ("django", "6.0"),
+        ]
+        data = json.loads(r.output)
+        assert data["status"] == "success"
+        assert {
+            "group": "artifacts",
+            "kind": "artifact_yanked_changed",
+            "subject": "sdist .tar.gz",
+            "before": False,
+            "after": True,
+            "expected": False,
+        } in data["result"]["diff"]["changes"]
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.remote_get_package")
+    def test_artifact_failure_is_partial_not_fatal(
+        self, mr: MagicMock, mg: MagicMock
+    ) -> None:
+        from peta.core.remote import NetworkError
+
+        mr.side_effect = [
+            _pkg(name="django", version="5.2", source="remote"),
+            _pkg(name="django", version="6.0", source="remote"),
+        ]
+        mg.side_effect = [(self._release("5.2"), _LIVE), NetworkError("down")]
+        r = runner.invoke(
+            app,
+            [
+                "compare",
+                "django==5.2",
+                "django==6.0",
+                "--artifacts",
+                "--json",
+                *self._OFFLINE_ENRICHMENT,
+            ],
+        )
+        assert r.exit_code == 0, r.output
+        data = json.loads(r.output)
+        assert data["status"] == "partial"
+        assert data["result"]["diff"]["unknown"][0] == {
+            "group": "artifacts",
+            "reason": "django 6.0: Network error: down",
+        }
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.local_get_package")
+    def test_python_target_compatibility_is_unknown(
+        self, ml: MagicMock, mg: MagicMock
+    ) -> None:
+        """A named interpreter's ABI tags cannot be rebuilt, so it is not judged."""
+        ml.return_value = _pkg()
+        mg.return_value = (self._release("5.2"), _LIVE)
+        r = runner.invoke(
+            app,
+            [
+                "compare",
+                "requests",
+                "requests",
+                "--local",
+                "--python",
+                sys.executable,
+                "--artifacts",
+                "--json",
+            ],
+        )
+        assert r.exit_code == 0, r.output
+        assert json.loads(r.output)["result"]["diff"]["unknown"] == [
+            {
+                "group": "artifacts",
+                "reason": (
+                    "wheel compatibility not evaluated for a --python target, "
+                    "whose ABI and platform tags cannot be reconstructed"
+                ),
+            }
+        ]
+
+    def test_path_only_target_is_judged_as_the_running_python(
+        self, tmp_path: Path
+    ) -> None:
+        from peta.cli.commands.compare import _artifact_target
+        from peta.core.local import LocalTarget
+
+        target, gap = _artifact_target(LocalTarget.create(None, (str(tmp_path),)))
+        assert (target.python, gap) == (None, None)
+
+    def test_non_cpython_target_is_not_judged(self) -> None:
+        from peta.cli.commands.compare import _artifact_target
+        from peta.core.local import LocalTarget
+
+        pypy = LocalTarget(
+            None,
+            "/opt/pypy/bin/python",
+            {"implementation_name": "pypy", "python_version": "3.11"},
+        )
+        _, gap = _artifact_target(pypy)
+        assert gap is not None
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.local_get_package")
+    def test_artifacts_without_a_target_use_the_running_python(
+        self, ml: MagicMock, mg: MagicMock
+    ) -> None:
+        ml.return_value = _pkg()
+        mg.return_value = (self._release("5.2"), _LIVE)
+        r = runner.invoke(app, ["compare", "requests", "requests", "--artifacts"])
+        assert r.exit_code == 0, r.output
+        assert {call.kwargs["target"].python for call in mg.call_args_list} == {None}
+
+    @patch("peta.core.resolve.local_get_package")
+    def test_no_osv_marks_installed_advisories_unknown(self, ml: MagicMock) -> None:
+        ml.return_value = _pkg()
+        r = runner.invoke(
+            app, ["compare", "requests", "requests", "--no-osv", "--json"]
+        )
+        assert r.exit_code == 0, r.output
+        assert json.loads(r.output)["result"]["diff"]["unknown"] == [
+            {
+                "group": "vulnerabilities",
+                "reason": "advisory lookup skipped for requests, requests (--no-osv)",
+            }
+        ]
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.local_get_package")
+    def test_unpublished_release_is_unknown(self, ml: MagicMock, mg: MagicMock) -> None:
+        ml.return_value = _pkg()
+        mg.return_value = (None, _LIVE)
+        r = runner.invoke(
+            app, ["compare", "requests", "requests", "--artifacts", "--format", "text"]
+        )
+        assert r.exit_code == 0
+        assert "? unknown: requests 2.31.0 is not published on PyPI\n" in r.output
+
+    @patch("peta.cli.commands.compare.get_release")
+    @patch("peta.core.resolve.local_get_package")
+    def test_unpublished_release_is_an_empty_lookup_not_a_failure(
+        self, ml: MagicMock, mg: MagicMock
+    ) -> None:
+        ml.return_value = _pkg()
+        mg.return_value = (None, _LIVE)
+        r = runner.invoke(
+            app,
+            [
+                "compare",
+                "requests",
+                "requests",
+                "--artifacts",
+                "--json",
+                *self._OFFLINE_ENRICHMENT,
+            ],
+        )
+        assert r.exit_code == 0
+        data = json.loads(r.output)
+        assert data["status"] == "success"
+        assert data["warnings"] == []
+        listing = [s for s in data["sources"] if s["fields"] == ["result.diff"]]
+        assert {(s["state"], s["retrieved_at"]) for s in listing} == {
+            ("empty", _LIVE.retrieved_at)
+        }
+        unknown = {e["group"] for e in data["result"]["diff"]["unknown"]}
+        assert {"artifacts", "provenance"} <= unknown
+
+
 class TestDeps:
     @patch("peta.core.resolve.local_get_package")
     def test_deps(self, m: MagicMock) -> None:

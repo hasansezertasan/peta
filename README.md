@@ -92,7 +92,8 @@ peta files rich               # files installed locally
 peta versions httpx           # published versions on PyPI
 peta artifacts cryptography   # what the latest release ships
 peta artifacts numpy==2.3.0 --files --python 3.12
-peta compare requests httpx   # side-by-side metadata comparison
+peta compare requests httpx   # side-by-side comparison plus semantic changes
+peta compare django==5.2 django==6.0 --changes-only  # what an upgrade changes
 peta requests --format json   # versioned machine-readable output
 peta requests --json          # compatibility alias for --format json
 ```
@@ -118,6 +119,8 @@ peta requests --json          # compatibility alias for --format json
 | `--platform <plat>` | deps | target platform (e.g. win32, linux, darwin) |
 | `--no-osv` | info, compare | skip OSV vulnerability lookup |
 | `--no-stats` | info, compare | skip download/dependent count lookups |
+| `--changes-only` | compare | show only the grouped semantic changes |
+| `--artifacts` | compare | also compare release dates, artifacts, and provenance |
 | `--no-color` | (root) | disable colored output (also via `NO_COLOR`) |
 | `--version` / `-V` | (root) | print version and exit |
 

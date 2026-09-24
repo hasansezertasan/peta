@@ -210,7 +210,8 @@ def test_each_command_envelope_snapshot() -> None:
                         "dependent_count": None,
                         "source": "local",
                     },
-                ]
+                ],
+                "diff": {"changes": [], "unknown": []},
             },
         },
         "deps": {

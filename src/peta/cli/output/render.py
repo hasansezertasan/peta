@@ -11,6 +11,8 @@ from peta.cli.output.selection import OutputFormat
 if TYPE_CHECKING:
     from peta.core.artifacts import ReleaseArtifacts
     from peta.core.cache import Freshness
+    from peta.core.changes import ChangeSet
+    from peta.core.diff import ReleaseEvidence
     from peta.core.local import LocalTarget
     from peta.core.models import DependencyNode, PackageInfo
 
@@ -96,19 +98,29 @@ def render_compare(
     *,
     arguments: dict[str, object],
     color: bool,
+    diff: ChangeSet | None = None,
+    releases: tuple[ReleaseEvidence, ReleaseEvidence] | None = None,
+    changes_only: bool = False,
 ) -> str:
     """Render a package comparison in the selected format.
+
+    ``changes_only`` affects the human formats only: JSON always carries both
+    packages and the change list, which is already changed-only.
 
     Returns:
         The rendered output.
     """
     if output_format == OutputFormat.JSON:
-        return json.format_compare(a, b, arguments=arguments)
+        return json.format_compare(
+            a, b, diff=diff, releases=releases, arguments=arguments
+        )
     if output_format == OutputFormat.MARKDOWN:
-        return _plain_output(markdown.format_compare(a, b))
+        return _plain_output(
+            markdown.format_compare(a, b, diff, changes_only=changes_only)
+        )
     if output_format == OutputFormat.TEXT:
-        return _plain_output(text.format_compare(a, b))
-    return tables.render_compare(a, b, color=color)
+        return _plain_output(text.format_compare(a, b, diff, changes_only=changes_only))
+    return tables.render_compare(a, b, diff, color=color, changes_only=changes_only)
 
 
 def render_dep_tree(

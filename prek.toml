@@ -139,9 +139,13 @@ hooks = [
   # httpx is here because src/ subclasses httpx.RequestError. Without it the
   # module resolves to Any in the hook's isolated env, and strict mode's
   # disallow_subclassing_any rejects the subclass that tox's mypy accepts.
+  # packaging is pinned to the runtime floor: the hook would otherwise get
+  # whatever version typer/httpx pull in, and one without typed
+  # ``canonicalize_version`` or ``packaging.licenses`` fails strict mode.
   { id = "mypy", name = "Mypy Type Checker", files = "^src/", additional_dependencies = [
     "typer",
     "httpx",
+    "packaging>=24.2",
   ] },
 ]
 

@@ -9,6 +9,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
+from peta.cli.output.changes import sections
 from peta.cli.output.console import inline, render as _render
 from peta.cli.output.summary import (
     file_flags,
@@ -17,6 +18,7 @@ from peta.cli.output.summary import (
     summary_rows,
     verdict,
 )
+from peta.core.diff import diff_packages
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -24,6 +26,7 @@ if TYPE_CHECKING:
     from rich.console import RenderableType
 
     from peta.core.artifacts import ReleaseArtifacts
+    from peta.core.changes import ChangeSet
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -251,19 +254,58 @@ def _compare_rows(a: PackageInfo, b: PackageInfo) -> list[tuple[str, str, str]]:
     return fields
 
 
-def render_compare(a: PackageInfo, b: PackageInfo, *, color: bool) -> str:
-    """Render two :class:`PackageInfo` objects as a side-by-side Rich table.
+def _change_block(diff: ChangeSet) -> str:
+    """List a diff's changes, grouped, with unchanged groups left out.
 
     Returns:
-        The comparison table rendered as text.
+        The block as inert plain lines.
     """
+    groups = sections(diff)
+    if not groups:
+        return _lines(["Changes: none"])
+    lines = ["Changes:"]
+    for section in groups:
+        lines.append(f"  {section.title}")
+        if section.unknown:
+            lines.append(f"    ? unknown: {section.unknown}")
+        lines.extend(
+            f"    {line.symbol} {line.subject}"
+            + (f": {line.detail}" if line.detail else "")
+            for line in section.lines
+        )
+        if section.expected_note:
+            lines.append(f"    · {section.expected_note}")
+    return _lines(lines)
+
+
+def render_compare(
+    a: PackageInfo,
+    b: PackageInfo,
+    diff: ChangeSet | None = None,
+    *,
+    color: bool,
+    changes_only: bool = False,
+) -> str:
+    """Render two :class:`PackageInfo` objects as a side-by-side Rich table.
+
+    The grouped semantic changes follow the table; ``changes_only`` drops the
+    table and shows only them.
+
+    Returns:
+        The comparison rendered as text.
+    """
+    changes = _change_block(diff or diff_packages(a, b))
+    if changes_only:
+        title = _lines([f"{a.name} {a.version} → {b.name} {b.version}"])
+        return f"{title}\n\n{changes}{_enrichment_block(a, b)}"
     table = Table(title=Text(f"{a.name} vs {b.name}"))
     table.add_column("Field", style="bold cyan")
     table.add_column(Text(a.name))
     table.add_column(Text(b.name))
     for label, a_value, b_value in _compare_rows(a, b):
         table.add_row(label, a_value, b_value)
-    return _to_string(table, color=color) + _enrichment_block(a, b)
+    rendered = _to_string(table, color=color)
+    return f"{rendered}\n\n{changes}{_enrichment_block(a, b)}"
 
 
 def render_versions(name: str, versions: list[dict[str, str]], *, color: bool) -> str:

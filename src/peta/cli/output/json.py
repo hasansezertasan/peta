@@ -6,6 +6,7 @@ import json
 from dataclasses import replace
 from typing import TYPE_CHECKING
 
+from peta.core.diff import diff_packages
 from peta.core.output import (
     EnvelopeStatus,
     OutputMessage,
@@ -20,6 +21,8 @@ if TYPE_CHECKING:
 
     from peta.core.artifacts import ArtifactFile, Publisher, ReleaseArtifacts
     from peta.core.cache import Freshness
+    from peta.core.changes import ChangeSet
+    from peta.core.diff import ReleaseEvidence
     from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
     from peta.core.output import CommandName, MessageCode
 
@@ -246,7 +249,7 @@ def _dump(data: dict[str, object]) -> str:
     return json.dumps(data, indent=2)
 
 
-def _package_envelope(
+def _package_envelope(  # ruff: ignore[too-many-arguments]
     command: CommandName,
     packages: list[PackageInfo],
     result: object,
@@ -256,9 +259,11 @@ def _package_envelope(
     empty: bool = False,
     include_enrichment: bool = True,
     result_paths: list[str] | None = None,
+    extra_sources: list[SourceRecord] | None = None,
+    extra_warnings: list[OutputMessage] | None = None,
 ) -> str:
     timestamp = generated_at or utc_now()
-    warnings = _warnings(packages, result_paths)
+    warnings = [*_warnings(packages, result_paths), *(extra_warnings or [])]
     status: EnvelopeStatus = (
         "partial" if warnings else ("empty" if empty else "success")
     )
@@ -267,13 +272,16 @@ def _package_envelope(
         arguments=arguments,
         status=status,
         result=result,
-        sources=_source_records(
-            packages,
-            arguments,
-            timestamp,
-            include_enrichment=include_enrichment,
-            result_paths=result_paths,
-        ),
+        sources=[
+            *_source_records(
+                packages,
+                arguments,
+                timestamp,
+                include_enrichment=include_enrichment,
+                result_paths=result_paths,
+            ),
+            *(extra_sources or []),
+        ],
         warnings=warnings,
         generated_at=timestamp,
     )
@@ -300,25 +308,119 @@ def format_info(
     )
 
 
+def _diff_dict(diff: ChangeSet) -> dict[str, object]:
+    """Represent a semantic diff as its change and unknown-group records.
+
+    Returns:
+        The ``result.diff`` mapping.
+    """
+    return {
+        "changes": [
+            {
+                "group": change.group,
+                "kind": change.kind,
+                "subject": change.subject,
+                "before": change.before,
+                "after": change.after,
+                "expected": change.expected,
+            }
+            for change in diff.changes
+        ],
+        "unknown": [
+            {"group": entry.group, "reason": entry.reason} for entry in diff.unknown
+        ],
+    }
+
+
+def _release_record(
+    pkg: PackageInfo, evidence: ReleaseEvidence, timestamp: str
+) -> SourceRecord:
+    """Record one side's artifact listing lookup.
+
+    A release PyPI does not list is ``empty``, not ``failed``: the source
+    answered, and the answer was that there is nothing to list.
+
+    Returns:
+        A ``pypi`` record for the listing: successful, empty, or failed.
+    """
+    target = f"{pkg.name} {pkg.version}"
+    fields = ["result.diff"]
+    retrieval = evidence.retrieval
+    if evidence.release is None and retrieval is None:
+        return SourceRecord(
+            name="pypi",
+            state="failed",
+            target=target,
+            reason=evidence.reason,
+            fields=fields,
+        )
+    listed = evidence.release is not None and bool(evidence.release.files)
+    return SourceRecord(
+        name="pypi",
+        state="success" if listed else "empty",
+        target=target,
+        retrieved_at=retrieval.retrieved_at if retrieval else timestamp,
+        freshness=retrieval.freshness if retrieval else None,
+        reason=evidence.reason,
+        fields=fields,
+    )
+
+
+def _release_warnings(
+    releases: tuple[ReleaseEvidence, ReleaseEvidence] | None,
+) -> list[OutputMessage]:
+    return [
+        OutputMessage(code="enrichment_failed", message=side.reason, source="pypi")
+        for side in releases or ()
+        if side.release is None and side.retrieval is None and side.reason
+    ]
+
+
 def format_compare(
     a: PackageInfo,
     b: PackageInfo,
     *,
+    diff: ChangeSet | None = None,
+    releases: tuple[ReleaseEvidence, ReleaseEvidence] | None = None,
     arguments: dict[str, object] | None = None,
     generated_at: str | None = None,
 ) -> str:
-    """Format two packages in the versioned JSON envelope.
+    """Format two packages and their semantic diff in the versioned envelope.
+
+    ``result.diff.changes`` lists only what changed, each record with a stable
+    ``kind`` and its ``before``/``after`` values; ``result.diff.unknown`` names
+    the groups a side had no evidence for. With ``releases``, each side's
+    artifact listing is recorded as a ``pypi`` source, and a failed listing
+    makes the envelope ``partial`` rather than failing the comparison.
 
     Returns:
         An indented JSON string.
     """
+    timestamp = generated_at or utc_now()
+    # Built from ``releases`` when no diff is given, so the change list can
+    # never disagree with the artifact sources recorded beside it.
+    semantic = diff or diff_packages(
+        a,
+        b,
+        a_release=releases[0] if releases else None,
+        b_release=releases[1] if releases else None,
+        osv_skipped=(arguments or {}).get("no_osv") is True,
+    )
     return _package_envelope(
         "compare",
         [a, b],
-        {"packages": [_package_dict(a), _package_dict(b)]},
+        {
+            "packages": [_package_dict(a), _package_dict(b)],
+            "diff": _diff_dict(semantic),
+        },
         arguments=arguments,
-        generated_at=generated_at,
+        generated_at=timestamp,
         result_paths=["result.packages[0]", "result.packages[1]"],
+        extra_sources=[
+            _release_record(pkg, side, timestamp)
+            for pkg, side in zip((a, b), releases or (), strict=False)
+        ],
+        extra_warnings=_release_warnings(releases),
     )
 
 
