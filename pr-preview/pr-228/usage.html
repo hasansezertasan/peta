@@ -564,7 +564,9 @@ up as a change: project and extra names follow PEP 503 (<code class="docutils li
 (<code class="docutils literal notranslate"><span class="pre">&gt;=1.0,&lt;2</span></code> equals <code class="docutils literal notranslate"><span class="pre">&lt;2,</span> <span class="pre">&gt;=1.0.0</span></code>), markers compare in normalized form,
 and license expressions are canonicalized as SPDX. A dependency whose
 specifier, marker, or extras moved is reported as one structured change rather
-than as a different count. Extra-gated entries are tracked per extra, and a
+than as a different count. A move to or from a direct URL reference is always
+reported as its own change, since it changes where the dependency installs
+from. Extra-gated entries are tracked per extra, and a
 dependency listed once per marker branch is compared as a set of whole
 requirements. Extras are derived from the markers that gate dependencies, so
 an extra that gates nothing is not reported. Advisories are matched by id or

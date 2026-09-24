@@ -232,7 +232,9 @@ up as a change: project and extra names follow PEP 503 (``Django`` and
 (``>=1.0,<2`` equals ``<2, >=1.0.0``), markers compare in normalized form,
 and license expressions are canonicalized as SPDX. A dependency whose
 specifier, marker, or extras moved is reported as one structured change rather
-than as a different count. Extra-gated entries are tracked per extra, and a
+than as a different count. A move to or from a direct URL reference is always
+reported as its own change, since it changes where the dependency installs
+from. Extra-gated entries are tracked per extra, and a
 dependency listed once per marker branch is compared as a set of whole
 requirements. Extras are derived from the markers that gate dependencies, so
 an extra that gates nothing is not reported. Advisories are matched by id or
