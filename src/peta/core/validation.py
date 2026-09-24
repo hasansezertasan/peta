@@ -54,6 +54,15 @@ a body of 64. The largest real document measured, ``grpcio``'s JSON, holds
 about 225,000 values, so this leaves ample room while capping that cost.
 """
 
+MAX_JSON_CONTAINERS = 300_000
+"""Most objects and arrays accepted across a whole untrusted document.
+
+Separate from :data:`MAX_JSON_VALUES` because containers cost far more to
+build than scalars: 6.7 MiB of one-entry objects ``{"":0}`` sits exactly at
+the value budget yet decodes to 184 MiB of dictionaries. The largest real
+document measured, grpcio's Simple API page, holds about 42,000.
+"""
+
 MAX_JSON_DEPTH = 100
 """Deepest nesting accepted from an untrusted response.
 
@@ -189,8 +198,10 @@ def _shape_breach(stripped: str) -> str | None:
     # so this is an upper bound on the values json.loads would build — and
     # ``str.count`` runs in C, so the whole-document check costs next to
     # nothing before the per-collection walk.
-    values = stripped.count(",") + stripped.count("[") + stripped.count("{")
-    if values > MAX_JSON_VALUES:
+    containers = stripped.count("[") + stripped.count("{")
+    if containers > MAX_JSON_CONTAINERS:
+        return f"{MAX_JSON_CONTAINERS:,} objects and arrays in total"
+    if stripped.count(",") + containers > MAX_JSON_VALUES:
         return f"{MAX_JSON_VALUES:,} values in total"
     open_counts = [0]
     for match in _STRUCTURAL.finditer(stripped):
@@ -242,7 +253,8 @@ def json_body(response: httpx.Response, *, source: str) -> object:
 
     Raises:
         ResponseLimitError: If the body nests past :data:`MAX_JSON_DEPTH`,
-            holds more than :data:`MAX_JSON_VALUES` values, has any array or
+            holds more than :data:`MAX_JSON_VALUES` values or
+            :data:`MAX_JSON_CONTAINERS` objects and arrays, has any array or
             object with more than :data:`MAX_COLLECTION_ITEMS` items, or any
             string longer than :data:`MAX_STRING_LENGTH`.
     """

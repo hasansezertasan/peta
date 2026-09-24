@@ -93,7 +93,9 @@ Every provider must preserve these invariants when it is added or changed:
   document is limited to 2,000,000 values, because the per-collection limit
   resets for every collection and dozens of arrays just under it fit in the
   body limit; the largest real document measured, ``grpcio``'s JSON, holds
-  about 225,000. Nesting is limited to 100 levels.
+  about 225,000. Objects and arrays have a much lower budget of their own,
+  300,000, because a container costs far more to build than a scalar: 6.7 MiB
+  of one-entry objects decodes to 184 MiB. Nesting is limited to 100 levels.
 * Nesting, item counts, and string lengths are all measured *before* decoding,
   by one scan of the raw text — decoded from bytes exactly as ``json.loads``
   would decode them, and handed to the parser as that same text. Reading the

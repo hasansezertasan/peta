@@ -166,6 +166,17 @@ class TestCollectionSizeBeforeDecoding:
         with pytest.raises(validation.ResponseLimitError, match="10 values in total"):
             _ = validation.json_body(_response(body), source="test")
 
+    def test_containers_meet_a_budget_of_their_own(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # An object costs far more to build than a number: a million one-entry
+        # objects sit exactly at the value budget yet decode to 184 MiB.
+        monkeypatch.setattr(validation, "MAX_JSON_CONTAINERS", 5)
+        body = json.dumps({"padding": [{"": 0}] * 6}).encode()
+
+        with pytest.raises(validation.ResponseLimitError, match="objects and arrays"):
+            _ = validation.json_body(_response(body), source="test")
+
     def test_the_limit_is_per_collection_not_per_document(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
