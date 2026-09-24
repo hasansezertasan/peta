@@ -215,19 +215,39 @@ class TestDependencies:
         assert changes[0].before == 'numpy>=2.1; python_version >= "3.13"'
         assert changes[1].after == 'numpy>=2.2; python_version >= "3.13"'
 
-    def test_direct_url_change_reports_the_requirement(self) -> None:
+    def test_direct_url_change(self) -> None:
         a = _pkg(dependencies=["pkg @ https://example.com/pkg-1.whl"])
         b = _pkg(dependencies=["pkg @ https://example.com/pkg-2.whl"])
-        changes = diff_packages(a, b).in_group("dependencies")
-        assert changes == [
+        assert diff_packages(a, b).in_group("dependencies") == [
             Change(
                 "dependencies",
-                "dependency_specifier_changed",
+                "dependency_url_changed",
                 "pkg",
-                "pkg @ https://example.com/pkg-1.whl",
-                "pkg @ https://example.com/pkg-2.whl",
+                "https://example.com/pkg-1.whl",
+                "https://example.com/pkg-2.whl",
             )
         ]
+
+    def test_url_change_is_not_hidden_by_a_specifier_change(self) -> None:
+        """Moving to a direct reference changes the install source."""
+        a = _pkg(dependencies=["pkg>=1"])
+        b = _pkg(dependencies=["pkg @ https://example.com/pkg.whl"])
+        assert diff_packages(a, b).in_group("dependencies") == [
+            Change(
+                "dependencies",
+                "dependency_url_changed",
+                "pkg",
+                None,
+                "https://example.com/pkg.whl",
+            ),
+            Change("dependencies", "dependency_specifier_changed", "pkg", ">=1", "any"),
+        ]
+
+    def test_url_change_is_not_hidden_by_a_marker_change(self) -> None:
+        a = _pkg(dependencies=["pkg @ https://example.com/a.whl ; os_name == 'nt'"])
+        b = _pkg(dependencies=["pkg @ https://example.com/b.whl ; os_name == 'posix'"])
+        kinds = _kinds(diff_packages(a, b).in_group("dependencies"))
+        assert kinds == ["dependency_url_changed", "dependency_marker_changed"]
 
     def test_unparsable_entry_is_kept_verbatim(self) -> None:
         a = _pkg(dependencies=["not a requirement !!"])
@@ -493,6 +513,24 @@ class TestArtifacts:
         )
         assert [(c.kind, c.subject, c.expected) for c in changes] == [
             ("artifact_hash_changed", "sdist .zip", True)
+        ]
+
+    def test_build_tagged_wheels_pair_with_the_same_build(self) -> None:
+        a = _evidence(
+            "1.0",
+            _file("pkg-1.0-1-py3-none-any.whl", tags=("py3-none-any",)),
+            _file("pkg-1.0-2-py3-none-any.whl", tags=("py3-none-any",)),
+        )
+        b = _evidence(
+            "2.0",
+            _file("pkg-2.0-2-py3-none-any.whl", tags=("py3-none-any",), size=5),
+            _file("pkg-2.0-1-py3-none-any.whl", tags=("py3-none-any",)),
+        )
+        changes = diff_packages(_pkg(), _pkg(), a_release=a, b_release=b).in_group(
+            "artifacts"
+        )
+        assert [(c.kind, c.subject, c.expected) for c in changes] == [
+            ("artifact_size_changed", "wheel py3-none-any build 2", True)
         ]
 
     def test_hash_change_on_the_same_filename(self) -> None:

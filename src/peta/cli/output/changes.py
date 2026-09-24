@@ -30,6 +30,7 @@ GROUP_TITLES: dict[ChangeGroup, str] = {
 }
 
 _LABELS: dict[ChangeKind, str] = {
+    "dependency_url_changed": "url",
     "dependency_specifier_changed": "specifier",
     "dependency_marker_changed": "marker",
     "dependency_extras_changed": "extras",

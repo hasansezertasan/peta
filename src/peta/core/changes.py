@@ -54,6 +54,7 @@ ChangeKind = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
         "python_requires_changed",
         "dependency_added",
         "dependency_removed",
+        "dependency_url_changed",
         "dependency_specifier_changed",
         "dependency_marker_changed",
         "dependency_extras_changed",

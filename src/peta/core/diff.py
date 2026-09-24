@@ -29,7 +29,12 @@ from typing import TYPE_CHECKING, Literal
 from packaging.licenses import InvalidLicenseExpression, canonicalize_license_expression
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import InvalidSpecifier, Specifier, SpecifierSet
-from packaging.utils import canonicalize_name, canonicalize_version
+from packaging.utils import (
+    InvalidWheelFilename,
+    canonicalize_name,
+    canonicalize_version,
+    parse_wheel_filename,
+)
 
 from peta.core.changes import CHANGE_GROUPS, Change, ChangeSet, Unknown
 
@@ -318,29 +323,35 @@ def _take(
 
 
 def _paired_changes(slot: str, a: _Dependency, b: _Dependency) -> Iterator[Change]:
-    if a.identity == b.identity:
-        return
-    fields: tuple[tuple[ChangeKind, Value, Value], ...] = (
-        ("dependency_specifier_changed", _spec_text(a), _spec_text(b)),
-        ("dependency_marker_changed", a.marker, b.marker),
-        ("dependency_extras_changed", list(a.extras), list(b.extras)),
+    """Diff one dependency present on both sides, field by field.
+
+    A direct URL is reported as its own change whenever it moves, even when
+    another field moved with it: switching a dependency to or from a direct
+    reference changes where it is installed from, and folding that into a
+    specifier change (``>=1 → any``) would hide it.
+
+    Yields:
+        One change per field that differs.
+    """
+    fields: tuple[tuple[ChangeKind, bool, Value, Value], ...] = (
+        ("dependency_url_changed", a.url != b.url, a.url, b.url),
+        (
+            "dependency_specifier_changed",
+            a.specifier != b.specifier,
+            _spec_text(a),
+            _spec_text(b),
+        ),
+        ("dependency_marker_changed", a.marker != b.marker, a.marker, b.marker),
+        (
+            "dependency_extras_changed",
+            a.extras != b.extras,
+            list(a.extras),
+            list(b.extras),
+        ),
     )
-    changed: list[tuple[ChangeKind, Value, Value]] = [
-        (kind, before, after)
-        for (kind, before, after), differs in zip(
-            fields,
-            (a.specifier != b.specifier, a.marker != b.marker, a.extras != b.extras),
-            strict=True,
-        )
-        if differs
-    ]
-    # Same specifier, marker and extras: only a direct URL moved. Report the
-    # whole requirement so the difference is still visible.
-    fallback: list[tuple[ChangeKind, Value, Value]] = [
-        ("dependency_specifier_changed", a.text, b.text)
-    ]
-    for kind, before, after in changed or fallback:
-        yield Change("dependencies", kind, slot, before, after)
+    for kind, differs, before, after in fields:
+        if differs:
+            yield Change("dependencies", kind, slot, before, after)
 
 
 def _spec_text(dependency: _Dependency) -> str:
@@ -558,20 +569,38 @@ def _slot(file: ArtifactFile) -> str:
     Filenames embed the version, so ``django-5.2`` and ``django-6.0`` share no
     filename; what they share is the slot — a wheel for the same tags, or the
     source distribution in the same archive format. The format is part of the
-    slot because older projects publish both ``.tar.gz`` and ``.zip``, and one
-    shared slot would pair whichever the index listed first.
+    slot because older projects publish both ``.tar.gz`` and ``.zip``, and a
+    wheel's build tag is part of it because a release can ship several builds
+    for the same tags; one shared slot would pair whichever the index listed
+    first, and push the rest out to version-bearing filename keys.
 
     Returns:
         The file's slot.
     """
     if file.kind == "wheel" and file.tags:
-        return f"wheel {'.'.join(sorted(file.tags))}"
+        return f"wheel {'.'.join(sorted(file.tags))}{_build_suffix(file.filename)}"
     if file.kind == "sdist":
         suffix = next(
             (s for s in _SDIST_SUFFIXES if file.filename.lower().endswith(s)), ""
         )
         return f"sdist {suffix}".rstrip()
     return file.filename
+
+
+def _build_suffix(filename: str) -> str:
+    """Name a wheel's build tag, which filenames of different releases share.
+
+    Returns:
+        `` build <tag>`` for a build-tagged wheel, otherwise nothing.
+    """
+    try:
+        _, _, build, _ = parse_wheel_filename(filename)
+    except InvalidWheelFilename:
+        return ""
+    # Joined rather than indexed: packaging types the tag as
+    # ``tuple[()] | tuple[int, str]``, which not every checker narrows.
+    tag = "".join(str(part) for part in build)
+    return f" build {tag}" if tag else ""
 
 
 def _by_artifact_slot(files: list[ArtifactFile]) -> dict[str, ArtifactFile]:
