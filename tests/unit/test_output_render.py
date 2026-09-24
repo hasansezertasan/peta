@@ -11,12 +11,18 @@ from __future__ import annotations
 import json
 
 import pytest
+from rich.style import Style
+from rich.text import Text
 
+from peta.cli.output.console import render
 from peta.cli.output.render import (
     render_artifacts,
+    render_compare,
+    render_dep_tree,
     render_files,
     render_info,
     render_target,
+    render_versions,
     render_why,
 )
 from peta.cli.output.selection import OutputFormat
@@ -250,3 +256,91 @@ def test_the_target_banner_is_inert_markdown_above_a_markdown_document() -> None
 
     assert "![x](" not in banner
     assert r"!\[x\](https://attacker.invalid/t)" in banner
+
+
+LINKED = "[link=https://attacker.invalid]safe[/link]"
+"""Rich markup for a hyperlink, as a package name or version."""
+
+
+class TestNoRendererEmitsAHyperlink:
+    """Some Rich renderables parse markup whatever the console is told.
+
+    ``Panel`` runs ``Text.from_markup`` on a string title, so a package named
+    with link markup produced a live OSC-8 hyperlink on a colour terminal even
+    with console markup off. Titles are now literal ``Text``, and links are
+    stripped from every rendered segment as well.
+    """
+
+    @staticmethod
+    def _assert_no_hyperlink(out: str) -> None:
+        assert "\x1b]8;" not in out
+        # Shown as literal text; checked in pieces because a narrow table
+        # wraps a long title across lines.
+        assert "[link=" in out
+        assert "safe[/link]" in out
+
+    def test_info_panel_title(self) -> None:
+        package = PackageInfo(name=LINKED, version="1.0", source="remote")
+
+        self._assert_no_hyperlink(
+            render_info(OutputFormat.RICH, package, arguments={}, color=True)
+        )
+
+    def test_artifacts_panel_title(self) -> None:
+        wheel = ArtifactFile(
+            filename="pkg-1.0.whl",
+            url="https://files.invalid/pkg-1.0.whl",
+            kind="wheel",
+            compatibility=Compatibility(compatible=True),
+        )
+        release = ReleaseArtifacts(
+            name=LINKED, version="1.0", target=Target("3.13"), files=[wheel]
+        )
+
+        self._assert_no_hyperlink(
+            render_artifacts(
+                OutputFormat.RICH,
+                release,
+                arguments={},
+                color=True,
+                detailed=False,
+                retrieved_at="2026-01-01T00:00:00Z",
+            )
+        )
+
+    def test_compare_title_and_headers(self) -> None:
+        a = PackageInfo(name=LINKED, version="1.0", source="remote")
+        b = PackageInfo(name="other", version="2.0", source="remote")
+
+        self._assert_no_hyperlink(
+            render_compare(OutputFormat.RICH, a, b, arguments={}, color=True)
+        )
+
+    def test_versions_title(self) -> None:
+        out = render_versions(
+            OutputFormat.RICH,
+            LINKED,
+            [{"version": "1.0", "upload_time": "2026-01-01"}],
+            arguments={},
+            color=True,
+            retrieved_at="2026-01-01T00:00:00Z",
+        )
+
+        self._assert_no_hyperlink(out)
+
+    def test_dependency_tree_labels(self) -> None:
+        root = DependencyNode(LINKED, "", children=[DependencyNode(LINKED, ">=1")])
+
+        self._assert_no_hyperlink(
+            render_dep_tree(OutputFormat.RICH, root, arguments={}, color=True)
+        )
+
+    def test_the_console_strips_links_from_any_renderable(self) -> None:
+        # The backstop: even a renderable built with a link style on purpose
+        # cannot put a hyperlink on the terminal.
+        text = Text("click", style=Style(link="https://attacker.invalid"))
+
+        out = render(text, color=True)
+
+        assert "\x1b]8;" not in out
+        assert "click" in out

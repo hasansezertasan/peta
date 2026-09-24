@@ -80,16 +80,26 @@ def resolve_color(*, no_color: bool) -> bool:
 
 
 def _hardened(segment: Segment) -> Segment:
-    """Make one rendered segment's text inert, leaving its style alone.
+    """Make one rendered segment inert, keeping the rest of its style.
 
     Safe to do after Rich has measured and padded the row: every control
     character this removes is one Rich already counted as occupying no cells,
     so the table's borders stay where Rich put them.
 
+    Any hyperlink is dropped from the style too. peta never links anything
+    itself, and some renderables parse markup whatever the console says —
+    ``Panel`` runs ``Text.from_markup`` on a string title — so a package named
+    ``[link=https://...]safe[/link]`` could otherwise have Rich emit a live
+    OSC-8 hyperlink. Dropping links here closes that for every renderable,
+    including ones added later.
+
     Returns:
-        The segment with its text made safe.
+        The segment with its text made safe and no hyperlink.
     """
-    return Segment(sanitize_terminal(segment.text), segment.style, segment.control)
+    style = segment.style
+    if style is not None and style.link:
+        style = style.update_link(None)
+    return Segment(sanitize_terminal(segment.text), style, segment.control)
 
 
 def render(renderable: RenderableType, *, color: bool, width: int = 100) -> str:

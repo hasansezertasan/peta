@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 from rich.tree import Tree
 
 from peta.cli.output.console import inline, render as _render
@@ -147,8 +148,8 @@ def render_info(pkg: PackageInfo, *, color: bool) -> str:
     source_label = "local" if pkg.source == "local" else "pypi"
     panel = Panel(
         _info_table(pkg),
-        title=f"{pkg.name} {pkg.version}",
-        subtitle=f"source: {source_label}",
+        title=Text(f"{pkg.name} {pkg.version}"),
+        subtitle=Text(f"source: {source_label}"),
     )
     return _to_string(panel, color=color) + _vuln_block(pkg) + _enrichment_block(pkg)
 
@@ -166,7 +167,7 @@ def _node_label(node: DependencyNode) -> str:
 
 def _add_children(branch: Tree, node: DependencyNode) -> None:
     for child in node.children:
-        _add_children(branch.add(_node_label(child)), child)
+        _add_children(branch.add(Text(_node_label(child))), child)
 
 
 def render_dep_tree(node: DependencyNode, *, color: bool) -> str:
@@ -178,7 +179,7 @@ def render_dep_tree(node: DependencyNode, *, color: bool) -> str:
     root_label = f"Declared metadata tree: {node.name} {node.selected_version}".rstrip()
     if node.state != "satisfied":
         root_label += f" ({node.state.replace('_', ' ')})"
-    tree = Tree(root_label)
+    tree = Tree(Text(root_label))
     _add_children(tree, node)
     return _to_string(tree, color=color)
 
@@ -256,10 +257,10 @@ def render_compare(a: PackageInfo, b: PackageInfo, *, color: bool) -> str:
     Returns:
         The comparison table rendered as text.
     """
-    table = Table(title=f"{a.name} vs {b.name}")
+    table = Table(title=Text(f"{a.name} vs {b.name}"))
     table.add_column("Field", style="bold cyan")
-    table.add_column(a.name)
-    table.add_column(b.name)
+    table.add_column(Text(a.name))
+    table.add_column(Text(b.name))
     for label, a_value, b_value in _compare_rows(a, b):
         table.add_row(label, a_value, b_value)
     return _to_string(table, color=color) + _enrichment_block(a, b)
@@ -271,7 +272,7 @@ def render_versions(name: str, versions: list[dict[str, str]], *, color: bool) -
     Returns:
         The version table rendered as text.
     """
-    table = Table(title=f"{name} versions ({len(versions)} shown)")
+    table = Table(title=Text(f"{name} versions ({len(versions)} shown)"))
     table.add_column("Version", style="bold")
     table.add_column("Released")
     for v in versions:
@@ -361,7 +362,7 @@ def render_artifacts(
     for label, value in summary_rows(release):
         table.add_row(label, value)
     panel = Panel(
-        table, title=f"{release.name} {release.version}", subtitle="artifacts"
+        table, title=Text(f"{release.name} {release.version}"), subtitle="artifacts"
     )
     rendered = _to_string(panel, color=color)
     if detailed:
