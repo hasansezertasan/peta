@@ -143,7 +143,11 @@ Every provider must preserve these invariants when it is added or changed:
   index chose. The target-environment banner, printed outside the formatters,
   goes through the same boundary: it names paths from ``--path`` and from the
   target interpreter's ``sys.path``, and it is escaped as Markdown when it
-  heads a Markdown document. Doing it to finished Rich output instead cannot
+  heads a Markdown document. Rich markup is off on the console, but some
+  renderables parse it regardless — ``Panel`` runs ``Text.from_markup`` on a
+  string title — so titles and labels built from package data are literal
+  ``Text``, and every rendered segment has any hyperlink stripped, since peta
+  never links anything itself. Doing it to finished Rich output instead cannot
   work — peta's own styling is escape sequences too, and cannot be told apart
   from an attacker's.
 * Credentials are absent from errors, logs, snapshots, cache keys, cache

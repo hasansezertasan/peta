@@ -172,85 +172,90 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="49"><span class="n">_MAX_QUERY_FIELDS</span> <span class="o">=</span> <span class="mi">1000</span>
 </span><span data-line="50"><span class="sd">"""Most query fields a URL may have before its query is dropped unparsed."""</span>
 </span><span data-line="51">
-</span><span data-line="52"><span class="n">_USERINFO</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^(https?://)[^/@]*@"</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
-</span><span data-line="53"><span class="sd">"""The ``user:password@`` part of a URL too malformed for ``urlsplit``."""</span>
+</span><span data-line="52"><span class="n">_USERINFO</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"^(https?://)[^/?#]*@"</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+</span><span data-line="53"><span class="sd">"""The ``user:password@`` part of a URL too malformed for ``urlsplit``.</span>
 </span><span data-line="54">
-</span><span data-line="55"><span class="n">_URL_IN_TEXT</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"https?://[^\s'</span><span class="se">\"</span><span class="s2">]+"</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
-</span><span data-line="56"><span class="sd">"""URLs that can appear inside an error message or other diagnostic string.</span>
-</span><span data-line="57">
-</span><span data-line="58"><span class="sd">Case-insensitive because URL schemes are: ``HTTPS://…?token=…`` is as real a</span>
-</span><span data-line="59"><span class="sd">URL as the lowercase spelling, and matching only that let it pass unredacted.</span>
-</span><span data-line="60"><span class="sd">"""</span>
-</span><span data-line="61">
+</span><span data-line="55"><span class="sd">Stops only at the characters that end an authority, so the greedy match</span>
+</span><span data-line="56"><span class="sd">backs up to the *last* ``@`` — the same one :func:`redacted` splits on. A raw</span>
+</span><span data-line="57"><span class="sd">``@`` in a password used to end the match early and leave the rest behind.</span>
+</span><span data-line="58"><span class="sd">"""</span>
+</span><span data-line="59">
+</span><span data-line="60"><span class="n">_URL_IN_TEXT</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">compile</span><span class="p">(</span><span class="sa">r</span><span class="s2">"https?://[^\s'</span><span class="se">\"</span><span class="s2">]+"</span><span class="p">,</span> <span class="n">re</span><span class="o">.</span><span class="n">IGNORECASE</span><span class="p">)</span>
+</span><span data-line="61"><span class="sd">"""URLs that can appear inside an error message or other diagnostic string.</span>
 </span><span data-line="62">
+</span><span data-line="63"><span class="sd">Case-insensitive because URL schemes are: ``HTTPS://…?token=…`` is as real a</span>
+</span><span data-line="64"><span class="sd">URL as the lowercase spelling, and matching only that let it pass unredacted.</span>
+</span><span data-line="65"><span class="sd">"""</span>
+</span><span data-line="66">
+</span><span data-line="67">
 <div class="viewcode-block" id="redacted">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.redacted">[docs]</a>
-</span><span data-line="63"><span class="k">def</span><span class="w"> </span><span class="nf">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="64"><span class="w">    </span><span class="sd">"""Rewrite a URL with credential-bearing query parameters removed.</span>
-</span><span data-line="65">
-</span><span data-line="66"><span class="sd">    Public because the cache is not the only place a request URL is retained:</span>
-</span><span data-line="67"><span class="sd">    an error that names the URL it could not answer would otherwise carry the</span>
-</span><span data-line="68"><span class="sd">    credential into a message, a log, or a traceback.</span>
-</span><span data-line="69">
-</span><span data-line="70"><span class="sd">    Args:</span>
-</span><span data-line="71"><span class="sd">        url: A request URL, possibly carrying a credential.</span>
-</span><span data-line="72">
-</span><span data-line="73"><span class="sd">    Returns:</span>
-</span><span data-line="74"><span class="sd">        The URL without userinfo, and with any parameter named in</span>
-</span><span data-line="75"><span class="sd">        :data:`_CREDENTIAL_PARAMS` dropped.</span>
-</span><span data-line="76"><span class="sd">    """</span>
-</span><span data-line="77">    <span class="n">parts</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="78">    <span class="k">if</span> <span class="s2">"@"</span> <span class="ow">in</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">:</span>
-</span><span data-line="79">        <span class="c1"># ``https://{user}:{token}@index/`` is how a private index is usually</span>
-</span><span data-line="80">        <span class="c1"># configured, and the userinfo is the credential itself.</span>
-</span><span data-line="81">        <span class="n">parts</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">netloc</span><span class="o">=</span><span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">rpartition</span><span class="p">(</span><span class="s2">"@"</span><span class="p">)[</span><span class="mi">2</span><span class="p">])</span>
-</span><span data-line="82">        <span class="n">url</span> <span class="o">=</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
-</span><span data-line="83">    <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">:</span>
-</span><span data-line="84">        <span class="k">return</span> <span class="n">url</span>
-</span><span data-line="85">    <span class="k">if</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">"&amp;"</span><span class="p">)</span> <span class="o">+</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">";"</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">_MAX_QUERY_FIELDS</span><span class="p">:</span>
-</span><span data-line="86">        <span class="c1"># Dropped whole, unread. A diagnostic can quote a URL an index chose,</span>
-</span><span data-line="87">        <span class="c1"># and parsing millions of empty fields would allocate a tuple for</span>
-</span><span data-line="88">        <span class="c1"># each before anything was reported; no real URL has this many.</span>
-</span><span data-line="89">        <span class="k">return</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="s2">""</span><span class="p">))</span>
-</span><span data-line="90">    <span class="c1"># Split on ``;`` as well as ``&amp;`` rather than through ``parse_qsl``, which</span>
-</span><span data-line="91">    <span class="c1"># only splits on ``&amp;``: ``?ok=1;token=s3cret`` read as one field named</span>
-</span><span data-line="92">    <span class="c1"># ``ok`` and kept the token. Each field is judged by its decoded name, so</span>
-</span><span data-line="93">    <span class="c1"># ``%74oken`` is caught too, and a kept field passes through verbatim.</span>
-</span><span data-line="94">    <span class="n">kept</span> <span class="o">=</span> <span class="p">[</span>
-</span><span data-line="95">        <span class="n">field</span>
-</span><span data-line="96">        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">_QUERY_SEPARATOR</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
-</span><span data-line="97">        <span class="k">if</span> <span class="n">unquote_plus</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">"="</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_CREDENTIAL_PARAMS</span>
-</span><span data-line="98">    <span class="p">]</span>
-</span><span data-line="99">    <span class="k">return</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="s2">"&amp;"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">kept</span><span class="p">)))</span></div>
+</span><span data-line="68"><span class="k">def</span><span class="w"> </span><span class="nf">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="69"><span class="w">    </span><span class="sd">"""Rewrite a URL with credential-bearing query parameters removed.</span>
+</span><span data-line="70">
+</span><span data-line="71"><span class="sd">    Public because the cache is not the only place a request URL is retained:</span>
+</span><span data-line="72"><span class="sd">    an error that names the URL it could not answer would otherwise carry the</span>
+</span><span data-line="73"><span class="sd">    credential into a message, a log, or a traceback.</span>
+</span><span data-line="74">
+</span><span data-line="75"><span class="sd">    Args:</span>
+</span><span data-line="76"><span class="sd">        url: A request URL, possibly carrying a credential.</span>
+</span><span data-line="77">
+</span><span data-line="78"><span class="sd">    Returns:</span>
+</span><span data-line="79"><span class="sd">        The URL without userinfo, and with any parameter named in</span>
+</span><span data-line="80"><span class="sd">        :data:`_CREDENTIAL_PARAMS` dropped.</span>
+</span><span data-line="81"><span class="sd">    """</span>
+</span><span data-line="82">    <span class="n">parts</span> <span class="o">=</span> <span class="n">urlsplit</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="83">    <span class="k">if</span> <span class="s2">"@"</span> <span class="ow">in</span> <span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="p">:</span>
+</span><span data-line="84">        <span class="c1"># ``https://{user}:{token}@index/`` is how a private index is usually</span>
+</span><span data-line="85">        <span class="c1"># configured, and the userinfo is the credential itself.</span>
+</span><span data-line="86">        <span class="n">parts</span> <span class="o">=</span> <span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">netloc</span><span class="o">=</span><span class="n">parts</span><span class="o">.</span><span class="n">netloc</span><span class="o">.</span><span class="n">rpartition</span><span class="p">(</span><span class="s2">"@"</span><span class="p">)[</span><span class="mi">2</span><span class="p">])</span>
+</span><span data-line="87">        <span class="n">url</span> <span class="o">=</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span>
+</span><span data-line="88">    <span class="k">if</span> <span class="ow">not</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">:</span>
+</span><span data-line="89">        <span class="k">return</span> <span class="n">url</span>
+</span><span data-line="90">    <span class="k">if</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">"&amp;"</span><span class="p">)</span> <span class="o">+</span> <span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="o">.</span><span class="n">count</span><span class="p">(</span><span class="s2">";"</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">_MAX_QUERY_FIELDS</span><span class="p">:</span>
+</span><span data-line="91">        <span class="c1"># Dropped whole, unread. A diagnostic can quote a URL an index chose,</span>
+</span><span data-line="92">        <span class="c1"># and parsing millions of empty fields would allocate a tuple for</span>
+</span><span data-line="93">        <span class="c1"># each before anything was reported; no real URL has this many.</span>
+</span><span data-line="94">        <span class="k">return</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="s2">""</span><span class="p">))</span>
+</span><span data-line="95">    <span class="c1"># Split on ``;`` as well as ``&amp;`` rather than through ``parse_qsl``, which</span>
+</span><span data-line="96">    <span class="c1"># only splits on ``&amp;``: ``?ok=1;token=s3cret`` read as one field named</span>
+</span><span data-line="97">    <span class="c1"># ``ok`` and kept the token. Each field is judged by its decoded name, so</span>
+</span><span data-line="98">    <span class="c1"># ``%74oken`` is caught too, and a kept field passes through verbatim.</span>
+</span><span data-line="99">    <span class="n">kept</span> <span class="o">=</span> <span class="p">[</span>
+</span><span data-line="100">        <span class="n">field</span>
+</span><span data-line="101">        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">_QUERY_SEPARATOR</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">query</span><span class="p">)</span>
+</span><span data-line="102">        <span class="k">if</span> <span class="n">unquote_plus</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">partition</span><span class="p">(</span><span class="s2">"="</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">_CREDENTIAL_PARAMS</span>
+</span><span data-line="103">    <span class="p">]</span>
+</span><span data-line="104">    <span class="k">return</span> <span class="n">urlunsplit</span><span class="p">(</span><span class="n">parts</span><span class="o">.</span><span class="n">_replace</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="s2">"&amp;"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">kept</span><span class="p">)))</span></div>
 
-</span><span data-line="100">
-</span><span data-line="101">
-</span><span data-line="102"><span class="k">def</span><span class="w"> </span><span class="nf">_redacted_match</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="103"><span class="w">    </span><span class="sd">"""Redact one URL found inside free text, however malformed it is.</span>
-</span><span data-line="104">
-</span><span data-line="105"><span class="sd">    :func:`redacted` parses, and a URL lifted out of untrusted metadata need</span>
-</span><span data-line="106"><span class="sd">    not parse — ``https://[`` alone raises. Dropping the query outright is the</span>
-</span><span data-line="107"><span class="sd">    safe answer for one of those: the credential cannot survive, and text that</span>
-</span><span data-line="108"><span class="sd">    was never a real URL loses nothing that mattered.</span>
+</span><span data-line="105">
+</span><span data-line="106">
+</span><span data-line="107"><span class="k">def</span><span class="w"> </span><span class="nf">_redacted_match</span><span class="p">(</span><span class="n">url</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="108"><span class="w">    </span><span class="sd">"""Redact one URL found inside free text, however malformed it is.</span>
 </span><span data-line="109">
-</span><span data-line="110"><span class="sd">    Returns:</span>
-</span><span data-line="111"><span class="sd">        The URL with credential-bearing parameters removed.</span>
-</span><span data-line="112"><span class="sd">    """</span>
-</span><span data-line="113">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="114">        <span class="k">return</span> <span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
-</span><span data-line="115">    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-</span><span data-line="116">        <span class="k">return</span> <span class="n">_USERINFO</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">"\1"</span><span class="p">,</span> <span class="n">url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"?"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
-</span><span data-line="117">
-</span><span data-line="118">
+</span><span data-line="110"><span class="sd">    :func:`redacted` parses, and a URL lifted out of untrusted metadata need</span>
+</span><span data-line="111"><span class="sd">    not parse — ``https://[`` alone raises. Dropping the query outright is the</span>
+</span><span data-line="112"><span class="sd">    safe answer for one of those: the credential cannot survive, and text that</span>
+</span><span data-line="113"><span class="sd">    was never a real URL loses nothing that mattered.</span>
+</span><span data-line="114">
+</span><span data-line="115"><span class="sd">    Returns:</span>
+</span><span data-line="116"><span class="sd">        The URL with credential-bearing parameters removed.</span>
+</span><span data-line="117"><span class="sd">    """</span>
+</span><span data-line="118">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="119">        <span class="k">return</span> <span class="n">redacted</span><span class="p">(</span><span class="n">url</span><span class="p">)</span>
+</span><span data-line="120">    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+</span><span data-line="121">        <span class="k">return</span> <span class="n">_USERINFO</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="sa">r</span><span class="s2">"\1"</span><span class="p">,</span> <span class="n">url</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"?"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+</span><span data-line="122">
+</span><span data-line="123">
 <div class="viewcode-block" id="redacted_text">
 <a class="viewcode-back" href="../../../modules.html#peta.core.cache.redacted_text">[docs]</a>
-</span><span data-line="119"><span class="k">def</span><span class="w"> </span><span class="nf">redacted_text</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span data-line="120"><span class="w">    </span><span class="sd">"""Redact credentials from every URL embedded in an arbitrary string.</span>
-</span><span data-line="121">
-</span><span data-line="122"><span class="sd">    Returns:</span>
-</span><span data-line="123"><span class="sd">        The original text with credentials removed from each HTTP(S) URL.</span>
-</span><span data-line="124"><span class="sd">    """</span>
-</span><span data-line="125">    <span class="k">return</span> <span class="n">_URL_IN_TEXT</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="k">lambda</span> <span class="n">match</span><span class="p">:</span> <span class="n">_redacted_match</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">()),</span> <span class="n">value</span><span class="p">)</span></div>
+</span><span data-line="124"><span class="k">def</span><span class="w"> </span><span class="nf">redacted_text</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+</span><span data-line="125"><span class="w">    </span><span class="sd">"""Redact credentials from every URL embedded in an arbitrary string.</span>
+</span><span data-line="126">
+</span><span data-line="127"><span class="sd">    Returns:</span>
+</span><span data-line="128"><span class="sd">        The original text with credentials removed from each HTTP(S) URL.</span>
+</span><span data-line="129"><span class="sd">    """</span>
+</span><span data-line="130">    <span class="k">return</span> <span class="n">_URL_IN_TEXT</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="k">lambda</span> <span class="n">match</span><span class="p">:</span> <span class="n">_redacted_match</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">()),</span> <span class="n">value</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">

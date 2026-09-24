@@ -263,7 +263,11 @@ human is held to one line the same way, since its message can quote text an
 index chose. The target-environment banner, printed outside the formatters,
 goes through the same boundary: it names paths from <code class="docutils literal notranslate"><span class="pre">--path</span></code> and from the
 target interpreter’s <code class="docutils literal notranslate"><span class="pre">sys.path</span></code>, and it is escaped as Markdown when it
-heads a Markdown document. Doing it to finished Rich output instead cannot
+heads a Markdown document. Rich markup is off on the console, but some
+renderables parse it regardless — <code class="docutils literal notranslate"><span class="pre">Panel</span></code> runs <code class="docutils literal notranslate"><span class="pre">Text.from_markup</span></code> on a
+string title — so titles and labels built from package data are literal
+<code class="docutils literal notranslate"><span class="pre">Text</span></code>, and every rendered segment has any hyperlink stripped, since peta
+never links anything itself. Doing it to finished Rich output instead cannot
 work — peta’s own styling is escape sequences too, and cannot be told apart
 from an attacker’s.</p></li>
 <li><p>Credentials are absent from errors, logs, snapshots, cache keys, cache
