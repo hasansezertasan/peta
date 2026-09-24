@@ -133,7 +133,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="10"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.output.render</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_compare</span><span class="p">,</span> <span class="n">render_target</span>
 </span><span data-line="11"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.cli.output.selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">OutputFormat</span><span class="p">,</span> <span class="n">fail</span><span class="p">,</span> <span class="n">resolve_or_fail</span>
 </span><span data-line="12"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">http</span>
-</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.artifacts</span><span class="w"> </span><span class="kn">import</span> <span class="n">Target</span><span class="p">,</span> <span class="n">get_release</span><span class="p">,</span> <span class="n">parse_target</span>
+</span><span data-line="13"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.artifacts</span><span class="w"> </span><span class="kn">import</span> <span class="n">Target</span><span class="p">,</span> <span class="n">get_release</span>
 </span><span data-line="14"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.concurrency</span><span class="w"> </span><span class="kn">import</span> <span class="n">gather</span>
 </span><span data-line="15"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.diff</span><span class="w"> </span><span class="kn">import</span> <span class="n">ReleaseEvidence</span><span class="p">,</span> <span class="n">diff_packages</span>
 </span><span data-line="16"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.enrich</span><span class="w"> </span><span class="kn">import</span> <span class="n">enrich</span>
@@ -183,189 +183,191 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="60">    <span class="k">except</span> <span class="p">(</span><span class="n">NetworkError</span><span class="p">,</span> <span class="n">http</span><span class="o">.</span><span class="n">OfflineError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
 </span><span data-line="61">        <span class="k">return</span> <span class="n">ReleaseEvidence</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">exc</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span data-line="62">    <span class="k">if</span> <span class="n">release</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="63">        <span class="k">return</span> <span class="n">ReleaseEvidence</span><span class="p">(</span>
-</span><span data-line="64">            <span class="n">reason</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2"> is not published on PyPI"</span>
-</span><span data-line="65">        <span class="p">)</span>
-</span><span data-line="66">    <span class="k">return</span> <span class="n">ReleaseEvidence</span><span class="p">(</span>
-</span><span data-line="67">        <span class="n">release</span><span class="o">=</span><span class="n">release</span><span class="p">,</span>
-</span><span data-line="68">        <span class="n">retrieval</span><span class="o">=</span><span class="n">retrieval</span><span class="p">,</span>
-</span><span data-line="69">        <span class="n">compatibility_unknown</span><span class="o">=</span><span class="n">compatibility_unknown</span><span class="p">,</span>
-</span><span data-line="70">    <span class="p">)</span>
-</span><span data-line="71">
-</span><span data-line="72">
-</span><span data-line="73"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_target</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Target</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
-</span><span data-line="74"><span class="w">    </span><span class="sd">"""Judge wheel compatibility against the Python the comparison is about.</span>
+</span><span data-line="63">        <span class="c1"># PyPI answered: this is a completed lookup that found nothing, so</span>
+</span><span data-line="64">        <span class="c1"># the retrieval is kept and the listing is recorded as empty rather</span>
+</span><span data-line="65">        <span class="c1"># than failed.</span>
+</span><span data-line="66">        <span class="k">return</span> <span class="n">ReleaseEvidence</span><span class="p">(</span>
+</span><span data-line="67">            <span class="n">retrieval</span><span class="o">=</span><span class="n">retrieval</span><span class="p">,</span>
+</span><span data-line="68">            <span class="n">reason</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">pkg</span><span class="o">.</span><span class="n">version</span><span class="si">}</span><span class="s2"> is not published on PyPI"</span><span class="p">,</span>
+</span><span data-line="69">        <span class="p">)</span>
+</span><span data-line="70">    <span class="k">return</span> <span class="n">ReleaseEvidence</span><span class="p">(</span>
+</span><span data-line="71">        <span class="n">release</span><span class="o">=</span><span class="n">release</span><span class="p">,</span>
+</span><span data-line="72">        <span class="n">retrieval</span><span class="o">=</span><span class="n">retrieval</span><span class="p">,</span>
+</span><span data-line="73">        <span class="n">compatibility_unknown</span><span class="o">=</span><span class="n">compatibility_unknown</span><span class="p">,</span>
+</span><span data-line="74">    <span class="p">)</span>
 </span><span data-line="75">
-</span><span data-line="76"><span class="sd">    With ``--python`` that is the named interpreter's version, not the one</span>
-</span><span data-line="77"><span class="sd">    running peta; without it, the two are the same. :class:`Target` builds</span>
-</span><span data-line="78"><span class="sd">    CPython tags for a named version, so a non-CPython target is not judged</span>
-</span><span data-line="79"><span class="sd">    at all: evaluating a PyPy interpreter as CPython would produce confident,</span>
-</span><span data-line="80"><span class="sd">    wrong verdicts.</span>
-</span><span data-line="81">
-</span><span data-line="82"><span class="sd">    Returns:</span>
-</span><span data-line="83"><span class="sd">        The compatibility target, and why its verdicts cannot be trusted, if</span>
-</span><span data-line="84"><span class="sd">        they cannot.</span>
-</span><span data-line="85"><span class="sd">    """</span>
-</span><span data-line="86">    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="87">        <span class="k">return</span> <span class="n">Target</span><span class="p">(),</span> <span class="kc">None</span>
-</span><span data-line="88">    <span class="n">markers</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">marker_environment</span>
-</span><span data-line="89">    <span class="n">implementation</span> <span class="o">=</span> <span class="n">markers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"implementation_name"</span><span class="p">,</span> <span class="s2">"cpython"</span><span class="p">)</span>
-</span><span data-line="90">    <span class="k">if</span> <span class="n">implementation</span> <span class="o">!=</span> <span class="s2">"cpython"</span><span class="p">:</span>
-</span><span data-line="91">        <span class="k">return</span> <span class="n">Target</span><span class="p">(),</span> <span class="p">(</span>
-</span><span data-line="92">            <span class="sa">f</span><span class="s2">"wheel compatibility not evaluated for a </span><span class="si">{</span><span class="n">implementation</span><span class="si">}</span><span class="s2"> target"</span>
-</span><span data-line="93">        <span class="p">)</span>
-</span><span data-line="94">    <span class="k">return</span> <span class="n">parse_target</span><span class="p">(</span><span class="n">markers</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"python_version"</span><span class="p">)),</span> <span class="kc">None</span>
-</span><span data-line="95">
-</span><span data-line="96">
-</span><span data-line="97"><span class="k">def</span><span class="w"> </span><span class="nf">_fetch_releases</span><span class="p">(</span>
-</span><span data-line="98">    <span class="n">a_pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">b_pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span>
-</span><span data-line="99"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ReleaseEvidence</span><span class="p">,</span> <span class="n">ReleaseEvidence</span><span class="p">]:</span>
-</span><span data-line="100"><span class="w">    </span><span class="sd">"""Fetch both sides' artifact listings at once.</span>
-</span><span data-line="101">
-</span><span data-line="102"><span class="sd">    Returns:</span>
-</span><span data-line="103"><span class="sd">        The two listings, in argument order.</span>
-</span><span data-line="104"><span class="sd">    """</span>
-</span><span data-line="105">    <span class="n">evaluated</span><span class="p">,</span> <span class="n">gap</span> <span class="o">=</span> <span class="n">_artifact_target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
-</span><span data-line="106">    <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="n">gather</span><span class="p">([</span>
-</span><span data-line="107">        <span class="n">partial</span><span class="p">(</span><span class="n">_release_evidence</span><span class="p">,</span> <span class="n">a_pkg</span><span class="p">,</span> <span class="n">evaluated</span><span class="p">,</span> <span class="n">gap</span><span class="p">),</span>
-</span><span data-line="108">        <span class="n">partial</span><span class="p">(</span><span class="n">_release_evidence</span><span class="p">,</span> <span class="n">b_pkg</span><span class="p">,</span> <span class="n">evaluated</span><span class="p">,</span> <span class="n">gap</span><span class="p">),</span>
-</span><span data-line="109">    <span class="p">])</span>
-</span><span data-line="110">    <span class="k">return</span> <span class="n">first</span><span class="p">,</span> <span class="n">second</span>
-</span><span data-line="111">
-</span><span data-line="112">
+</span><span data-line="76">
+</span><span data-line="77"><span class="k">def</span><span class="w"> </span><span class="nf">_artifact_target</span><span class="p">(</span><span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">Target</span><span class="p">,</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]:</span>
+</span><span data-line="78"><span class="w">    </span><span class="sd">"""Choose what wheel compatibility is judged against, if anything.</span>
+</span><span data-line="79">
+</span><span data-line="80"><span class="sd">    Without ``--python`` the markers, and so the tags, are the running</span>
+</span><span data-line="81"><span class="sd">    interpreter's, and :class:`Target` evaluates exactly those. A named</span>
+</span><span data-line="82"><span class="sd">    interpreter is not judged: its marker values give its version and</span>
+</span><span data-line="83"><span class="sd">    platform but not its ABI, so its tags — free-threaded, 32-bit, or not</span>
+</span><span data-line="84"><span class="sd">    CPython at all — cannot be rebuilt faithfully, and approximating them</span>
+</span><span data-line="85"><span class="sd">    with the host's would produce confident, wrong verdicts.</span>
+</span><span data-line="86">
+</span><span data-line="87"><span class="sd">    Returns:</span>
+</span><span data-line="88"><span class="sd">        The compatibility target, and why its verdicts cannot be trusted, if</span>
+</span><span data-line="89"><span class="sd">        they cannot.</span>
+</span><span data-line="90"><span class="sd">    """</span>
+</span><span data-line="91">    <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">interpreter</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="92">        <span class="k">return</span> <span class="n">Target</span><span class="p">(),</span> <span class="kc">None</span>
+</span><span data-line="93">    <span class="k">return</span> <span class="n">Target</span><span class="p">(),</span> <span class="p">(</span>
+</span><span data-line="94">        <span class="s2">"wheel compatibility not evaluated for a --python target, "</span>
+</span><span data-line="95">        <span class="s2">"whose ABI and platform tags cannot be reconstructed"</span>
+</span><span data-line="96">    <span class="p">)</span>
+</span><span data-line="97">
+</span><span data-line="98">
+</span><span data-line="99"><span class="k">def</span><span class="w"> </span><span class="nf">_fetch_releases</span><span class="p">(</span>
+</span><span data-line="100">    <span class="n">a_pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">b_pkg</span><span class="p">:</span> <span class="n">PackageInfo</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span>
+</span><span data-line="101"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">ReleaseEvidence</span><span class="p">,</span> <span class="n">ReleaseEvidence</span><span class="p">]:</span>
+</span><span data-line="102"><span class="w">    </span><span class="sd">"""Fetch both sides' artifact listings at once.</span>
+</span><span data-line="103">
+</span><span data-line="104"><span class="sd">    Returns:</span>
+</span><span data-line="105"><span class="sd">        The two listings, in argument order.</span>
+</span><span data-line="106"><span class="sd">    """</span>
+</span><span data-line="107">    <span class="n">evaluated</span><span class="p">,</span> <span class="n">gap</span> <span class="o">=</span> <span class="n">_artifact_target</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="108">    <span class="n">first</span><span class="p">,</span> <span class="n">second</span> <span class="o">=</span> <span class="n">gather</span><span class="p">([</span>
+</span><span data-line="109">        <span class="n">partial</span><span class="p">(</span><span class="n">_release_evidence</span><span class="p">,</span> <span class="n">a_pkg</span><span class="p">,</span> <span class="n">evaluated</span><span class="p">,</span> <span class="n">gap</span><span class="p">),</span>
+</span><span data-line="110">        <span class="n">partial</span><span class="p">(</span><span class="n">_release_evidence</span><span class="p">,</span> <span class="n">b_pkg</span><span class="p">,</span> <span class="n">evaluated</span><span class="p">,</span> <span class="n">gap</span><span class="p">),</span>
+</span><span data-line="111">    <span class="p">])</span>
+</span><span data-line="112">    <span class="k">return</span> <span class="n">first</span><span class="p">,</span> <span class="n">second</span>
+</span><span data-line="113">
+</span><span data-line="114">
 <div class="viewcode-block" id="compare">
 <a class="viewcode-back" href="../../../../modules.html#peta.cli.commands.compare.compare">[docs]</a>
-</span><span data-line="113"><span class="k">def</span><span class="w"> </span><span class="nf">compare</span><span class="p">(</span>  <span class="c1"># ruff: ignore[complex-structure, too-many-arguments]</span>
-</span><span data-line="114">    <span class="n">a</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="115">    <span class="n">b</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
-</span><span data-line="116">    <span class="o">*</span><span class="p">,</span>
-</span><span data-line="117">    <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="118">    <span class="n">output_format</span><span class="p">:</span> <span class="n">OutputFormat</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="119">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="120">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="121">    <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="122">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="123">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="124">    <span class="n">python</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="125">    <span class="n">paths</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
-</span><span data-line="126">    <span class="n">changes_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="127">    <span class="n">artifacts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
-</span><span data-line="128"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="129"><span class="w">    </span><span class="sd">"""Compare two packages, or two releases of one, and explain what changed."""</span>
-</span><span data-line="130">    <span class="c1"># Recorded before the target is built so a rejected ``--python``/``--path``</span>
-</span><span data-line="131">    <span class="c1"># still appears in the error envelope; see the note in ``info``.</span>
-</span><span data-line="132">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-</span><span data-line="133">        <span class="s2">"a"</span><span class="p">:</span> <span class="n">a</span><span class="p">,</span>
-</span><span data-line="134">        <span class="s2">"b"</span><span class="p">:</span> <span class="n">b</span><span class="p">,</span>
-</span><span data-line="135">        <span class="s2">"local"</span><span class="p">:</span> <span class="n">local</span><span class="p">,</span>
-</span><span data-line="136">        <span class="s2">"remote"</span><span class="p">:</span> <span class="n">remote</span><span class="p">,</span>
-</span><span data-line="137">        <span class="s2">"no_osv"</span><span class="p">:</span> <span class="n">no_osv</span><span class="p">,</span>
-</span><span data-line="138">        <span class="s2">"no_stats"</span><span class="p">:</span> <span class="n">no_stats</span><span class="p">,</span>
-</span><span data-line="139">        <span class="s2">"python"</span><span class="p">:</span> <span class="n">python</span><span class="p">,</span>
-</span><span data-line="140">        <span class="s2">"paths"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">paths</span><span class="p">),</span>
-</span><span data-line="141">        <span class="s2">"changes_only"</span><span class="p">:</span> <span class="n">changes_only</span><span class="p">,</span>
-</span><span data-line="142">        <span class="s2">"artifacts"</span><span class="p">:</span> <span class="n">artifacts</span><span class="p">,</span>
-</span><span data-line="143">    <span class="p">}</span>
-</span><span data-line="144">    <span class="n">selected</span> <span class="o">=</span> <span class="n">resolve_or_fail</span><span class="p">(</span><span class="s2">"compare"</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">output_format</span><span class="p">,</span> <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">)</span>
-</span><span data-line="145">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="146">        <span class="c1"># Built before ``gather`` so an unusable target fails once, here,</span>
-</span><span data-line="147">        <span class="c1"># rather than racing as the same error out of two worker threads.</span>
-</span><span data-line="148">        <span class="c1"># ``python is not None`` rather than a truthiness test: ``--python ""``</span>
-</span><span data-line="149">        <span class="c1"># must be rejected as an unusable interpreter, not silently fall back</span>
-</span><span data-line="150">        <span class="c1"># to the environment running peta.</span>
-</span><span data-line="151">        <span class="n">target</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="152">            <span class="n">LocalTarget</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">python</span><span class="p">,</span> <span class="n">paths</span><span class="p">)</span> <span class="k">if</span> <span class="n">python</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">paths</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="153">        <span class="p">)</span>
-</span><span data-line="154">        <span class="k">if</span> <span class="n">target</span><span class="p">:</span>
-</span><span data-line="155">            <span class="n">arguments</span><span class="p">[</span><span class="n">TARGET_ENVIRONMENT_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">output_environment</span><span class="p">()</span>
-</span><span data-line="156">        <span class="c1"># Both sides at once: they are unrelated lookups, and waiting for the</span>
-</span><span data-line="157">        <span class="c1"># first before starting the second doubled the command's latency.</span>
-</span><span data-line="158">        <span class="c1"># ``gather`` returns them in the order asked for, so which package is</span>
-</span><span data-line="159">        <span class="c1"># rendered on which side never depends on which answered first.</span>
-</span><span data-line="160">        <span class="n">a_pkg</span><span class="p">,</span> <span class="n">b_pkg</span> <span class="o">=</span> <span class="n">gather</span><span class="p">([</span>
-</span><span data-line="161">            <span class="n">partial</span><span class="p">(</span>
-</span><span data-line="162">                <span class="n">_resolve_and_enrich</span><span class="p">,</span>
-</span><span data-line="163">                <span class="n">a</span><span class="p">,</span>
-</span><span data-line="164">                <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
-</span><span data-line="165">                <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
-</span><span data-line="166">                <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
-</span><span data-line="167">                <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
-</span><span data-line="168">                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
-</span><span data-line="169">            <span class="p">),</span>
-</span><span data-line="170">            <span class="n">partial</span><span class="p">(</span>
-</span><span data-line="171">                <span class="n">_resolve_and_enrich</span><span class="p">,</span>
-</span><span data-line="172">                <span class="n">b</span><span class="p">,</span>
-</span><span data-line="173">                <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
-</span><span data-line="174">                <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
-</span><span data-line="175">                <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
-</span><span data-line="176">                <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
-</span><span data-line="177">                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
-</span><span data-line="178">            <span class="p">),</span>
-</span><span data-line="179">        <span class="p">])</span>
-</span><span data-line="180">    <span class="k">except</span> <span class="n">_NOT_FOUND</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="181">        <span class="n">version</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-</span><span data-line="182">        <span class="c1"># Named ``missing`` rather than ``target``: that name now holds the</span>
-</span><span data-line="183">        <span class="c1"># LocalTarget for this invocation.</span>
-</span><span data-line="184">        <span class="n">missing</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">exc</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">==</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="n">exc</span><span class="o">.</span><span class="n">name</span>
-</span><span data-line="185">        <span class="n">fail</span><span class="p">(</span>
-</span><span data-line="186">            <span class="s2">"compare"</span><span class="p">,</span>
-</span><span data-line="187">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="188">            <span class="n">code</span><span class="o">=</span><span class="s2">"package_not_found"</span><span class="p">,</span>
-</span><span data-line="189">            <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">"Package '</span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">' not found."</span><span class="p">,</span>
-</span><span data-line="190">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
-</span><span data-line="191">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-</span><span data-line="192">            <span class="n">source</span><span class="o">=</span><span class="n">not_found_source</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
-</span><span data-line="193">        <span class="p">)</span>
-</span><span data-line="194">    <span class="k">except</span> <span class="p">(</span><span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="195">        <span class="n">fail</span><span class="p">(</span>
-</span><span data-line="196">            <span class="s2">"compare"</span><span class="p">,</span>
-</span><span data-line="197">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="198">            <span class="n">code</span><span class="o">=</span><span class="s2">"invalid_arguments"</span><span class="p">,</span>
-</span><span data-line="199">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
-</span><span data-line="200">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
-</span><span data-line="201">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span data-line="202">        <span class="p">)</span>
-</span><span data-line="203">    <span class="k">except</span> <span class="n">http</span><span class="o">.</span><span class="n">OfflineError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="204">        <span class="n">fail</span><span class="p">(</span>
-</span><span data-line="205">            <span class="s2">"compare"</span><span class="p">,</span>
-</span><span data-line="206">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="207">            <span class="n">code</span><span class="o">=</span><span class="s2">"offline_unavailable"</span><span class="p">,</span>
-</span><span data-line="208">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
-</span><span data-line="209">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
-</span><span data-line="210">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span data-line="211">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
-</span><span data-line="212">        <span class="p">)</span>
-</span><span data-line="213">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="214">        <span class="n">fail</span><span class="p">(</span>
-</span><span data-line="215">            <span class="s2">"compare"</span><span class="p">,</span>
-</span><span data-line="216">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="217">            <span class="n">code</span><span class="o">=</span><span class="s2">"network_error"</span><span class="p">,</span>
-</span><span data-line="218">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
-</span><span data-line="219">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
-</span><span data-line="220">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-</span><span data-line="221">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
-</span><span data-line="222">        <span class="p">)</span>
-</span><span data-line="223">    <span class="n">releases</span> <span class="o">=</span> <span class="n">_fetch_releases</span><span class="p">(</span><span class="n">a_pkg</span><span class="p">,</span> <span class="n">b_pkg</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="k">if</span> <span class="n">artifacts</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="224">    <span class="n">diff</span> <span class="o">=</span> <span class="n">diff_packages</span><span class="p">(</span>
-</span><span data-line="225">        <span class="n">a_pkg</span><span class="p">,</span>
-</span><span data-line="226">        <span class="n">b_pkg</span><span class="p">,</span>
-</span><span data-line="227">        <span class="n">a_release</span><span class="o">=</span><span class="n">releases</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">releases</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="228">        <span class="n">b_release</span><span class="o">=</span><span class="n">releases</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">releases</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="229">        <span class="n">osv_skipped</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
-</span><span data-line="230">    <span class="p">)</span>
-</span><span data-line="231">    <span class="n">rendered</span> <span class="o">=</span> <span class="n">render_compare</span><span class="p">(</span>
-</span><span data-line="232">        <span class="n">selected</span><span class="p">,</span>
-</span><span data-line="233">        <span class="n">a_pkg</span><span class="p">,</span>
-</span><span data-line="234">        <span class="n">b_pkg</span><span class="p">,</span>
-</span><span data-line="235">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
-</span><span data-line="236">        <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
-</span><span data-line="237">        <span class="n">diff</span><span class="o">=</span><span class="n">diff</span><span class="p">,</span>
-</span><span data-line="238">        <span class="n">releases</span><span class="o">=</span><span class="n">releases</span><span class="p">,</span>
-</span><span data-line="239">        <span class="n">changes_only</span><span class="o">=</span><span class="n">changes_only</span><span class="p">,</span>
-</span><span data-line="240">    <span class="p">)</span>
-</span><span data-line="241">    <span class="k">if</span> <span class="n">target</span> <span class="ow">and</span> <span class="n">selected</span> <span class="o">!=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">JSON</span><span class="p">:</span>
-</span><span data-line="242">        <span class="n">rendered</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">render_target</span><span class="p">(</span><span class="n">selected</span><span class="p">,</span><span class="w"> </span><span class="n">target</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">rendered</span><span class="si">}</span><span class="s2">"</span>
-</span><span data-line="243">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span></div>
+</span><span data-line="115"><span class="k">def</span><span class="w"> </span><span class="nf">compare</span><span class="p">(</span>  <span class="c1"># ruff: ignore[complex-structure, too-many-arguments]</span>
+</span><span data-line="116">    <span class="n">a</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="117">    <span class="n">b</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="118">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="119">    <span class="n">use_json</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="120">    <span class="n">output_format</span><span class="p">:</span> <span class="n">OutputFormat</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="121">    <span class="n">local</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="122">    <span class="n">remote</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="123">    <span class="n">color</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="124">    <span class="n">no_osv</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="125">    <span class="n">no_stats</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="126">    <span class="n">python</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="127">    <span class="n">paths</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">(),</span>
+</span><span data-line="128">    <span class="n">changes_only</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="129">    <span class="n">artifacts</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+</span><span data-line="130"><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="131"><span class="w">    </span><span class="sd">"""Compare two packages, or two releases of one, and explain what changed."""</span>
+</span><span data-line="132">    <span class="c1"># Recorded before the target is built so a rejected ``--python``/``--path``</span>
+</span><span data-line="133">    <span class="c1"># still appears in the error envelope; see the note in ``info``.</span>
+</span><span data-line="134">    <span class="n">arguments</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">object</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+</span><span data-line="135">        <span class="s2">"a"</span><span class="p">:</span> <span class="n">a</span><span class="p">,</span>
+</span><span data-line="136">        <span class="s2">"b"</span><span class="p">:</span> <span class="n">b</span><span class="p">,</span>
+</span><span data-line="137">        <span class="s2">"local"</span><span class="p">:</span> <span class="n">local</span><span class="p">,</span>
+</span><span data-line="138">        <span class="s2">"remote"</span><span class="p">:</span> <span class="n">remote</span><span class="p">,</span>
+</span><span data-line="139">        <span class="s2">"no_osv"</span><span class="p">:</span> <span class="n">no_osv</span><span class="p">,</span>
+</span><span data-line="140">        <span class="s2">"no_stats"</span><span class="p">:</span> <span class="n">no_stats</span><span class="p">,</span>
+</span><span data-line="141">        <span class="s2">"python"</span><span class="p">:</span> <span class="n">python</span><span class="p">,</span>
+</span><span data-line="142">        <span class="s2">"paths"</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="n">paths</span><span class="p">),</span>
+</span><span data-line="143">        <span class="s2">"changes_only"</span><span class="p">:</span> <span class="n">changes_only</span><span class="p">,</span>
+</span><span data-line="144">        <span class="s2">"artifacts"</span><span class="p">:</span> <span class="n">artifacts</span><span class="p">,</span>
+</span><span data-line="145">    <span class="p">}</span>
+</span><span data-line="146">    <span class="n">selected</span> <span class="o">=</span> <span class="n">resolve_or_fail</span><span class="p">(</span><span class="s2">"compare"</span><span class="p">,</span> <span class="n">arguments</span><span class="p">,</span> <span class="n">output_format</span><span class="p">,</span> <span class="n">use_json</span><span class="o">=</span><span class="n">use_json</span><span class="p">)</span>
+</span><span data-line="147">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="148">        <span class="c1"># Built before ``gather`` so an unusable target fails once, here,</span>
+</span><span data-line="149">        <span class="c1"># rather than racing as the same error out of two worker threads.</span>
+</span><span data-line="150">        <span class="c1"># ``python is not None`` rather than a truthiness test: ``--python ""``</span>
+</span><span data-line="151">        <span class="c1"># must be rejected as an unusable interpreter, not silently fall back</span>
+</span><span data-line="152">        <span class="c1"># to the environment running peta.</span>
+</span><span data-line="153">        <span class="n">target</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="154">            <span class="n">LocalTarget</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">python</span><span class="p">,</span> <span class="n">paths</span><span class="p">)</span> <span class="k">if</span> <span class="n">python</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">paths</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="155">        <span class="p">)</span>
+</span><span data-line="156">        <span class="k">if</span> <span class="n">target</span><span class="p">:</span>
+</span><span data-line="157">            <span class="n">arguments</span><span class="p">[</span><span class="n">TARGET_ENVIRONMENT_KEY</span><span class="p">]</span> <span class="o">=</span> <span class="n">target</span><span class="o">.</span><span class="n">output_environment</span><span class="p">()</span>
+</span><span data-line="158">        <span class="c1"># Both sides at once: they are unrelated lookups, and waiting for the</span>
+</span><span data-line="159">        <span class="c1"># first before starting the second doubled the command's latency.</span>
+</span><span data-line="160">        <span class="c1"># ``gather`` returns them in the order asked for, so which package is</span>
+</span><span data-line="161">        <span class="c1"># rendered on which side never depends on which answered first.</span>
+</span><span data-line="162">        <span class="n">a_pkg</span><span class="p">,</span> <span class="n">b_pkg</span> <span class="o">=</span> <span class="n">gather</span><span class="p">([</span>
+</span><span data-line="163">            <span class="n">partial</span><span class="p">(</span>
+</span><span data-line="164">                <span class="n">_resolve_and_enrich</span><span class="p">,</span>
+</span><span data-line="165">                <span class="n">a</span><span class="p">,</span>
+</span><span data-line="166">                <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="167">                <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="168">                <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
+</span><span data-line="169">                <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
+</span><span data-line="170">                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+</span><span data-line="171">            <span class="p">),</span>
+</span><span data-line="172">            <span class="n">partial</span><span class="p">(</span>
+</span><span data-line="173">                <span class="n">_resolve_and_enrich</span><span class="p">,</span>
+</span><span data-line="174">                <span class="n">b</span><span class="p">,</span>
+</span><span data-line="175">                <span class="n">local</span><span class="o">=</span><span class="n">local</span><span class="p">,</span>
+</span><span data-line="176">                <span class="n">remote</span><span class="o">=</span><span class="n">remote</span><span class="p">,</span>
+</span><span data-line="177">                <span class="n">no_osv</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
+</span><span data-line="178">                <span class="n">no_stats</span><span class="o">=</span><span class="n">no_stats</span><span class="p">,</span>
+</span><span data-line="179">                <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">,</span>
+</span><span data-line="180">            <span class="p">),</span>
+</span><span data-line="181">        <span class="p">])</span>
+</span><span data-line="182">    <span class="k">except</span> <span class="n">_NOT_FOUND</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="183">        <span class="n">version</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">exc</span><span class="p">,</span> <span class="s2">"version"</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span><span data-line="184">        <span class="c1"># Named ``missing`` rather than ``target``: that name now holds the</span>
+</span><span data-line="185">        <span class="c1"># LocalTarget for this invocation.</span>
+</span><span data-line="186">        <span class="n">missing</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">exc</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">==</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">version</span> <span class="k">else</span> <span class="n">exc</span><span class="o">.</span><span class="n">name</span>
+</span><span data-line="187">        <span class="n">fail</span><span class="p">(</span>
+</span><span data-line="188">            <span class="s2">"compare"</span><span class="p">,</span>
+</span><span data-line="189">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="190">            <span class="n">code</span><span class="o">=</span><span class="s2">"package_not_found"</span><span class="p">,</span>
+</span><span data-line="191">            <span class="n">message</span><span class="o">=</span><span class="sa">f</span><span class="s2">"Package '</span><span class="si">{</span><span class="n">missing</span><span class="si">}</span><span class="s2">' not found."</span><span class="p">,</span>
+</span><span data-line="192">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
+</span><span data-line="193">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+</span><span data-line="194">            <span class="n">source</span><span class="o">=</span><span class="n">not_found_source</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+</span><span data-line="195">        <span class="p">)</span>
+</span><span data-line="196">    <span class="k">except</span> <span class="p">(</span><span class="n">typer</span><span class="o">.</span><span class="n">BadParameter</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">)</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="197">        <span class="n">fail</span><span class="p">(</span>
+</span><span data-line="198">            <span class="s2">"compare"</span><span class="p">,</span>
+</span><span data-line="199">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="200">            <span class="n">code</span><span class="o">=</span><span class="s2">"invalid_arguments"</span><span class="p">,</span>
+</span><span data-line="201">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+</span><span data-line="202">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
+</span><span data-line="203">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span data-line="204">        <span class="p">)</span>
+</span><span data-line="205">    <span class="k">except</span> <span class="n">http</span><span class="o">.</span><span class="n">OfflineError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="206">        <span class="n">fail</span><span class="p">(</span>
+</span><span data-line="207">            <span class="s2">"compare"</span><span class="p">,</span>
+</span><span data-line="208">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="209">            <span class="n">code</span><span class="o">=</span><span class="s2">"offline_unavailable"</span><span class="p">,</span>
+</span><span data-line="210">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+</span><span data-line="211">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
+</span><span data-line="212">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span data-line="213">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
+</span><span data-line="214">        <span class="p">)</span>
+</span><span data-line="215">    <span class="k">except</span> <span class="n">NetworkError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="216">        <span class="n">fail</span><span class="p">(</span>
+</span><span data-line="217">            <span class="s2">"compare"</span><span class="p">,</span>
+</span><span data-line="218">            <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="219">            <span class="n">code</span><span class="o">=</span><span class="s2">"network_error"</span><span class="p">,</span>
+</span><span data-line="220">            <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">exc</span><span class="p">),</span>
+</span><span data-line="221">            <span class="n">output_format</span><span class="o">=</span><span class="n">selected</span><span class="p">,</span>
+</span><span data-line="222">            <span class="n">exit_code</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+</span><span data-line="223">            <span class="n">source</span><span class="o">=</span><span class="s2">"pypi"</span><span class="p">,</span>
+</span><span data-line="224">        <span class="p">)</span>
+</span><span data-line="225">    <span class="n">releases</span> <span class="o">=</span> <span class="n">_fetch_releases</span><span class="p">(</span><span class="n">a_pkg</span><span class="p">,</span> <span class="n">b_pkg</span><span class="p">,</span> <span class="n">target</span><span class="p">)</span> <span class="k">if</span> <span class="n">artifacts</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="226">    <span class="n">diff</span> <span class="o">=</span> <span class="n">diff_packages</span><span class="p">(</span>
+</span><span data-line="227">        <span class="n">a_pkg</span><span class="p">,</span>
+</span><span data-line="228">        <span class="n">b_pkg</span><span class="p">,</span>
+</span><span data-line="229">        <span class="n">a_release</span><span class="o">=</span><span class="n">releases</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">releases</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="230">        <span class="n">b_release</span><span class="o">=</span><span class="n">releases</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">releases</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="231">        <span class="n">osv_skipped</span><span class="o">=</span><span class="n">no_osv</span><span class="p">,</span>
+</span><span data-line="232">    <span class="p">)</span>
+</span><span data-line="233">    <span class="n">rendered</span> <span class="o">=</span> <span class="n">render_compare</span><span class="p">(</span>
+</span><span data-line="234">        <span class="n">selected</span><span class="p">,</span>
+</span><span data-line="235">        <span class="n">a_pkg</span><span class="p">,</span>
+</span><span data-line="236">        <span class="n">b_pkg</span><span class="p">,</span>
+</span><span data-line="237">        <span class="n">arguments</span><span class="o">=</span><span class="n">arguments</span><span class="p">,</span>
+</span><span data-line="238">        <span class="n">color</span><span class="o">=</span><span class="n">color</span><span class="p">,</span>
+</span><span data-line="239">        <span class="n">diff</span><span class="o">=</span><span class="n">diff</span><span class="p">,</span>
+</span><span data-line="240">        <span class="n">releases</span><span class="o">=</span><span class="n">releases</span><span class="p">,</span>
+</span><span data-line="241">        <span class="n">changes_only</span><span class="o">=</span><span class="n">changes_only</span><span class="p">,</span>
+</span><span data-line="242">    <span class="p">)</span>
+</span><span data-line="243">    <span class="k">if</span> <span class="n">target</span> <span class="ow">and</span> <span class="n">selected</span> <span class="o">!=</span> <span class="n">OutputFormat</span><span class="o">.</span><span class="n">JSON</span><span class="p">:</span>
+</span><span data-line="244">        <span class="n">rendered</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">render_target</span><span class="p">(</span><span class="n">selected</span><span class="p">,</span><span class="w"> </span><span class="n">target</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">rendered</span><span class="si">}</span><span class="s2">"</span>
+</span><span data-line="245">    <span class="n">typer</span><span class="o">.</span><span class="n">echo</span><span class="p">(</span><span class="n">rendered</span><span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
