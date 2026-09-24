@@ -38,7 +38,9 @@ classifiers = [
   "Topic :: Terminals",
 ]
 requires-python = ">=3.14"
-dependencies = ["typer", "rich", "httpx", "packaging"]
+# packaging>=24.2 for ``packaging.licenses``, which the compare diff uses to
+# canonicalize SPDX license expressions.
+dependencies = ["typer", "rich", "httpx", "packaging>=24.2"]
 
 
 [project.urls]

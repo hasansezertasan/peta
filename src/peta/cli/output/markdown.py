@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.changes import sections
 from peta.cli.output.console import inline
 from peta.cli.output.summary import (
     file_flags,
@@ -13,9 +14,11 @@ from peta.cli.output.summary import (
     summary_rows,
     verdict,
 )
+from peta.core.diff import diff_packages
 
 if TYPE_CHECKING:
     from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
+    from peta.core.changes import ChangeSet
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -200,12 +203,52 @@ def format_info(pkg: PackageInfo) -> str:
     return "\n".join(lines)
 
 
-def format_compare(a: PackageInfo, b: PackageInfo) -> str:
+def _change_lines(diff: ChangeSet, *, level: str) -> list[str]:
+    """List a diff's changes under one heading per changed group.
+
+    Returns:
+        A ``Changes`` heading, then a sub-heading and bullet list per group.
+    """
+    groups = sections(diff)
+    lines = [f"{level} Changes", ""]
+    if not groups:
+        return [*lines, "No semantic changes."]
+    for section in groups:
+        lines.extend([f"{level}# {section.title}", ""])
+        if section.unknown:
+            lines.append(f"- _unknown:_ {_text(section.unknown)}")
+        lines.extend(
+            f"- \\{line.symbol} {_code(line.subject)}"
+            + (f": {_text(line.detail)}" if line.detail else "")
+            for line in section.lines
+        )
+        if section.expected_note:
+            lines.append(f"- _{_text(section.expected_note)}_")
+        lines.append("")
+    return lines[:-1]
+
+
+def format_compare(
+    a: PackageInfo,
+    b: PackageInfo,
+    diff: ChangeSet | None = None,
+    *,
+    changes_only: bool = False,
+) -> str:
     """Format a package comparison as Markdown.
 
     Returns:
-        A Markdown comparison table.
+        A Markdown comparison table followed by the grouped semantic changes;
+        only the changes with ``changes_only``.
     """
+    semantic = diff or diff_packages(a, b)
+    if changes_only:
+        title = (
+            f"# {_text(a.name)} {_text(a.version)} → {_text(b.name)} {_text(b.version)}"
+        )
+        lines = [title, "", *_change_lines(semantic, level="##")]
+        lines.extend(_warning_lines(a, b))
+        return "\n".join(lines)
     rows = [
         ("Version", a.version, b.version),
         ("Source", a.source, b.source),
@@ -224,6 +267,7 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
         f"| {field} | {_cell(a_value)} | {_cell(b_value)} |"
         for field, a_value, b_value in rows
     )
+    lines.extend(["", *_change_lines(semantic, level="##")])
     lines.extend(_warning_lines(a, b))
     return "\n".join(lines)
 

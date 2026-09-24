@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from peta.cli.output.changes import sections
 from peta.cli.output.console import inline
 from peta.cli.output.summary import (
     file_flags,
@@ -12,9 +13,11 @@ from peta.cli.output.summary import (
     summary_rows,
     verdict,
 )
+from peta.core.diff import diff_packages
 
 if TYPE_CHECKING:
     from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
+    from peta.core.changes import ChangeSet
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -123,12 +126,50 @@ def _vulnerability_count(pkg: PackageInfo) -> str:
     return str(len(pkg.vulnerabilities))
 
 
-def format_compare(a: PackageInfo, b: PackageInfo) -> str:
+def _change_lines(diff: ChangeSet) -> list[str]:
+    """List a diff's changes, grouped, with unchanged groups left out.
+
+    Returns:
+        A heading followed by one indented line per change.
+    """
+    groups = sections(diff, arrow="->")
+    if not groups:
+        return ["Changes: none"]
+    lines = ["Changes:"]
+    for section in groups:
+        lines.append(f"{section.title}:")
+        if section.unknown:
+            lines.append(f"  ? unknown: {_field(section.unknown)}")
+        lines.extend(
+            f"  {line.symbol} {_field(line.subject)}"
+            + (f": {_field(line.detail)}" if line.detail else "")
+            for line in section.lines
+        )
+        if section.expected_note:
+            lines.append(f"  · {section.expected_note}")
+    return lines
+
+
+def format_compare(
+    a: PackageInfo,
+    b: PackageInfo,
+    diff: ChangeSet | None = None,
+    *,
+    changes_only: bool = False,
+) -> str:
     """Format a package comparison as tab-separated text.
 
     Returns:
-        A header and one tab-separated row per field.
+        A header and one tab-separated row per field, then the grouped
+        semantic changes; only the changes with ``changes_only``.
     """
+    changes = _change_lines(diff or diff_packages(a, b))
+    if changes_only:
+        title = (
+            f"{_field(a.name)} {_field(a.version)} -> "
+            f"{_field(b.name)} {_field(b.version)}"
+        )
+        return "\n".join([title, *changes, *_warning_lines(a, b)])
     rows = [
         ("Version", a.version, b.version),
         ("Source", a.source, b.source),
@@ -142,6 +183,7 @@ def format_compare(a: PackageInfo, b: PackageInfo) -> str:
         f"{field}\t{_value(a_value)}\t{_value(b_value)}"
         for field, a_value, b_value in rows
     )
+    lines.extend(["", *changes])
     lines.extend(_warning_lines(a, b))
     return "\n".join(lines)
 

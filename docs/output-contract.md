@@ -102,6 +102,25 @@ than it is. A release whose files expose no provenance at all is recorded as
 `skipped` with no `retrieved_at`, since nothing was requested. A failure also warns and makes the
 envelope `partial` rather than discarding the artifact listing.
 
+`compare` carries both packages under `result.packages` and their semantic
+diff under `result.diff`. `result.diff.changes` lists only what changed, in a
+fixed group order; each record has a `group` (`release`, `python`,
+`dependencies`, `extras`, `license`, `vulnerabilities`, `artifacts`, or
+`provenance`), a stable `kind` such as `dependency_specifier_changed` or
+`vulnerability_added`, a `subject` naming what changed (a canonical dependency
+name, advisory id, artifact slot, or field), `before`/`after` values — `null`
+on the side where the item is absent — and an `expected` boolean. `expected` is
+`true` for a difference that follows from what was compared rather than from
+drift, such as new digests on a new release's differently named files; the
+record is kept so nothing is hidden, and human output summarizes it instead of
+listing it. Values are canonicalized first, so a formatting difference is never
+a change. `result.diff.unknown` lists the groups
+that could not be compared, each with a `reason`: a side with no evidence is
+reported there rather than diffed against an empty value. With `--artifacts`,
+each side's file listing is a `pypi` source record for `result.diff`; a failed
+listing warns with `enrichment_failed` and makes the envelope `partial`.
+`--changes-only` affects human output only.
+
 Source names identify the provider, not the lookup strategy: packages read from
 the installed environment are `local` and packages read from PyPI are `pypi`,
 matching the names used by `versions` and by network failures. The legacy

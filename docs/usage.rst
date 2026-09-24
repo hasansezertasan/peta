@@ -203,11 +203,62 @@ Resolution
 For ``info``, ``deps``, and ``compare``, ``peta`` checks the local
 environment first and falls back to PyPI. Force a source with
 ``--local``/``-l`` or ``--remote``/``-r``. A ``name==version`` argument is
-supported by ``info`` only and always queries PyPI (it cannot be combined
-with ``--local``). ``files`` is local-only; ``versions`` and ``artifacts`` are
-PyPI-only.
+supported by ``info`` and ``compare`` and always queries PyPI (it cannot be
+combined with ``--local``). ``files`` is local-only; ``versions`` is
+PyPI-only, and ``artifacts`` accepts ``name==version`` against PyPI.
 ``compare`` resolves and enriches both packages the same way ``info`` does,
 including the ``--no-osv``/``--no-stats`` flags.
+
+Comparing packages and releases
+-------------------------------
+
+``peta compare`` explains what changed between two packages, or between two
+releases of the same project:
+
+.. code-block:: shell
+
+   peta compare django==5.2 django==6.0 --changes-only
+   peta compare ruff uv --format markdown
+
+The side-by-side table is followed by the semantic changes, grouped by what
+they are about: release, Python range, dependencies, extras, license, and
+vulnerabilities. ``--changes-only`` drops the table and omits every unchanged
+group. Each change is marked ``+`` (added), ``-`` (removed), or ``~``
+(changed, with its before and after values).
+
+Values are canonicalized before they are compared, so formatting never shows
+up as a change: project and extra names follow PEP 503 (``Django`` and
+``django`` are the same project), specifier sets compare as sets
+(``>=1.0,<2`` equals ``<2, >=1.0.0``), markers compare in normalized form,
+and license expressions are canonicalized as SPDX. A dependency whose
+specifier, marker, or extras moved is reported as one structured change rather
+than as a different count. Extra-gated entries are tracked per extra, and a
+dependency listed once per marker branch is compared as a set of whole
+requirements. Extras are derived from the markers that gate dependencies, so
+an extra that gates nothing is not reported. Advisories are matched by id or
+any alias, so the same vulnerability published under a different id is not
+reported as fixed and reintroduced, and one advisory listed under several
+aliases on the same side counts once.
+
+``--artifacts`` also fetches each release's file listing from PyPI and compares
+the release date (the first upload), the available artifacts, wheel
+compatibility (with the ``--python`` interpreter's version when one is given,
+otherwise the running one), sizes, yanked state, and whether
+PEP 740 provenance is available. Files are paired by role — a wheel for the
+same tags, or the source distribution — because filenames embed the version.
+Two different releases necessarily ship different files with different
+digests and sizes, so those differences are *expected*: they are counted in a
+single line instead of listed, and JSON keeps them with ``"expected": true``.
+Under an unchanged filename the same difference is not expected — a file
+re-uploaded under a published name — and is listed like any other change. The
+listing is optional evidence: a failed lookup never fails the command.
+
+When one side has no evidence for a group — its advisory lookup failed, or
+its file listing could not be retrieved — the group is shown as unknown rather
+than diffed against nothing, which would read as "everything was removed".
+``--no-osv`` makes the vulnerabilities of an *installed* package unknown for
+the same reason, since OSV is its only advisory source; a package read from
+PyPI still carries PyPI's own advisories and is compared on those.
 
 Exit codes
 ----------

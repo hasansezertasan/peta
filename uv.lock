@@ -1007,7 +1007,7 @@ tool = [
 [package.metadata]
 requires-dist = [
     { name = "httpx" },
-    { name = "packaging" },
+    { name = "packaging", specifier = ">=24.2" },
     { name = "rich" },
     { name = "typer" },
 ]
