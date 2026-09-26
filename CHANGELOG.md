@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/hasansezertasan/peta/compare/v0.2.0...v0.3.0) (2026-09-26)
+
+
+### 🚀 Features
+
+* **compare:** add semantic package and release diff ([#228](https://github.com/hasansezertasan/peta/issues/228)) ([15c42b5](https://github.com/hasansezertasan/peta/commit/15c42b5937ec39f07fc36093703a9b538e40b444))
+* **deps:** make dependency selection explicit ([#216](https://github.com/hasansezertasan/peta/issues/216)) ([2d18b7a](https://github.com/hasansezertasan/peta/commit/2d18b7acd6233675948f350783e75dff3297ec33))
+* **security:** define and test a threat model for untrusted input ([#223](https://github.com/hasansezertasan/peta/issues/223)) ([b65fc36](https://github.com/hasansezertasan/peta/commit/b65fc367605473138a5b8fc4822258d36746cf8d))
+* target explicit local Python environments ([#210](https://github.com/hasansezertasan/peta/issues/210)) ([9224727](https://github.com/hasansezertasan/peta/commit/9224727a61d813a8f06d14f84fe6b79f926a5746))
+
 ## [0.2.0](https://github.com/hasansezertasan/peta/compare/v0.1.1...v0.2.0) (2026-09-18)
 
 
