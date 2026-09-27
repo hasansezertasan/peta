@@ -259,3 +259,155 @@ class TestArgumentsMapping:
         query = json.loads(result.output)["query"]
         assert "target_environment" not in query["arguments"]
         assert query["arguments"]["paths"] == ["/no/such/dir"]
+
+
+# Metadata as the tools of older target environments left it on disk: the
+# pre-PEP 345 formats, PEP 345 itself (parenthesized version specifiers), and
+# the setuptools ``.egg-info`` layout that predates wheels, whose dependencies
+# live in ``requires.txt`` rather than in the metadata file.
+_LEGACY_DIST_INFO = {
+    "pep241-1.0.dist-info": """\
+Metadata-Version: 1.0
+Name: pep241
+Version: 1.0
+Summary: Metadata-Version 1.0.
+Home-page: https://example.invalid/pep241
+License: BSD
+""",
+    "pep314-1.1.dist-info": """\
+Metadata-Version: 1.1
+Name: pep314
+Version: 1.1
+Summary: Metadata-Version 1.1.
+Classifier: Programming Language :: Python :: 2.7
+Requires: ancient
+""",
+    "pep345-1.2.dist-info": """\
+Metadata-Version: 1.2
+Name: pep345
+Version: 1.2
+Summary: Metadata-Version 1.2.
+Requires-Python: >=2.7, !=3.0.*
+Requires-Dist: probe-dep (>=2.0)
+Project-URL: Source, https://example.invalid/pep345
+""",
+}
+
+
+@pytest.fixture
+def legacy_site_packages(site_packages: Path) -> Path:
+    """Add old-format distributions beside the modern ``probe`` pair.
+
+    Returns:
+        The same ``--path`` target, now also holding the legacy layouts.
+    """
+    for directory, metadata in _LEGACY_DIST_INFO.items():
+        dist_info = site_packages / directory
+        dist_info.mkdir()
+        (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
+    egg_info = site_packages / "legacy_egg-0.4-py2.7.egg-info"
+    egg_info.mkdir()
+    (egg_info / "PKG-INFO").write_text(
+        "Metadata-Version: 1.1\nName: legacy-egg\nVersion: 0.4\n"
+        "Summary: setuptools egg-info.\nLicense: MIT\n",
+        encoding="utf-8",
+    )
+    (egg_info / "requires.txt").write_text(
+        "probe-dep\n\n[docs]\nsphinx\n", encoding="utf-8"
+    )
+    return site_packages
+
+
+class TestOlderTargetMetadata:
+    """Metadata written by an older target environment's tools reads cleanly.
+
+    The ``--path`` target is what an isolated modern peta points at an older
+    project environment, so the formats that environment's installers wrote
+    must be read as they are, not only the ones current tools write.
+    """
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            pytest.param(
+                "pep241",
+                {
+                    "version": "1.0",
+                    "homepage": "https://example.invalid/pep241",
+                    "license": "BSD",
+                    "license_source": "legacy",
+                    "dependencies": [],
+                },
+                id="metadata-1.0",
+            ),
+            pytest.param(
+                "pep314",
+                {
+                    "version": "1.1",
+                    "classifiers": ["Programming Language :: Python :: 2.7"],
+                    # ``Requires`` names modules, not distributions, and no
+                    # installer ever resolved it; it is not a dependency.
+                    "dependencies": [],
+                },
+                id="metadata-1.1",
+            ),
+            pytest.param(
+                "pep345",
+                {
+                    "version": "1.2",
+                    "python_requires": ">=2.7, !=3.0.*",
+                    "dependencies": ["probe-dep (>=2.0)"],
+                    "project_urls": {"Source": "https://example.invalid/pep345"},
+                },
+                id="metadata-1.2",
+            ),
+            pytest.param(
+                "legacy-egg",
+                {
+                    "version": "0.4",
+                    "license": "MIT",
+                    "dependencies": ["probe-dep", 'sphinx; extra == "docs"'],
+                },
+                id="egg-info",
+            ),
+        ],
+    )
+    def test_reads_the_legacy_layout(
+        self, legacy_site_packages: Path, name: str, expected: dict[str, object]
+    ) -> None:
+        target = LocalTarget.create(None, (str(legacy_site_packages),))
+        found = get_package(name, target=target)
+        assert found.source == "local"
+        for field, value in expected.items():
+            assert getattr(found, field) == value, field
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            pytest.param("pep345", id="parenthesized-specifier"),
+            pytest.param("legacy-egg", id="requires-txt"),
+        ],
+    )
+    def test_legacy_dependencies_resolve_in_the_tree(
+        self, legacy_site_packages: Path, name: str
+    ) -> None:
+        """Both old spellings reach ``probe-dep``; the unrequested extra does not."""
+        target = LocalTarget.create(None, (str(legacy_site_packages),))
+        tree = build_tree(name, local=True, remote=False, target=target)
+        assert [child.name for child in tree.children] == ["probe-dep"]
+        assert tree.children[0].selected_version == "2.0.0"
+
+    def test_cli_renders_the_oldest_format(self, legacy_site_packages: Path) -> None:
+        result = runner.invoke(
+            app,
+            [
+                "info",
+                "pep241",
+                "--local",
+                "--path",
+                str(legacy_site_packages),
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0
+        assert json.loads(result.output)["result"]["version"] == "1.0"

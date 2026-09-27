@@ -6,9 +6,10 @@ import platform
 import sys
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Literal, TypeAliasType, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from packaging.markers import default_environment
+from typing_extensions import TypeAliasType
 
 from peta._version import __version__
 from peta.core.cache import redacted_text
@@ -50,13 +51,13 @@ undocumented nested object in front of exact consumers.
 """
 # CodeQL does not yet recognize PEP 695 ``type`` statements as definitions when
 # checking ``__all__``. Keep these runtime-visible assignments until it does.
-CommandName = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+CommandName = TypeAliasType(
     "CommandName", Literal["info", "compare", "deps", "files", "versions", "artifacts"]
 )
-EnvelopeStatus = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+EnvelopeStatus = TypeAliasType(
     "EnvelopeStatus", Literal["success", "partial", "empty", "failed"]
 )
-MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+MessageCode = TypeAliasType(
     "MessageCode",
     Literal[
         "dependency_not_found",
@@ -73,7 +74,7 @@ MessageCode = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
         "provider_warning",
     ],
 )
-SourceState = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+SourceState = TypeAliasType(
     "SourceState",
     Literal["success", "empty", "skipped", "unavailable", "unsupported", "failed"],
 )

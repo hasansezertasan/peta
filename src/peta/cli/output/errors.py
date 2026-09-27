@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import sys
 from itertools import pairwise
-from typing import TYPE_CHECKING, TypeGuard, cast, override
+from typing import TYPE_CHECKING, TypeGuard, cast
 
 import typer
 from typer.core import TyperGroup
 from typer.exceptions import TyperException
+from typing_extensions import override
 
 from peta.cli.output.json import format_error
 

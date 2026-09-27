@@ -42,8 +42,13 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
+        # Every interpreter requires-python admits, each with a matching
+        # classifier and tox env (tests/smoke/test_python_support.py keeps the
+        # three in step). Raise the floor here in the same change as
+        # requires-python, never before.
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     runs-on: ${{ matrix.os }}
-    name: Run Tests on ${{ matrix.os }}
+    name: Run Tests on ${{ matrix.os }} / Python ${{ matrix.python-version }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -83,7 +88,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
         with:
           persist-credentials: false
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }} (under test)
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Set up Python (tooling)
+        # Installed last so it is the default: uv and tox run on the
+        # .python-version dev interpreter, and the tox test env picks up the
+        # interpreter installed above.
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version-file: .python-version
@@ -99,7 +111,18 @@ jobs:
         if: steps.setup-uv.outputs.cache-hit == 'true'
         run: echo "Cache was restored"
       - name: Run the tests
-        run: uv run --locked tox run
+        # Each tox test env is named after its interpreter (see env_list).
+        shell: bash
+        env:
+          PYTHON_VERSION: ${{ matrix.python-version }}
+        run: uv run --locked tox run -e "$PYTHON_VERSION"
+      - name: Run style, docs and CLI checks
+        # The non-test envs do not depend on the interpreter under test (style
+        # sets its own --python-version sweeps), so they run once per OS, on
+        # the row matching .python-version. Skipping the per-interpreter envs
+        # by pattern keeps env_list the single list of what `tox run` covers.
+        if: ${{ matrix.python-version == '3.14' }}
+        run: uv run --locked tox run --skip-env '^3\.[0-9]+$'
       # https://github.com/marketplace/actions/alls-green#why used for branch protection checks
       - name: Coverage
         run: |

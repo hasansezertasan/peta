@@ -29,7 +29,9 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, TypeAliasType, cast
+from typing import Literal, cast
+
+from typing_extensions import TypeAliasType
 
 from peta.core.redaction import redacted, redacted_text
 from peta.core.validation import structural_breach
@@ -58,9 +60,7 @@ __all__ = [
 ]
 
 
-Freshness = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "Freshness", Literal["live", "cached", "revalidated"]
-)
+Freshness = TypeAliasType("Freshness", Literal["live", "cached", "revalidated"])
 """Where a response came from.
 
 ``live`` means the source answered, ``cached`` means the entry was read from

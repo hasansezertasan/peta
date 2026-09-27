@@ -41,9 +41,7 @@ packages) so the bound never shapes ordinary work.
 """
 
 
-def gather(  # ruff: ignore[non-pep695-generic-function]
-    tasks: Sequence[Callable[[], _T]],
-) -> list[_T]:
+def gather(tasks: Sequence[Callable[[], _T]]) -> list[_T]:
     """Run independent tasks concurrently and return results in input order.
 
     Nothing is threaded for a single task, so the common case — one package,

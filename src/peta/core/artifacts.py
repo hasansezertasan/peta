@@ -22,12 +22,13 @@ from __future__ import annotations
 import platform
 from dataclasses import dataclass, field, replace
 from functools import cache as _memoize, partial
-from typing import TYPE_CHECKING, Literal, TypeAliasType
+from typing import TYPE_CHECKING, Literal
 
 import httpx
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 from packaging.tags import compatible_tags, cpython_tags, sys_tags
 from packaging.utils import InvalidWheelFilename, parse_wheel_filename
+from typing_extensions import TypeAliasType
 
 from peta.core import cache, http, validation
 from peta.core.cache import Provenance, redacted_text
@@ -58,9 +59,7 @@ __all__ = [
     "parse_target",
 ]
 
-ArtifactKind = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "ArtifactKind", Literal["wheel", "sdist", "other"]
-)
+ArtifactKind = TypeAliasType("ArtifactKind", Literal["wheel", "sdist", "other"])
 
 _PROVENANCE_SOURCE = "PyPI provenance"
 

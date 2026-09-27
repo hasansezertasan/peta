@@ -28,6 +28,9 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
   "Programming Language :: Python :: Implementation :: CPython",
   "Topic :: Software Development :: Libraries :: Python Modules",
@@ -37,10 +40,19 @@ classifiers = [
   "Topic :: Utilities",
   "Topic :: Terminals",
 ]
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 # packaging>=24.2 for ``packaging.licenses``, which the compare diff uses to
-# canonicalize SPDX license expressions.
-dependencies = ["typer", "rich", "httpx", "packaging>=24.2"]
+# canonicalize SPDX license expressions. typing-extensions>=4.6 backports
+# ``TypeAliasType`` and ``override`` (both stdlib from Python 3.12) to the 3.11
+# floor; drop it, and switch those imports to ``typing``, when the floor reaches
+# 3.12 (ruff's UP035 flags them once ``target-version`` moves).
+dependencies = [
+  "typer",
+  "rich",
+  "httpx",
+  "packaging>=24.2",
+  "typing-extensions>=4.6",
+]
 
 
 [project.urls]
@@ -147,6 +159,12 @@ cache-keys = [
 ]
 package = true
 trusted-publishing = "always"
+
+# The docs toolchain (sphinx 9.1 needs Python >=3.12) only ever runs on the
+# 3.14 dev interpreter, so scope it above the package's own 3.11 floor rather
+# than holding every docs pin back to what 3.11 can install.
+[tool.uv.dependency-groups]
+docs = { requires-python = ">=3.12" }
 
 
 [tool.hatch.version]
@@ -342,7 +360,7 @@ output-format = "full"
 preview = true
 show-fixes = true
 src = ["src", "tests"]
-target-version = "py314"
+target-version = "py311"
 unsafe-fixes = true
 
 
@@ -450,17 +468,20 @@ keep-runtime-typing = true
 parenthesize-tuple-in-subscript = true
 
 
+# Every type checker targets the 3.11 floor so a stdlib API newer than the
+# oldest supported interpreter fails the style gate; the tox ``style`` env adds
+# an explicit ``mypy --python-version 3.14`` pass for the newest one.
 [tool.mypy]
 files = ["src"]
 pretty = true
-python_version = "3.14"
+python_version = "3.11"
 strict = true
 
 
 [tool.basedpyright]
 exclude = [".venv"]
 include = ["src/peta"]
-pythonVersion = "3.14"
+pythonVersion = "3.11"
 venv = ".venv"
 # venvPath is the directory *containing* the venv, not the venv itself; ".venv"
 # here would make basedpyright look for ".venv/.venv". Use "." so both the venv
@@ -474,7 +495,7 @@ respect-ignore-files = false
 
 
 [tool.ty.environment]
-python-version = "3.14"
+python-version = "3.11"
 
 
 [tool.ty.terminal]
@@ -482,7 +503,7 @@ error-on-warning = true
 
 
 [tool.pyrefly]
-python-version = "3.14"
+python-version = "3.11"
 project-includes = ["src"]
 
 [tool.tox]
@@ -496,6 +517,12 @@ env_list = [
   # so run them in the default CI ``tox run`` invocation.
   "docs-doctest",
   "cli",
+  # One test env per supported interpreter: keep in step with requires-python,
+  # the classifiers, and the CI matrix (tests/smoke/test_python_support.py
+  # enforces the first two).
+  "3.11",
+  "3.12",
+  "3.13",
   "3.14",
 ]
 requires = ["tox>=4"]

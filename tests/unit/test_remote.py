@@ -1,5 +1,7 @@
 """Unit tests for the PyPI remote fetcher (served by a canned transport)."""
 
+from __future__ import annotations
+
 import re
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch

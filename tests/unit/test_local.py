@@ -1,5 +1,8 @@
 """Unit tests for the local metadata fetcher (importlib.metadata mocked)."""
 
+from __future__ import annotations
+
+import ast
 import json
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Only for TimeoutExpired/CompletedProcess.
 import sys
@@ -11,6 +14,7 @@ import pytest
 from packaging.markers import default_environment
 
 from peta.core.local import (
+    _TARGET_SCRIPT,
     InvalidTargetError,
     LocalTarget,
     PackageNotFoundError,
@@ -360,3 +364,13 @@ class TestInspectionNeverRunsPackageCode:
         assert target.paths is not None
         assert str(tmp_path) in target.paths
         assert not sentinel.exists()
+
+
+def test_interpreter_probe_parses_as_old_python() -> None:
+    """``--python`` runs the probe in the target, which may predate peta's floor.
+
+    An isolated peta on a current interpreter is the documented way to inspect
+    an older project environment, so the probe must not use syntax newer than
+    the oldest target the grammar check can express.
+    """
+    ast.parse(_TARGET_SCRIPT, feature_version=(3, 7))

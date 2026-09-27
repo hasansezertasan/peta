@@ -373,6 +373,20 @@ print(json.dumps({"paths": sys.path, "marker_environment": marker_environment}))
 """
 
 
+def _header(meta: importlib_metadata.PackageMetadata, field: str) -> str | None:
+    """Return the first ``field`` header, or ``None`` when it is absent.
+
+    ``get_all`` rather than ``get``: typeshed only adds ``get`` to the
+    ``PackageMetadata`` protocol from Python 3.12, while ``get_all`` is there on
+    every supported version and returns the same first value.
+
+    Returns:
+        The header's value, if the distribution declares it.
+    """
+    values = cast("list[str] | None", meta.get_all(field))
+    return values[0] if values else None
+
+
 def _parse_project_urls(meta: importlib_metadata.PackageMetadata) -> dict[str, str]:
     urls: dict[str, str] = {}
     # importlib.metadata's PackageMetadata is untyped (email.Message based), so
@@ -386,7 +400,7 @@ def _parse_project_urls(meta: importlib_metadata.PackageMetadata) -> dict[str, s
 
 
 def _parse_keywords(meta: importlib_metadata.PackageMetadata) -> list[str]:
-    raw = meta.get("Keywords")
+    raw = _header(meta, "Keywords")
     if not raw:
         return []
     return [k.strip() for k in raw.split(",") if k.strip()]
@@ -395,10 +409,10 @@ def _parse_keywords(meta: importlib_metadata.PackageMetadata) -> list[str]:
 def _parse_license(
     meta: importlib_metadata.PackageMetadata,
 ) -> tuple[str | None, Literal["expression", "legacy"] | None]:
-    expression = meta.get("License-Expression")
+    expression = _header(meta, "License-Expression")
     if expression:
         return expression, "expression"
-    legacy = meta.get("License")
+    legacy = _header(meta, "License")
     return legacy, "legacy" if legacy else None
 
 
@@ -456,14 +470,14 @@ def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
     return PackageInfo(
         name=meta["Name"],
         version=meta["Version"],
-        summary=meta.get("Summary"),
-        author=meta.get("Author"),
-        author_email=meta.get("Author-email"),
-        maintainer=meta.get("Maintainer"),
+        summary=_header(meta, "Summary"),
+        author=_header(meta, "Author"),
+        author_email=_header(meta, "Author-email"),
+        maintainer=_header(meta, "Maintainer"),
         license=license_value,
         license_source=license_source,
-        python_requires=meta.get("Requires-Python"),
-        homepage=meta.get("Home-page"),
+        python_requires=_header(meta, "Requires-Python"),
+        homepage=_header(meta, "Home-page"),
         project_urls=_parse_project_urls(meta),
         dependencies=list(dist.requires) if dist.requires else [],
         classifiers=meta.get_all("Classifier") or [],
