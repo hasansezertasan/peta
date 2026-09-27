@@ -59,7 +59,7 @@ peta = "peta.cli.app:run"
 [dependency-groups]
 dev = [
   "peta",
-  "tox==4.64.3",
+  "tox==4.64.4",
   "tox-uv==1.36.0",
   "debugpy==1.8.22",
   { include-group = "style" },
@@ -95,7 +95,7 @@ style = [
 test = [
   "coverage-enable-subprocess==1.0",
   "coverage[toml]==7.16.2",
-  "pytest-mock==3.15.1",
+  "pytest-mock==3.16.0",
   "pytest-rerunfailures==16.7",
   "pytest-xdist[psutil]==3.8.0",
   "pytest==9.1.1",
