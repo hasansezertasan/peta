@@ -29,10 +29,12 @@ end of life. Python 3.10 was left out for that reason: its end of life
 so it would have been added only to be dropped again.
 
 The interpreter ``peta`` *runs on* and the environment it *inspects* are
-separate. ``--python`` and ``--path`` (see :doc:`usage`) point an isolated
+separate. On ``info``, ``compare``, ``deps`` and ``files``, ``--python PATH``
+(an interpreter) and ``--path DIR`` (a metadata directory) point an isolated
 ``peta`` at another environment, and that environment may be older than
-``peta``'s own floor: the ``--python`` probe sticks to syntax Python 3.7 can
-parse, and ``--path`` reads the metadata that older tools wrote, from
+``peta``'s own floor. The small script ``--python`` runs inside the target is
+kept to long-established syntax (the suite parses it with Python 3.7's
+grammar), and ``--path`` reads the metadata older tools wrote, from
 ``Metadata-Version`` 1.0 to setuptools ``.egg-info`` directories.
 
 Using uv

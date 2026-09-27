@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
 import json
+import os
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
 from dataclasses import dataclass
+from importlib.metadata import PathDistribution
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, cast
 
@@ -430,6 +432,45 @@ def _is_named(candidate: importlib_metadata.Distribution, canonical: str) -> boo
     return found is not None and canonicalize_name(found) == canonical
 
 
+def _egg_info_installed_files(
+    dist: importlib_metadata.Distribution,
+) -> list[str] | None:
+    """Read a legacy ``.egg-info``'s ``installed-files.txt``, as Python 3.12 does.
+
+    Python 3.11's importlib.metadata never reads this file and falls back to
+    ``SOURCES.txt``, which lists the project's source tree rather than what was
+    installed. Reading it here, relative to the search-path root and skipping
+    files that are gone, keeps ``files`` the same on every supported version.
+
+    Returns:
+        The installed files, or ``None`` when ``dist`` has no such listing.
+    """
+    if not isinstance(dist, PathDistribution):
+        return None
+    listing = dist.read_text("installed-files.txt")
+    if not listing:
+        return None
+    # The stdlib reader resolves entries against the same private attribute:
+    # it is the only record of which ``.egg-info`` directory this is.
+    egg_info = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
+    root = Path(str(dist.locate_file(""))).resolve()
+    installed = (
+        (egg_info / entry).resolve() for entry in listing.splitlines() if entry
+    )
+    return [
+        Path(os.path.relpath(path, root)).as_posix()
+        for path in installed
+        if path.exists()
+    ]
+
+
+def _installed_files(dist: importlib_metadata.Distribution) -> list[str] | None:
+    listed = _egg_info_installed_files(dist)
+    if listed is None:
+        listed = [str(f) for f in dist.files] if dist.files else None
+    return listed or None
+
+
 def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
     """Get metadata for a locally installed package.
 
@@ -465,7 +506,7 @@ def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
         raise PackageNotFoundError(name) from exc
 
     meta = dist.metadata
-    files = [str(f) for f in dist.files] if dist.files else None
+    files = _installed_files(dist)
     license_value, license_source = _parse_license(meta)
     return PackageInfo(
         name=meta["Name"],

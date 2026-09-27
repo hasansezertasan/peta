@@ -22,10 +22,9 @@ if TYPE_CHECKING:
 
 __all__ = ["MAX_WORKERS", "gather"]
 
-# A plain ``TypeVar`` rather than PEP 695 ``def gather[T]``: the isolated mypy
-# and vulture environments this project runs under prek cannot parse the newer
-# syntax, the same constraint that keeps ``TypeAliasType`` in use elsewhere
-# instead of ``type`` statements.
+# A plain ``TypeVar`` rather than PEP 695 ``def gather[T]``: that syntax needs
+# Python 3.12, above peta's 3.11 floor, the same constraint that keeps
+# ``TypeAliasType`` in use elsewhere instead of ``type`` statements.
 _T = TypeVar("_T")
 
 

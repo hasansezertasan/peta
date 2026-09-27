@@ -397,6 +397,43 @@ class TestOlderTargetMetadata:
         assert [child.name for child in tree.children] == ["probe-dep"]
         assert tree.children[0].selected_version == "2.0.0"
 
+    @pytest.mark.parametrize(
+        ("listing", "expected"),
+        [
+            pytest.param(
+                "../installed_egg/__init__.py\n\nPKG-INFO\n",
+                ["installed_egg/__init__.py", "installed_egg-1.0.egg-info/PKG-INFO"],
+                id="installed-files",
+            ),
+            pytest.param(
+                "../installed_egg/gone.py\n", None, id="every-listed-file-gone"
+            ),
+        ],
+    )
+    def test_egg_info_files_are_what_was_installed(
+        self, site_packages: Path, listing: str, expected: list[str] | None
+    ) -> None:
+        """``installed-files.txt``, never ``SOURCES.txt``, on every Python.
+
+        Python 3.11's importlib.metadata skips ``installed-files.txt`` and
+        reports the source tree instead; peta must not inherit that.
+        """
+        package = site_packages / "installed_egg"
+        package.mkdir()
+        (package / "__init__.py").write_text("", encoding="utf-8")
+        egg_info = site_packages / "installed_egg-1.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            "Metadata-Version: 1.1\nName: installed-egg\nVersion: 1.0\n",
+            encoding="utf-8",
+        )
+        (egg_info / "SOURCES.txt").write_text(
+            "setup.py\ninstalled_egg/__init__.py\n", encoding="utf-8"
+        )
+        (egg_info / "installed-files.txt").write_text(listing, encoding="utf-8")
+        target = LocalTarget.create(None, (str(site_packages),))
+        assert get_package("installed-egg", target=target).files == expected
+
     def test_cli_renders_the_oldest_format(self, legacy_site_packages: Path) -> None:
         result = runner.invoke(
             app,
@@ -404,6 +441,8 @@ class TestOlderTargetMetadata:
                 "info",
                 "pep241",
                 "--local",
+                "--no-osv",
+                "--no-stats",
                 "--path",
                 str(legacy_site_packages),
                 "--json",
