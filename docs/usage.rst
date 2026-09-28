@@ -236,13 +236,14 @@ are always compared, because that costs one ``stat`` per file.
 point anywhere. A file is only read if its resolved path lies inside the
 directory holding the distribution's metadata or inside the environment's
 prefix -- where console scripts live. The prefix is known for the running
-interpreter and for a ``--python`` target, but not for a ``--path``-only one,
-so there a script outside ``site-packages`` is reported ``out_of_bounds``
+interpreter and for a ``--python`` target, but not once ``--path`` is given:
+the metadata then comes from directories the interpreter's prefix does not
+describe, so a script outside ``site-packages`` is reported ``out_of_bounds``
 rather than read. A distribution without a ``RECORD`` falls back to a legacy
 ``installed-files.txt``, which carries no hashes; with neither, integrity is
 reported as unavailable rather than guessed from ``SOURCES.txt``.
 
-Human output names a local origin by its final directory only, so a report
+Human output names a local origin by its final path component only, so a report
 can be shared without disclosing where a checkout lives; the JSON output keeps
 the full URL. Credentials an installer recorded in an origin URL are removed
 from both.

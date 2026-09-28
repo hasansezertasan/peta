@@ -289,7 +289,9 @@ class LocalTarget:
             checked or inspected,
             str(interpreter),
             _target_markers(marker_environment, python_version, platform),
-            prefix,
+            # With --path the metadata comes from elsewhere, so the
+            # interpreter's prefix bounds nothing that was actually searched.
+            None if checked else prefix,
         )
 
     def describe(self) -> str:
@@ -504,14 +506,32 @@ def legacy_installed_files(
     # it is the only record of which ``.egg-info`` directory this is.
     egg_info = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
     root = Path(str(dist.locate_file(""))).resolve()
-    installed = (
-        (egg_info / entry).resolve() for entry in listing.splitlines() if entry
+    listed = (
+        _legacy_entry(egg_info, entry, root, skip_missing=skip_missing)
+        for entry in listing.splitlines()
+        if entry
     )
-    return [
-        Path(os.path.relpath(path, root)).as_posix()
-        for path in installed
-        if not skip_missing or path.exists()
-    ]
+    return [entry for entry in listed if entry is not None]
+
+
+def _legacy_entry(
+    egg_info: Path, entry: str, root: Path, *, skip_missing: bool
+) -> str | None:
+    """Rebase one ``installed-files.txt`` entry onto the search-path root.
+
+    An entry that cannot be resolved (a NUL byte, a symlink loop) or that
+    lands on another drive is kept as written when missing files are wanted,
+    so a caller that bounds reads still sees it and reports it.
+
+    Returns:
+        The root-relative POSIX path, or ``None`` when the entry is skipped.
+    """
+    try:
+        path = (egg_info / entry).resolve()
+        relative = Path(os.path.relpath(path, root)).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return None if skip_missing else entry
+    return None if skip_missing and not path.exists() else relative
 
 
 def _installed_files(dist: importlib_metadata.Distribution) -> list[str] | None:

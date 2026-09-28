@@ -160,6 +160,14 @@ class TestOrigin:
         # The path hook is an installer helper, not something to import.
         assert found.import_packages == []
 
+    def test_undecodable_metadata_does_not_abort(self, site: Path) -> None:
+        dist_info = _install(site, "garbled")
+        _ = (dist_info / "direct_url.json").write_bytes(b"\xff\xfe{")
+        _ = (dist_info / "INSTALLER").write_bytes(b"pip\xff\n")
+        found = _inspect(site, "garbled")
+        assert found.origin.kind == "unknown"
+        assert found.installer == "pip\ufffd"
+
     @pytest.mark.parametrize(
         ("text", "reason"),
         [
@@ -208,6 +216,15 @@ class TestMetadata:
             metadata_files={"top_level.txt": "alpha\nbeta\n"},
         )
         assert _inspect(site, "declared").import_packages == ["alpha", "beta"]
+
+    def test_entry_point_order_is_deterministic(self, site: Path) -> None:
+        _install(
+            site,
+            "dupes",
+            metadata_files={"entry_points.txt": "[g]\nx = b.m\nx = a.m\n"},
+        )
+        values = [point.value for point in _inspect(site, "dupes").entry_points]
+        assert values == sorted(values)
 
     def test_entry_points(self, site: Path) -> None:
         _install(
@@ -288,6 +305,28 @@ class TestIntegrity:
         _install(site, "oddname", extra_rows=(row,))
         states = _states(_inspect(site, "oddname", verify=True))
         assert states["odd\nname.py"] == "verified"
+
+    @pytest.mark.parametrize(
+        ("digest", "state"),
+        [
+            pytest.param("shake_128=abc", "unverifiable", id="variable-length"),
+            pytest.param(None, "verified", id="uppercase-name"),
+        ],
+    )
+    def test_algorithm_names(
+        self, site: Path, digest: str | None, state: FileState
+    ) -> None:
+        content = b"x"
+        _ = (site / "algo.py").write_bytes(content)
+        recorded = digest or _record_hash(content).replace("sha256", "SHA256")
+        _install(site, "algo", extra_rows=(f"algo.py,{recorded},{len(content)}",))
+        assert _states(_inspect(site, "algo", verify=True))["algo.py"] == state
+
+    def test_non_ascii_digit_size_is_unrecorded(self, site: Path) -> None:
+        _ = (site / "sup.py").write_bytes(b"")
+        _install(site, "sup", extra_rows=("sup.py,,\u00b2",))
+        (entry,) = [f for f in _inspect(site, "sup").files if f.path == "sup.py"]
+        assert entry.recorded_size is None
 
     def test_missing_record(self, site: Path) -> None:
         _install(site, "norecord", record=False)
@@ -450,6 +489,11 @@ class TestCli:
         )
         assert result.exit_code == 0
         assert "missing\tbroken.py" in result.output
+
+    def test_parse_error_names_the_origin_command(self) -> None:
+        result = runner.invoke(app, ["origin", "x", "--bogus", "--json"])
+        assert result.exit_code == 2
+        assert json.loads(result.output)["query"]["command"] == "origin"
 
     def test_not_found(self, site: Path) -> None:
         result = runner.invoke(app, ["origin", "absent", "--path", str(site), "--json"])

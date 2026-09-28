@@ -119,6 +119,20 @@ def test_payload_prefix_bounds_the_target() -> None:
     assert target.prefix == "/venv"
 
 
+def test_path_overrides_the_interpreters_prefix(tmp_path: Path) -> None:
+    """--path metadata is not bounded by the --python interpreter's prefix."""
+    markers = {
+        "platform_python_implementation": "CPython",
+        "python_full_version": "3.14.0",
+        "sys_platform": "linux",
+    }
+    stdout = json.dumps({"paths": [], "marker_environment": markers, "prefix": "/v"})
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout)
+    with patch("peta.core.local.subprocess.run", return_value=completed):
+        target = LocalTarget.create(sys.executable, (str(tmp_path),))
+    assert target.prefix is None
+
+
 def test_prefix_is_unknown_for_a_path_only_target(tmp_path: Path) -> None:
     """Named metadata directories need not live under the running prefix."""
     assert LocalTarget.create(None, (str(tmp_path),)).prefix is None

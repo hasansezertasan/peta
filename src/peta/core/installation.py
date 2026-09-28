@@ -16,6 +16,7 @@ import io
 import json
 import sys
 from dataclasses import dataclass, field
+from importlib.metadata import PathDistribution
 from itertools import starmap
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, cast
@@ -89,6 +90,17 @@ FILE_STATES: Final[tuple[FileState, ...]] = (
 
 RecordSource = TypeAliasType("RecordSource", Literal["RECORD", "installed-files.txt"])
 """Which listing the installed files came from."""
+
+_COMPUTABLE: Final[frozenset[str]] = frozenset(hashlib.algorithms_guaranteed) - {
+    "shake_128",
+    "shake_256",
+}
+"""Algorithms a ``RECORD`` digest can be checked with.
+
+The SHAKE functions are guaranteed but variable-length: their digest needs a
+length ``RECORD`` does not carry, so they are ``unverifiable`` like any other
+hash peta cannot recompute.
+"""
 
 _CHUNK = 1 << 16
 """Bytes read at a time while hashing, so a large file is never held whole."""
@@ -250,8 +262,28 @@ def _described_origin(data: dict[str, object]) -> Origin:
     return _source_origin(url, data)
 
 
+def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
+    """Read one metadata file, tolerating bytes that are not UTF-8.
+
+    ``Distribution.read_text`` decodes strictly, so one corrupt byte would
+    abort the whole inspection. A damaged file is still evidence, and is
+    decoded with replacement characters instead.
+
+    Returns:
+        The file's text, or ``None`` when the distribution has no such file.
+    """
+    try:
+        return dist.read_text(name)
+    except UnicodeDecodeError:
+        if not isinstance(dist, PathDistribution):
+            return None
+        # The same private attribute :func:`legacy_installed_files` reads.
+        folder = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
+        return (folder / name).read_bytes().decode("utf-8", errors="replace")
+
+
 def _origin(dist: importlib_metadata.Distribution) -> Origin:
-    text = dist.read_text("direct_url.json")
+    text = _read_text(dist, "direct_url.json")
     if text is None:
         return Origin(kind="index")
     try:
@@ -265,17 +297,21 @@ def _origin(dist: importlib_metadata.Distribution) -> Origin:
 
 
 def _installer(dist: importlib_metadata.Distribution) -> str | None:
-    text = dist.read_text("INSTALLER")
+    text = _read_text(dist, "INSTALLER")
     first = text.strip().splitlines()[0].strip() if text and text.strip() else ""
     return first or None
 
 
 def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
+    try:
+        points = dist.entry_points
+    except UnicodeDecodeError:
+        return []
     found = {
         EntryPoint(group=point.group, name=point.name, value=point.value)
-        for point in dist.entry_points
+        for point in points
     }
-    return sorted(found, key=lambda point: (point.group, point.name))
+    return sorted(found, key=lambda point: (point.group, point.name, point.value))
 
 
 def _is_metadata_dir(part: str) -> bool:
@@ -314,7 +350,7 @@ def _import_packages(
     Returns:
         Sorted, de-duplicated import names.
     """
-    declared = dist.read_text("top_level.txt")
+    declared = _read_text(dist, "top_level.txt")
     names: set[str | None] = (
         {line.strip() for line in declared.splitlines()}
         if declared is not None
@@ -324,7 +360,8 @@ def _import_packages(
 
 
 def _recorded_size(value: str) -> int | None:
-    return int(value) if value.isdigit() else None
+    # ``isdigit`` alone admits characters such as "²" that ``int`` rejects.
+    return int(value) if value.isascii() and value.isdigit() else None
 
 
 def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
@@ -412,7 +449,11 @@ class _Checker:
             return InstalledFile(path, "out_of_bounds", None, *recorded)
         if not located.is_file():
             return InstalledFile(path, "missing", None, *recorded)
-        size = located.stat().st_size
+        try:
+            size = located.stat().st_size
+        except OSError:
+            # Removed between the two checks: gone, as far as anyone can tell.
+            return InstalledFile(path, "missing", None, *recorded)
         try:
             state = self._state(located, size, recorded_size, recorded_hash)
         except OSError:
@@ -433,8 +474,9 @@ class _Checker:
             return "not_recorded"
         if not self.verify:
             return "unchecked"
-        algorithm, separator, expected = recorded_hash.partition("=")
-        if not separator or algorithm not in hashlib.algorithms_guaranteed:
+        name, separator, expected = recorded_hash.partition("=")
+        algorithm = name.lower()
+        if not separator or algorithm not in _COMPUTABLE:
             return "unverifiable"
         return "verified" if _digest(located, algorithm) == expected else "mismatch"
 
@@ -458,10 +500,13 @@ def _record_files(
     Returns:
         Which listing was used, and one checked entry per listed file.
     """
-    record = dist.read_text("RECORD")
+    record = _read_text(dist, "RECORD")
     if record:
         return "RECORD", list(starmap(checker.check, _record_rows(record)))
-    legacy = legacy_installed_files(dist, skip_missing=False)
+    try:
+        legacy = legacy_installed_files(dist, skip_missing=False)
+    except UnicodeDecodeError:
+        legacy = None
     if legacy:
         return "installed-files.txt", [checker.check(path) for path in legacy]
     return None, []
@@ -491,7 +536,7 @@ def inspect_installation(
         version=meta["Version"],
         origin=_origin(dist),
         installer=_installer(dist),
-        requested=dist.read_text("REQUESTED") is not None,
+        requested=_read_text(dist, "REQUESTED") is not None,
         import_packages=_import_packages(dist, [file.path for file in files]),
         entry_points=_entry_points(dist),
         record_source=record_source,
