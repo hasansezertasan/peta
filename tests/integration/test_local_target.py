@@ -537,6 +537,16 @@ class TestRealTargetInterpreter:
         markers = envelope["query"]["target_environment"]["markers"]
         assert markers["python_full_version"] == str(_version_of(target_python))
 
+    def test_origin_reads_through_the_target(self, target_python: str) -> None:
+        """The prefix the target reports must be usable as a read boundary."""
+        result = runner.invoke(
+            app, ["origin", "probe", "--python", target_python, "--verify", "--json"]
+        )
+        assert result.exit_code == 0, result.output
+        body = json.loads(result.output)["result"]
+        assert body["version"] == "1.0.0"
+        assert body["integrity"]["record_source"] is None
+
     def test_markers_are_evaluated_against_the_target(self, target_python: str) -> None:
         """``probe-dep`` is required only below 3.14, judged by the target."""
         target = LocalTarget.create(target_python)

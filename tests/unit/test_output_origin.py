@@ -77,7 +77,7 @@ def test_file_states_match_the_alias() -> None:
             Origin(
                 kind="archive",
                 url="https://example.com/demo.tar.gz",
-                archive_hashes={"sha256": "f" * 64},
+                archive_hashes={"md5": "0" * 32, "sha256": "f" * 64},
             ),
             "archive https://example.com/demo.tar.gz (sha256:ffffffffffff...)",
             id="archive",

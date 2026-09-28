@@ -49,7 +49,9 @@ OriginKind = TypeAliasType(
 
 ``index`` means no ``direct_url.json`` exists, which is what an ordinary
 index installation leaves -- though an installer that never writes the file
-leaves the same thing. ``unknown`` means the file exists but cannot be read.
+leaves the same thing. ``unknown`` means the file exists but does not
+describe a usable origin: it is not valid JSON, names no url, or names no
+source.
 """
 
 FileState = TypeAliasType(
@@ -105,7 +107,7 @@ class Origin:
     archive_hashes: dict[str, str] = field(default_factory=dict)
     subdirectory: str | None = None
     reason: str | None = None
-    """Why an ``unknown`` origin could not be read."""
+    """Why an origin is ``unknown``."""
 
 
 @dataclass(frozen=True)
@@ -150,7 +152,12 @@ class Installation:
     """Which listing ``files`` came from, or ``None`` when there is none."""
     files: list[InstalledFile]
     hashes_verified: bool
-    """Whether recorded hashes were compared, which ``--verify`` opts into."""
+    """Whether ``--verify`` asked for hashes to be compared.
+
+    Not an attestation on its own: a listing with no recorded hashes compares
+    nothing even when this is ``True``. The ``verified`` count says how many
+    files actually matched.
+    """
 
     def state_counts(self) -> dict[FileState, int]:
         """Count files per state, including states no file is in.

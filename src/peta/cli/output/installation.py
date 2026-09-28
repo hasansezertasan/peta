@@ -5,7 +5,7 @@ differ only in how they draw rows. Deriving them once here keeps one
 installation from being described differently per ``--format``.
 
 Human output never prints a local filesystem path in full: a ``file://``
-origin is shown by its final directory name. JSON keeps the structured URL.
+origin is shown by its final path component. JSON keeps the structured URL.
 """
 
 from __future__ import annotations
@@ -70,7 +70,11 @@ def _vcs(origin: Origin) -> str:
 def _archive(origin: Origin) -> str:
     text = f"archive {_display_url(origin.url)}"
     if origin.archive_hashes:
-        name, digest = min(origin.archive_hashes.items())
+        # The strongest common algorithm when recorded, not whichever sorts
+        # first: an md5 beside a sha256 is not the digest to show.
+        name = "sha256" if "sha256" in origin.archive_hashes else None
+        name = name or min(origin.archive_hashes)
+        digest = origin.archive_hashes[name]
         text += f" ({name}:{digest[:_COMMIT_WIDTH]}...)"
     return text
 
@@ -162,6 +166,10 @@ def installation_notes(installation: Installation) -> list[str]:
         notes.append("Hashes were not compared; pass --verify to check them.")
     if counts["not_recorded"]:
         notes.append("A file with no recorded hash is unverified, not changed.")
+    if counts["unverifiable"]:
+        notes.append(
+            "Unverifiable files have a hash peta cannot compute or cannot be read."
+        )
     if counts["out_of_bounds"]:
         notes.append("Paths outside the selected environment were reported, not read.")
     return notes

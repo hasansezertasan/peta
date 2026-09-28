@@ -118,8 +118,11 @@ one record per listed file with its `path`, `state`, on-disk `size`,
 found or not read. `result.integrity` names the `record_source` (`RECORD`,
 `installed-files.txt`, or `null` when there is neither), whether
 `hashes_verified` ran (`--verify`), the `file_count`, the `total_size` found on
-disk, and a count per state. File states are findings, not failures: a
-mismatched file never makes the envelope `partial`.
+disk, and a count per state. `hashes_verified` records that `--verify` was
+given, not that anything matched: read `states.verified` for that. File states
+are findings, not failures: a mismatched file never makes the envelope
+`partial`, and a distribution with no file listing is still `success`, since
+its origin and installer are a result on their own.
 
 `compare` carries both packages under `result.packages` and their semantic
 diff under `result.diff`. `result.diff.changes` lists only what changed, in a
