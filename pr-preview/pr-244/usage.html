@@ -599,7 +599,7 @@ point anywhere. A file is only read if its resolved path lies inside the
 directory holding the distribution’s metadata, inside the installation scheme
 that directory belongs to, or inside the target interpreter’s prefix. The
 scheme is recognized from the standard <code class="docutils literal notranslate"><span class="pre">site-packages</span></code> layouts –
-<code class="docutils literal notranslate"><span class="pre">lib/pythonX.Y/site-packages</span></code>, <code class="docutils literal notranslate"><span class="pre">Lib/site-packages</span></code>, and the user sites –
+<code class="docutils literal notranslate"><span class="pre">lib/pythonX.Y/site-packages</span></code> (or <code class="docutils literal notranslate"><span class="pre">lib64</span></code>), <code class="docutils literal notranslate"><span class="pre">Lib/site-packages</span></code>, and the user sites –
 which is what admits console scripts, including those of a <code class="docutils literal notranslate"><span class="pre">--user</span></code>
 install. The prefix is known for the running interpreter and for a
 <code class="docutils literal notranslate"><span class="pre">--python</span></code> target, but not once <code class="docutils literal notranslate"><span class="pre">--path</span></code> is given. Anything else is
