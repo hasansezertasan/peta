@@ -141,13 +141,14 @@ environment with your preferred tool manager.</p>
 <h3>Supported Python versions<a class="headerlink" href="#supported-python-versions" title="Link to this heading">#</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">peta</span></code> supports the CPython minor releases that are maintained upstream
 (see the <a class="reference external" href="https://devguide.python.org/versions/">Python release status page</a>)
-and that it tests continuously. Each supported version is declared in three
+and that it tests continuously. Each supported version is declared in four
 places that move together:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">requires-python</span></code> and the <code class="docutils literal notranslate"><span class="pre">Programming</span> <span class="pre">Language</span> <span class="pre">::</span> <span class="pre">Python</span> <span class="pre">::</span> <span class="pre">3.X</span></code>
 classifiers in the published package metadata;</p></li>
 <li><p>a tox test env of the same name;</p></li>
-<li><p>a row in the CI test matrix, run on Linux, macOS and Windows.</p></li>
+<li><p>a row in the CI test matrix, run on Linux, macOS and Windows;</p></li>
+<li><p>a <code class="docutils literal notranslate"><span class="pre">mypy</span> <span class="pre">--python-version</span></code> pass in the style checks.</p></li>
 </ul>
 <p>A test in the suite fails if these disagree, so the floor is never lowered
 without CI coverage for it. The floor rises once a version reaches its upstream
@@ -158,9 +159,10 @@ so it would have been added only to be dropped again.</p>
 separate. On <code class="docutils literal notranslate"><span class="pre">info</span></code>, <code class="docutils literal notranslate"><span class="pre">compare</span></code>, <code class="docutils literal notranslate"><span class="pre">deps</span></code> and <code class="docutils literal notranslate"><span class="pre">files</span></code>, <code class="docutils literal notranslate"><span class="pre">--python</span> <span class="pre">PATH</span></code>
 (an interpreter) and <code class="docutils literal notranslate"><span class="pre">--path</span> <span class="pre">DIR</span></code> (a metadata directory) point an isolated
 <code class="docutils literal notranslate"><span class="pre">peta</span></code> at another environment, and that environment may be older than
-<code class="docutils literal notranslate"><span class="pre">peta</span></code>’s own floor. The small script <code class="docutils literal notranslate"><span class="pre">--python</span></code> runs inside the target is
-kept to long-established syntax (the suite parses it with Python 3.7’s
-grammar), and <code class="docutils literal notranslate"><span class="pre">--path</span></code> reads the metadata older tools wrote, from
+<code class="docutils literal notranslate"><span class="pre">peta</span></code>’s own floor. CI points <code class="docutils literal notranslate"><span class="pre">--python</span></code> at a real Python 3.8 interpreter
+on Linux, macOS and Windows from every supported <code class="docutils literal notranslate"><span class="pre">peta</span></code> runtime, and the
+small script it runs inside the target is also parsed with Python 3.7’s
+grammar. <code class="docutils literal notranslate"><span class="pre">--path</span></code> reads the metadata older tools wrote, from
 <code class="docutils literal notranslate"><span class="pre">Metadata-Version</span></code> 1.0 to setuptools <code class="docutils literal notranslate"><span class="pre">.egg-info</span></code> directories.</p>
 </section>
 </section>
