@@ -9,12 +9,16 @@ somewhere the running interpreter cannot see.
 from __future__ import annotations
 
 import json
-import subprocess  # ruff: ignore[suspicious-subprocess-import] # Only for CompletedProcess.
+import os
+import subprocess  # ruff: ignore[suspicious-subprocess-import] # CompletedProcess, and asking the target its version.
 import sys
+from importlib.metadata import metadata as installed_metadata
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 from typer.testing import CliRunner
 
 from peta.cli.app import app
@@ -468,3 +472,74 @@ class TestOlderTargetMetadata:
         )
         assert result.exit_code == 0
         assert json.loads(result.output)["result"]["version"] == "1.0"
+
+
+_TARGET_PYTHON = "PETA_TEST_TARGET_PYTHON"
+"""Names an interpreter older than peta's own floor; CI always sets it."""
+
+
+@pytest.fixture
+def target_python(site_packages: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Return a real interpreter whose search path holds the ``probe`` pair.
+
+    CI installs a Python older than peta supports and names it in
+    ``PETA_TEST_TARGET_PYTHON``: the isolated-modern-peta, older-project case
+    this targeting exists for. Without it the running interpreter stands in,
+    so the test still runs (and still spawns a real process) everywhere.
+
+    Returns:
+        The interpreter path to pass as ``--python``.
+    """
+    # The child inherits the environment, which is how the fixture tree gets
+    # onto the target's own ``sys.path``.
+    monkeypatch.setenv("PYTHONPATH", str(site_packages))
+    return os.environ.get(_TARGET_PYTHON) or sys.executable
+
+
+def _version_of(python: str) -> Version:
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] # Test-owned interpreter path.
+        [python, "-c", "import platform; print(platform.python_version())"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return Version(completed.stdout.strip())
+
+
+class TestRealTargetInterpreter:
+    """``--python`` against a real interpreter, not a mocked probe."""
+
+    def test_ci_target_predates_the_floor(self, target_python: str) -> None:
+        """Guard the CI wiring: a same-version target would prove nothing."""
+        supported = SpecifierSet(installed_metadata("peta")["Requires-Python"])
+        older = _version_of(target_python) not in supported
+        assert older or not os.environ.get(_TARGET_PYTHON)
+
+    def test_cli_reads_the_targets_markers_and_packages(
+        self, target_python: str
+    ) -> None:
+        result = runner.invoke(
+            app,
+            [
+                "info",
+                "probe",
+                "--local",
+                "--no-osv",
+                "--no-stats",
+                "--python",
+                target_python,
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.output)
+        assert envelope["result"]["version"] == "1.0.0"
+        markers = envelope["query"]["target_environment"]["markers"]
+        assert markers["python_full_version"] == str(_version_of(target_python))
+
+    def test_markers_are_evaluated_against_the_target(self, target_python: str) -> None:
+        """``probe-dep`` is required only below 3.14, judged by the target."""
+        target = LocalTarget.create(target_python)
+        tree = build_tree("probe", local=True, remote=False, target=target)
+        wanted = ["probe-dep"] if _version_of(target_python) < Version("3.14") else []
+        assert [child.name for child in tree.children] == wanted

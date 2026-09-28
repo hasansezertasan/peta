@@ -91,11 +91,18 @@ def test_linters_and_type_checkers_target_the_floor() -> None:
     assert tool["pyrefly"]["python-version"] == floor
 
 
-def test_style_env_runs_on_and_checks_the_ceiling() -> None:
-    style = _pyproject()["tool"]["tox"]["env"]["style"]
-    ceiling = _minors(_classified_versions())[-1]
-    assert style["base_python"] == [ceiling]
-    assert ["mypy", "--python-version", ceiling] in style["commands"]
+def test_style_env_runs_on_the_ceiling_and_type_checks_every_version() -> None:
+    """Every supported version is type-checked: the config floor, then one pass each."""
+    tool = _pyproject()["tool"]
+    style = tool["tox"]["env"]["style"]
+    versions = _minors(_classified_versions())
+    assert style["base_python"] == [versions[-1]]
+    explicit = [
+        command[2]
+        for command in style["commands"]
+        if command[:2] == ["mypy", "--python-version"]
+    ]
+    assert [tool["mypy"]["python_version"], *explicit] == versions
 
 
 _IN_REPO = pytest.mark.skipif(
@@ -127,3 +134,13 @@ def test_dev_interpreter_is_the_ceiling_and_gates_the_style_step() -> None:
     )
     assert step is not None, "the ci job has no style/docs/CLI step"
     assert f"if: ${{{{ matrix.python-version == '{ceiling}' }}}}" in step["body"]
+
+
+@_IN_REPO
+def test_ci_provides_an_older_target_interpreter() -> None:
+    """Without it the real ``--python`` tests quietly target peta's own runtime."""
+    job = _ci_job()
+    assert "uv python install" in job
+    assert "PETA_TEST_TARGET_PYTHON=" in job
+    tox = _pyproject()["tool"]["tox"]["env_run_base"]
+    assert "PETA_TEST_TARGET_PYTHON" in tox["pass_env"]

@@ -470,7 +470,7 @@ parenthesize-tuple-in-subscript = true
 
 # Every type checker targets the 3.11 floor so a stdlib API newer than the
 # oldest supported interpreter fails the style gate; the tox ``style`` env adds
-# an explicit ``mypy --python-version 3.14`` pass for the newest one.
+# an explicit ``mypy --python-version`` pass for each newer supported version.
 [tool.mypy]
 files = ["src"]
 pretty = true
@@ -550,6 +550,9 @@ env_tmp_dir = "{toxworkdir}/tmp/{envname}"
 # `coverage run` plus `parallel = true` writes per-env data files that the CI
 # `coverage combine` step merges.
 set_env = { COVERAGE_PROCESS_START = "{tox_root}/pyproject.toml" }
+# CI names an interpreter older than peta's own floor here, and the --python
+# integration tests inspect it for real; unset, they target the running one.
+pass_env = ["PETA_TEST_TARGET_PYTHON"]
 
 package = "wheel"
 
@@ -563,6 +566,10 @@ base_python = ["3.14"]
 commands = [
   ["ruff", "check", "--no-fix"],
   ["ruff", "format", "--check", "--diff"],
+  # The config targets the 3.11 floor; one explicit pass per newer supported
+  # version (tests/smoke/test_python_support.py keeps this list complete).
+  ["mypy", "--python-version", "3.12"],
+  ["mypy", "--python-version", "3.13"],
   ["mypy", "--python-version", "3.14"],
   # Style runs once on Linux, so explicitly sweep platform-gated branches that
   # mypy would otherwise prune as unreachable on the host platform.

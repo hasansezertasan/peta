@@ -110,6 +110,15 @@ jobs:
       - name: Restore cache
         if: steps.setup-uv.outputs.cache-hit == 'true'
         run: echo "Cache was restored"
+      - name: Install an older target interpreter
+        # `--python` may point peta at an environment older than peta's own
+        # floor (an isolated modern peta inspecting an older project), so the
+        # integration suite inspects a real one. uv's managed builds cover all
+        # three OSes; tox passes the variable through (pass_env).
+        shell: bash
+        run: |
+          uv python install 3.8
+          echo "PETA_TEST_TARGET_PYTHON=$(uv python find --no-project 3.8)" >> "$GITHUB_ENV"
       - name: Run the tests
         # Each tox test env is named after its interpreter (see env_list).
         shell: bash

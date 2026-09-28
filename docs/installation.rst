@@ -14,13 +14,14 @@ Supported Python versions
 
 ``peta`` supports the CPython minor releases that are maintained upstream
 (see the `Python release status page <https://devguide.python.org/versions/>`_)
-and that it tests continuously. Each supported version is declared in three
+and that it tests continuously. Each supported version is declared in four
 places that move together:
 
 * ``requires-python`` and the ``Programming Language :: Python :: 3.X``
   classifiers in the published package metadata;
 * a tox test env of the same name;
-* a row in the CI test matrix, run on Linux, macOS and Windows.
+* a row in the CI test matrix, run on Linux, macOS and Windows;
+* a ``mypy --python-version`` pass in the style checks.
 
 A test in the suite fails if these disagree, so the floor is never lowered
 without CI coverage for it. The floor rises once a version reaches its upstream
@@ -32,9 +33,10 @@ The interpreter ``peta`` *runs on* and the environment it *inspects* are
 separate. On ``info``, ``compare``, ``deps`` and ``files``, ``--python PATH``
 (an interpreter) and ``--path DIR`` (a metadata directory) point an isolated
 ``peta`` at another environment, and that environment may be older than
-``peta``'s own floor. The small script ``--python`` runs inside the target is
-kept to long-established syntax (the suite parses it with Python 3.7's
-grammar), and ``--path`` reads the metadata older tools wrote, from
+``peta``'s own floor. CI points ``--python`` at a real Python 3.8 interpreter
+on Linux, macOS and Windows from every supported ``peta`` runtime, and the
+small script it runs inside the target is also parsed with Python 3.7's
+grammar. ``--path`` reads the metadata older tools wrote, from
 ``Metadata-Version`` 1.0 to setuptools ``.egg-info`` directories.
 
 Using uv
