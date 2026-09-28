@@ -434,6 +434,24 @@ class TestOlderTargetMetadata:
         target = LocalTarget.create(None, (str(site_packages),))
         assert get_package("installed-egg", target=target).files == expected
 
+    def test_record_outranks_a_stray_installed_files_listing(
+        self, site_packages: Path
+    ) -> None:
+        """A ``.dist-info``'s ``RECORD`` stays authoritative, as in the stdlib."""
+        (site_packages / "recorded.py").write_text("", encoding="utf-8")
+        (site_packages / "stale.py").write_text("", encoding="utf-8")
+        dist_info = site_packages / "recorded-1.0.dist-info"
+        dist_info.mkdir()
+        (dist_info / "METADATA").write_text(
+            "Metadata-Version: 2.1\nName: recorded\nVersion: 1.0\n", encoding="utf-8"
+        )
+        (dist_info / "RECORD").write_text("recorded.py,,\n", encoding="utf-8")
+        (dist_info / "installed-files.txt").write_text(
+            "../stale.py\n", encoding="utf-8"
+        )
+        target = LocalTarget.create(None, (str(site_packages),))
+        assert get_package("recorded", target=target).files == ["recorded.py"]
+
     def test_cli_renders_the_oldest_format(self, legacy_site_packages: Path) -> None:
         result = runner.invoke(
             app,

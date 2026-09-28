@@ -120,4 +120,10 @@ def test_dev_interpreter_is_the_ceiling_and_gates_the_style_step() -> None:
     ceiling = _minors(_classified_versions())[-1]
     dev = (_ROOT / ".python-version").read_text(encoding="utf-8").strip()
     assert dev == ceiling
-    assert f"matrix.python-version == '{ceiling}'" in _ci_job()
+    step = re.search(
+        r"^      - name: Run style, docs and CLI checks\n(?P<body>(?:        .*\n)*)",
+        _ci_job(),
+        re.MULTILINE,
+    )
+    assert step is not None, "the ci job has no style/docs/CLI step"
+    assert f"if: ${{{{ matrix.python-version == '{ceiling}' }}}}" in step["body"]
