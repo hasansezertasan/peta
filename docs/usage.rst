@@ -238,7 +238,7 @@ point anywhere. A file is only read if its resolved path lies inside the
 directory holding the distribution's metadata, inside the installation scheme
 that directory belongs to, or inside the target interpreter's prefix. The
 scheme is recognized from the standard ``site-packages`` layouts --
-``lib/pythonX.Y/site-packages``, ``Lib/site-packages``, and the user sites --
+``lib/pythonX.Y/site-packages`` (or ``lib64``), ``Lib/site-packages``, and the user sites --
 which is what admits console scripts, including those of a ``--user``
 install. The prefix is known for the running interpreter and for a
 ``--python`` target, but not once ``--path`` is given. Anything else is

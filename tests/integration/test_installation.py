@@ -13,7 +13,7 @@ import json
 import os
 import sys
 import zipfile
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 import pytest
 from typer.testing import CliRunner
@@ -354,6 +354,19 @@ class TestIntegrity:
         states = _states(_inspect(site, "denied", verify=True))
         assert states["denied.py"] == "unverifiable"
 
+    def test_refused_digest_is_unverifiable(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FIPS builds can list an algorithm yet refuse to construct it."""
+        _install(site, "fips", files={"fips.py": b"x"})
+
+        def refuse(name: str, *args: object, **kwargs: object) -> NoReturn:
+            del args, kwargs
+            raise ValueError(name)
+
+        monkeypatch.setattr("peta.core.installation.hashlib.new", refuse)
+        assert _states(_inspect(site, "fips", verify=True))["fips.py"] == "unverifiable"
+
     def test_missing_record(self, site: Path) -> None:
         _install(site, "norecord", record=False)
         found = _inspect(site, "norecord", verify=True)
@@ -532,6 +545,11 @@ class TestPathSafety:
                 ("Library", "Python", "3.12", "lib", "python", "site-packages"),
                 "../../../bin/tool",
                 id="macos-framework-user",
+            ),
+            pytest.param(
+                ("lib64", "python3.13", "site-packages"),
+                "../../../bin/tool",
+                id="posix-lib64",
             ),
             pytest.param(("Lib", "site-packages"), "../../Scripts/tool", id="windows"),
             pytest.param(

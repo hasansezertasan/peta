@@ -492,7 +492,9 @@ class _Checker:
         size = probed
         try:
             state = self._state(located, size, recorded_size, recorded_hash)
-        except OSError:
+        # ``ValueError``: a FIPS build lists md5 as guaranteed yet refuses to
+        # construct it, which leaves the digest just as uncomputable.
+        except (OSError, ValueError):
             # Present but unreadable: neither missing nor evidence of a change.
             state = "unverifiable"
         return InstalledFile(path, state, size, *recorded)
@@ -542,6 +544,10 @@ _VERSIONED_PYTHON = re.compile(r"python[\d.]*", re.IGNORECASE)
 """A ``pythonX.Y``, ``python``, or ``PythonXY`` directory in a scheme layout."""
 
 
+_LIBRARY_DIRS = frozenset({"lib", "lib64"})
+"""Library directory names; ``lib64`` is the platlib on Fedora and RHEL."""
+
+
 def _scheme_root(base: Path) -> Path | None:
     """Find the installation scheme a ``site-packages`` directory belongs to.
 
@@ -551,7 +557,8 @@ def _scheme_root(base: Path) -> Path | None:
     install, whose scripts live under the user base rather than
     ``sys.prefix``:
 
-    * ``<root>/lib/pythonX.Y/site-packages`` -- POSIX prefixes, venvs, and
+    * ``<root>/lib/pythonX.Y/site-packages`` (or ``lib64``) -- POSIX
+      prefixes, venvs, and
       ``~/.local``; ``<root>/lib/python/site-packages`` for a macOS
       framework user install;
     * ``<root>/Lib/site-packages`` -- Windows prefixes and venvs;
@@ -563,11 +570,12 @@ def _scheme_root(base: Path) -> Path | None:
     if base.name.lower() not in {"site-packages", "dist-packages"}:
         return None
     parent = base.parent
-    if parent.name.lower() == "lib":
+    if parent.name.lower() in _LIBRARY_DIRS:
         return parent.parent
     if not _VERSIONED_PYTHON.fullmatch(parent.name):
         return None
-    return parent.parent.parent if parent.parent.name.lower() == "lib" else parent
+    grandparent = parent.parent
+    return grandparent.parent if grandparent.name.lower() in _LIBRARY_DIRS else parent
 
 
 def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:
