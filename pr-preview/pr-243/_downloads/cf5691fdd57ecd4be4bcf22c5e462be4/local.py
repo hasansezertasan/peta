@@ -442,10 +442,14 @@ def _egg_info_installed_files(
     installed. Reading it here, relative to the search-path root and skipping
     files that are gone, keeps ``files`` the same on every supported version.
 
+    A non-empty ``RECORD`` still wins, as it does in the stdlib, so a
+    ``.dist-info`` that also carries a stray ``installed-files.txt`` keeps its
+    authoritative listing.
+
     Returns:
         The installed files, or ``None`` when ``dist`` has no such listing.
     """
-    if not isinstance(dist, PathDistribution):
+    if not isinstance(dist, PathDistribution) or dist.read_text("RECORD"):
         return None
     listing = dist.read_text("installed-files.txt")
     if not listing:
