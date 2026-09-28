@@ -53,7 +53,9 @@ def _display_url(url: str | None) -> str:
     parts = urlsplit(url)
     if parts.scheme != "file":
         return url
-    name = PurePosixPath(unquote(parts.path)).name
+    # Backslashes too: a Windows URL such as ``file:C:\Users\me\pkg`` would
+    # otherwise be one "name" -- the whole private path.
+    name = PurePosixPath(unquote(parts.path).replace("\\", "/")).name
     return f".../{name}" if name else "local path"
 
 

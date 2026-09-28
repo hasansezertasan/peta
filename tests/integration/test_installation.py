@@ -187,6 +187,7 @@ class TestOrigin:
             pytest.param("{not json", "not valid JSON", id="malformed"),
             pytest.param("[]", "not an object", id="not-an-object"),
             pytest.param('{"vcs_info": {}}', "has no url", id="no-url"),
+            pytest.param('{"url": "  ", "dir_info": {}}', "has no url", id="blank-url"),
             pytest.param('{"url": "https://x"}', "names no source", id="no-info"),
             pytest.param(
                 '{"url": "https://x", "n": ' + "9" * 5000 + "}",

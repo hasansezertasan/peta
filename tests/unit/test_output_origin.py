@@ -126,6 +126,16 @@ def test_archive_prefers_sha2_over_md5() -> None:
             id="root-path",
         ),
         pytest.param(
+            Origin(kind="directory", url="file:C:\\Users\\Alice\\private\\pkg"),
+            "local directory .../pkg",
+            id="windows-backslashes",
+        ),
+        pytest.param(
+            Origin(kind="directory", url="file:///C:%5CUsers%5CAlice%5Cpkg"),
+            "local directory .../pkg",
+            id="windows-encoded-backslashes",
+        ),
+        pytest.param(
             Origin(kind="archive", url="https://example.com/a.tar.gz"),
             "archive https://example.com/a.tar.gz",
             id="archive-without-hashes",

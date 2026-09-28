@@ -252,7 +252,8 @@ def _described_origin(data: dict[str, object]) -> Origin:
         The origin it describes, or an ``unknown`` one naming the problem.
     """
     raw_url = _optional_str(data, "url")
-    if raw_url is None:
+    # Blank is no better than absent: it names no origin to report.
+    if raw_url is None or not raw_url.strip():
         return Origin(kind="unknown", reason="direct_url.json has no url.")
     # Userinfo and token parameters are the installer's record of how the
     # user fetched the project, not metadata the project declared: they are
