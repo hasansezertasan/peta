@@ -234,7 +234,8 @@ Hashing reads every installed file, so it only runs with ``--verify``. Sizes
 are always compared, because that costs one ``stat`` per file.
 
 ``RECORD`` is untrusted input: a row can name any path, and a symlink can
-point anywhere. A file is only read if its resolved path lies inside the
+point anywhere. The metadata files themselves are only read when they are
+regular files of plausible size, never through a symlink. A file is only read if its resolved path lies inside the
 directory holding the distribution's metadata, inside the installation scheme
 that directory belongs to, or inside the target interpreter's prefix. The
 scheme is recognized from the standard ``site-packages`` layouts --

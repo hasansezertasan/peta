@@ -265,6 +265,9 @@ def _described_origin(data: dict[str, object]) -> Origin:
     return _source_origin(url, data)
 
 
+_MAX_METADATA_BYTES = 64 * 1024 * 1024
+"""The largest metadata file read; far above any real ``RECORD``."""
+
 _ABSENT = (FileNotFoundError, IsADirectoryError, KeyError, NotADirectoryError)
 """What reading a metadata file raises when the distribution has no such file.
 
@@ -294,13 +297,45 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
     # The same private attribute :func:`legacy_installed_files` reads. It may
     # be a ``zipfile.Path`` for a zipped distribution, so it is used as-is.
     folder: Traversable = cast("Traversable", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.
+    return _read_entry(folder.joinpath(name))
+
+
+def _read_entry(entry: Traversable) -> str | None:
+    """Read one metadata entry, refusing what :func:`_plain_file` refuses.
+
+    Returns:
+        The decoded text; ``None`` when absent, ``""`` when present but
+        unreadable or refused.
+    """
+    if isinstance(entry, Path) and not _plain_file(entry):
+        return "" if entry.is_symlink() or entry.exists() else None
     try:
-        raw = folder.joinpath(name).read_bytes()
+        raw = entry.read_bytes()
     except _ABSENT:
         return None
     except OSError:
         return ""
     return raw.decode("utf-8", errors="replace")
+
+
+def _plain_file(path: Path) -> bool:
+    """Report whether a metadata file is safe to read.
+
+    Metadata files are read before any ``RECORD`` containment check applies,
+    so they are held to their own: a symlink could expose any readable file
+    as recorded paths, and a device such as ``/dev/zero`` would never end.
+    Only a regular file of plausible size, not reached through a symlink, is
+    read; anything else is present but refused.
+
+    Returns:
+        ``True`` for a regular, non-symlinked file within
+        :data:`_MAX_METADATA_BYTES`.
+    """
+    try:
+        info = path.lstat()
+    except (OSError, ValueError):
+        return False
+    return stat.S_ISREG(info.st_mode) and info.st_size <= _MAX_METADATA_BYTES
 
 
 def _origin(dist: importlib_metadata.Distribution) -> Origin:
@@ -326,6 +361,10 @@ def _installer(dist: importlib_metadata.Distribution) -> str | None:
 
 
 def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
+    # Vetted through :func:`_read_text` first: the stdlib parser below reads
+    # the file itself, and would follow a symlink or read a device.
+    if not _read_text(dist, "entry_points.txt"):
+        return []
     try:
         points = dist.entry_points
     # The stdlib parser raises ``TypeError`` for a line without ``=``.
@@ -622,6 +661,9 @@ def _record_files(
     record = _read_text(dist, "RECORD")
     if record is not None:
         return _recorded_files(record, checker)
+    # Vetted first, as for entry points: the legacy reader opens it directly.
+    if not _read_text(dist, "installed-files.txt"):
+        return None, []
     try:
         legacy = legacy_installed_files(dist, skip_missing=False)
     except UnicodeDecodeError:

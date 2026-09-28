@@ -628,6 +628,61 @@ class TestPathSafety:
         assert _states(found) == {"zpkg.py": "unverifiable"}
 
 
+class TestMetadataSafety:
+    """Metadata files are read before containment applies, so they are vetted."""
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    @pytest.mark.parametrize(
+        "name", ["RECORD", "entry_points.txt", "direct_url.json", "INSTALLER"]
+    )
+    def test_symlinked_metadata_is_refused(
+        self, site: Path, tmp_path: Path, name: str
+    ) -> None:
+        secret = tmp_path / "secret.txt"
+        secret.write_text("[g]\nleak = secret:line\n", encoding="utf-8")
+        dist_info = _install(site, "linkmeta", record=name != "RECORD")
+        (dist_info / name).unlink(missing_ok=True)
+        (dist_info / name).symlink_to(secret)
+        found = _inspect(site, "linkmeta")
+        rendered = repr(found)
+        assert "leak" not in rendered
+        assert "secret:line" not in rendered
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    def test_symlinked_legacy_listing_is_refused(
+        self, site: Path, tmp_path: Path
+    ) -> None:
+        outside = tmp_path / "listing.txt"
+        outside.write_text("../leaked.py\n", encoding="utf-8")
+        egg_info = site / "linkegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="linkegg"), encoding="utf-8"
+        )
+        (egg_info / "installed-files.txt").symlink_to(outside)
+        assert _inspect(site, "linkegg").record_source is None
+
+    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs named pipes")
+    def test_special_file_is_not_read(self, site: Path) -> None:
+        """A FIFO would block forever if it were opened for reading."""
+        dist_info = _install(site, "fifo", record=False)
+        os.mkfifo(dist_info / "RECORD")
+        assert _inspect(site, "fifo").record_source is None
+
+    def test_oversized_metadata_is_refused(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install(site, "huge", files={"huge.py": b"x"})
+        monkeypatch.setattr("peta.core.installation._MAX_METADATA_BYTES", 1)
+        assert _inspect(site, "huge").record_source is None
+
+    def test_directory_in_place_of_record_is_no_listing(self, site: Path) -> None:
+        dist_info = _install(site, "dirrec", record=False)
+        (dist_info / "RECORD").mkdir()
+        (dist_info / "installed-files.txt").write_text("../x.py\n", encoding="utf-8")
+        assert _inspect(site, "dirrec").record_source is None
+
+
 class TestCli:
     """The ``peta origin`` command end to end."""
 
