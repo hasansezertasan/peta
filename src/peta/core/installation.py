@@ -541,8 +541,11 @@ def _probe(located: Path) -> int | FileState:
     return info.st_size if stat.S_ISREG(info.st_mode) else "missing"
 
 
-_VERSIONED_PYTHON = re.compile(r"python[\d.]*", re.IGNORECASE)
-"""A ``pythonX.Y``, ``python``, or ``PythonXY`` directory in a scheme layout."""
+_VERSIONED_PYTHON = re.compile(r"python(?:\d+(?:\.\d+)*t?)?", re.IGNORECASE)
+"""A ``pythonX.Y``, ``python``, or ``PythonXY`` directory in a scheme layout.
+
+The optional ``t`` is the free-threaded ABI suffix, as in ``python3.13t``.
+"""
 
 
 _LIBRARY_DIRS = frozenset({"lib", "lib64"})
@@ -584,27 +587,41 @@ def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:
     return (base, *(root for root in candidates if root is not None))
 
 
+def _recorded_files(
+    record: str, checker: _Checker
+) -> tuple[RecordSource | None, list[InstalledFile]]:
+    """Check every file a present ``RECORD`` lists.
+
+    Returns:
+        ``RECORD`` and one checked entry per row, or no listing at all when
+        the file is empty, unreadable, or unparsable.
+    """
+    try:
+        rows = _record_rows(record)
+    except csv.Error:
+        # An unterminated quote or an oversized field: no row after it can
+        # be trusted, so the listing as a whole is unusable.
+        return None, []
+    return ("RECORD", list(starmap(checker.check, rows))) if rows else (None, [])
+
+
 def _record_files(
     dist: importlib_metadata.Distribution, checker: _Checker
 ) -> tuple[RecordSource | None, list[InstalledFile]]:
     """Check every file the distribution lists.
 
-    ``RECORD`` is read only when it is non-empty: without it importlib falls
-    back to ``SOURCES.txt``, which lists a project's source tree rather than
-    what was installed, and reporting those as missing would be false.
+    A present ``RECORD`` is authoritative even when it is empty or cannot be
+    read: falling back would let a stray ``installed-files.txt`` beside it
+    pass for the real listing. Only an absent one falls back, and never to
+    ``SOURCES.txt``, which lists a project's source tree rather than what was
+    installed.
 
     Returns:
         Which listing was used, and one checked entry per listed file.
     """
     record = _read_text(dist, "RECORD")
-    if record:
-        try:
-            rows = _record_rows(record)
-        except csv.Error:
-            # An unterminated quote or an oversized field: no row after it
-            # can be trusted, so the listing as a whole is unusable.
-            return None, []
-        return "RECORD", list(starmap(checker.check, rows))
+    if record is not None:
+        return _recorded_files(record, checker)
     try:
         legacy = legacy_installed_files(dist, skip_missing=False)
     except UnicodeDecodeError:

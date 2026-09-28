@@ -368,6 +368,18 @@ class TestIntegrity:
         monkeypatch.setattr("peta.core.installation.hashlib.new", refuse)
         assert _states(_inspect(site, "fips", verify=True))["fips.py"] == "unverifiable"
 
+    @pytest.mark.parametrize("record", [b"", b"\n"], ids=["empty", "blank-lines"])
+    def test_present_record_outranks_a_stray_legacy_listing(
+        self, site: Path, record: bytes
+    ) -> None:
+        dist_info = _install(site, "stray", record=False)
+        _ = (dist_info / "RECORD").write_bytes(record)
+        _ = (site / "stray.py").write_bytes(b"")
+        (dist_info / "installed-files.txt").write_text(
+            "../stray.py\n", encoding="utf-8"
+        )
+        assert _inspect(site, "stray").record_source is None
+
     def test_missing_record(self, site: Path) -> None:
         _install(site, "norecord", record=False)
         found = _inspect(site, "norecord", verify=True)
@@ -546,6 +558,11 @@ class TestPathSafety:
                 ("Library", "Python", "3.12", "lib", "python", "site-packages"),
                 "../../../bin/tool",
                 id="macos-framework-user",
+            ),
+            pytest.param(
+                ("lib", "python3.13t", "site-packages"),
+                "../../../bin/tool",
+                id="free-threaded",
             ),
             pytest.param(
                 ("lib64", "python3.13", "site-packages"),
