@@ -596,12 +596,17 @@ read;</p></li>
 are always compared, because that costs one <code class="docutils literal notranslate"><span class="pre">stat</span></code> per file.</p>
 <p><code class="docutils literal notranslate"><span class="pre">RECORD</span></code> is untrusted input: a row can name any path, and a symlink can
 point anywhere. A file is only read if its resolved path lies inside the
-directory holding the distribution’s metadata or inside the environment’s
-prefix – where console scripts live. The prefix is known for the running
-interpreter and for a <code class="docutils literal notranslate"><span class="pre">--python</span></code> target, but not once <code class="docutils literal notranslate"><span class="pre">--path</span></code> is given:
-the metadata then comes from directories the interpreter’s prefix does not
-describe, so a script outside <code class="docutils literal notranslate"><span class="pre">site-packages</span></code> is reported <code class="docutils literal notranslate"><span class="pre">out_of_bounds</span></code>
-rather than read. A distribution without a <code class="docutils literal notranslate"><span class="pre">RECORD</span></code> falls back to a legacy
+directory holding the distribution’s metadata, inside the installation scheme
+that directory belongs to, or inside the target interpreter’s prefix. The
+scheme is recognized from the standard <code class="docutils literal notranslate"><span class="pre">site-packages</span></code> layouts –
+<code class="docutils literal notranslate"><span class="pre">lib/pythonX.Y/site-packages</span></code>, <code class="docutils literal notranslate"><span class="pre">Lib/site-packages</span></code>, and the user sites –
+which is what admits console scripts, including those of a <code class="docutils literal notranslate"><span class="pre">--user</span></code>
+install. The prefix is known for the running interpreter and for a
+<code class="docutils literal notranslate"><span class="pre">--python</span></code> target, but not once <code class="docutils literal notranslate"><span class="pre">--path</span></code> is given. Anything else is
+reported <code class="docutils literal notranslate"><span class="pre">out_of_bounds</span></code> rather than read. A distribution found inside a
+zip on the search path is reported <code class="docutils literal notranslate"><span class="pre">unverifiable</span></code> file by file, since peta
+does not read archive members.
+A distribution without a <code class="docutils literal notranslate"><span class="pre">RECORD</span></code> falls back to a legacy
 <code class="docutils literal notranslate"><span class="pre">installed-files.txt</span></code>, which carries no hashes; with neither, integrity is
 reported as unavailable rather than guessed from <code class="docutils literal notranslate"><span class="pre">SOURCES.txt</span></code>.</p>
 <p>Human output names a local origin by its final path component only, so a report
