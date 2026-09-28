@@ -7,7 +7,7 @@ import typer
 from peta.cli.output.render import render_origin, render_target
 from peta.cli.output.selection import OutputFormat, fail, resolve_or_fail
 from peta.core.installation import inspect_installation
-from peta.core.local import LocalTarget, PackageNotFoundError
+from peta.core.local import InvalidTargetError, LocalTarget, PackageNotFoundError
 from peta.core.output import TARGET_ENVIRONMENT_KEY
 
 __all__ = ["origin"]
@@ -53,7 +53,10 @@ def origin(
             exit_code=1,
             source="local",
         )
-    except ValueError as exc:
+    # Only the target's own error: anything else raised while inspecting is a
+    # bug, and reporting it as a bad argument would send the user after the
+    # wrong cause.
+    except InvalidTargetError as exc:
         fail(
             "origin",
             arguments=arguments,

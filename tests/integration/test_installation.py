@@ -167,6 +167,11 @@ class TestOrigin:
             pytest.param("[]", "not an object", id="not-an-object"),
             pytest.param('{"vcs_info": {}}', "has no url", id="no-url"),
             pytest.param('{"url": "https://x"}', "names no source", id="no-info"),
+            pytest.param(
+                '{"url": "http://a]b/x", "dir_info": {}}',
+                "malformed url",
+                id="malformed-url",
+            ),
         ],
     )
     def test_unreadable_direct_url_is_unknown(
@@ -268,6 +273,22 @@ class TestIntegrity:
             "unverifiable"
         )
 
+    def test_hash_without_an_algorithm_is_unverifiable(self, site: Path) -> None:
+        _ = (site / "bare.py").write_bytes(b"")
+        _install(site, "bare", extra_rows=("bare.py,nodigest,0",))
+        assert _states(_inspect(site, "bare", verify=True))["bare.py"] == (
+            "unverifiable"
+        )
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="no newlines in names")
+    def test_quoted_path_with_a_newline(self, site: Path) -> None:
+        content = b"x"
+        _ = (site / "odd\nname.py").write_bytes(content)
+        row = f'"odd\nname.py",{_record_hash(content)},{len(content)}'
+        _install(site, "oddname", extra_rows=(row,))
+        states = _states(_inspect(site, "oddname", verify=True))
+        assert states["odd\nname.py"] == "verified"
+
     def test_missing_record(self, site: Path) -> None:
         _install(site, "norecord", record=False)
         found = _inspect(site, "norecord", verify=True)
@@ -336,6 +357,22 @@ class TestPathSafety:
         assert _states(_inspect(site, "linked", verify=True))["link.py"] == (
             "out_of_bounds"
         )
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    def test_symlink_loop_is_not_followed(self, site: Path) -> None:
+        (site / "loop_a").symlink_to(site / "loop_b")
+        (site / "loop_b").symlink_to(site / "loop_a")
+        _install(site, "looped", extra_rows=("loop_a/x.py,sha256=abc,4",))
+        (entry,) = _inspect(site, "looped", verify=True).files[:1]
+        # 3.11/3.12 raise on the loop and later versions resolve it lexically;
+        # either way nothing is read and the command does not fail.
+        assert entry.state in {"out_of_bounds", "missing"}
+        assert entry.size is None
+
+    def test_nul_byte_path_is_not_an_argument_error(self, site: Path) -> None:
+        _install(site, "nulled", extra_rows=("bad\x00.py,sha256=abc,4",))
+        states = _states(_inspect(site, "nulled", verify=True))
+        assert states["bad\x00.py"] == "out_of_bounds"
 
     def test_scripts_under_the_prefix_are_read(self, site: Path) -> None:
         """Console scripts sit outside site-packages but inside the prefix."""

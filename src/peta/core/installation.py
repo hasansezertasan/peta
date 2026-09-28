@@ -12,6 +12,7 @@ import base64
 import csv
 import hashlib
 import inspect
+import io
 import json
 import sys
 from dataclasses import dataclass, field
@@ -205,6 +206,24 @@ def _vcs_origin(url: str, info: dict[str, object], sub: str | None) -> Origin:
     )
 
 
+def _source_origin(url: str, data: dict[str, object]) -> Origin:
+    """Pick the origin kind from whichever ``*_info`` object is present.
+
+    Returns:
+        The described origin, or an ``unknown`` one when none is present.
+    """
+    sub = _optional_str(data, "subdirectory")
+    if (vcs := _object(data.get("vcs_info"))) is not None:
+        return _vcs_origin(url, vcs, sub)
+    if (archive := _object(data.get("archive_info"))) is not None:
+        hashes = _archive_hashes(archive)
+        return Origin(kind="archive", url=url, archive_hashes=hashes, subdirectory=sub)
+    if (directory := _object(data.get("dir_info"))) is not None:
+        editable = directory.get("editable") is True
+        return Origin(kind="directory", url=url, editable=editable, subdirectory=sub)
+    return Origin(kind="unknown", url=url, reason="direct_url.json names no source.")
+
+
 def _described_origin(data: dict[str, object]) -> Origin:
     """Interpret a decoded ``direct_url.json`` object.
 
@@ -217,17 +236,11 @@ def _described_origin(data: dict[str, object]) -> Origin:
     # Userinfo and token parameters are the installer's record of how the
     # user fetched the project, not metadata the project declared: they are
     # credentials, and would leak into every report of this environment.
-    url = redacted(raw_url)
-    sub = _optional_str(data, "subdirectory")
-    if (vcs := _object(data.get("vcs_info"))) is not None:
-        return _vcs_origin(url, vcs, sub)
-    if (archive := _object(data.get("archive_info"))) is not None:
-        hashes = _archive_hashes(archive)
-        return Origin(kind="archive", url=url, archive_hashes=hashes, subdirectory=sub)
-    if (directory := _object(data.get("dir_info"))) is not None:
-        editable = directory.get("editable") is True
-        return Origin(kind="directory", url=url, editable=editable, subdirectory=sub)
-    return Origin(kind="unknown", url=url, reason="direct_url.json names no source.")
+    try:
+        url = redacted(raw_url)
+    except ValueError:
+        return Origin(kind="unknown", reason="direct_url.json has a malformed url.")
+    return _source_origin(url, data)
 
 
 def _origin(dist: importlib_metadata.Distribution) -> Origin:
@@ -318,7 +331,9 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
         ``(path, recorded size, recorded hash)`` for every non-empty row.
     """
     rows: list[tuple[str, int | None, str | None]] = []
-    for row in csv.reader(text.splitlines()):
+    # Read as a stream, not pre-split lines: a quoted path may itself hold a
+    # newline, and splitting first would silently drop it.
+    for row in csv.reader(io.StringIO(text, newline="")):
         if not row or not row[0]:
             continue
         # Padded so a row missing its trailing columns reads as unrecorded.
@@ -338,6 +353,30 @@ def _digest(path: Path, algorithm: str) -> str:
         while chunk := handle.read(_CHUNK):
             hasher.update(chunk)
     return base64.urlsafe_b64encode(hasher.digest()).rstrip(b"=").decode("ascii")
+
+
+_UNRESOLVABLE = (OSError, RuntimeError, ValueError)
+"""What resolving a hostile ``RECORD`` path can raise.
+
+``ValueError`` for an embedded NUL byte, ``RuntimeError`` for a symlink loop
+on Python 3.11 and 3.12, and ``OSError`` for other resolution failures.
+"""
+
+
+def _resolved(path: Path) -> Path | None:
+    """Resolve a recorded path, or ``None`` when it cannot be placed.
+
+    A path that cannot be resolved cannot be shown to lie inside the
+    environment, so it is treated like one that lies outside it: reported,
+    never read.
+
+    Returns:
+        The absolute, symlink-free path, if there is one.
+    """
+    try:
+        return path.resolve()
+    except _UNRESOLVABLE:
+        return None
 
 
 def _within(path: Path, roots: tuple[Path, ...]) -> bool:
@@ -361,8 +400,8 @@ class _Checker:
         recorded = (recorded_size, recorded_hash)
         # ``resolve`` follows symlinks, so a link inside site-packages that
         # points elsewhere is judged by where it leads, not where it sits.
-        located = (self.base / path).resolve()
-        if not _within(located, self.roots):
+        located = _resolved(self.base / path)
+        if located is None or not _within(located, self.roots):
             return InstalledFile(path, "out_of_bounds", None, *recorded)
         if not located.is_file():
             return InstalledFile(path, "missing", None, *recorded)
@@ -387,8 +426,8 @@ class _Checker:
             return "not_recorded"
         if not self.verify:
             return "unchecked"
-        algorithm, expected = recorded_hash.split("=", 1)
-        if algorithm not in hashlib.algorithms_guaranteed:
+        algorithm, separator, expected = recorded_hash.partition("=")
+        if not separator or algorithm not in hashlib.algorithms_guaranteed:
             return "unverifiable"
         return "verified" if _digest(located, algorithm) == expected else "mismatch"
 
