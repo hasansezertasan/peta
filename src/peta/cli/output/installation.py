@@ -170,9 +170,7 @@ def installation_notes(installation: Installation) -> list[str]:
     if counts["not_recorded"]:
         notes.append("A file with no recorded hash is unverified, not changed.")
     if counts["unverifiable"]:
-        notes.append(
-            "Unverifiable files have a hash peta cannot compute or cannot be read."
-        )
+        notes.append("Unverifiable files use an unknown hash or cannot be reached.")
     if counts["out_of_bounds"]:
         notes.append("Paths outside the selected environment were reported, not read.")
     return notes

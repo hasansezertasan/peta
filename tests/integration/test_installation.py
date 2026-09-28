@@ -176,6 +176,11 @@ class TestOrigin:
             pytest.param('{"vcs_info": {}}', "has no url", id="no-url"),
             pytest.param('{"url": "https://x"}', "names no source", id="no-info"),
             pytest.param(
+                '{"url": "https://x", "n": ' + "9" * 5000 + "}",
+                "not valid JSON",
+                id="oversized-int",
+            ),
+            pytest.param(
                 '{"url": "http://a]b/x", "dir_info": {}}',
                 "malformed url",
                 id="malformed-url",
@@ -354,6 +359,31 @@ class TestIntegrity:
         states = set(_states(_inspect(site, "nulegg", verify=True)).values())
         assert states == {"out_of_bounds"}
 
+    def test_unterminated_quote_is_no_listing(self, site: Path) -> None:
+        _install(site, "unquoted", extra_rows=('"a.py,sha256=abc,1', "b.py,,"))
+        assert _inspect(site, "unquoted").record_source is None
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="no CR in names")
+    def test_quoted_carriage_return_is_kept(self, site: Path) -> None:
+        content = b"icon"
+        _ = (site / "Icon\r").write_bytes(content)
+        row = f'"Icon\r",{_record_hash(content)},{len(content)}'
+        _install(site, "iconpkg", extra_rows=(row,))
+        assert _states(_inspect(site, "iconpkg", verify=True))["Icon\r"] == "verified"
+
+    @pytest.mark.skipif(
+        sys.platform == "win32" or os.geteuid() == 0,
+        reason="POSIX permissions, not bypassed by root",
+    )
+    def test_unreachable_file_is_unverifiable(self, site: Path) -> None:
+        _install(site, "locked", files={"locked/a.py": b"x"})
+        (site / "locked").chmod(0)
+        try:
+            states = _states(_inspect(site, "locked", verify=True))
+        finally:
+            (site / "locked").chmod(0o755)
+        assert states["locked/a.py"] == "unverifiable"
+
     def test_missing_record(self, site: Path) -> None:
         _install(site, "norecord", record=False)
         found = _inspect(site, "norecord", verify=True)
@@ -431,13 +461,16 @@ class TestPathSafety:
         (entry,) = _inspect(site, "looped", verify=True).files[:1]
         # 3.11/3.12 raise on the loop and later versions resolve it lexically;
         # either way nothing is read and the command does not fail.
-        assert entry.state in {"out_of_bounds", "missing"}
+        assert entry.state in {"out_of_bounds", "unverifiable"}
         assert entry.size is None
 
     def test_nul_byte_path_is_not_an_argument_error(self, site: Path) -> None:
         _install(site, "nulled", extra_rows=("bad\x00.py,sha256=abc,4",))
-        states = _states(_inspect(site, "nulled", verify=True))
-        assert states["bad\x00.py"] == "out_of_bounds"
+        (entry,) = [f for f in _inspect(site, "nulled").files if "\x00" in f.path]
+        # POSIX refuses to resolve it; Windows' non-strict realpath returns it
+        # unchanged. Either way it is never read.
+        assert entry.state in {"out_of_bounds", "unverifiable"}
+        assert entry.size is None
 
     def test_scripts_under_the_prefix_are_read(self, site: Path) -> None:
         """Console scripts sit outside site-packages but inside the prefix."""
@@ -520,6 +553,11 @@ class TestCli:
         result = runner.invoke(app, ["origin", "x", "--bogus", "--json"])
         assert result.exit_code == 2
         assert json.loads(result.output)["query"]["command"] == "origin"
+
+    def test_empty_name_is_an_argument_error(self) -> None:
+        result = runner.invoke(app, ["origin", "", "--json"])
+        assert result.exit_code == 2
+        assert json.loads(result.output)["errors"][0]["code"] == "invalid_arguments"
 
     def test_not_found(self, site: Path) -> None:
         result = runner.invoke(app, ["origin", "absent", "--path", str(site), "--json"])

@@ -14,12 +14,13 @@ import hashlib
 import inspect
 import io
 import json
+import stat
 import sys
 from dataclasses import dataclass, field
 from importlib.metadata import PathDistribution
 from itertools import starmap
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Literal, cast
+from typing import TYPE_CHECKING, Final, Literal, Protocol, cast
 
 from typing_extensions import TypeAliasType
 
@@ -71,8 +72,8 @@ FileState = TypeAliasType(
 
 Kept deliberately distinct: an absent hash (``not_recorded``) says nothing
 about corruption, and a hash that was never computed (``unchecked``) is not a
-verified one. ``unverifiable`` means a hash was recorded but could not be
-checked -- an algorithm peta cannot compute, or a file it cannot read.
+verified one. ``unverifiable`` means the file could not be checked -- its
+hash uses an algorithm peta cannot compute, or it cannot be reached or read.
 ``out_of_bounds`` marks a path that resolves outside the
 selected environment, which is reported rather than read.
 """
@@ -262,31 +263,54 @@ def _described_origin(data: dict[str, object]) -> Origin:
     return _source_origin(url, data)
 
 
+class _MetadataFolder(Protocol):
+    """What :func:`_read_text` needs from a distribution's metadata folder.
+
+    Both :class:`pathlib.Path` and :class:`zipfile.Path` provide it, though
+    typeshed's ``SimplePath`` does not declare ``read_bytes``.
+    """
+
+    def joinpath(self, *other: str) -> _MetadataFolder: ...
+
+    def read_bytes(self) -> bytes: ...
+
+
+_ABSENT = (FileNotFoundError, IsADirectoryError, KeyError, NotADirectoryError)
+"""What reading a metadata file raises when the distribution has no such file.
+
+The same set :meth:`importlib.metadata.PathDistribution.read_text` treats as
+absent, minus ``PermissionError``: an unreadable file is present.
+"""
+
+
 def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
-    """Read one metadata file, tolerating bytes that are not UTF-8.
+    """Read one metadata file as bytes, tolerating content that is not UTF-8.
 
     ``Distribution.read_text`` decodes strictly, so one corrupt byte would
-    abort the whole inspection. A damaged file is still evidence, and is
-    decoded with replacement characters instead.
+    abort the whole inspection, and it translates newlines, which turns a
+    quoted carriage return inside a ``RECORD`` path into a different path.
+    Reading the bytes avoids both; a damaged file is still evidence, decoded
+    with replacement characters.
 
     Returns:
-        The file's text, or ``None`` when the distribution has no such file.
-        An unreadable file that cannot be re-read raw is ``""``: present,
-        but saying nothing.
+        The file's text; ``None`` when the distribution has no such file, and
+        ``""`` when it has one that cannot be read.
     """
-    try:
-        return dist.read_text(name)
-    except UnicodeDecodeError:
-        if not isinstance(dist, PathDistribution):
-            # Present but unreadable, which is not the same as absent.
-            return ""
-        # The same private attribute :func:`legacy_installed_files` reads.
-        folder = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
+    if not isinstance(dist, PathDistribution):
         try:
-            raw = (folder / name).read_bytes()
-        except OSError:
+            return dist.read_text(name)
+        except UnicodeDecodeError:
             return ""
-        return raw.decode("utf-8", errors="replace")
+    # The same private attribute :func:`legacy_installed_files` reads. It may
+    # be a ``zipfile.Path`` for a zipped distribution, so it is used as-is.
+    folder = cast("_MetadataFolder", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.
+    try:
+        raw = folder.joinpath(name).read_bytes()
+    except _ABSENT:
+        return None
+    except OSError:
+        return ""
+    return raw.decode("utf-8", errors="replace")
 
 
 def _origin(dist: importlib_metadata.Distribution) -> Origin:
@@ -295,7 +319,9 @@ def _origin(dist: importlib_metadata.Distribution) -> Origin:
         return Origin(kind="index")
     try:
         data = cast("object", json.loads(text))
-    except json.JSONDecodeError:
+    # ``JSONDecodeError`` is a ``ValueError``, and so is an integer past the
+    # digit limit; absurd nesting exhausts the recursion limit instead.
+    except (RecursionError, ValueError):
         return Origin(kind="unknown", reason="direct_url.json is not valid JSON.")
     decoded = _object(data)
     if decoded is None:
@@ -391,7 +417,9 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
     rows: list[tuple[str, int | None, str | None]] = []
     # Read as a stream, not pre-split lines: a quoted path may itself hold a
     # newline, and splitting first would silently drop it.
-    for row in csv.reader(io.StringIO(text, newline="")):
+    # ``strict`` makes an unterminated quote an error, instead of folding
+    # every later row silently into one field.
+    for row in csv.reader(io.StringIO(text, newline=""), strict=True):
         if not row or not row[0]:
             continue
         # Padded so a row missing its trailing columns reads as unrecorded.
@@ -461,13 +489,10 @@ class _Checker:
         located = _resolved(self.base / path)
         if located is None or not _within(located, self.roots):
             return InstalledFile(path, "out_of_bounds", None, *recorded)
-        if not located.is_file():
-            return InstalledFile(path, "missing", None, *recorded)
-        try:
-            size = located.stat().st_size
-        except OSError:
-            # Removed between the two checks: gone, as far as anyone can tell.
-            return InstalledFile(path, "missing", None, *recorded)
+        probed = _probe(located)
+        if isinstance(probed, str):
+            return InstalledFile(path, probed, None, *recorded)
+        size = probed
         try:
             state = self._state(located, size, recorded_size, recorded_hash)
         except OSError:
@@ -493,6 +518,27 @@ class _Checker:
         if not separator or algorithm not in _COMPUTABLE:
             return "unverifiable"
         return "verified" if _digest(located, algorithm) == expected else "mismatch"
+
+
+def _probe(located: Path) -> int | FileState:
+    """Stat a located file once, telling absence from inaccessibility.
+
+    ``Path.is_file`` cannot be used: before 3.14 it re-raises errors such as
+    EACCES, and from 3.14 it swallows them, reporting an unreachable file as
+    absent. One ``stat`` answers the same way on every version.
+
+    Returns:
+        The file's size, or the state that stands in for one: ``missing``
+        when nothing regular is there, ``unverifiable`` when it cannot be
+        reached.
+    """
+    try:
+        info = located.stat()
+    except (FileNotFoundError, NotADirectoryError):
+        return "missing"
+    except (OSError, ValueError):
+        return "unverifiable"
+    return info.st_size if stat.S_ISREG(info.st_mode) else "missing"
 
 
 def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:

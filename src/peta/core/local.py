@@ -106,14 +106,17 @@ def _run_inspection(interpreter: Path, python: str) -> object:
     except subprocess.TimeoutExpired as exc:
         detail = f"it did not respond within {_INSPECT_TIMEOUT:g}s."
         raise InvalidTargetError(_interpreter_problem(python, detail)) from exc
-    except (OSError, subprocess.CalledProcessError) as exc:
+    # ``UnicodeDecodeError``: ``text=True`` decodes whatever the target printed.
+    except (OSError, UnicodeDecodeError, subprocess.CalledProcessError) as exc:
         msg = _interpreter_problem(python, "could not inspect it.")
         raise InvalidTargetError(msg) from exc
     try:
         # Cast rather than returned directly: ``json.loads`` is typed ``Any``,
         # and letting that escape would defeat the validation that follows.
         payload = cast("object", json.loads(completed.stdout))
-    except json.JSONDecodeError as exc:
+    # Not only ``JSONDecodeError``: an integer past the digit limit is a plain
+    # ``ValueError``, and absurd nesting a ``RecursionError``.
+    except (RecursionError, ValueError) as exc:
         msg = _interpreter_problem(python, "could not inspect it.")
         raise InvalidTargetError(msg) from exc
     return payload

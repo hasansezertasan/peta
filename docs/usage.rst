@@ -224,8 +224,9 @@ state, and the states are deliberately kept apart:
 * ``missing`` -- the file is gone;
 * ``not_recorded`` -- ``RECORD`` holds no hash for it, which is normal for
   ``RECORD`` itself and for bytecode, and is not evidence of a change;
-* ``unverifiable`` -- a hash was recorded but could not be checked: an
-  algorithm peta cannot compute, or a file it cannot read;
+* ``unverifiable`` -- the file could not be checked: its hash uses an
+  algorithm peta cannot compute, or the file exists but cannot be reached or
+  read;
 * ``unchecked`` -- a hash was recorded but ``--verify`` was not given;
 * ``out_of_bounds`` -- the path resolves outside the selected environment.
 
