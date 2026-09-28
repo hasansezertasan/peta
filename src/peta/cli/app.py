@@ -20,6 +20,7 @@ from peta.cli.commands import (
     deps as deps_mod,
     files as files_mod,
     info as info_mod,
+    origin as origin_mod,
     versions as versions_mod,
 )
 from peta.cli.output.console import resolve_color
@@ -28,7 +29,17 @@ from peta.cli.output.selection import OutputFormat
 from peta.cli.state import CliState
 from peta.core import cache
 
-__all__ = ["artifacts", "compare", "deps", "files", "info", "main", "run", "versions"]
+__all__ = [
+    "artifacts",
+    "compare",
+    "deps",
+    "files",
+    "info",
+    "main",
+    "origin",
+    "run",
+    "versions",
+]
 
 
 _SUBCOMMANDS = {
@@ -36,6 +47,7 @@ _SUBCOMMANDS = {
     "artifacts",
     "deps",
     "files",
+    "origin",
     "versions",
     "compare",
     "--help",
@@ -350,6 +362,39 @@ def files(
         color=_color_from_ctx(ctx),
         python=python,
         paths=tuple(path),
+    )
+
+
+@app.command()
+def origin(
+    ctx: typer.Context,
+    package: Annotated[str, typer.Argument(help="Package name.")],
+    use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,
+    output_format: Annotated[
+        OutputFormat, typer.Option("--format", case_sensitive=False, help=_FORMAT_HELP)
+    ] = OutputFormat.RICH,
+    python: Annotated[
+        str | None, typer.Option("--python", help="Target Python interpreter.")
+    ] = None,
+    path: Annotated[
+        list[str] | None,
+        typer.Option("--path", help="Metadata search path; repeatable."),
+    ] = None,
+    verify: Annotated[
+        bool, typer.Option("--verify", help="Hash every installed file against RECORD.")
+    ] = False,
+) -> None:
+    """Show how a local package was installed and whether its files match."""
+    if path is None:
+        path = []
+    origin_mod.origin(
+        package,
+        use_json=use_json,
+        output_format=_explicit_format(ctx, output_format),
+        color=_color_from_ctx(ctx),
+        python=python,
+        paths=tuple(path),
+        verify=verify,
     )
 
 

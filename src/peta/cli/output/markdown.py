@@ -7,6 +7,11 @@ from typing import TYPE_CHECKING, cast
 
 from peta.cli.output.changes import sections
 from peta.cli.output.console import inline
+from peta.cli.output.installation import (
+    flagged_files,
+    installation_notes,
+    installation_rows,
+)
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -19,6 +24,7 @@ from peta.core.diff import diff_packages
 if TYPE_CHECKING:
     from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
     from peta.core.changes import ChangeSet
+    from peta.core.installation import Installation
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -28,6 +34,7 @@ __all__ = [
     "format_dep_tree",
     "format_files",
     "format_info",
+    "format_origin",
     "format_versions",
     "format_why",
 ]
@@ -431,4 +438,32 @@ def format_artifacts(release: ReleaseArtifacts, *, detailed: bool = False) -> st
     if detailed and release.files:
         lines.extend(["", "## Files", "", *_ARTIFACT_HEADER, *_artifact_rows(release)])
     lines.extend(_artifact_notes(release))
+    return "\n".join(lines)
+
+
+def format_origin(installation: Installation) -> str:
+    """Format how a distribution was installed as Markdown.
+
+    Returns:
+        A summary table, a table of flagged files, and any notes.
+    """
+    lines = [
+        f"# Origin of {_text(installation.name)} {_text(installation.version)}",
+        "",
+        "| Field | Value |",
+        "| --- | --- |",
+    ]
+    lines.extend(
+        f"| {_text(label)} | {_cell(value)} |"
+        for label, value in installation_rows(installation)
+    )
+    flagged = flagged_files(installation)
+    if flagged:
+        lines.extend(["", "## Flagged files", "", "| State | Path |", "| --- | --- |"])
+        lines.extend(
+            f"| {file.state} | {_code(file.path, in_table=True)} |" for file in flagged
+        )
+    notes = installation_notes(installation)
+    if notes:
+        lines.extend(["", *(f"> {_text(note)}" for note in notes)])
     return "\n".join(lines)

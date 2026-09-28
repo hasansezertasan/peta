@@ -197,6 +197,56 @@ reported as PyPI supplied it, not as a checked cryptographic claim. A
 provenance lookup that fails is reported as a failure rather than silently
 read as an absence, and never fails the command.
 
+Installation origin and integrity
+---------------------------------
+
+``peta origin`` explains how a locally installed distribution got there and
+whether its files still match what the installer recorded:
+
+.. code-block:: shell
+
+   peta origin requests
+   peta origin mypkg --python .venv/bin/python --verify
+
+The origin comes from ``direct_url.json``: a VCS checkout (with the requested
+revision and the commit it resolved to), an archive (with its hashes), or a
+local directory (and whether it is editable). A distribution with no
+``direct_url.json`` is reported as a package-index install, which is what an
+index installation leaves -- though an installer that never writes the file
+leaves the same thing. The ``INSTALLER`` and ``REQUESTED`` markers, the
+import names the distribution provides, and its entry points are shown too.
+
+Every file ``RECORD`` lists is checked against the disk. Each gets exactly one
+state, and the states are deliberately kept apart:
+
+* ``verified`` -- the hash was compared and matches;
+* ``mismatch`` -- the size or the hash differs from the record;
+* ``missing`` -- the file is gone;
+* ``not_recorded`` -- ``RECORD`` holds no hash for it, which is normal for
+  ``RECORD`` itself and for bytecode, and is not evidence of a change;
+* ``unverifiable`` -- a hash was recorded but could not be checked: an
+  algorithm peta cannot compute, or a file it cannot read;
+* ``unchecked`` -- a hash was recorded but ``--verify`` was not given;
+* ``out_of_bounds`` -- the path resolves outside the selected environment.
+
+Hashing reads every installed file, so it only runs with ``--verify``. Sizes
+are always compared, because that costs one ``stat`` per file.
+
+``RECORD`` is untrusted input: a row can name any path, and a symlink can
+point anywhere. A file is only read if its resolved path lies inside the
+directory holding the distribution's metadata or inside the environment's
+prefix -- where console scripts live. The prefix is known for the running
+interpreter and for a ``--python`` target, but not for a ``--path``-only one,
+so there a script outside ``site-packages`` is reported ``out_of_bounds``
+rather than read. A distribution without a ``RECORD`` falls back to a legacy
+``installed-files.txt``, which carries no hashes; with neither, integrity is
+reported as unavailable rather than guessed from ``SOURCES.txt``.
+
+Human output names a local origin by its final directory only, so a report
+can be shared without disclosing where a checkout lives; the JSON output keeps
+the full URL. Credentials an installer recorded in an origin URL are removed
+from both.
+
 Resolution
 ----------
 
@@ -204,7 +254,7 @@ For ``info``, ``deps``, and ``compare``, ``peta`` checks the local
 environment first and falls back to PyPI. Force a source with
 ``--local``/``-l`` or ``--remote``/``-r``. A ``name==version`` argument is
 supported by ``info`` and ``compare`` and always queries PyPI (it cannot be
-combined with ``--local``). ``files`` is local-only; ``versions`` is
+combined with ``--local``). ``files`` and ``origin`` are local-only; ``versions`` is
 PyPI-only, and ``artifacts`` accepts ``name==version`` against PyPI.
 ``compare`` resolves and enriches both packages the same way ``info`` does,
 including the ``--no-osv``/``--no-stats`` flags.

@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from peta.core.cache import Freshness
     from peta.core.changes import ChangeSet
     from peta.core.diff import ReleaseEvidence
+    from peta.core.installation import Installation
     from peta.core.local import LocalTarget
     from peta.core.models import DependencyNode, PackageInfo
 
@@ -22,6 +23,7 @@ __all__ = [
     "render_dep_tree",
     "render_files",
     "render_info",
+    "render_origin",
     "render_target",
     "render_versions",
     "render_why",
@@ -247,3 +249,24 @@ def render_artifacts(
     if output_format == OutputFormat.TEXT:
         return _plain_output(text.format_artifacts(release, detailed=detailed))
     return tables.render_artifacts(release, color=color, detailed=detailed)
+
+
+def render_origin(
+    output_format: OutputFormat,
+    installation: Installation,
+    *,
+    arguments: dict[str, object],
+    color: bool,
+) -> str:
+    """Render a distribution's origin and file integrity in the selected format.
+
+    Returns:
+        The rendered output.
+    """
+    if output_format == OutputFormat.JSON:
+        return json.format_origin(installation, arguments=arguments)
+    if output_format == OutputFormat.MARKDOWN:
+        return _plain_output(markdown.format_origin(installation))
+    if output_format == OutputFormat.TEXT:
+        return _plain_output(text.format_origin(installation))
+    return tables.render_origin(installation, color=color)

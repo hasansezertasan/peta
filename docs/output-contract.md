@@ -102,6 +102,25 @@ than it is. A release whose files expose no provenance at all is recorded as
 `skipped` with no `retrieved_at`, since nothing was requested. A failure also warns and makes the
 envelope `partial` rather than discarding the artifact listing.
 
+`origin` describes one locally installed distribution. `result.origin` is the
+structured `direct_url.json` record: `kind` is `index` (no `direct_url.json`),
+`vcs`, `archive`, `directory`, or `unknown` (present but unreadable, with a
+`reason`), alongside `url`, `editable`, `vcs`, `requested_revision`,
+`commit_id`, `archive_hashes`, and `subdirectory`. Credentials are removed from
+`url`. `result.installer` and `result.requested` report the `INSTALLER` and
+`REQUESTED` markers; `requested` is `false` both when the marker is absent and
+when the installer never writes one. `result.import_packages` and
+`result.entry_points` list what the distribution provides. `result.files` has
+one record per listed file with its `path`, `state`, on-disk `size`,
+`recorded_size`, and `recorded_hash` (`algorithm=digest`); `state` is one of
+`verified`, `mismatch`, `missing`, `not_recorded`, `unverifiable`,
+`unchecked`, or `out_of_bounds`, and `size` is `null` for a file that was not
+found or not read. `result.integrity` names the `record_source` (`RECORD`,
+`installed-files.txt`, or `null` when there is neither), whether
+`hashes_verified` ran (`--verify`), the `file_count`, the `total_size` found on
+disk, and a count per state. File states are findings, not failures: a
+mismatched file never makes the envelope `partial`.
+
 `compare` carries both packages under `result.packages` and their semantic
 diff under `result.diff`. `result.diff.changes` lists only what changed, in a
 fixed group order; each record has a `group` (`release`, `python`,

@@ -68,6 +68,12 @@ def test_interpreter_inspection_uses_a_timeout() -> None:
             '{"paths": [], "marker_environment": {"sys_platform": "linux"}}',
             id="missing-required-markers",
         ),
+        pytest.param(
+            '{"paths": [], "prefix": 1, "marker_environment": {'
+            '"platform_python_implementation": "CPython", '
+            '"python_full_version": "3.14.0", "sys_platform": "linux"}}',
+            id="non-string-prefix",
+        ),
     ],
 )
 def test_malformed_inspection_payload_rejected(payload: str) -> None:
@@ -93,6 +99,40 @@ def test_valid_payload_is_accepted() -> None:
     assert target.paths == ("/site-packages",)
     assert target.marker_environment == markers
     assert target.output_environment()["markers"] == markers
+
+
+def test_payload_prefix_bounds_the_target() -> None:
+    """The interpreter's own prefix is what lets its scripts be read."""
+    markers = {
+        "platform_python_implementation": "CPython",
+        "python_full_version": "3.14.0",
+        "sys_platform": "linux",
+    }
+    stdout = json.dumps({
+        "paths": ["/venv/lib/site-packages"],
+        "marker_environment": markers,
+        "prefix": "/venv",
+    })
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout)
+    with patch("peta.core.local.subprocess.run", return_value=completed):
+        target = LocalTarget.create(sys.executable)
+    assert target.prefix == "/venv"
+
+
+def test_prefix_is_unknown_for_a_path_only_target(tmp_path: Path) -> None:
+    """Named metadata directories need not live under the running prefix."""
+    assert LocalTarget.create(None, (str(tmp_path),)).prefix is None
+    assert LocalTarget.create(None).prefix == sys.prefix
+
+
+def test_target_script_reports_the_prefix() -> None:
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] # The test's own interpreter.
+        [sys.executable, "-c", _TARGET_SCRIPT],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(completed.stdout)["prefix"] == sys.prefix
 
 
 def test_describe_reports_the_marker_values() -> None:

@@ -6,6 +6,7 @@ import importlib.metadata as importlib_metadata
 import json
 import os
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
+import sys
 from dataclasses import dataclass
 from importlib.metadata import PathDistribution
 from pathlib import Path
@@ -20,7 +21,14 @@ from peta.core.output import utc_now
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-__all__ = ["InvalidTargetError", "LocalTarget", "PackageNotFoundError", "get_package"]
+__all__ = [
+    "InvalidTargetError",
+    "LocalTarget",
+    "PackageNotFoundError",
+    "find_distribution",
+    "get_package",
+    "legacy_installed_files",
+]
 
 
 class PackageNotFoundError(Exception):
@@ -151,9 +159,26 @@ def _validated_paths(search_paths: object, msg: str) -> tuple[str, ...]:
     return tuple(cast("list[str]", raw))
 
 
+def _validated_prefix(prefix: object, msg: str) -> str | None:
+    """Check the installation prefix an interpreter reported.
+
+    Absent is accepted and means "unknown", which only narrows what origin
+    inspection is willing to read; a value of the wrong type is not.
+
+    Returns:
+        The interpreter's ``sys.prefix``, or ``None`` when it was not reported.
+
+    Raises:
+        InvalidTargetError: If the prefix is present but not a string.
+    """
+    if prefix is None or isinstance(prefix, str):
+        return prefix
+    raise InvalidTargetError(msg)
+
+
 def _validated_inspection(
     payload: object, python: str
-) -> tuple[tuple[str, ...], dict[str, str]]:
+) -> tuple[tuple[str, ...], dict[str, str], str | None]:
     """Check an inspection payload before any part of it is trusted.
 
     ``json.loads`` returns whatever the interpreter chose to print, so every
@@ -163,7 +188,8 @@ def _validated_inspection(
     only fail once the bad values had reached the output.
 
     Returns:
-        The interpreter's search paths and its marker environment.
+        The interpreter's search paths, its marker environment, and its
+        installation prefix.
 
     Raises:
         InvalidTargetError: If the payload is not a JSON object.
@@ -175,6 +201,7 @@ def _validated_inspection(
     return (
         _validated_paths(details.get("paths"), msg),
         _validated_markers(details.get("marker_environment"), msg),
+        _validated_prefix(details.get("prefix"), msg),
     )
 
 
@@ -208,6 +235,14 @@ class LocalTarget:
     paths: tuple[str, ...] | None
     interpreter: str | None
     marker_environment: dict[str, str]
+    prefix: str | None = None
+    """The environment's installation prefix, when it is known.
+
+    Bounds which files origin inspection may read: a ``RECORD`` legitimately
+    lists console scripts outside ``site-packages`` but inside the prefix.
+    Unknown for a ``--path``-only target, which names metadata directories
+    rather than an environment.
+    """
 
     @classmethod
     def create(
@@ -234,6 +269,9 @@ class LocalTarget:
                 checked or None,
                 None,
                 _target_markers(marker_environment, python_version, platform),
+                # Only the running environment's own search path lives under
+                # its prefix; directories named with --path need not.
+                None if checked else sys.prefix,
             )
         if not python.strip():
             msg = _interpreter_problem(python, "no interpreter path given.")
@@ -244,13 +282,14 @@ class LocalTarget:
         if not interpreter.is_file():
             msg = _interpreter_problem(python, "file does not exist.")
             raise InvalidTargetError(msg)
-        inspected, marker_environment = _validated_inspection(
+        inspected, marker_environment, prefix = _validated_inspection(
             _run_inspection(interpreter, python), python
         )
         return cls(
             checked or inspected,
             str(interpreter),
             _target_markers(marker_environment, python_version, platform),
+            prefix,
         )
 
     def describe(self) -> str:
@@ -371,7 +410,11 @@ marker_environment = {
     "python_version": ".".join(version.split(".")[:2]),
     "sys_platform": sys.platform,
 }
-print(json.dumps({"paths": sys.path, "marker_environment": marker_environment}))
+print(json.dumps({
+    "paths": sys.path,
+    "marker_environment": marker_environment,
+    "prefix": sys.prefix,
+}))
 """
 
 
@@ -432,8 +475,8 @@ def _is_named(candidate: importlib_metadata.Distribution, canonical: str) -> boo
     return found is not None and canonicalize_name(found) == canonical
 
 
-def _egg_info_installed_files(
-    dist: importlib_metadata.Distribution,
+def legacy_installed_files(
+    dist: importlib_metadata.Distribution, *, skip_missing: bool = True
 ) -> list[str] | None:
     """Read a legacy ``.egg-info``'s ``installed-files.txt``, as Python 3.12 does.
 
@@ -445,6 +488,9 @@ def _egg_info_installed_files(
     A non-empty ``RECORD`` still wins, as it does in the stdlib, so a
     ``.dist-info`` that also carries a stray ``installed-files.txt`` keeps its
     authoritative listing.
+
+    ``skip_missing=False`` keeps entries whose file is gone, for callers that
+    report a missing file rather than hide it.
 
     Returns:
         The installed files, or ``None`` when ``dist`` has no such listing.
@@ -464,28 +510,31 @@ def _egg_info_installed_files(
     return [
         Path(os.path.relpath(path, root)).as_posix()
         for path in installed
-        if path.exists()
+        if not skip_missing or path.exists()
     ]
 
 
 def _installed_files(dist: importlib_metadata.Distribution) -> list[str] | None:
-    listed = _egg_info_installed_files(dist)
+    listed = legacy_installed_files(dist)
     if listed is None:
         listed = [str(f) for f in dist.files] if dist.files else None
     return listed or None
 
 
-def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
-    """Get metadata for a locally installed package.
+def find_distribution(
+    name: str, *, target: LocalTarget | None = None
+) -> importlib_metadata.Distribution:
+    """Find an installed distribution in the selected environment.
 
     Args:
         name: Package name to look up.
+        target: The environment to search; the running one when ``None``.
 
     Returns:
-        A :class:`PackageInfo` with ``source="local"``.
+        The first matching distribution on the target's search path.
 
     Raises:
-        PackageNotFoundError: If the package is not installed.
+        PackageNotFoundError: If the package is not installed there.
     """
     dist: importlib_metadata.Distribution
     try:  # ruff: ignore[too-many-statements-in-try-clause]
@@ -508,7 +557,19 @@ def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
             dist = found
     except importlib_metadata.PackageNotFoundError as exc:
         raise PackageNotFoundError(name) from exc
+    return dist
 
+
+def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
+    """Get metadata for a locally installed package.
+
+    Args:
+        name: Package name to look up.
+
+    Returns:
+        A :class:`PackageInfo` with ``source="local"``.
+    """
+    dist = find_distribution(name, target=target)
     meta = dist.metadata
     files = _installed_files(dist)
     license_value, license_source = _parse_license(meta)
