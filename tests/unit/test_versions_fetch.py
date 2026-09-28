@@ -1,5 +1,7 @@
 """Unit tests for the version fetcher (now backed by the Simple API)."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import httpx

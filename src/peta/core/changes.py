@@ -18,7 +18,9 @@ parallel model.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, TypeAliasType
+from typing import Literal
+
+from typing_extensions import TypeAliasType
 
 __all__ = [
     "CHANGE_GROUPS",
@@ -32,7 +34,7 @@ __all__ = [
 
 # CodeQL does not yet recognize PEP 695 ``type`` statements as definitions when
 # checking ``__all__``. Keep these runtime-visible assignments until it does.
-ChangeGroup = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+ChangeGroup = TypeAliasType(
     "ChangeGroup",
     Literal[
         "release",
@@ -45,7 +47,7 @@ ChangeGroup = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
         "provenance",
     ],
 )
-ChangeKind = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+ChangeKind = TypeAliasType(
     "ChangeKind",
     Literal[
         "project_changed",
@@ -86,9 +88,7 @@ CHANGE_GROUPS: tuple[ChangeGroup, ...] = (
 )
 """Every group, in the order renderers present them."""
 
-Value = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "Value", str | int | bool | list[str] | dict[str, object] | None
-)
+Value = TypeAliasType("Value", str | int | bool | list[str] | dict[str, object] | None)
 """A ``before``/``after`` value: always JSON-serializable as-is."""
 
 

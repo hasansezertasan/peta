@@ -59,7 +59,8 @@ scoop bucket add hasansezertasan https://github.com/hasansezertasan/scoop-bucket
 scoop install peta
 ```
 
-**Requires:** Python 3.14+
+**Requires:** Python 3.11+ (3.11 through 3.14 are tested; see
+[supported Python versions](https://hasansezertasan.github.io/peta/latest/installation.html#supported-python-versions))
 
 ## Usage
 

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import importlib.metadata as importlib_metadata
 import json
+import os
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
 from dataclasses import dataclass
+from importlib.metadata import PathDistribution
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, cast
 
@@ -373,6 +375,20 @@ print(json.dumps({"paths": sys.path, "marker_environment": marker_environment}))
 """
 
 
+def _header(meta: importlib_metadata.PackageMetadata, field: str) -> str | None:
+    """Return the first ``field`` header, or ``None`` when it is absent.
+
+    ``get_all`` rather than ``get``: typeshed only adds ``get`` to the
+    ``PackageMetadata`` protocol from Python 3.12, while ``get_all`` is there on
+    every supported version and returns the same first value.
+
+    Returns:
+        The header's value, if the distribution declares it.
+    """
+    values = cast("list[str] | None", meta.get_all(field))
+    return values[0] if values else None
+
+
 def _parse_project_urls(meta: importlib_metadata.PackageMetadata) -> dict[str, str]:
     urls: dict[str, str] = {}
     # importlib.metadata's PackageMetadata is untyped (email.Message based), so
@@ -386,7 +402,7 @@ def _parse_project_urls(meta: importlib_metadata.PackageMetadata) -> dict[str, s
 
 
 def _parse_keywords(meta: importlib_metadata.PackageMetadata) -> list[str]:
-    raw = meta.get("Keywords")
+    raw = _header(meta, "Keywords")
     if not raw:
         return []
     return [k.strip() for k in raw.split(",") if k.strip()]
@@ -395,10 +411,10 @@ def _parse_keywords(meta: importlib_metadata.PackageMetadata) -> list[str]:
 def _parse_license(
     meta: importlib_metadata.PackageMetadata,
 ) -> tuple[str | None, Literal["expression", "legacy"] | None]:
-    expression = meta.get("License-Expression")
+    expression = _header(meta, "License-Expression")
     if expression:
         return expression, "expression"
-    legacy = meta.get("License")
+    legacy = _header(meta, "License")
     return legacy, "legacy" if legacy else None
 
 
@@ -414,6 +430,49 @@ def _is_named(candidate: importlib_metadata.Distribution, canonical: str) -> boo
     """
     found = cast("str | None", candidate.metadata["Name"])
     return found is not None and canonicalize_name(found) == canonical
+
+
+def _egg_info_installed_files(
+    dist: importlib_metadata.Distribution,
+) -> list[str] | None:
+    """Read a legacy ``.egg-info``'s ``installed-files.txt``, as Python 3.12 does.
+
+    Python 3.11's importlib.metadata never reads this file and falls back to
+    ``SOURCES.txt``, which lists the project's source tree rather than what was
+    installed. Reading it here, relative to the search-path root and skipping
+    files that are gone, keeps ``files`` the same on every supported version.
+
+    A non-empty ``RECORD`` still wins, as it does in the stdlib, so a
+    ``.dist-info`` that also carries a stray ``installed-files.txt`` keeps its
+    authoritative listing.
+
+    Returns:
+        The installed files, or ``None`` when ``dist`` has no such listing.
+    """
+    if not isinstance(dist, PathDistribution) or dist.read_text("RECORD"):
+        return None
+    listing = dist.read_text("installed-files.txt")
+    if not listing:
+        return None
+    # The stdlib reader resolves entries against the same private attribute:
+    # it is the only record of which ``.egg-info`` directory this is.
+    egg_info = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
+    root = Path(str(dist.locate_file(""))).resolve()
+    installed = (
+        (egg_info / entry).resolve() for entry in listing.splitlines() if entry
+    )
+    return [
+        Path(os.path.relpath(path, root)).as_posix()
+        for path in installed
+        if path.exists()
+    ]
+
+
+def _installed_files(dist: importlib_metadata.Distribution) -> list[str] | None:
+    listed = _egg_info_installed_files(dist)
+    if listed is None:
+        listed = [str(f) for f in dist.files] if dist.files else None
+    return listed or None
 
 
 def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
@@ -451,19 +510,19 @@ def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
         raise PackageNotFoundError(name) from exc
 
     meta = dist.metadata
-    files = [str(f) for f in dist.files] if dist.files else None
+    files = _installed_files(dist)
     license_value, license_source = _parse_license(meta)
     return PackageInfo(
         name=meta["Name"],
         version=meta["Version"],
-        summary=meta.get("Summary"),
-        author=meta.get("Author"),
-        author_email=meta.get("Author-email"),
-        maintainer=meta.get("Maintainer"),
+        summary=_header(meta, "Summary"),
+        author=_header(meta, "Author"),
+        author_email=_header(meta, "Author-email"),
+        maintainer=_header(meta, "Maintainer"),
         license=license_value,
         license_source=license_source,
-        python_requires=meta.get("Requires-Python"),
-        homepage=meta.get("Home-page"),
+        python_requires=_header(meta, "Requires-Python"),
+        homepage=_header(meta, "Home-page"),
         project_urls=_parse_project_urls(meta),
         dependencies=list(dist.requires) if dist.requires else [],
         classifiers=meta.get_all("Classifier") or [],

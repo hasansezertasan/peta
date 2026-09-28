@@ -9,12 +9,16 @@ somewhere the running interpreter cannot see.
 from __future__ import annotations
 
 import json
-import subprocess  # ruff: ignore[suspicious-subprocess-import] # Only for CompletedProcess.
+import os
+import subprocess  # ruff: ignore[suspicious-subprocess-import] # CompletedProcess, and asking the target its version.
 import sys
+from importlib.metadata import metadata as installed_metadata
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 from typer.testing import CliRunner
 
 from peta.cli.app import app
@@ -259,3 +263,283 @@ class TestArgumentsMapping:
         query = json.loads(result.output)["query"]
         assert "target_environment" not in query["arguments"]
         assert query["arguments"]["paths"] == ["/no/such/dir"]
+
+
+# Metadata as the tools of older target environments left it on disk: the
+# pre-PEP 345 formats, PEP 345 itself (parenthesized version specifiers), and
+# the setuptools ``.egg-info`` layout that predates wheels, whose dependencies
+# live in ``requires.txt`` rather than in the metadata file.
+_LEGACY_DIST_INFO = {
+    "pep241-1.0.dist-info": """\
+Metadata-Version: 1.0
+Name: pep241
+Version: 1.0
+Summary: Metadata-Version 1.0.
+Home-page: https://example.invalid/pep241
+License: BSD
+""",
+    "pep314-1.1.dist-info": """\
+Metadata-Version: 1.1
+Name: pep314
+Version: 1.1
+Summary: Metadata-Version 1.1.
+Classifier: Programming Language :: Python :: 2.7
+Requires: ancient
+""",
+    "pep345-1.2.dist-info": """\
+Metadata-Version: 1.2
+Name: pep345
+Version: 1.2
+Summary: Metadata-Version 1.2.
+Requires-Python: >=2.7, !=3.0.*
+Requires-Dist: probe-dep (>=2.0)
+Project-URL: Source, https://example.invalid/pep345
+""",
+}
+
+
+@pytest.fixture
+def legacy_site_packages(site_packages: Path) -> Path:
+    """Add old-format distributions beside the modern ``probe`` pair.
+
+    Returns:
+        The same ``--path`` target, now also holding the legacy layouts.
+    """
+    for directory, metadata in _LEGACY_DIST_INFO.items():
+        dist_info = site_packages / directory
+        dist_info.mkdir()
+        (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
+    egg_info = site_packages / "legacy_egg-0.4-py2.7.egg-info"
+    egg_info.mkdir()
+    (egg_info / "PKG-INFO").write_text(
+        "Metadata-Version: 1.1\nName: legacy-egg\nVersion: 0.4\n"
+        "Summary: setuptools egg-info.\nLicense: MIT\n",
+        encoding="utf-8",
+    )
+    (egg_info / "requires.txt").write_text(
+        "probe-dep\n\n[docs]\nsphinx\n", encoding="utf-8"
+    )
+    return site_packages
+
+
+class TestOlderTargetMetadata:
+    """Metadata written by an older target environment's tools reads cleanly.
+
+    The ``--path`` target is what an isolated modern peta points at an older
+    project environment, so the formats that environment's installers wrote
+    must be read as they are, not only the ones current tools write.
+    """
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            pytest.param(
+                "pep241",
+                {
+                    "version": "1.0",
+                    "homepage": "https://example.invalid/pep241",
+                    "license": "BSD",
+                    "license_source": "legacy",
+                    "dependencies": [],
+                },
+                id="metadata-1.0",
+            ),
+            pytest.param(
+                "pep314",
+                {
+                    "version": "1.1",
+                    "classifiers": ["Programming Language :: Python :: 2.7"],
+                    # ``Requires`` names modules, not distributions, and no
+                    # installer ever resolved it; it is not a dependency.
+                    "dependencies": [],
+                },
+                id="metadata-1.1",
+            ),
+            pytest.param(
+                "pep345",
+                {
+                    "version": "1.2",
+                    "python_requires": ">=2.7, !=3.0.*",
+                    "dependencies": ["probe-dep (>=2.0)"],
+                    "project_urls": {"Source": "https://example.invalid/pep345"},
+                },
+                id="metadata-1.2",
+            ),
+            pytest.param(
+                "legacy-egg",
+                {
+                    "version": "0.4",
+                    "license": "MIT",
+                    "dependencies": ["probe-dep", 'sphinx; extra == "docs"'],
+                },
+                id="egg-info",
+            ),
+        ],
+    )
+    def test_reads_the_legacy_layout(
+        self, legacy_site_packages: Path, name: str, expected: dict[str, object]
+    ) -> None:
+        target = LocalTarget.create(None, (str(legacy_site_packages),))
+        found = get_package(name, target=target)
+        assert found.source == "local"
+        for field, value in expected.items():
+            assert getattr(found, field) == value, field
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            pytest.param("pep345", id="parenthesized-specifier"),
+            pytest.param("legacy-egg", id="requires-txt"),
+        ],
+    )
+    def test_legacy_dependencies_resolve_in_the_tree(
+        self, legacy_site_packages: Path, name: str
+    ) -> None:
+        """Both old spellings reach ``probe-dep``; the unrequested extra does not."""
+        target = LocalTarget.create(None, (str(legacy_site_packages),))
+        tree = build_tree(name, local=True, remote=False, target=target)
+        assert [child.name for child in tree.children] == ["probe-dep"]
+        assert tree.children[0].selected_version == "2.0.0"
+
+    @pytest.mark.parametrize(
+        ("listing", "expected"),
+        [
+            pytest.param(
+                "../installed_egg/__init__.py\n\nPKG-INFO\n",
+                ["installed_egg/__init__.py", "installed_egg-1.0.egg-info/PKG-INFO"],
+                id="installed-files",
+            ),
+            pytest.param(
+                "../installed_egg/gone.py\n", None, id="every-listed-file-gone"
+            ),
+        ],
+    )
+    def test_egg_info_files_are_what_was_installed(
+        self, site_packages: Path, listing: str, expected: list[str] | None
+    ) -> None:
+        """``installed-files.txt``, never ``SOURCES.txt``, on every Python.
+
+        Python 3.11's importlib.metadata skips ``installed-files.txt`` and
+        reports the source tree instead; peta must not inherit that.
+        """
+        package = site_packages / "installed_egg"
+        package.mkdir()
+        (package / "__init__.py").write_text("", encoding="utf-8")
+        egg_info = site_packages / "installed_egg-1.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            "Metadata-Version: 1.1\nName: installed-egg\nVersion: 1.0\n",
+            encoding="utf-8",
+        )
+        (egg_info / "SOURCES.txt").write_text(
+            "setup.py\ninstalled_egg/__init__.py\n", encoding="utf-8"
+        )
+        (egg_info / "installed-files.txt").write_text(listing, encoding="utf-8")
+        target = LocalTarget.create(None, (str(site_packages),))
+        assert get_package("installed-egg", target=target).files == expected
+
+    def test_record_outranks_a_stray_installed_files_listing(
+        self, site_packages: Path
+    ) -> None:
+        """A ``.dist-info``'s ``RECORD`` stays authoritative, as in the stdlib."""
+        (site_packages / "recorded.py").write_text("", encoding="utf-8")
+        (site_packages / "stale.py").write_text("", encoding="utf-8")
+        dist_info = site_packages / "recorded-1.0.dist-info"
+        dist_info.mkdir()
+        (dist_info / "METADATA").write_text(
+            "Metadata-Version: 2.1\nName: recorded\nVersion: 1.0\n", encoding="utf-8"
+        )
+        (dist_info / "RECORD").write_text("recorded.py,,\n", encoding="utf-8")
+        (dist_info / "installed-files.txt").write_text(
+            "../stale.py\n", encoding="utf-8"
+        )
+        target = LocalTarget.create(None, (str(site_packages),))
+        assert get_package("recorded", target=target).files == ["recorded.py"]
+
+    def test_cli_renders_the_oldest_format(self, legacy_site_packages: Path) -> None:
+        result = runner.invoke(
+            app,
+            [
+                "info",
+                "pep241",
+                "--local",
+                "--no-osv",
+                "--no-stats",
+                "--path",
+                str(legacy_site_packages),
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0
+        assert json.loads(result.output)["result"]["version"] == "1.0"
+
+
+_TARGET_PYTHON = "PETA_TEST_TARGET_PYTHON"
+"""Names an interpreter older than peta's own floor; CI always sets it."""
+
+
+@pytest.fixture
+def target_python(site_packages: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Return a real interpreter whose search path holds the ``probe`` pair.
+
+    CI installs a Python older than peta supports and names it in
+    ``PETA_TEST_TARGET_PYTHON``: the isolated-modern-peta, older-project case
+    this targeting exists for. Without it the running interpreter stands in,
+    so the test still runs (and still spawns a real process) everywhere.
+
+    Returns:
+        The interpreter path to pass as ``--python``.
+    """
+    # The child inherits the environment, which is how the fixture tree gets
+    # onto the target's own ``sys.path``.
+    monkeypatch.setenv("PYTHONPATH", str(site_packages))
+    return os.environ.get(_TARGET_PYTHON) or sys.executable
+
+
+def _version_of(python: str) -> Version:
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] # Test-owned interpreter path.
+        [python, "-c", "import platform; print(platform.python_version())"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return Version(completed.stdout.strip())
+
+
+class TestRealTargetInterpreter:
+    """``--python`` against a real interpreter, not a mocked probe."""
+
+    def test_ci_target_predates_the_floor(self, target_python: str) -> None:
+        """Guard the CI wiring: a same-version target would prove nothing."""
+        supported = SpecifierSet(installed_metadata("peta")["Requires-Python"])
+        older = _version_of(target_python) not in supported
+        assert older or not os.environ.get(_TARGET_PYTHON)
+
+    def test_cli_reads_the_targets_markers_and_packages(
+        self, target_python: str
+    ) -> None:
+        result = runner.invoke(
+            app,
+            [
+                "info",
+                "probe",
+                "--local",
+                "--no-osv",
+                "--no-stats",
+                "--python",
+                target_python,
+                "--json",
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.output)
+        assert envelope["result"]["version"] == "1.0.0"
+        markers = envelope["query"]["target_environment"]["markers"]
+        assert markers["python_full_version"] == str(_version_of(target_python))
+
+    def test_markers_are_evaluated_against_the_target(self, target_python: str) -> None:
+        """``probe-dep`` is required only below 3.14, judged by the target."""
+        target = LocalTarget.create(target_python)
+        tree = build_tree("probe", local=True, remote=False, target=target)
+        wanted = ["probe-dep"] if _version_of(target_python) < Version("3.14") else []
+        assert [child.name for child in tree.children] == wanted

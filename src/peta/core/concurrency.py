@@ -22,10 +22,9 @@ if TYPE_CHECKING:
 
 __all__ = ["MAX_WORKERS", "gather"]
 
-# A plain ``TypeVar`` rather than PEP 695 ``def gather[T]``: the isolated mypy
-# and vulture environments this project runs under prek cannot parse the newer
-# syntax, the same constraint that keeps ``TypeAliasType`` in use elsewhere
-# instead of ``type`` statements.
+# A plain ``TypeVar`` rather than PEP 695 ``def gather[T]``: that syntax needs
+# Python 3.12, above peta's 3.11 floor, the same constraint that keeps
+# ``TypeAliasType`` in use elsewhere instead of ``type`` statements.
 _T = TypeVar("_T")
 
 
@@ -41,9 +40,7 @@ packages) so the bound never shapes ordinary work.
 """
 
 
-def gather(  # ruff: ignore[non-pep695-generic-function]
-    tasks: Sequence[Callable[[], _T]],
-) -> list[_T]:
+def gather(tasks: Sequence[Callable[[], _T]]) -> list[_T]:
     """Run independent tasks concurrently and return results in input order.
 
     Nothing is threaded for a single task, so the common case — one package,

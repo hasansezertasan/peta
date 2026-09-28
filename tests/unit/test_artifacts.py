@@ -1,5 +1,7 @@
 """Unit tests for release artifact inspection and compatibility evaluation."""
 
+from __future__ import annotations
+
 import sys
 from typing import TYPE_CHECKING, cast
 

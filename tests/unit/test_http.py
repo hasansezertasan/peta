@@ -1,5 +1,7 @@
 """Unit tests for the shared outbound HTTP client."""
 
+from __future__ import annotations
+
 import atexit
 import gzip
 import threading

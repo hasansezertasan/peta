@@ -29,7 +29,9 @@ from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, TypeAliasType, cast
+from typing import Literal, cast
+
+from typing_extensions import TypeAliasType
 
 from peta.core.redaction import redacted, redacted_text
 from peta.core.validation import structural_breach
@@ -58,9 +60,7 @@ __all__ = [
 ]
 
 
-Freshness = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "Freshness", Literal["live", "cached", "revalidated"]
-)
+Freshness = TypeAliasType("Freshness", Literal["live", "cached", "revalidated"])
 """Where a response came from.
 
 ``live`` means the source answered, ``cached`` means the entry was read from
@@ -114,10 +114,9 @@ content type are needed to serve or revalidate an entry.
 _UNDATABLE = (OSError, OverflowError, ValueError)
 """Every way a stored timestamp can fail to convert into a date.
 
-A tuple constant for the same reason as :data:`_UNREADABLE`: the formatter
-strips inline ``except (A, B)`` parentheses into the bare form PEP 758
-permits, which Python 3.14 accepts but some of the project's other tools
-cannot yet parse.
+A tuple constant for the same reason as :data:`_UNREADABLE`: it keeps the
+handler clear of the bare ``except A, B`` form PEP 758 permits, which is a
+syntax error before Python 3.14.
 """
 
 _UNREADABLE = (OSError, ValueError, RecursionError)
@@ -129,9 +128,9 @@ rather than a ``ValueError``. An entry is disk data peta does not trust, so a
 corrupt one has to be a miss, not a crash.
 
 A tuple constant rather than an inline ``except (OSError, ValueError)``,
-matching the convention elsewhere in this package: the formatter strips those
-parentheses into the bare form PEP 758 permits, which Python 3.14 accepts but
-some of the project's other tools cannot yet parse.
+matching the convention elsewhere in this package: a formatter targeting
+Python 3.14 strips those parentheses into the bare form PEP 758 permits, which
+is a syntax error on the older interpreters peta supports.
 """
 
 MAX_ENTRY_BYTES = 160 * 1024 * 1024

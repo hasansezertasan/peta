@@ -1,5 +1,7 @@
 """Unit tests for the CLI (core layer mocked)."""
 
+from __future__ import annotations
+
 import json
 import sys
 import threading

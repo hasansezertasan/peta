@@ -12,7 +12,9 @@ carries no compatibility guarantees outside this package.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal, Protocol, TypeAliasType, cast
+from typing import TYPE_CHECKING, Literal, Protocol, cast
+
+from typing_extensions import TypeAliasType
 
 from peta.core.cache import FRESHNESS_VALUES
 from peta.core.models import VULNERABILITY_FIELD, ProviderWarning, Vulnerability
@@ -39,14 +41,12 @@ __all__ = [
 # ``TypeAliasType`` (not a bare PEP 695 ``type`` statement) so the alias stays a
 # runtime object the docs build and CodeQL can both resolve, matching how
 # ``peta.core.output`` declares its contract aliases.
-Capability = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
+Capability = TypeAliasType(
     "Capability", Literal["vulnerabilities", "download_count", "dependent_count"]
 )
 """The single ``result`` field a provider contributes evidence for."""
 
-ProviderGroup = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "ProviderGroup", Literal["vulnerabilities", "stats"]
-)
+ProviderGroup = TypeAliasType("ProviderGroup", Literal["vulnerabilities", "stats"])
 """The ``--no-osv`` / ``--no-stats`` family a capability belongs to."""
 
 CAPABILITY_GROUPS: dict[Capability, ProviderGroup] = {
@@ -173,9 +173,7 @@ class CountEvidence:
         return False
 
 
-Evidence = TypeAliasType(  # ruff: ignore[non-pep695-type-alias]
-    "Evidence", VulnerabilityEvidence | CountEvidence
-)
+Evidence = TypeAliasType("Evidence", VulnerabilityEvidence | CountEvidence)
 """Typed payload a provider returns, carried separately from its provenance."""
 
 
