@@ -108,6 +108,15 @@ def test_describe_origin(origin: Origin, expected: str) -> None:
     assert describe_origin(origin) == expected
 
 
+def test_archive_prefers_sha2_over_md5() -> None:
+    origin = Origin(
+        kind="archive",
+        url="https://example.com/a.tar.gz",
+        archive_hashes={"md5": "0" * 32, "sha512": "e" * 128},
+    )
+    assert "sha512:eeee" in describe_origin(origin)
+
+
 def test_rows_summarize_integrity() -> None:
     rows = dict(installation_rows(_installation()))
     assert rows["Installer"] == "uv (requested)"
@@ -117,7 +126,7 @@ def test_rows_summarize_integrity() -> None:
 
 def test_no_record_is_said_plainly() -> None:
     rows = dict(installation_rows(_installation(record_source=None, files=[])))
-    assert rows["Files"] == "no RECORD; file integrity unavailable"
+    assert rows["Files"] == "no readable RECORD; file integrity unavailable"
     assert "Integrity" not in rows
 
 

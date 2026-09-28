@@ -530,7 +530,8 @@ def _legacy_entry(
         path = (egg_info / entry).resolve()
         relative = Path(os.path.relpath(path, root)).as_posix()
     except (OSError, RuntimeError, ValueError):
-        return None if skip_missing else entry
+        # Absolute, so a caller joining it onto the root cannot misplace it.
+        return None if skip_missing else (egg_info / entry).as_posix()
     return None if skip_missing and not path.exists() else relative
 
 

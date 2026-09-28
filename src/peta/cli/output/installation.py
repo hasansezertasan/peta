@@ -38,6 +38,9 @@ _FLAGGED: frozenset[FileState] = frozenset({
 
 _COMMIT_WIDTH = 12
 
+_PREFERRED_HASHES = ("sha256", "sha512", "sha384")
+"""Archive digests worth showing first, in the order installers record them."""
+
 
 def _display_url(url: str | None) -> str:
     """Show where an origin points without exposing a local path.
@@ -70,10 +73,10 @@ def _vcs(origin: Origin) -> str:
 def _archive(origin: Origin) -> str:
     text = f"archive {_display_url(origin.url)}"
     if origin.archive_hashes:
-        # The strongest common algorithm when recorded, not whichever sorts
-        # first: an md5 beside a sha256 is not the digest to show.
-        name = "sha256" if "sha256" in origin.archive_hashes else None
-        name = name or min(origin.archive_hashes)
+        # A SHA-2 digest when one is recorded, not whichever sorts first: an
+        # md5 beside a sha512 is not the digest to show.
+        preferred = [n for n in _PREFERRED_HASHES if n in origin.archive_hashes]
+        name = preferred[0] if preferred else min(origin.archive_hashes)
         digest = origin.archive_hashes[name]
         text += f" ({name}:{digest[:_COMMIT_WIDTH]}...)"
     return text
@@ -105,7 +108,7 @@ def _installer(installation: Installation) -> str:
 
 def _files(installation: Installation) -> str:
     if installation.record_source is None:
-        return "no RECORD; file integrity unavailable"
+        return "no readable RECORD; file integrity unavailable"
     count = len(installation.files)
     size = decimal(installation.total_size)
     return f"{count} listed in {installation.record_source}, {size} on disk"

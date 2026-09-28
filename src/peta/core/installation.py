@@ -271,15 +271,22 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
 
     Returns:
         The file's text, or ``None`` when the distribution has no such file.
+        An unreadable file that cannot be re-read raw is ``""``: present,
+        but saying nothing.
     """
     try:
         return dist.read_text(name)
     except UnicodeDecodeError:
         if not isinstance(dist, PathDistribution):
-            return None
+            # Present but unreadable, which is not the same as absent.
+            return ""
         # The same private attribute :func:`legacy_installed_files` reads.
         folder = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
-        return (folder / name).read_bytes().decode("utf-8", errors="replace")
+        try:
+            raw = (folder / name).read_bytes()
+        except OSError:
+            return ""
+        return raw.decode("utf-8", errors="replace")
 
 
 def _origin(dist: importlib_metadata.Distribution) -> Origin:
@@ -305,7 +312,8 @@ def _installer(dist: importlib_metadata.Distribution) -> str | None:
 def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
     try:
         points = dist.entry_points
-    except UnicodeDecodeError:
+    # The stdlib parser raises ``TypeError`` for a line without ``=``.
+    except (TypeError, UnicodeDecodeError, ValueError):
         return []
     found = {
         EntryPoint(group=point.group, name=point.name, value=point.value)
@@ -360,8 +368,14 @@ def _import_packages(
 
 
 def _recorded_size(value: str) -> int | None:
-    # ``isdigit`` alone admits characters such as "²" that ``int`` rejects.
-    return int(value) if value.isascii() and value.isdigit() else None
+    # ``isdigit`` alone admits characters such as "²" that ``int`` rejects,
+    # and ``int`` refuses digit strings past ``sys.get_int_max_str_digits``.
+    if not (value.isascii() and value.isdigit()):
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
 
 
 def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
@@ -483,8 +497,9 @@ class _Checker:
 
 def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:
     roots = [base]
-    if prefix:
-        roots.append(Path(prefix).resolve())
+    resolved = _resolved(Path(prefix)) if prefix else None
+    if resolved is not None:
+        roots.append(resolved)
     return tuple(roots)
 
 
@@ -502,7 +517,13 @@ def _record_files(
     """
     record = _read_text(dist, "RECORD")
     if record:
-        return "RECORD", list(starmap(checker.check, _record_rows(record)))
+        try:
+            rows = _record_rows(record)
+        except csv.Error:
+            # An unterminated quote or an oversized field: no row after it
+            # can be trusted, so the listing as a whole is unusable.
+            return None, []
+        return "RECORD", list(starmap(checker.check, rows))
     try:
         legacy = legacy_installed_files(dist, skip_missing=False)
     except UnicodeDecodeError:

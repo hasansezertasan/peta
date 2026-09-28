@@ -226,6 +226,10 @@ class TestMetadata:
         values = [point.value for point in _inspect(site, "dupes").entry_points]
         assert values == sorted(values)
 
+    def test_malformed_entry_points_do_not_abort(self, site: Path) -> None:
+        _install(site, "badep", metadata_files={"entry_points.txt": "[g]\nnoequals\n"})
+        assert _inspect(site, "badep").entry_points == []
+
     def test_entry_points(self, site: Path) -> None:
         _install(
             site,
@@ -322,11 +326,33 @@ class TestIntegrity:
         _install(site, "algo", extra_rows=(f"algo.py,{recorded},{len(content)}",))
         assert _states(_inspect(site, "algo", verify=True))["algo.py"] == state
 
+    def test_oversized_size_is_unrecorded(self, site: Path) -> None:
+        _ = (site / "big.py").write_bytes(b"")
+        _install(site, "big", extra_rows=("big.py,," + "9" * 5000,))
+        (entry,) = [f for f in _inspect(site, "big").files if f.path == "big.py"]
+        assert entry.recorded_size is None
+
     def test_non_ascii_digit_size_is_unrecorded(self, site: Path) -> None:
         _ = (site / "sup.py").write_bytes(b"")
         _install(site, "sup", extra_rows=("sup.py,,\u00b2",))
         (entry,) = [f for f in _inspect(site, "sup").files if f.path == "sup.py"]
         assert entry.recorded_size is None
+
+    def test_unparseable_record_is_no_listing(self, site: Path) -> None:
+        _install(site, "hugefield", extra_rows=('"' + "x" * 200_000,))
+        assert _inspect(site, "hugefield", verify=True).record_source is None
+
+    def test_unresolvable_legacy_entry_stays_out_of_bounds(self, site: Path) -> None:
+        egg_info = site / "nulegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="nulegg"), encoding="utf-8"
+        )
+        (egg_info / "installed-files.txt").write_text(
+            "../bad\x00.py\n", encoding="utf-8"
+        )
+        states = set(_states(_inspect(site, "nulegg", verify=True)).values())
+        assert states == {"out_of_bounds"}
 
     def test_missing_record(self, site: Path) -> None:
         _install(site, "norecord", record=False)

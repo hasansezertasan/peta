@@ -116,7 +116,7 @@ one record per listed file with its `path`, `state`, on-disk `size`,
 `verified`, `mismatch`, `missing`, `not_recorded`, `unverifiable`,
 `unchecked`, or `out_of_bounds`, and `size` is `null` for a file that was not
 found or lies out of bounds. `result.integrity` names the `record_source` (`RECORD`,
-`installed-files.txt`, or `null` when there is neither), whether
+`installed-files.txt`, or `null` when there is no readable listing), whether
 `hashes_verified` ran (`--verify`), the `file_count`, the `total_size` found on
 disk, and a count per state. `hashes_verified` records that `--verify` was
 given, not that anything matched: read `states.verified` for that. File states
