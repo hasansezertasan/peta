@@ -12,6 +12,7 @@ import hashlib
 import json
 import os
 import sys
+import zipfile
 from typing import TYPE_CHECKING
 
 import pytest
@@ -112,7 +113,7 @@ class TestOrigin:
 
     def test_vcs_install(self, site: Path) -> None:
         direct_url = {
-            "url": "https://user:secret@github.com/org/vcspkg.git",
+            "url": "https://u:pw@github.com/org/v.git",  # pragma: allowlist secret
             "vcs_info": {
                 "vcs": "git",
                 "requested_revision": "main",
@@ -128,7 +129,7 @@ class TestOrigin:
         assert origin.requested_revision == "main"
         assert origin.commit_id == direct_url["vcs_info"]["commit_id"]
         # A credential the installer recorded must never be reported.
-        assert origin.url == "https://github.com/org/vcspkg.git"
+        assert origin.url == "https://github.com/org/v.git"
 
     def test_archive_install(self, site: Path) -> None:
         direct_url = {
@@ -141,6 +142,18 @@ class TestOrigin:
         origin = _inspect(site, "archpkg").origin
         assert origin.kind == "archive"
         assert origin.archive_hashes == {"sha256": "ab" * 32, "md5": "cd"}
+
+    def test_legacy_archive_hash_without_an_algorithm_is_ignored(
+        self, site: Path
+    ) -> None:
+        direct_url = {
+            "url": "https://example.com/a.tar.gz",
+            "archive_info": {"hash": "x"},
+        }
+        _install(
+            site, "oldarch", metadata_files={"direct_url.json": json.dumps(direct_url)}
+        )
+        assert _inspect(site, "oldarch").origin.archive_hashes == {}
 
     def test_editable_install(self, site: Path) -> None:
         direct_url = {
@@ -292,6 +305,95 @@ class TestIntegrity:
         assert _states(found)["gone.py"] == "missing"
         assert found.files[0].size is None
 
+    def test_unresolvable_legacy_entry_stays_out_of_bounds(self, site: Path) -> None:
+        egg_info = site / "nulegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="nulegg"), encoding="utf-8"
+        )
+        (egg_info / "installed-files.txt").write_text(
+            "../bad\x00.py\n", encoding="utf-8"
+        )
+        states = set(_states(_inspect(site, "nulegg", verify=True)).values())
+        # POSIX refuses to resolve a NUL byte; Windows resolves it and then
+        # cannot stat it. Either way nothing is read.
+        assert states <= {"out_of_bounds", "unverifiable"}
+
+    @pytest.mark.skipif(
+        sys.platform == "win32" or os.geteuid() == 0,
+        reason="POSIX permissions, not bypassed by root",
+    )
+    def test_unreachable_file_is_unverifiable(self, site: Path) -> None:
+        _install(site, "locked", files={"locked/a.py": b"x"})
+        (site / "locked").chmod(0)
+        try:
+            states = _states(_inspect(site, "locked", verify=True))
+        finally:
+            (site / "locked").chmod(0o755)
+        assert states["locked/a.py"] == "unverifiable"
+
+    def test_undecodable_legacy_listing_is_no_listing(self, site: Path) -> None:
+        egg_info = site / "latin-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="latin"), encoding="utf-8"
+        )
+        _ = (egg_info / "installed-files.txt").write_bytes(b"../bad\xe9.py\n")
+        assert _inspect(site, "latin").record_source is None
+
+    def test_unreadable_during_hashing_is_unverifiable(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install(site, "denied", files={"denied.py": b"x"})
+
+        def refuse(path: Path, algorithm: str) -> str:
+            del algorithm
+            raise PermissionError(path)
+
+        monkeypatch.setattr("peta.core.installation._digest", refuse)
+        states = _states(_inspect(site, "denied", verify=True))
+        assert states["denied.py"] == "unverifiable"
+
+    def test_missing_record(self, site: Path) -> None:
+        _install(site, "norecord", record=False)
+        found = _inspect(site, "norecord", verify=True)
+        assert found.record_source is None
+        assert found.files == []
+
+    def test_sources_txt_is_not_mistaken_for_installed_files(self, site: Path) -> None:
+        """Without RECORD, importlib would report the source tree as installed."""
+        egg_info = site / "srconly-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="srconly"), encoding="utf-8"
+        )
+        (egg_info / "SOURCES.txt").write_text("setup.py\nsrc/x.py\n", encoding="utf-8")
+        assert _inspect(site, "srconly").record_source is None
+
+    def test_legacy_installed_files_have_no_hashes(self, site: Path) -> None:
+        egg_info = site / "oldpkg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="oldpkg"), encoding="utf-8"
+        )
+        _ = (site / "oldpkg.py").write_bytes(b"")
+        (egg_info / "installed-files.txt").write_text(
+            "../oldpkg.py\n../gone.py\n", encoding="utf-8"
+        )
+        found = _inspect(site, "oldpkg", verify=True)
+        assert found.record_source == "installed-files.txt"
+        assert _states(found) == {"oldpkg.py": "not_recorded", "gone.py": "missing"}
+
+    def test_total_size_counts_what_is_on_disk(self, site: Path) -> None:
+        dist_info = _install(site, "sized", files={"a.py": b"12345", "b.py": b"123"})
+        (site / "b.py").unlink()
+        record = (dist_info / "RECORD").stat().st_size
+        assert _inspect(site, "sized").total_size == len(b"12345") + record
+
+
+class TestHostileRecord:
+    """RECORD rows a corrupt or hostile installer could have written."""
+
     def test_unknown_algorithm_is_unverifiable(self, site: Path) -> None:
         _ = (site / "weird.py").write_bytes(b"")
         _install(site, "weird", extra_rows=("weird.py,blake99=abc,0",))
@@ -343,21 +445,9 @@ class TestIntegrity:
         (entry,) = [f for f in _inspect(site, "sup").files if f.path == "sup.py"]
         assert entry.recorded_size is None
 
-    def test_unparseable_record_is_no_listing(self, site: Path) -> None:
+    def test_unparsable_record_is_no_listing(self, site: Path) -> None:
         _install(site, "hugefield", extra_rows=('"' + "x" * 200_000,))
         assert _inspect(site, "hugefield", verify=True).record_source is None
-
-    def test_unresolvable_legacy_entry_stays_out_of_bounds(self, site: Path) -> None:
-        egg_info = site / "nulegg-1.0.0.egg-info"
-        egg_info.mkdir()
-        (egg_info / "PKG-INFO").write_text(
-            _METADATA.format(name="nulegg"), encoding="utf-8"
-        )
-        (egg_info / "installed-files.txt").write_text(
-            "../bad\x00.py\n", encoding="utf-8"
-        )
-        states = set(_states(_inspect(site, "nulegg", verify=True)).values())
-        assert states == {"out_of_bounds"}
 
     def test_unterminated_quote_is_no_listing(self, site: Path) -> None:
         _install(site, "unquoted", extra_rows=('"a.py,sha256=abc,1', "b.py,,"))
@@ -371,54 +461,9 @@ class TestIntegrity:
         _install(site, "iconpkg", extra_rows=(row,))
         assert _states(_inspect(site, "iconpkg", verify=True))["Icon\r"] == "verified"
 
-    @pytest.mark.skipif(
-        sys.platform == "win32" or os.geteuid() == 0,
-        reason="POSIX permissions, not bypassed by root",
-    )
-    def test_unreachable_file_is_unverifiable(self, site: Path) -> None:
-        _install(site, "locked", files={"locked/a.py": b"x"})
-        (site / "locked").chmod(0)
-        try:
-            states = _states(_inspect(site, "locked", verify=True))
-        finally:
-            (site / "locked").chmod(0o755)
-        assert states["locked/a.py"] == "unverifiable"
-
-    def test_missing_record(self, site: Path) -> None:
-        _install(site, "norecord", record=False)
-        found = _inspect(site, "norecord", verify=True)
-        assert found.record_source is None
-        assert found.files == []
-
-    def test_sources_txt_is_not_mistaken_for_installed_files(self, site: Path) -> None:
-        """Without RECORD, importlib would report the source tree as installed."""
-        egg_info = site / "srconly-1.0.0.egg-info"
-        egg_info.mkdir()
-        (egg_info / "PKG-INFO").write_text(
-            _METADATA.format(name="srconly"), encoding="utf-8"
-        )
-        (egg_info / "SOURCES.txt").write_text("setup.py\nsrc/x.py\n", encoding="utf-8")
-        assert _inspect(site, "srconly").record_source is None
-
-    def test_legacy_installed_files_have_no_hashes(self, site: Path) -> None:
-        egg_info = site / "oldpkg-1.0.0.egg-info"
-        egg_info.mkdir()
-        (egg_info / "PKG-INFO").write_text(
-            _METADATA.format(name="oldpkg"), encoding="utf-8"
-        )
-        _ = (site / "oldpkg.py").write_bytes(b"")
-        (egg_info / "installed-files.txt").write_text(
-            "../oldpkg.py\n../gone.py\n", encoding="utf-8"
-        )
-        found = _inspect(site, "oldpkg", verify=True)
-        assert found.record_source == "installed-files.txt"
-        assert _states(found) == {"oldpkg.py": "not_recorded", "gone.py": "missing"}
-
-    def test_total_size_counts_what_is_on_disk(self, site: Path) -> None:
-        dist_info = _install(site, "sized", files={"a.py": b"12345", "b.py": b"123"})
-        (site / "b.py").unlink()
-        record = (dist_info / "RECORD").stat().st_size
-        assert _inspect(site, "sized").total_size == len(b"12345") + record
+    def test_blank_record_lines_are_skipped(self, site: Path) -> None:
+        _install(site, "blanks", files={"a.py": b"x"}, extra_rows=("",))
+        assert "" not in _states(_inspect(site, "blanks"))
 
 
 class TestPathSafety:
@@ -472,25 +517,79 @@ class TestPathSafety:
         assert entry.state in {"out_of_bounds", "unverifiable"}
         assert entry.size is None
 
-    def test_scripts_under_the_prefix_are_read(self, site: Path) -> None:
-        """Console scripts sit outside site-packages but inside the prefix."""
-        prefix = site.parent.parent
-        script = prefix / "bin" / "tool"
+    @pytest.mark.parametrize(
+        ("layout", "row"),
+        [
+            pytest.param(
+                ("lib", "python3.12", "site-packages"), "../../../bin/tool", id="posix"
+            ),
+            pytest.param(
+                (".local", "lib", "python3.12", "site-packages"),
+                "../../../bin/tool",
+                id="posix-user",
+            ),
+            pytest.param(
+                ("Library", "Python", "3.12", "lib", "python", "site-packages"),
+                "../../../bin/tool",
+                id="macos-framework-user",
+            ),
+            pytest.param(("Lib", "site-packages"), "../../Scripts/tool", id="windows"),
+            pytest.param(
+                ("Python312", "site-packages"), "../Scripts/tool", id="windows-user"
+            ),
+        ],
+    )
+    def test_scripts_under_the_scheme_root_are_read(
+        self, tmp_path: Path, layout: tuple[str, ...], row: str
+    ) -> None:
+        """Console scripts climb out of site-packages but stay in the scheme."""
+        site = tmp_path.joinpath(*layout)
+        site.mkdir(parents=True)
+        script = (site / row).resolve()
+        script.parent.mkdir(parents=True)
+        content = b"#!python\n"
+        _ = script.write_bytes(content)
+        _install(
+            site,
+            "scripted",
+            extra_rows=(f"{row},{_record_hash(content)},{len(content)}",),
+        )
+        assert _states(_inspect(site, "scripted", verify=True))[row] == "verified"
+
+    def test_prefix_bounds_a_directory_outside_any_scheme(self, tmp_path: Path) -> None:
+        """Without a scheme layout, only the target's own prefix admits scripts."""
+        site = tmp_path / "custom"
+        site.mkdir()
+        script = tmp_path / "bin" / "tool"
         script.parent.mkdir()
         content = b"#!python\n"
         _ = script.write_bytes(content)
-        row = f"../../bin/tool,{_record_hash(content)},{len(content)}"
+        row = f"../bin/tool,{_record_hash(content)},{len(content)}"
         _install(site, "scripted", extra_rows=(row,))
         path_only = _inspect(site, "scripted", verify=True)
-        assert _states(path_only)["../../bin/tool"] == "out_of_bounds"
+        assert _states(path_only)["../bin/tool"] == "out_of_bounds"
         target = LocalTarget(
             paths=(str(site),),
             interpreter=None,
             marker_environment={},
-            prefix=str(prefix),
+            prefix=str(tmp_path),
         )
         with_prefix = inspect_installation("scripted", target=target, verify=True)
-        assert _states(with_prefix)["../../bin/tool"] == "verified"
+        assert _states(with_prefix)["../bin/tool"] == "verified"
+
+    def test_zipped_distribution_is_reported_not_read(self, tmp_path: Path) -> None:
+        archive = tmp_path / "zpkg.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(
+                "zpkg-1.0.0.dist-info/METADATA", _METADATA.format(name="zpkg")
+            )
+            bundle.writestr("zpkg-1.0.0.dist-info/RECORD", "zpkg.py,sha256=abc,1\n")
+            bundle.writestr("zpkg.py", "x")
+        target = LocalTarget(
+            paths=(str(archive),), interpreter=None, marker_environment={}
+        )
+        found = inspect_installation("zpkg", target=target, verify=True)
+        assert _states(found) == {"zpkg.py": "unverifiable"}
 
 
 class TestCli:

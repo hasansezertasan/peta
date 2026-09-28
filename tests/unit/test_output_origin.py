@@ -117,6 +117,37 @@ def test_archive_prefers_sha2_over_md5() -> None:
     assert "sha512:eeee" in describe_origin(origin)
 
 
+@pytest.mark.parametrize(
+    ("origin", "expected"),
+    [
+        pytest.param(
+            Origin(kind="directory", url="file:///"),
+            "local directory local path",
+            id="root-path",
+        ),
+        pytest.param(
+            Origin(kind="archive", url="https://example.com/a.tar.gz"),
+            "archive https://example.com/a.tar.gz",
+            id="archive-without-hashes",
+        ),
+    ],
+)
+def test_describe_origin_edges(origin: Origin, expected: str) -> None:
+    assert describe_origin(origin) == expected
+
+
+def test_every_flagged_state_is_explained() -> None:
+    odd = _installation(
+        files=[
+            InstalledFile("a.py", "unverifiable", 1, 1, "blake99=x"),
+            InstalledFile("../../x", "out_of_bounds"),
+        ]
+    )
+    notes = " ".join(installation_notes(odd))
+    assert "Unverifiable" in notes
+    assert "outside the selected environment" in notes
+
+
 def test_rows_summarize_integrity() -> None:
     rows = dict(installation_rows(_installation()))
     assert rows["Installer"] == "uv (requested)"

@@ -11,16 +11,17 @@ from __future__ import annotations
 import base64
 import csv
 import hashlib
+import importlib.metadata as importlib_metadata
 import inspect
 import io
 import json
+import re
 import stat
 import sys
 from dataclasses import dataclass, field
-from importlib.metadata import PathDistribution
 from itertools import starmap
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Literal, Protocol, cast
+from typing import TYPE_CHECKING, Final, Literal, cast
 
 from typing_extensions import TypeAliasType
 
@@ -28,7 +29,7 @@ from peta.core.local import find_distribution, legacy_installed_files
 from peta.core.redaction import redacted
 
 if TYPE_CHECKING:
-    import importlib.metadata as importlib_metadata
+    from importlib.resources.abc import Traversable
 
     from peta.core.local import LocalTarget
 
@@ -263,18 +264,6 @@ def _described_origin(data: dict[str, object]) -> Origin:
     return _source_origin(url, data)
 
 
-class _MetadataFolder(Protocol):
-    """What :func:`_read_text` needs from a distribution's metadata folder.
-
-    Both :class:`pathlib.Path` and :class:`zipfile.Path` provide it, though
-    typeshed's ``SimplePath`` does not declare ``read_bytes``.
-    """
-
-    def joinpath(self, *other: str) -> _MetadataFolder: ...
-
-    def read_bytes(self) -> bytes: ...
-
-
 _ABSENT = (FileNotFoundError, IsADirectoryError, KeyError, NotADirectoryError)
 """What reading a metadata file raises when the distribution has no such file.
 
@@ -296,14 +285,14 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
         The file's text; ``None`` when the distribution has no such file, and
         ``""`` when it has one that cannot be read.
     """
-    if not isinstance(dist, PathDistribution):
+    if not isinstance(dist, importlib_metadata.PathDistribution):
         try:
             return dist.read_text(name)
         except UnicodeDecodeError:
             return ""
     # The same private attribute :func:`legacy_installed_files` reads. It may
     # be a ``zipfile.Path`` for a zipped distribution, so it is used as-is.
-    folder = cast("_MetadataFolder", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.
+    folder: Traversable = cast("Traversable", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.
     try:
         raw = folder.joinpath(name).read_bytes()
     except _ABSENT:
@@ -476,6 +465,12 @@ class _Checker:
     base: Path
     roots: tuple[Path, ...]
     verify: bool
+    readable: bool = True
+    """Whether ``base`` is a directory peta can read files under.
+
+    ``False`` for a distribution found inside a zip on the search path:
+    its files are archive members, which are reported rather than read.
+    """
 
     def check(
         self,
@@ -484,6 +479,8 @@ class _Checker:
         recorded_hash: str | None = None,
     ) -> InstalledFile:
         recorded = (recorded_size, recorded_hash)
+        if not self.readable:
+            return InstalledFile(path, "unverifiable", None, *recorded)
         # ``resolve`` follows symlinks, so a link inside site-packages that
         # points elsewhere is judged by where it leads, not where it sits.
         located = _resolved(self.base / path)
@@ -541,12 +538,41 @@ def _probe(located: Path) -> int | FileState:
     return info.st_size if stat.S_ISREG(info.st_mode) else "missing"
 
 
+_VERSIONED_PYTHON = re.compile(r"python[\d.]*", re.IGNORECASE)
+"""A ``pythonX.Y``, ``python``, or ``PythonXY`` directory in a scheme layout."""
+
+
+def _scheme_root(base: Path) -> Path | None:
+    """Find the installation scheme a ``site-packages`` directory belongs to.
+
+    Console scripts are installed beside the scheme's library directory, not
+    inside it, so their ``RECORD`` rows climb out of ``site-packages``. The
+    scheme root bounds them for every standard layout, including a user
+    install, whose scripts live under the user base rather than
+    ``sys.prefix``:
+
+    * ``<root>/lib/pythonX.Y/site-packages`` -- POSIX prefixes, venvs, and
+      ``~/.local``; ``<root>/lib/python/site-packages`` for a macOS
+      framework user install;
+    * ``<root>/Lib/site-packages`` -- Windows prefixes and venvs;
+    * ``<root>/PythonXY/site-packages`` -- the Windows user site.
+
+    Returns:
+        The scheme root, or ``None`` when ``base`` follows none of them.
+    """
+    if base.name.lower() not in {"site-packages", "dist-packages"}:
+        return None
+    parent = base.parent
+    if parent.name.lower() == "lib":
+        return parent.parent
+    if not _VERSIONED_PYTHON.fullmatch(parent.name):
+        return None
+    return parent.parent.parent if parent.parent.name.lower() == "lib" else parent
+
+
 def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:
-    roots = [base]
-    resolved = _resolved(Path(prefix)) if prefix else None
-    if resolved is not None:
-        roots.append(resolved)
-    return tuple(roots)
+    candidates = [_scheme_root(base), _resolved(Path(prefix)) if prefix else None]
+    return (base, *(root for root in candidates if root is not None))
 
 
 def _record_files(
@@ -593,9 +619,12 @@ def inspect_installation(
         The distribution's origin, installer, and file evidence.
     """
     dist = find_distribution(name, target=target)
-    base = Path(str(dist.locate_file(""))).resolve()
+    located = dist.locate_file("")
+    # A ``zipfile.Path`` for a distribution inside a zip on the search path.
+    readable = isinstance(located, Path)
+    base = Path(str(located)).resolve()
     prefix = target.prefix if target is not None else sys.prefix
-    checker = _Checker(base, _roots(base, prefix), verify)
+    checker = _Checker(base, _roots(base, prefix), verify, readable)
     record_source, files = _record_files(dist, checker)
     meta = dist.metadata
     return Installation(

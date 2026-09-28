@@ -86,6 +86,15 @@ def test_malformed_inspection_payload_rejected(payload: str) -> None:
         LocalTarget.create(sys.executable)
 
 
+def test_output_that_is_not_json_is_a_target_error() -> None:
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="not json")
+    with (
+        patch("peta.core.local.subprocess.run", return_value=completed),
+        pytest.raises(InvalidTargetError, match="could not inspect"),
+    ):
+        LocalTarget.create(sys.executable)
+
+
 def test_undecodable_interpreter_output_is_a_target_error() -> None:
     error = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
     with (
