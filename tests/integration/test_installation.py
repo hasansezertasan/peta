@@ -251,6 +251,23 @@ class TestMetadata:
         )
         assert _inspect(site, "multi").import_packages == ["multi", "multi_ext"]
 
+    @pytest.mark.parametrize(
+        ("filename", "names"),
+        [
+            pytest.param("ext.cpython-311-x86_64-linux-gnu.so", ["ext"], id="linux"),
+            pytest.param("ext.cp311-win_amd64.pyd", ["ext"], id="windows"),
+            pytest.param("ext.cpython-39-darwin.so", ["ext"], id="macos"),
+            pytest.param("ext.abi3.so", ["ext"], id="stable-abi"),
+            pytest.param("ext.pth", [], id="not-a-module"),
+        ],
+    )
+    def test_extension_names_ignore_the_host_abi(
+        self, site: Path, filename: str, names: list[str]
+    ) -> None:
+        """Another interpreter's ABI tag still names the module it builds."""
+        _install(site, "native", files={filename: b""})
+        assert _inspect(site, "native").import_packages == names
+
     def test_top_level_txt_wins(self, site: Path) -> None:
         _install(
             site,

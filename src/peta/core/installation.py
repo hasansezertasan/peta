@@ -12,7 +12,6 @@ import base64
 import csv
 import hashlib
 import importlib.metadata as importlib_metadata
-import inspect
 import io
 import json
 import lzma
@@ -458,6 +457,20 @@ def _is_metadata_dir(part: str) -> bool:
     }
 
 
+_MODULE_SUFFIXES = (".py", ".pyw", ".pyc", ".so", ".pyd")
+"""File extensions of a top-level module, on any platform and Python.
+
+Matched by extension alone rather than :func:`inspect.getmodulename`, which
+knows only the running interpreter's ABI tags: the target's
+``foo.cpython-311-x86_64-linux-gnu.so`` would not name ``foo`` there.
+"""
+
+
+def _module_name(filename: str) -> str | None:
+    # A module name holds no dot, so an ABI tag is whatever follows the first.
+    return filename.split(".", 1)[0] if filename.endswith(_MODULE_SUFFIXES) else None
+
+
 def _top_level_name(path: str) -> str | None:
     """Name the importable top-level module a recorded file belongs to.
 
@@ -469,7 +482,7 @@ def _top_level_name(path: str) -> str | None:
     head = parts[0] if parts else ""
     if not head or _is_metadata_dir(head):
         return None
-    name = head if len(parts) > 1 else inspect.getmodulename(head)
+    name = head if len(parts) > 1 else _module_name(head)
     if not name or not name.isidentifier() or name.startswith("__editable__"):
         return None
     return name
