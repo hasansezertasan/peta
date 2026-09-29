@@ -199,6 +199,11 @@ class TestOrigin:
                 "malformed url",
                 id="malformed-url",
             ),
+            pytest.param(
+                '{"url": "https://example.com/\\ud800", "archive_info": {}}',
+                "malformed url",
+                id="surrogate-url",
+            ),
         ],
     )
     def test_unreadable_direct_url_is_unknown(
@@ -681,6 +686,41 @@ class TestMetadataSafety:
         (dist_info / "RECORD").mkdir()
         (dist_info / "installed-files.txt").write_text("../x.py\n", encoding="utf-8")
         assert _inspect(site, "dirrec").record_source is None
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    def test_symlinked_metadata_directory_is_refused(
+        self, site: Path, tmp_path: Path
+    ) -> None:
+        secret_dir = tmp_path / "secret.dist-info"
+        secret_dir.mkdir()
+        (secret_dir / "METADATA").write_text(
+            _METADATA.format(name="linkdir"), encoding="utf-8"
+        )
+        (secret_dir / "RECORD").write_text(
+            "secret.py,sha256=xxx,123\n", encoding="utf-8"
+        )
+        (site / "linkdir-1.0.0.dist-info").symlink_to(secret_dir)
+        found = _inspect(site, "linkdir")
+        assert found.record_source is None
+        assert found.files == []
+
+    def test_oversized_archive_member_is_refused(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        archive = tmp_path / "oversized.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(
+                "oversized-1.0.0.dist-info/METADATA", _METADATA.format(name="oversized")
+            )
+            bundle.writestr(
+                "oversized-1.0.0.dist-info/RECORD", "pkg.py,sha256=xxx,123\n"
+            )
+        monkeypatch.setattr("peta.core.installation._MAX_METADATA_BYTES", 1)
+        target = LocalTarget(
+            paths=(str(archive),), interpreter=None, marker_environment={}
+        )
+        found = inspect_installation("oversized", target=target)
+        assert found.record_source is None
 
 
 class TestCli:

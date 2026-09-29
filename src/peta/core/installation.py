@@ -18,6 +18,7 @@ import json
 import re
 import stat
 import sys
+import zlib
 from dataclasses import dataclass, field
 from itertools import starmap
 from pathlib import Path
@@ -259,6 +260,7 @@ def _described_origin(data: dict[str, object]) -> Origin:
     # user fetched the project, not metadata the project declared: they are
     # credentials, and would leak into every report of this environment.
     try:
+        _ = raw_url.encode("utf-8")
         url = redacted(raw_url)
     except ValueError:
         return Origin(kind="unknown", reason="direct_url.json has a malformed url.")
@@ -274,6 +276,9 @@ _ABSENT = (FileNotFoundError, IsADirectoryError, KeyError, NotADirectoryError)
 The same set :meth:`importlib.metadata.PathDistribution.read_text` treats as
 absent, minus ``PermissionError``: an unreadable file is present.
 """
+
+_UNREADABLE = (OSError, ValueError, zlib.error)
+"""What reading an unreadable metadata entry can raise."""
 
 
 def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
@@ -300,6 +305,23 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
     return _read_entry(folder.joinpath(name))
 
 
+def _read_bounded(entry: Traversable) -> bytes | None:
+    """Read up to :data:`_MAX_METADATA_BYTES` from any traversable entry.
+
+    Returns:
+        The raw bytes, or ``None`` when the entry exceeds the byte limit.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    with entry.open("rb") as stream:
+        while chunk := stream.read(_CHUNK):
+            total += len(chunk)
+            if total > _MAX_METADATA_BYTES:
+                return None
+            chunks.append(chunk)
+    return b"".join(chunks)
+
+
 def _read_entry(entry: Traversable) -> str | None:
     """Read one metadata entry, refusing what :func:`_plain_file` refuses.
 
@@ -308,12 +330,18 @@ def _read_entry(entry: Traversable) -> str | None:
         unreadable or refused.
     """
     if isinstance(entry, Path) and not _plain_file(entry):
-        return "" if entry.is_symlink() or entry.exists() else None
+        return (
+            ""
+            if entry.is_symlink() or entry.parent.is_symlink() or entry.exists()
+            else None
+        )
     try:
-        raw = entry.read_bytes()
+        raw = _read_bounded(entry)
     except _ABSENT:
         return None
-    except OSError:
+    except _UNREADABLE:
+        return ""
+    if raw is None:
         return ""
     return raw.decode("utf-8", errors="replace")
 
@@ -333,9 +361,15 @@ def _plain_file(path: Path) -> bool:
     """
     try:
         info = path.lstat()
+        parent_info = path.parent.lstat()
     except (OSError, ValueError):
         return False
-    return stat.S_ISREG(info.st_mode) and info.st_size <= _MAX_METADATA_BYTES
+    return (
+        stat.S_ISREG(info.st_mode)
+        and stat.S_ISDIR(parent_info.st_mode)
+        and not stat.S_ISLNK(parent_info.st_mode)
+        and info.st_size <= _MAX_METADATA_BYTES
+    )
 
 
 def _origin(dist: importlib_metadata.Distribution) -> Origin:

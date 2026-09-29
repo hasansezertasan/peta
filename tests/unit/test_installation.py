@@ -36,7 +36,9 @@ class _Custom(Distribution):
 
 def _folder(error: Exception) -> MagicMock:
     folder = MagicMock()
-    folder.joinpath.return_value.read_bytes.side_effect = error
+    entry = folder.joinpath.return_value
+    entry.open.side_effect = error
+    entry.read_bytes.side_effect = error
     return folder
 
 
