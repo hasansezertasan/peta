@@ -667,9 +667,10 @@ class TestMetadataSafety:
         (egg_info / "installed-files.txt").symlink_to(outside)
         assert _inspect(site, "linkegg").record_source is None
 
-    @pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="needs named pipes")
+    @pytest.mark.skipif(sys.platform == "win32", reason="needs named pipes")
     def test_special_file_is_not_read(self, site: Path) -> None:
         """A FIFO would block forever if it were opened for reading."""
+        assert sys.platform != "win32"  # narrows os.mkfifo for type checkers
         dist_info = _install(site, "fifo", record=False)
         os.mkfifo(dist_info / "RECORD")
         assert _inspect(site, "fifo").record_source is None
