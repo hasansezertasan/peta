@@ -136,6 +136,21 @@ def test_archive_prefers_sha2_over_md5() -> None:
             id="windows-encoded-backslashes",
         ),
         pytest.param(
+            Origin(kind="directory", url="/home/alice/private/pkg"),
+            "local directory .../pkg",
+            id="posix-absolute-path",
+        ),
+        pytest.param(
+            Origin(kind="directory", url=r"\\server\share\pkg"),
+            "local directory .../pkg",
+            id="unc-path",
+        ),
+        pytest.param(
+            Origin(kind="directory", url="C:\\Users\\Alice\\private\\pkg"),
+            "local directory .../pkg",
+            id="windows-drive-path",
+        ),
+        pytest.param(
             Origin(kind="archive", url="https://example.com/a.tar.gz"),
             "archive https://example.com/a.tar.gz",
             id="archive-without-hashes",

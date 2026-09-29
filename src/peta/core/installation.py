@@ -18,6 +18,7 @@ import json
 import re
 import stat
 import sys
+import zipfile
 import zlib
 from dataclasses import dataclass, field
 from itertools import starmap
@@ -277,7 +278,13 @@ The same set :meth:`importlib.metadata.PathDistribution.read_text` treats as
 absent, minus ``PermissionError``: an unreadable file is present.
 """
 
-_UNREADABLE = (OSError, ValueError, zlib.error)
+_UNREADABLE = (
+    OSError,
+    ValueError,
+    zipfile.BadZipFile,
+    zipfile.LargeZipFile,
+    zlib.error,
+)
 """What reading an unreadable metadata entry can raise."""
 
 

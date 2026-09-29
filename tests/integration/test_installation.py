@@ -722,6 +722,26 @@ class TestMetadataSafety:
         found = inspect_installation("oversized", target=target)
         assert found.record_source is None
 
+    def test_corrupt_archive_member_is_unreadable(self, tmp_path: Path) -> None:
+        archive = tmp_path / "corrupt.zip"
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr(
+                "corrupt-1.0.0.dist-info/METADATA", _METADATA.format(name="corrupt")
+            )
+            bundle.writestr("corrupt-1.0.0.dist-info/RECORD", "pkg.py,sha256=xxx,123\n")
+        data = bytearray(archive.read_bytes())
+        cd = data.find(b"PK\x01\x02")
+        cd2 = data.find(b"PK\x01\x02", cd + 1)
+        data[cd2 + 16] ^= 0xFF
+        archive.write_bytes(data)
+
+        target = LocalTarget(
+            paths=(str(archive),), interpreter=None, marker_environment={}
+        )
+        found = inspect_installation("corrupt", target=target)
+        assert found.record_source is None
+        assert found.files == []
+
 
 class TestCli:
     """The ``peta origin`` command end to end."""

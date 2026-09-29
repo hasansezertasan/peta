@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
-from urllib.parse import unquote, urlsplit
+from urllib.parse import SplitResult, unquote, urlsplit
 
 from rich.filesize import decimal
 
@@ -42,20 +42,34 @@ _PREFERRED_HASHES = ("sha256", "sha512", "sha384")
 """Archive digests worth showing first, in the order installers record them."""
 
 
+def _is_local(parts: SplitResult) -> bool:
+    scheme = parts.scheme
+    return (
+        scheme == "file"
+        or scheme.endswith("+file")
+        or not scheme
+        or (len(scheme) == 1 and scheme.isalpha())
+    )
+
+
 def _display_url(url: str | None) -> str:
     """Show where an origin points without exposing a local path.
 
     Returns:
-        The final path component for a ``file://`` URL, the URL otherwise.
+        The final path component for local paths and ``file://`` URLs,
+        the URL otherwise.
     """
     if not url:
         return "-"
     parts = urlsplit(url)
-    if parts.scheme != "file":
+    if not _is_local(parts):
         return url
-    # Backslashes too: a Windows URL such as ``file:C:\Users\me\pkg`` would
-    # otherwise be one "name" -- the whole private path.
-    name = PurePosixPath(unquote(parts.path).replace("\\", "/")).name
+    raw = parts.path if parts.scheme == "file" else url
+    # Backslashes too: a Windows URL such as ``file:C:\Users\me\pkg`` or a
+    # native path would otherwise be one "name" -- the whole private path.
+    name = PurePosixPath(unquote(raw).replace("\\", "/").rstrip("/")).name
+    if name.endswith(":"):
+        name = ""
     return f".../{name}" if name else "local path"
 
 
