@@ -322,10 +322,16 @@ _LISTINGS = frozenset({"RECORD", "installed-files.txt"})
 """The metadata files that list every installed file, and so can be large."""
 
 _MAX_RECORD_ROWS = 1_000_000
-"""The most ``RECORD`` rows checked; far above any real distribution.
+"""The most ``RECORD`` or ``installed-files.txt`` entries checked.
 
-The byte limit alone still admits millions of tiny rows, each one kept in
-memory and probed on disk.
+Far above any real distribution. The byte limit alone still admits millions
+of tiny entries, each one kept in memory and probed on disk.
+"""
+
+_MAX_RECORD_COMMAS = 4 * _MAX_RECORD_ROWS
+"""The most commas a ``RECORD`` may hold: two per row, with room for paths.
+
+Bounds how wide any one row can be, which the row limit does not.
 """
 
 _ABSENT = (FileNotFoundError, IsADirectoryError, KeyError, NotADirectoryError)
@@ -520,8 +526,11 @@ def _is_metadata_dir(part: str) -> bool:
     }
 
 
-_MODULE_SUFFIXES = (".py", ".pyw", ".pyc", ".so", ".pyd")
-"""File extensions of a top-level module, on any platform and Python.
+_SOURCE_SUFFIXES = frozenset({".py", ".pyw", ".pyc"})
+"""File extensions of a top-level source or bytecode module."""
+
+_EXTENSION_SUFFIXES = (".so", ".pyd")
+"""File extensions of a top-level extension module, on any platform.
 
 Matched by extension alone rather than :func:`inspect.getmodulename`, which
 knows only the running interpreter's ABI tags: the target's
@@ -530,8 +539,13 @@ knows only the running interpreter's ABI tags: the target's
 
 
 def _module_name(filename: str) -> str | None:
-    # A module name holds no dot, so an ABI tag is whatever follows the first.
-    return filename.split(".", 1)[0] if filename.endswith(_MODULE_SUFFIXES) else None
+    # A module name holds no dot, so an extension's ABI tag is whatever
+    # follows the first. A source file has no tag: ``foo.bar.py`` is not
+    # ``foo``, and its stem fails the identifier check that follows.
+    if filename.endswith(_EXTENSION_SUFFIXES):
+        return filename.split(".", 1)[0]
+    stem, dot, suffix = filename.rpartition(".")
+    return stem if dot and f".{suffix}" in _SOURCE_SUFFIXES else None
 
 
 def _top_level_name(path: str) -> str | None:
@@ -591,19 +605,25 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
         ``(path, recorded size, recorded hash)`` for every non-empty row.
 
     Raises:
-        csv.Error: When a row is malformed or there are too many rows.
+        csv.Error: When a row is malformed, or there are too many rows or
+            commas.
     """
     rows: list[tuple[str, int | None, str | None]] = []
     # Read as a stream, not pre-split lines: a quoted path may itself hold a
     # newline, and splitting first would silently drop it.
     # ``strict`` makes an unterminated quote an error, instead of folding
     # every later row silently into one field.
+    if text.count(",") > _MAX_RECORD_COMMAS:
+        # Checked before parsing: the reader builds every column of a row,
+        # and one row can hold millions of empty ones.
+        msg = f"RECORD has more than {_MAX_RECORD_COMMAS} commas"
+        raise csv.Error(msg)
     reader = csv.reader(io.StringIO(text, newline=""), strict=True)
     for row in islice(reader, _MAX_RECORD_ROWS):
         if not row or not row[0]:
             continue
         # Padded so a row missing its trailing columns reads as unrecorded.
-        path, digest, size = [*row, "", ""][:3]
+        path, digest, size = (*row[:3], "", "")[:3]
         rows.append((path, _recorded_size(size), digest or None))
     if next(reader, None) is not None:
         msg = f"RECORD has more than {_MAX_RECORD_ROWS} rows"
@@ -792,8 +812,8 @@ def _recorded_files(
     try:
         rows = _record_rows(record)
     except csv.Error:
-        # An unterminated quote, an oversized field, or too many rows: no
-        # row after it can be trusted, so the listing as a whole is unusable.
+        # An unterminated quote, an oversized field, or too many rows or
+        # columns: the listing as a whole is unusable.
         return None, []
     return ("RECORD", list(starmap(checker.check, rows))) if rows else (None, [])
 
@@ -816,7 +836,9 @@ def _record_files(
     if record is not None:
         return _recorded_files(record, checker)
     # Vetted first, as for entry points: the legacy reader opens it directly.
-    if not _read_text(dist, "installed-files.txt"):
+    # Its lines bound its entries, so they are counted before it runs.
+    legacy_text = _read_text(dist, "installed-files.txt")
+    if not legacy_text or legacy_text.count("\n") > _MAX_RECORD_ROWS:
         return None, []
     try:
         legacy = legacy_installed_files(dist, skip_missing=False)

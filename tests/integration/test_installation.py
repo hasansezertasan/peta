@@ -319,6 +319,9 @@ class TestMetadata:
             pytest.param("ext.cpython-39-darwin.so", ["ext"], id="macos"),
             pytest.param("ext.abi3.so", ["ext"], id="stable-abi"),
             pytest.param("ext.pth", [], id="not-a-module"),
+            pytest.param("ext.pyw", ["ext"], id="windowed-source"),
+            pytest.param("ext.bar.py", [], id="dotted-source"),
+            pytest.param("ext.cpython-311.pyc", [], id="tagged-bytecode"),
         ],
     )
     def test_extension_names_ignore_the_host_abi(
@@ -827,6 +830,49 @@ class TestMetadataSafety:
         _ = (dist_info / "RECORD").write_text("a,,\n" * rows, encoding="utf-8")
         monkeypatch.setattr("peta.core.installation._MAX_RECORD_ROWS", 2)
         assert _inspect(site, "many").record_source == source
+
+    @pytest.mark.parametrize(
+        ("record", "source"),
+        [("a,,\nb,,\n", "RECORD"), ("a" + "," * 6 + "\n", None)],
+        ids=["within", "too-wide"],
+    )
+    def test_record_row_width_is_bounded(
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        record: str,
+        source: RecordSource | None,
+    ) -> None:
+        dist_info = _install(site, "wide", record=False)
+        _ = (dist_info / "RECORD").write_text(record, encoding="utf-8")
+        monkeypatch.setattr("peta.core.installation._MAX_RECORD_COMMAS", 5)
+        assert _inspect(site, "wide").record_source == source
+
+    def test_extra_record_columns_are_ignored(self, site: Path) -> None:
+        dist_info = _install(site, "extra", record=False)
+        _ = (dist_info / "RECORD").write_text("a.py,,7,more,cols\n", encoding="utf-8")
+        (found,) = _inspect(site, "extra").files
+        assert found.recorded_size == 7
+
+    @pytest.mark.parametrize(
+        ("lines", "source"), [(2, "installed-files.txt"), (3, None)]
+    )
+    def test_legacy_listing_is_bounded(
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        lines: int,
+        source: RecordSource | None,
+    ) -> None:
+        egg_info = site / "manyegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="manyegg"), encoding="utf-8"
+        )
+        listing = "".join(f"../m{i}.py\n" for i in range(lines))
+        (egg_info / "installed-files.txt").write_text(listing, encoding="utf-8")
+        monkeypatch.setattr("peta.core.installation._MAX_RECORD_ROWS", 2)
+        assert _inspect(site, "manyegg").record_source == source
 
     def test_directory_in_place_of_record_is_no_listing(self, site: Path) -> None:
         dist_info = _install(site, "dirrec", record=False)
