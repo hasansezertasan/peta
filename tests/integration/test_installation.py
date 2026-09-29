@@ -143,6 +143,17 @@ class TestOrigin:
         assert found.installer == "pip"
         assert found.requested is True
 
+    def test_url_fragment_is_dropped(self, site: Path) -> None:
+        """A fragment carries nothing PEP 610 keeps there, but can carry a token."""
+        direct_url = {
+            "url": "https://x.io/r#access_token=s3cret",  # pragma: allowlist secret
+            "dir_info": {},
+        }
+        _install(
+            site, "fragpkg", metadata_files={"direct_url.json": json.dumps(direct_url)}
+        )
+        assert _inspect(site, "fragpkg").origin.url == "https://x.io/r"
+
     def test_vcs_install(self, site: Path) -> None:
         direct_url = {
             "url": "https://u:pw@github.com/org/v.git",  # pragma: allowlist secret
@@ -788,6 +799,21 @@ class TestMetadataSafety:
         _install(site, "huge", files={"huge.py": b"x"})
         monkeypatch.setattr("peta.core.installation._MAX_METADATA_BYTES", 1)
         assert _inspect(site, "huge").record_source is None
+
+    def test_small_metadata_has_its_own_limit(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The listing's allowance does not extend to files that are tiny."""
+        _install(
+            site,
+            "dense",
+            files={"dense.py": b"x"},
+            metadata_files={"INSTALLER": "pip\n" + "x\n" * 100},
+        )
+        monkeypatch.setattr("peta.core.installation._MAX_SMALL_METADATA_BYTES", 64)
+        found = _inspect(site, "dense")
+        assert found.installer is None
+        assert found.record_source == "RECORD"
 
     @pytest.mark.parametrize(("rows", "source"), [(2, "RECORD"), (3, None)])
     def test_record_row_count_is_bounded(

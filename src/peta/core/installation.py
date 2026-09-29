@@ -300,11 +300,26 @@ def _described_origin(data: dict[str, object]) -> Origin:
     # ``redacted`` has already split it, so this cannot raise.
     if url is None or _hides_userinfo(raw_url):
         return Origin(kind="unknown", reason="direct_url.json has a malformed url.")
-    return _source_origin(url, data)
+    # Dropped whole: an installer records hashes and the subdirectory under
+    # their own keys, so a fragment here holds nothing but, perhaps, a token
+    # that ``redacted`` does not look for. The first ``#`` is where
+    # :func:`urllib.parse.urlsplit` splits one off too.
+    return _source_origin(url.partition("#")[0], data)
 
 
 _MAX_METADATA_BYTES = 64 * 1024 * 1024
-"""The largest metadata file read; far above any real ``RECORD``."""
+"""The largest file listing read; far above any real ``RECORD``."""
+
+_MAX_SMALL_METADATA_BYTES = 1024 * 1024
+"""The largest of any other metadata file read; far above any real one.
+
+``INSTALLER``, ``top_level.txt``, ``direct_url.json`` and the like are a few
+lines at most, and each expands when split or decoded: held to the listing's
+allowance, one could still turn into millions of objects.
+"""
+
+_LISTINGS = frozenset({"RECORD", "installed-files.txt"})
+"""The metadata files that list every installed file, and so can be large."""
 
 _MAX_RECORD_ROWS = 1_000_000
 """The most ``RECORD`` rows checked; far above any real distribution.
@@ -359,11 +374,12 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
     # The same private attribute :func:`legacy_installed_files` reads. It may
     # be a ``zipfile.Path`` for a zipped distribution, so it is used as-is.
     folder: Traversable = cast("Traversable", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.
-    return _read_entry(folder.joinpath(name))
+    limit = _MAX_METADATA_BYTES if name in _LISTINGS else _MAX_SMALL_METADATA_BYTES
+    return _read_entry(folder.joinpath(name), limit)
 
 
-def _read_bounded(entry: Traversable) -> bytes | None:
-    """Read up to :data:`_MAX_METADATA_BYTES` from any traversable entry.
+def _read_bounded(entry: Traversable, limit: int) -> bytes | None:
+    """Read up to ``limit`` bytes from any traversable entry.
 
     Returns:
         The raw bytes, or ``None`` when the entry exceeds the byte limit.
@@ -373,27 +389,27 @@ def _read_bounded(entry: Traversable) -> bytes | None:
     with entry.open("rb") as stream:
         while chunk := stream.read(_CHUNK):
             total += len(chunk)
-            if total > _MAX_METADATA_BYTES:
+            if total > limit:
                 return None
             chunks.append(chunk)
     return b"".join(chunks)
 
 
-def _read_entry(entry: Traversable) -> str | None:
+def _read_entry(entry: Traversable, limit: int) -> str | None:
     """Read one metadata entry, refusing what :func:`_plain_file` refuses.
 
     Returns:
         The decoded text; ``None`` when absent, ``""`` when present but
         unreadable or refused.
     """
-    if isinstance(entry, Path) and not _plain_file(entry):
+    if isinstance(entry, Path) and not _plain_file(entry, limit):
         return (
             ""
             if entry.is_symlink() or entry.parent.is_symlink() or entry.exists()
             else None
         )
     try:
-        raw = _read_bounded(entry)
+        raw = _read_bounded(entry, limit)
     except _ABSENT:
         return None
     except _UNREADABLE:
@@ -403,7 +419,7 @@ def _read_entry(entry: Traversable) -> str | None:
     return raw.decode("utf-8", errors="replace")
 
 
-def _plain_file(path: Path) -> bool:
+def _plain_file(path: Path, limit: int) -> bool:
     """Report whether a metadata file is safe to read.
 
     Metadata files are read before any ``RECORD`` containment check applies,
@@ -413,8 +429,8 @@ def _plain_file(path: Path) -> bool:
     read; anything else is present but refused.
 
     Returns:
-        ``True`` for a regular, non-symlinked file within
-        :data:`_MAX_METADATA_BYTES`.
+        ``True`` for a regular, non-symlinked file of at most ``limit``
+        bytes.
     """
     try:
         info = path.lstat()
@@ -425,7 +441,7 @@ def _plain_file(path: Path) -> bool:
         stat.S_ISREG(info.st_mode)
         and stat.S_ISDIR(parent_info.st_mode)
         and not stat.S_ISLNK(parent_info.st_mode)
-        and info.st_size <= _MAX_METADATA_BYTES
+        and info.st_size <= limit
     )
 
 
