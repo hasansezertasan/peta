@@ -25,7 +25,7 @@ from peta.core.local import LocalTarget, PackageNotFoundError
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from peta.core.installation import FileState, Installation
+    from peta.core.installation import FileState, Installation, RecordSource
 
 pytestmark = pytest.mark.integration
 runner = CliRunner()
@@ -210,8 +210,18 @@ class TestOrigin:
             ),
             pytest.param(
                 '{"url": "https://example.com/\\ud800", "archive_info": {}}',
-                "malformed url",
+                "malformed text",
                 id="surrogate-url",
+            ),
+            pytest.param(
+                '{"url": "https://x", "vcs_info": {"commit_id": "\\ud800"}}',
+                "malformed text",
+                id="surrogate-vcs-field",
+            ),
+            pytest.param(
+                '{"url": "https://x", "archive_info": {"hashes": {"\\udfff": "a"}}}',
+                "malformed text",
+                id="surrogate-hash-name",
             ),
         ],
     )
@@ -690,6 +700,19 @@ class TestMetadataSafety:
         _install(site, "huge", files={"huge.py": b"x"})
         monkeypatch.setattr("peta.core.installation._MAX_METADATA_BYTES", 1)
         assert _inspect(site, "huge").record_source is None
+
+    @pytest.mark.parametrize(("rows", "source"), [(2, "RECORD"), (3, None)])
+    def test_record_row_count_is_bounded(
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        rows: int,
+        source: RecordSource | None,
+    ) -> None:
+        dist_info = _install(site, "many", record=False)
+        _ = (dist_info / "RECORD").write_text("a,,\n" * rows, encoding="utf-8")
+        monkeypatch.setattr("peta.core.installation._MAX_RECORD_ROWS", 2)
+        assert _inspect(site, "many").record_source == source
 
     def test_directory_in_place_of_record_is_no_listing(self, site: Path) -> None:
         dist_info = _install(site, "dirrec", record=False)

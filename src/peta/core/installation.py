@@ -21,7 +21,7 @@ import sys
 import zipfile
 import zlib
 from dataclasses import dataclass, field
-from itertools import starmap
+from itertools import islice, starmap
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, cast
 
@@ -261,7 +261,6 @@ def _described_origin(data: dict[str, object]) -> Origin:
     # user fetched the project, not metadata the project declared: they are
     # credentials, and would leak into every report of this environment.
     try:
-        _ = raw_url.encode("utf-8")
         url = redacted(raw_url)
     except ValueError:
         return Origin(kind="unknown", reason="direct_url.json has a malformed url.")
@@ -270,6 +269,13 @@ def _described_origin(data: dict[str, object]) -> Origin:
 
 _MAX_METADATA_BYTES = 64 * 1024 * 1024
 """The largest metadata file read; far above any real ``RECORD``."""
+
+_MAX_RECORD_ROWS = 1_000_000
+"""The most ``RECORD`` rows checked; far above any real distribution.
+
+The byte limit alone still admits millions of tiny rows, each one kept in
+memory and probed on disk.
+"""
 
 _ABSENT = (FileNotFoundError, IsADirectoryError, KeyError, NotADirectoryError)
 """What reading a metadata file raises when the distribution has no such file.
@@ -379,6 +385,22 @@ def _plain_file(path: Path) -> bool:
     )
 
 
+def _encodable(data: object) -> bool:
+    """Whether every string in a decoded JSON document is valid UTF-8.
+
+    A JSON surrogate escape decodes to a lone surrogate, which is only caught
+    when a renderer later fails to write it out.
+
+    Returns:
+        ``True`` when the document holds no lone surrogate.
+    """
+    try:
+        _ = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    except (RecursionError, ValueError):
+        return False
+    return True
+
+
 def _origin(dist: importlib_metadata.Distribution) -> Origin:
     text = _read_text(dist, "direct_url.json")
     if text is None:
@@ -392,6 +414,8 @@ def _origin(dist: importlib_metadata.Distribution) -> Origin:
     decoded = _object(data)
     if decoded is None:
         return Origin(kind="unknown", reason="direct_url.json is not an object.")
+    if not _encodable(decoded):
+        return Origin(kind="unknown", reason="direct_url.json has malformed text.")
     return _described_origin(decoded)
 
 
@@ -483,18 +507,25 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
 
     Returns:
         ``(path, recorded size, recorded hash)`` for every non-empty row.
+
+    Raises:
+        csv.Error: When a row is malformed or there are too many rows.
     """
     rows: list[tuple[str, int | None, str | None]] = []
     # Read as a stream, not pre-split lines: a quoted path may itself hold a
     # newline, and splitting first would silently drop it.
     # ``strict`` makes an unterminated quote an error, instead of folding
     # every later row silently into one field.
-    for row in csv.reader(io.StringIO(text, newline=""), strict=True):
+    reader = csv.reader(io.StringIO(text, newline=""), strict=True)
+    for row in islice(reader, _MAX_RECORD_ROWS):
         if not row or not row[0]:
             continue
         # Padded so a row missing its trailing columns reads as unrecorded.
         path, digest, size = [*row, "", ""][:3]
         rows.append((path, _recorded_size(size), digest or None))
+    if next(reader, None) is not None:
+        msg = f"RECORD has more than {_MAX_RECORD_ROWS} rows"
+        raise csv.Error(msg)
     return rows
 
 
@@ -679,8 +710,8 @@ def _recorded_files(
     try:
         rows = _record_rows(record)
     except csv.Error:
-        # An unterminated quote or an oversized field: no row after it can
-        # be trusted, so the listing as a whole is unusable.
+        # An unterminated quote, an oversized field, or too many rows: no
+        # row after it can be trusted, so the listing as a whole is unusable.
         return None, []
     return ("RECORD", list(starmap(checker.check, rows))) if rows else (None, [])
 
