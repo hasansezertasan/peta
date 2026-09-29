@@ -267,17 +267,20 @@ def is_local_scheme(scheme: str) -> bool:
     )
 
 
-def _hides_userinfo(url: str) -> bool:
-    """Whether a network URL's authority is where a credential would sit.
+def _malformed_authority(url: str) -> bool:
+    """Whether a URL's host is missing where it needs one, or present where not.
 
-    Without one, as when backslashes stand in for the ``//`` of
-    ``https://{user}:{token}@host``, the userinfo lands in the path, where
-    redaction does not look for it.
+    A network URL without one, as when backslashes stand in for the ``//``
+    of ``https://{user}:{token}@host``, puts the userinfo in the path, where
+    redaction does not look for it. A scheme-relative ``//host/repo`` names a
+    host, but would be shown as a local path, hiding it.
 
     Returns:
-        ``True`` when the URL is not local and has no authority.
+        ``True`` when the URL cannot be reported faithfully.
     """
     parts = urlsplit(url)
+    if not parts.scheme:
+        return bool(parts.netloc)
     return not parts.netloc and not is_local_scheme(parts.scheme)
 
 
@@ -299,7 +302,7 @@ def _described_origin(data: dict[str, object]) -> Origin:
     except ValueError:
         url = None
     # ``redacted`` has already split it, so this cannot raise.
-    if url is None or _hides_userinfo(raw_url):
+    if url is None or _malformed_authority(raw_url):
         return Origin(kind="unknown", reason="direct_url.json has a malformed url.")
     # Dropped whole: an installer records hashes and the subdirectory under
     # their own keys, so a fragment here holds nothing but, perhaps, a token

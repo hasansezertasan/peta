@@ -269,6 +269,11 @@ class TestOrigin:
                 id="missing-authority",
             ),
             pytest.param(
+                '{"url": "//example.com/private/repo", "dir_info": {}}',
+                "malformed url",
+                id="scheme-relative",
+            ),
+            pytest.param(
                 '{"url": "https://example.com/\\ud800", "archive_info": {}}',
                 "malformed text",
                 id="surrogate-url",
