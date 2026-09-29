@@ -32,6 +32,7 @@ from peta.core.local import find_distribution, legacy_installed_files
 from peta.core.redaction import redacted
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from importlib.resources.abc import Traversable
 
     from peta.core.local import LocalTarget
@@ -328,11 +329,44 @@ Far above any real distribution. The byte limit alone still admits millions
 of tiny entries, each one kept in memory and probed on disk.
 """
 
-_MAX_RECORD_COMMAS = 4 * _MAX_RECORD_ROWS
-"""The most commas a ``RECORD`` may hold: two per row, with room for paths.
+_MAX_RECORD_ROW_CHARS = 64 * 1024
+"""The most characters one ``RECORD`` row may span, newlines included.
 
-Bounds how wide any one row can be, which the row limit does not.
+Room for the longest path any platform allows, plus its hash and size. A row
+has no more fields than characters, so this also bounds how wide the parser
+can make it, which the row limit does not.
 """
+
+_LINE_BREAKS = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
+"""Every character :meth:`str.splitlines` ends a line at."""
+
+
+def _line_count_bound(text: str) -> int:
+    # An upper bound on ``len(text.splitlines())``, without building them:
+    # a ``\r\n`` pair is counted twice, but nothing is missed.
+    return sum(map(text.count, _LINE_BREAKS)) + 1
+
+
+def _bounded_lines(text: str, spent: list[int]) -> Iterator[str]:
+    """Yield the physical lines of ``text``, charging each to the current row.
+
+    The caller zeroes ``spent[0]`` whenever a row ends, so a row that runs
+    past :data:`_MAX_RECORD_ROW_CHARS` is refused before the parser has
+    built it, however many quoted lines it spans.
+
+    Yields:
+        Each line, with its line ending.
+
+    Raises:
+        csv.Error: When a row exceeds the character limit.
+    """
+    for line in io.StringIO(text, newline=""):
+        spent[0] += len(line)
+        if spent[0] > _MAX_RECORD_ROW_CHARS:
+            msg = f"a RECORD row spans more than {_MAX_RECORD_ROW_CHARS} characters"
+            raise csv.Error(msg)
+        yield line
+
 
 _ABSENT = (FileNotFoundError, IsADirectoryError, KeyError, NotADirectoryError)
 """What reading a metadata file raises when the distribution has no such file.
@@ -605,21 +639,18 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
         ``(path, recorded size, recorded hash)`` for every non-empty row.
 
     Raises:
-        csv.Error: When a row is malformed, or there are too many rows or
-            commas.
+        csv.Error: When a row is malformed or too long, or there are too
+            many rows.
     """
     rows: list[tuple[str, int | None, str | None]] = []
     # Read as a stream, not pre-split lines: a quoted path may itself hold a
     # newline, and splitting first would silently drop it.
     # ``strict`` makes an unterminated quote an error, instead of folding
     # every later row silently into one field.
-    if text.count(",") > _MAX_RECORD_COMMAS:
-        # Checked before parsing: the reader builds every column of a row,
-        # and one row can hold millions of empty ones.
-        msg = f"RECORD has more than {_MAX_RECORD_COMMAS} commas"
-        raise csv.Error(msg)
-    reader = csv.reader(io.StringIO(text, newline=""), strict=True)
+    spent = [0]
+    reader = csv.reader(_bounded_lines(text, spent), strict=True)
     for row in islice(reader, _MAX_RECORD_ROWS):
+        spent[0] = 0
         if not row or not row[0]:
             continue
         # Padded so a row missing its trailing columns reads as unrecorded.
@@ -838,7 +869,7 @@ def _record_files(
     # Vetted first, as for entry points: the legacy reader opens it directly.
     # Its lines bound its entries, so they are counted before it runs.
     legacy_text = _read_text(dist, "installed-files.txt")
-    if not legacy_text or legacy_text.count("\n") > _MAX_RECORD_ROWS:
+    if not legacy_text or _line_count_bound(legacy_text) > _MAX_RECORD_ROWS:
         return None, []
     try:
         legacy = legacy_installed_files(dist, skip_missing=False)

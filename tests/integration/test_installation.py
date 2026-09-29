@@ -833,10 +833,13 @@ class TestMetadataSafety:
 
     @pytest.mark.parametrize(
         ("record", "source"),
-        [("a,,\nb,,\n", "RECORD"), ("a" + "," * 6 + "\n", None)],
-        ids=["within", "too-wide"],
+        [
+            pytest.param("abcdef,,\n" * 5, "RECORD", id="each-row-within"),
+            pytest.param("a" + "," * 20 + "\n", None, id="too-wide"),
+            pytest.param('"a\nb\nc\nd\ne\nf",,\n', None, id="too-many-lines"),
+        ],
     )
-    def test_record_row_width_is_bounded(
+    def test_record_row_length_is_bounded(
         self,
         site: Path,
         monkeypatch: pytest.MonkeyPatch,
@@ -844,8 +847,8 @@ class TestMetadataSafety:
         source: RecordSource | None,
     ) -> None:
         dist_info = _install(site, "wide", record=False)
-        _ = (dist_info / "RECORD").write_text(record, encoding="utf-8")
-        monkeypatch.setattr("peta.core.installation._MAX_RECORD_COMMAS", 5)
+        _ = (dist_info / "RECORD").write_text(record, encoding="utf-8", newline="")
+        monkeypatch.setattr("peta.core.installation._MAX_RECORD_ROW_CHARS", 10)
         assert _inspect(site, "wide").record_source == source
 
     def test_extra_record_columns_are_ignored(self, site: Path) -> None:
@@ -855,22 +858,28 @@ class TestMetadataSafety:
         assert found.recorded_size == 7
 
     @pytest.mark.parametrize(
-        ("lines", "source"), [(2, "installed-files.txt"), (3, None)]
+        ("separator", "source"),
+        [("", "installed-files.txt"), ("\n", None), ("\r", None), ("\u2028", None)],
+        ids=["one-line", "lf", "cr", "line-separator"],
     )
     def test_legacy_listing_is_bounded(
         self,
         site: Path,
         monkeypatch: pytest.MonkeyPatch,
-        lines: int,
+        separator: str,
         source: RecordSource | None,
     ) -> None:
+        """Every line break :meth:`str.splitlines` honors counts toward the cap."""
         egg_info = site / "manyegg-1.0.0.egg-info"
         egg_info.mkdir()
         (egg_info / "PKG-INFO").write_text(
             _METADATA.format(name="manyegg"), encoding="utf-8"
         )
-        listing = "".join(f"../m{i}.py\n" for i in range(lines))
-        (egg_info / "installed-files.txt").write_text(listing, encoding="utf-8")
+        names = ["../a.py", "../b.py", "../c.py"]
+        listing = separator.join(names) if separator else names[0]
+        (egg_info / "installed-files.txt").write_text(
+            listing, encoding="utf-8", newline=""
+        )
         monkeypatch.setattr("peta.core.installation._MAX_RECORD_ROWS", 2)
         assert _inspect(site, "manyegg").record_source == source
 
