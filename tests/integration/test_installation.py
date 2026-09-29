@@ -28,6 +28,7 @@ from peta.core.local import LocalTarget, PackageNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from importlib.metadata import Distribution
 
     from peta.core.installation import FileState, Installation, RecordSource
 
@@ -1044,6 +1045,56 @@ class TestMetadataSafety:
         found = inspect_installation("corrupt", target=target)
         assert found.record_source is None
         assert found.files == []
+
+    def test_unreadable_metadata_on_an_explicit_path_is_not_found(
+        self, site: Path
+    ) -> None:
+        """The lookup reads each candidate's METADATA before the inspection does."""
+        dist_info = _install(site, "badmeta")
+        _ = (dist_info / "METADATA").write_bytes(b"Name: badmeta\n\xff\xfe\n")
+        result = runner.invoke(
+            app, ["origin", "badmeta", "--path", str(site), "--json"]
+        )
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.output)["errors"][0]["code"] == "package_not_found"
+
+    @pytest.mark.parametrize(
+        "metadata",
+        [
+            "Metadata-Version: 2.1\nName: partial\n",
+            "Metadata-Version: 2.1\nName:  \nVersion: 1.0.0\n",
+        ],
+        ids=["no-version", "blank-name"],
+    )
+    def test_incomplete_metadata_is_not_found(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, metadata: str
+    ) -> None:
+        """Found by its directory name alone, on the running path."""
+        dist_info = _install(site, "partial")
+        _ = (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
+        monkeypatch.syspath_prepend(str(site))
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("partial")
+
+    def test_entry_points_are_parsed_from_the_vetted_text(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A file rewritten after vetting is not read a second time."""
+        dist_info = _install(
+            site, "vetted", metadata_files={"entry_points.txt": "[g]\nkept = m:f\n"}
+        )
+        read = installation._read_text
+
+        def read_then_rewrite(dist: Distribution, name: str) -> str | None:
+            text = read(dist, name)
+            if name == "entry_points.txt":
+                rewritten = "[g]\nswapped = m:f\n"
+                _ = (dist_info / name).write_text(rewritten, encoding="utf-8")
+            return text
+
+        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
+        points = _inspect(site, "vetted").entry_points
+        assert [point.name for point in points] == ["kept"]
 
     @pytest.mark.usefixtures("release_archives")
     def test_unreadable_metadata_is_a_structured_error(

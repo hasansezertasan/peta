@@ -11,26 +11,23 @@ from __future__ import annotations
 import base64
 import csv
 import hashlib
-import importlib
 import importlib.metadata as importlib_metadata
 import io
 import json
-import lzma
 import os
 import re
 import stat
 import sys
-import zipfile
-import zlib
 from dataclasses import dataclass, field
 from itertools import islice, starmap
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, BinaryIO, Final, Literal, cast
+from typing import IO, TYPE_CHECKING, BinaryIO, Final, Literal, NoReturn, cast
 from urllib.parse import urlsplit
 
-from typing_extensions import TypeAliasType
+from typing_extensions import TypeAliasType, override
 
 from peta.core.local import (
+    METADATA_READ_ERRORS,
     PackageNotFoundError,
     find_distribution,
     legacy_installed_files,
@@ -387,42 +384,8 @@ absent, minus ``PermissionError``: an unreadable file is present.
 """
 
 
-def _zstd_errors() -> tuple[type[Exception], ...]:
-    """Name what a corrupt Zstandard member raises, where :mod:`zipfile` reads one.
-
-    Imported by name: the module is new in Python 3.14, and even there
-    CPython can be built without libzstd.
-
-    Returns:
-        ``ZstdError`` when the module exists, otherwise nothing.
-    """
-    try:
-        zstd = importlib.import_module("compression.zstd")
-    except ImportError:  # pragma: no cover - only before Python 3.14
-        return ()
-    error = cast("type[Exception]", zstd.ZstdError)
-    return (error,)  # pragma: no cover - only from Python 3.14
-
-
-_ZSTD_ERRORS = _zstd_errors()
-
-_UNREADABLE: tuple[type[Exception], ...] = (
-    OSError,
-    RuntimeError,
-    ValueError,
-    lzma.LZMAError,
-    zipfile.BadZipFile,
-    zipfile.LargeZipFile,
-    zlib.error,
-    *_ZSTD_ERRORS,
-)
-"""What reading an unreadable metadata entry can raise.
-
-A zipped member can also fail to decompress: ``RuntimeError`` when it is
-encrypted, ``NotImplementedError`` (a ``RuntimeError``) for a compression
-method :mod:`zipfile` lacks, and ``LZMAError``, ``zlib.error`` or
-``ZstdError`` for a corrupt stream.
-"""
+_UNREADABLE = METADATA_READ_ERRORS
+"""What reading an unreadable metadata entry can raise."""
 
 
 def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
@@ -586,16 +549,34 @@ into an object and kept.
 """
 
 
+class _VettedEntryPoints(importlib_metadata.Distribution):
+    """Hands the stdlib entry-point parser text that was already vetted.
+
+    Asking the distribution instead would have it reopen the file, after
+    :func:`_read_text` checked it: whatever had been swapped in since, a
+    symlink, a device, or a far larger file, would be read unchecked.
+    """
+
+    def __init__(self, text: str) -> None:
+        self._text: str = text
+
+    @override
+    def read_text(self, filename: str) -> str | None:
+        return self._text if filename == "entry_points.txt" else None
+
+    @override
+    def locate_file(self, path: str | os.PathLike[str]) -> NoReturn:
+        raise NotImplementedError(path)
+
+
 def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
-    # Vetted through :func:`_read_text` first: the stdlib parser below reads
-    # the file itself, and would follow a symlink or read a device.
     text = _read_text(dist, "entry_points.txt")
     # Each line is at most one entry point, so counting lines bounds what the
     # parser would build without running it.
     if not text or _line_count_bound(text) > _MAX_ENTRY_POINT_LINES:
         return []
     try:
-        points = dist.entry_points
+        points = _VettedEntryPoints(text).entry_points
     # The stdlib parser raises ``TypeError`` for a line without ``=``.
     except (TypeError, UnicodeDecodeError, ValueError):
         return []
@@ -982,6 +963,34 @@ def _record_files(
     return None, []
 
 
+def _name_and_version(
+    dist: importlib_metadata.Distribution, name: str
+) -> tuple[str, str]:
+    """Read the two core metadata fields every report needs.
+
+    A distribution whose ``METADATA`` cannot be read, or lacks either field,
+    names no package, just as :func:`find_distribution` skips one whose
+    metadata has no name.
+
+    Returns:
+        The distribution's name and version.
+
+    Raises:
+        PackageNotFoundError: When either is unreadable, missing, or blank.
+    """
+    try:
+        meta = dist.metadata
+    except _UNREADABLE as exc:
+        raise PackageNotFoundError(name) from exc
+    fields = [
+        (cast("list[str] | None", meta.get_all(key)) or [""])[0].strip()
+        for key in ("Name", "Version")
+    ]
+    if not all(fields):
+        raise PackageNotFoundError(name)
+    return fields[0], fields[1]
+
+
 def inspect_installation(
     name: str, *, target: LocalTarget | None = None, verify: bool = False
 ) -> Installation:
@@ -994,10 +1003,6 @@ def inspect_installation(
 
     Returns:
         The distribution's origin, installer, and file evidence.
-
-    Raises:
-        PackageNotFoundError: When it is not installed there, or its
-            ``METADATA`` cannot be read.
     """
     dist = find_distribution(name, target=target)
     located = dist.locate_file("")
@@ -1007,15 +1012,10 @@ def inspect_installation(
     prefix = target.prefix if target is not None else sys.prefix
     checker = _Checker(base, _roots(base, prefix), verify, readable)
     record_source, files = _record_files(dist, checker)
-    try:
-        meta = dist.metadata
-    # A distribution whose ``METADATA`` cannot be read names no package, just
-    # as :func:`find_distribution` skips one whose metadata has no name.
-    except _UNREADABLE as exc:
-        raise PackageNotFoundError(name) from exc
+    found_name, version = _name_and_version(dist, name)
     return Installation(
-        name=meta["Name"],
-        version=meta["Version"],
+        name=found_name,
+        version=version,
         origin=_origin(dist),
         installer=_installer(dist),
         requested=_read_text(dist, "REQUESTED") is not None,
