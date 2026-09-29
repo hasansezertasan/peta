@@ -294,6 +294,27 @@ class TestMetadata:
         _install(site, "native", files={filename: b""})
         assert _inspect(site, "native").import_packages == names
 
+    @pytest.mark.parametrize("declared", ["", "  \n\n"])
+    def test_empty_top_level_txt_falls_back_to_record(
+        self, site: Path, declared: str
+    ) -> None:
+        _install(
+            site,
+            "blank",
+            files={"blank/__init__.py": b""},
+            metadata_files={"top_level.txt": declared},
+        )
+        assert _inspect(site, "blank").import_packages == ["blank"]
+
+    @pytest.mark.parametrize(("entries", "kept"), [(2, 2), (3, 0)])
+    def test_entry_point_count_is_bounded(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, entries: int, kept: int
+    ) -> None:
+        text = "[g]\n" + "".join(f"e{i} = m:f\n" for i in range(entries))
+        _install(site, "manyep", metadata_files={"entry_points.txt": text})
+        monkeypatch.setattr("peta.core.installation._MAX_ENTRY_POINT_LINES", 3)
+        assert len(_inspect(site, "manyep").entry_points) == kept
+
     def test_top_level_txt_wins(self, site: Path) -> None:
         _install(
             site,

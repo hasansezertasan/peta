@@ -270,7 +270,7 @@ def _hides_userinfo(url: str) -> bool:
     """Whether a network URL's authority is where a credential would sit.
 
     Without one, as when backslashes stand in for the ``//`` of
-    ``https://user:secret@host``, the userinfo lands in the path, where
+    ``https://{user}:{token}@host``, the userinfo lands in the path, where
     redaction does not look for it.
 
     Returns:
@@ -469,10 +469,21 @@ def _installer(dist: importlib_metadata.Distribution) -> str | None:
     return first or None
 
 
+_MAX_ENTRY_POINT_LINES = 100_000
+"""The most ``entry_points.txt`` lines parsed; far above any real distribution.
+
+The byte limit alone still admits millions of tiny entries, each one parsed
+into an object and kept.
+"""
+
+
 def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
     # Vetted through :func:`_read_text` first: the stdlib parser below reads
     # the file itself, and would follow a symlink or read a device.
-    if not _read_text(dist, "entry_points.txt"):
+    text = _read_text(dist, "entry_points.txt")
+    # Each line is at most one entry point, so counting lines bounds what the
+    # parser would build without running it.
+    if not text or text.count("\n") > _MAX_ENTRY_POINT_LINES:
         return []
     try:
         points = dist.entry_points
@@ -529,19 +540,16 @@ def _import_packages(
 ) -> list[str]:
     """Map the distribution to the names it makes importable.
 
-    ``top_level.txt`` wins when present, as it does for
+    A non-empty ``top_level.txt`` wins, as it does for
     :func:`importlib.metadata.packages_distributions`; otherwise the names
     are inferred from the recorded files.
 
     Returns:
         Sorted, de-duplicated import names.
     """
-    declared = _read_text(dist, "top_level.txt")
-    names: set[str | None] = (
-        {line.strip() for line in declared.splitlines()}
-        if declared is not None
-        else {_top_level_name(path) for path in paths}
-    )
+    # An empty declaration names nothing, so it does not override inference.
+    declared = (_read_text(dist, "top_level.txt") or "").split()
+    names: set[str | None] = {*declared} or {_top_level_name(path) for path in paths}
     return sorted(name for name in names if name)
 
 
