@@ -97,6 +97,13 @@ def _posix_only(reason: str) -> pytest.MarkDecorator:
     return pytest.mark.skipif(sys.platform == "win32", reason=reason)
 
 
+_CORRUPTIBLE = {
+    "lzma-stream": (zipfile.ZIP_LZMA, 9),
+    "zstd-stream": (getattr(zipfile, "ZIP_ZSTANDARD", zipfile.ZIP_STORED), 4),
+}
+"""Compressed streams a test corrupts, and the header bytes to leave intact."""
+
+
 @pytest.fixture
 def release_archives(tmp_path: Path) -> Iterator[None]:
     """Close the zip files importlib's path cache keeps open after a test.
@@ -863,6 +870,31 @@ class TestMetadataSafety:
         os.mkfifo(dist_info / "RECORD")
         assert _inspect(site, "fifo").record_source is None
 
+    @pytest.mark.parametrize("swap", ["replaced", "symlinked"])
+    def test_metadata_swapped_after_vetting_is_not_read(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, swap: str
+    ) -> None:
+        """What is read must be the metadata file that was vetted."""
+        if swap == "symlinked" and sys.platform == "win32":  # pragma: no cover
+            pytest.skip("symlinks need privileges")
+        _install(site, "swapped", metadata_files={"INSTALLER": "pip\n"})
+        outside = tmp_path / "outside.txt"
+        _ = outside.write_text("leaked\n", encoding="utf-8")
+        vet = installation._plain_file
+
+        def vet_then_swap(path: Path, limit: int) -> os.stat_result | None:
+            found = vet(path, limit)
+            if path.name == "INSTALLER":
+                path.unlink()
+                if swap == "replaced":
+                    _ = outside.replace(path)
+                else:
+                    path.symlink_to(outside)
+            return found
+
+        monkeypatch.setattr("peta.core.installation._plain_file", vet_then_swap)
+        assert _inspect(site, "swapped").installer is None
+
     def test_oversized_metadata_is_refused(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -1014,12 +1046,27 @@ class TestMetadataSafety:
         assert found.files == []
 
     @pytest.mark.usefixtures("release_archives")
-    @pytest.mark.parametrize("damage", ["lzma-stream", "encrypted", "unknown-method"])
+    @pytest.mark.parametrize(
+        "damage",
+        [
+            "lzma-stream",
+            pytest.param(
+                "zstd-stream",
+                marks=pytest.mark.skipif(
+                    not hasattr(zipfile, "ZIP_ZSTANDARD"), reason="Python 3.14+"
+                ),
+            ),
+            "encrypted",
+            "unknown-method",
+        ],
+    )
     def test_undecompressable_archive_member_is_unreadable(
         self, tmp_path: Path, damage: str
     ) -> None:
         archive = tmp_path / "packed.zip"
-        method = zipfile.ZIP_LZMA if damage == "lzma-stream" else zipfile.ZIP_STORED
+        # The compression method, and how many leading bytes of its stream
+        # (LZMA properties, the Zstandard magic) to leave intact.
+        method, kept = _CORRUPTIBLE.get(damage, (zipfile.ZIP_STORED, 0))
         with zipfile.ZipFile(archive, "w", compression=method) as bundle:
             bundle.writestr(
                 "packed-1.0.0.dist-info/METADATA", _METADATA.format(name="packed")
@@ -1030,9 +1077,9 @@ class TestMetadataSafety:
         data = bytearray(archive.read_bytes())
         local = member.header_offset
         central = data.find(b"PK\x01\x02", data.find(b"PK\x01\x02") + 1)
-        if damage == "lzma-stream":
-            # Past the 9-byte LZMA properties header, so the decoder rejects it.
-            start = local + 30 + len(member.filename) + 9
+        if damage in _CORRUPTIBLE:
+            # Past the stream's header, so the decoder itself rejects it.
+            start = local + 30 + len(member.filename) + kept
             end = local + 30 + len(member.filename) + member.compress_size
             data[start:end] = b"\xff" * (end - start)
         elif damage == "encrypted":

@@ -11,6 +11,7 @@ from __future__ import annotations
 import base64
 import csv
 import hashlib
+import importlib
 import importlib.metadata as importlib_metadata
 import io
 import json
@@ -24,7 +25,7 @@ import zlib
 from dataclasses import dataclass, field
 from itertools import islice, starmap
 from pathlib import Path
-from typing import TYPE_CHECKING, BinaryIO, Final, Literal, cast
+from typing import IO, TYPE_CHECKING, BinaryIO, Final, Literal, cast
 from urllib.parse import urlsplit
 
 from typing_extensions import TypeAliasType
@@ -381,7 +382,27 @@ The same set :meth:`importlib.metadata.PathDistribution.read_text` treats as
 absent, minus ``PermissionError``: an unreadable file is present.
 """
 
-_UNREADABLE = (
+
+def _zstd_errors() -> tuple[type[Exception], ...]:
+    """Name what a corrupt Zstandard member raises, where :mod:`zipfile` reads one.
+
+    Imported by name: the module is new in Python 3.14, and even there
+    CPython can be built without libzstd.
+
+    Returns:
+        ``ZstdError`` when the module exists, otherwise nothing.
+    """
+    try:
+        zstd = importlib.import_module("compression.zstd")
+    except ImportError:  # pragma: no cover - only before Python 3.14
+        return ()
+    error = cast("type[Exception]", zstd.ZstdError)
+    return (error,)  # pragma: no cover - only from Python 3.14
+
+
+_ZSTD_ERRORS = _zstd_errors()
+
+_UNREADABLE: tuple[type[Exception], ...] = (
     OSError,
     RuntimeError,
     ValueError,
@@ -389,13 +410,14 @@ _UNREADABLE = (
     zipfile.BadZipFile,
     zipfile.LargeZipFile,
     zlib.error,
+    *_ZSTD_ERRORS,
 )
 """What reading an unreadable metadata entry can raise.
 
 A zipped member can also fail to decompress: ``RuntimeError`` when it is
 encrypted, ``NotImplementedError`` (a ``RuntimeError``) for a compression
-method :mod:`zipfile` lacks, and ``LZMAError`` or ``zlib.error`` for a
-corrupt stream.
+method :mod:`zipfile` lacks, and ``LZMAError``, ``zlib.error`` or
+``ZstdError`` for a corrupt stream.
 """
 
 
@@ -424,15 +446,25 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
     return _read_entry(folder.joinpath(name), limit)
 
 
-def _read_bounded(entry: Traversable, limit: int) -> bytes | None:
+def _read_bounded(
+    entry: Traversable, limit: int, probed: os.stat_result | None
+) -> bytes | None:
     """Read up to ``limit`` bytes from any traversable entry.
+
+    A file on disk is opened only if it is still the one ``probed`` saw, as
+    for a hashed file; an archive member has nothing to swap.
 
     Returns:
         The raw bytes, or ``None`` when the entry exceeds the byte limit.
     """
     chunks: list[bytes] = []
     total = 0
-    with entry.open("rb") as stream:
+    opened: IO[bytes]
+    if isinstance(entry, Path) and probed is not None:
+        opened = _open_probed(entry, probed)
+    else:
+        opened = entry.open("rb")
+    with opened as stream:
         while chunk := stream.read(_CHUNK):
             total += len(chunk)
             if total > limit:
@@ -448,24 +480,33 @@ def _read_entry(entry: Traversable, limit: int) -> str | None:
         The decoded text; ``None`` when absent, ``""`` when present but
         unreadable or refused.
     """
-    if isinstance(entry, Path) and not _plain_file(entry, limit):
-        return (
-            ""
-            if entry.is_symlink() or entry.parent.is_symlink() or entry.exists()
-            else None
-        )
+    probed = None
+    if isinstance(entry, Path):
+        probed = _plain_file(entry, limit)
+        if probed is None:
+            return _refused(entry)
+    return _decoded(entry, limit, probed)
+
+
+def _decoded(
+    entry: Traversable, limit: int, probed: os.stat_result | None
+) -> str | None:
     try:
-        raw = _read_bounded(entry, limit)
+        raw = _read_bounded(entry, limit, probed)
     except _ABSENT:
         return None
     except _UNREADABLE:
         return ""
-    if raw is None:
-        return ""
-    return raw.decode("utf-8", errors="replace")
+    return "" if raw is None else raw.decode("utf-8", errors="replace")
 
 
-def _plain_file(path: Path, limit: int) -> bool:
+def _refused(path: Path) -> str | None:
+    # Refused is still present, unless nothing at all is there.
+    present = path.is_symlink() or path.parent.is_symlink() or path.exists()
+    return "" if present else None
+
+
+def _plain_file(path: Path, limit: int) -> os.stat_result | None:
     """Report whether a metadata file is safe to read.
 
     Metadata files are read before any ``RECORD`` containment check applies,
@@ -475,20 +516,21 @@ def _plain_file(path: Path, limit: int) -> bool:
     read; anything else is present but refused.
 
     Returns:
-        ``True`` for a regular, non-symlinked file of at most ``limit``
-        bytes.
+        The status of a regular, non-symlinked file of at most ``limit``
+        bytes, to open it against; ``None`` for anything else.
     """
     try:
         info = path.lstat()
         parent_info = path.parent.lstat()
     except (OSError, ValueError):
-        return False
-    return (
+        return None
+    plain = (
         stat.S_ISREG(info.st_mode)
         and stat.S_ISDIR(parent_info.st_mode)
         and not stat.S_ISLNK(parent_info.st_mode)
         and info.st_size <= limit
     )
+    return info if plain else None
 
 
 def _encodable(data: object) -> bool:
@@ -683,17 +725,26 @@ def _open_probed(path: Path, probed: os.stat_result) -> BinaryIO:
 
     Returns:
         The open file.
+    """
+    descriptor = os.open(path, _OPEN_FLAGS)
+    try:
+        _ensure_probed(descriptor, path, probed)
+        return os.fdopen(descriptor, "rb")
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
+def _ensure_probed(descriptor: int, path: Path, probed: os.stat_result) -> None:
+    """Raise unless an open descriptor is the regular file that was probed.
 
     Raises:
-        OSError: When the file changed since it was probed.
+        OSError: When it is some other file.
     """
-    handle = os.fdopen(os.open(path, _OPEN_FLAGS), "rb")
-    opened = os.fstat(handle.fileno())
-    if stat.S_ISREG(opened.st_mode) and os.path.samestat(opened, probed):
-        return handle
-    handle.close()
-    msg = f"{path} changed while it was being checked"
-    raise OSError(msg)
+    opened = os.fstat(descriptor)
+    if not (stat.S_ISREG(opened.st_mode) and os.path.samestat(opened, probed)):
+        msg = f"{path} changed while it was being checked"
+        raise OSError(msg)
 
 
 def _digest(path: Path, algorithm: str, probed: os.stat_result) -> str:
