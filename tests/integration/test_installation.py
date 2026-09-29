@@ -775,6 +775,42 @@ class TestMetadataSafety:
         assert found.record_source is None
         assert found.files == []
 
+    @pytest.mark.parametrize("damage", ["lzma-stream", "encrypted", "unknown-method"])
+    def test_undecompressable_archive_member_is_unreadable(
+        self, tmp_path: Path, damage: str
+    ) -> None:
+        archive = tmp_path / "packed.zip"
+        method = zipfile.ZIP_LZMA if damage == "lzma-stream" else zipfile.ZIP_STORED
+        with zipfile.ZipFile(archive, "w", compression=method) as bundle:
+            bundle.writestr(
+                "packed-1.0.0.dist-info/METADATA", _METADATA.format(name="packed")
+            )
+            bundle.writestr("packed-1.0.0.dist-info/RECORD", "pkg.py,,\n" * 50)
+        with zipfile.ZipFile(archive) as bundle:
+            member = bundle.getinfo("packed-1.0.0.dist-info/RECORD")
+        data = bytearray(archive.read_bytes())
+        local = member.header_offset
+        central = data.find(b"PK\x01\x02", data.find(b"PK\x01\x02") + 1)
+        if damage == "lzma-stream":
+            # Past the 9-byte LZMA properties header, so the decoder rejects it.
+            start = local + 30 + len(member.filename) + 9
+            end = local + 30 + len(member.filename) + member.compress_size
+            data[start:end] = b"\xff" * (end - start)
+        elif damage == "encrypted":
+            data[local + 6] |= 1
+            data[central + 8] |= 1
+        else:
+            data[local + 8 : local + 10] = (99).to_bytes(2, "little")
+            data[central + 10 : central + 12] = (99).to_bytes(2, "little")
+        archive.write_bytes(data)
+
+        target = LocalTarget(
+            paths=(str(archive),), interpreter=None, marker_environment={}
+        )
+        found = inspect_installation("packed", target=target)
+        assert found.record_source is None
+        assert found.files == []
+
 
 class TestCli:
     """The ``peta origin`` command end to end."""

@@ -15,6 +15,7 @@ import importlib.metadata as importlib_metadata
 import inspect
 import io
 import json
+import lzma
 import re
 import stat
 import sys
@@ -286,12 +287,20 @@ absent, minus ``PermissionError``: an unreadable file is present.
 
 _UNREADABLE = (
     OSError,
+    RuntimeError,
     ValueError,
+    lzma.LZMAError,
     zipfile.BadZipFile,
     zipfile.LargeZipFile,
     zlib.error,
 )
-"""What reading an unreadable metadata entry can raise."""
+"""What reading an unreadable metadata entry can raise.
+
+A zipped member can also fail to decompress: ``RuntimeError`` when it is
+encrypted, ``NotImplementedError`` (a ``RuntimeError``) for a compression
+method :mod:`zipfile` lacks, and ``LZMAError`` or ``zlib.error`` for a
+corrupt stream.
+"""
 
 
 def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
