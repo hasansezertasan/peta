@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.metadata as importlib_metadata
 import json
+import lzma
 import os
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
 import sys
+import zipfile
+import zlib
 from dataclasses import dataclass
 from importlib.metadata import PathDistribution
 from pathlib import Path
@@ -22,6 +26,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
 __all__ = [
+    "METADATA_READ_ERRORS",
     "InvalidTargetError",
     "LocalTarget",
     "PackageNotFoundError",
@@ -29,6 +34,44 @@ __all__ = [
     "get_package",
     "legacy_installed_files",
 ]
+
+
+def _zstd_errors() -> tuple[type[Exception], ...]:
+    """Name what a corrupt Zstandard member raises, where :mod:`zipfile` reads one.
+
+    Imported by name: the module is new in Python 3.14, and even there
+    CPython can be built without libzstd.
+
+    Returns:
+        ``ZstdError`` when the module exists, otherwise nothing.
+    """
+    try:
+        zstd = importlib.import_module("compression.zstd")
+    except ImportError:  # pragma: no cover - only before Python 3.14
+        return ()
+    error = cast("type[Exception]", zstd.ZstdError)
+    return (error,)  # pragma: no cover - only from Python 3.14
+
+
+_ZSTD_ERRORS = _zstd_errors()
+
+METADATA_READ_ERRORS: tuple[type[Exception], ...] = (
+    OSError,
+    RuntimeError,
+    ValueError,
+    lzma.LZMAError,
+    zipfile.BadZipFile,
+    zipfile.LargeZipFile,
+    zlib.error,
+    *_ZSTD_ERRORS,
+)
+"""What reading an unreadable metadata file or archive member can raise.
+
+A zipped member can also fail to decompress: ``RuntimeError`` when it is
+encrypted, ``NotImplementedError`` (a ``RuntimeError``) for a compression
+method :mod:`zipfile` lacks, and ``LZMAError``, ``zlib.error`` or
+``ZstdError`` for a corrupt stream.
+"""
 
 
 class PackageNotFoundError(Exception):
@@ -470,13 +513,16 @@ def _is_named(candidate: importlib_metadata.Distribution, canonical: str) -> boo
     """Match one enumerated distribution against a canonical package name.
 
     A directory on the search path can hold a ``.dist-info`` whose metadata
-    carries no ``Name``. Skipping it keeps a single corrupt entry from hiding
-    every package enumerated after it.
+    carries no ``Name``, or cannot be read at all. Skipping it keeps a single
+    corrupt entry from hiding every package enumerated after it.
 
     Returns:
         Whether this candidate is the requested distribution.
     """
-    found = cast("str | None", candidate.metadata["Name"])
+    try:
+        found = cast("str | None", candidate.metadata["Name"])
+    except METADATA_READ_ERRORS:
+        return False
     return found is not None and canonicalize_name(found) == canonical
 
 
