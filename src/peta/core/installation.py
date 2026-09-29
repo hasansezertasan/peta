@@ -30,7 +30,11 @@ from urllib.parse import urlsplit
 
 from typing_extensions import TypeAliasType
 
-from peta.core.local import find_distribution, legacy_installed_files
+from peta.core.local import (
+    PackageNotFoundError,
+    find_distribution,
+    legacy_installed_files,
+)
 from peta.core.redaction import redacted
 
 if TYPE_CHECKING:
@@ -990,6 +994,10 @@ def inspect_installation(
 
     Returns:
         The distribution's origin, installer, and file evidence.
+
+    Raises:
+        PackageNotFoundError: When it is not installed there, or its
+            ``METADATA`` cannot be read.
     """
     dist = find_distribution(name, target=target)
     located = dist.locate_file("")
@@ -999,7 +1007,12 @@ def inspect_installation(
     prefix = target.prefix if target is not None else sys.prefix
     checker = _Checker(base, _roots(base, prefix), verify, readable)
     record_source, files = _record_files(dist, checker)
-    meta = dist.metadata
+    try:
+        meta = dist.metadata
+    # A distribution whose ``METADATA`` cannot be read names no package, just
+    # as :func:`find_distribution` skips one whose metadata has no name.
+    except _UNREADABLE as exc:
+        raise PackageNotFoundError(name) from exc
     return Installation(
         name=meta["Name"],
         version=meta["Version"],

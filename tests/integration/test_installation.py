@@ -1046,6 +1046,25 @@ class TestMetadataSafety:
         assert found.files == []
 
     @pytest.mark.usefixtures("release_archives")
+    def test_unreadable_metadata_is_a_structured_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A zipped distribution on the running path whose METADATA fails its CRC."""
+        archive = tmp_path / "badmeta.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(
+                "badmeta-1.0.0.dist-info/METADATA", _METADATA.format(name="badmeta")
+            )
+        data = bytearray(archive.read_bytes())
+        data[data.find(b"PK\x01\x02") + 16] ^= 0xFF
+        archive.write_bytes(data)
+        monkeypatch.syspath_prepend(str(archive))
+
+        result = runner.invoke(app, ["origin", "badmeta", "--json"])
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.output)["errors"][0]["code"] == "package_not_found"
+
+    @pytest.mark.usefixtures("release_archives")
     @pytest.mark.parametrize(
         "damage",
         [
