@@ -8,11 +8,14 @@ against real files rather than a mocked ``Distribution``.
 from __future__ import annotations
 
 import base64
+import gc
 import hashlib
+import importlib.metadata
 import json
 import os
 import sys
 import zipfile
+from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 
 import pytest
@@ -23,7 +26,7 @@ from peta.core.installation import inspect_installation
 from peta.core.local import LocalTarget, PackageNotFoundError
 
 if TYPE_CHECKING:
-    from pathlib import Path
+    from collections.abc import Iterator
 
     from peta.core.installation import FileState, Installation, RecordSource
 
@@ -91,6 +94,26 @@ def _posix_only(reason: str) -> pytest.MarkDecorator:
         The skip marker.
     """
     return pytest.mark.skipif(sys.platform == "win32", reason=reason)
+
+
+@pytest.fixture
+def release_archives(tmp_path: Path) -> Iterator[None]:
+    """Close the zip files importlib's path cache keeps open after a test.
+
+    ``importlib.metadata`` memoizes each search path, and a zipped one holds
+    its archive open. Left to the garbage collector, the handle can be
+    finalized before its ``ZipFile`` in some later test, which then fails on
+    the ``ResourceWarning``; closing it here makes the release deterministic.
+    """
+    yield
+    importlib.metadata.MetadataPathFinder.invalidate_caches()
+    for obj in gc.get_objects():
+        if (
+            isinstance(obj, zipfile.ZipFile)
+            and obj.filename
+            and Path(obj.filename).is_relative_to(tmp_path)
+        ):
+            obj.close()
 
 
 @pytest.fixture
@@ -701,6 +724,7 @@ class TestPathSafety:
         with_prefix = inspect_installation("scripted", target=target, verify=True)
         assert _states(with_prefix)["../bin/tool"] == "verified"
 
+    @pytest.mark.usefixtures("release_archives")
     def test_zipped_distribution_is_reported_not_read(self, tmp_path: Path) -> None:
         archive = tmp_path / "zpkg.zip"
         with zipfile.ZipFile(archive, "w") as bundle:
@@ -801,6 +825,7 @@ class TestMetadataSafety:
         assert found.record_source is None
         assert found.files == []
 
+    @pytest.mark.usefixtures("release_archives")
     def test_oversized_archive_member_is_refused(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -819,6 +844,7 @@ class TestMetadataSafety:
         found = inspect_installation("oversized", target=target)
         assert found.record_source is None
 
+    @pytest.mark.usefixtures("release_archives")
     def test_corrupt_archive_member_is_unreadable(self, tmp_path: Path) -> None:
         archive = tmp_path / "corrupt.zip"
         with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
@@ -839,6 +865,7 @@ class TestMetadataSafety:
         assert found.record_source is None
         assert found.files == []
 
+    @pytest.mark.usefixtures("release_archives")
     @pytest.mark.parametrize("damage", ["lzma-stream", "encrypted", "unknown-method"])
     def test_undecompressable_archive_member_is_unreadable(
         self, tmp_path: Path, damage: str
