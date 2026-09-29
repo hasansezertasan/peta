@@ -84,6 +84,15 @@ def _states(installation: Installation) -> dict[str, FileState]:
     return {file.path: file.state for file in installation.files}
 
 
+def _posix_only(reason: str) -> pytest.MarkDecorator:
+    """Skip on Windows; pair with ``# pragma: no cover`` so its gate holds there.
+
+    Returns:
+        The skip marker.
+    """
+    return pytest.mark.skipif(sys.platform == "win32", reason=reason)
+
+
 @pytest.fixture
 def site(tmp_path: Path) -> Path:
     """Return an empty ``site-packages`` inside a would-be environment.
@@ -325,7 +334,7 @@ class TestIntegrity:
         # cannot stat it. Either way nothing is read.
         assert states <= {"out_of_bounds", "unverifiable"}
 
-    @pytest.mark.skipif(
+    @pytest.mark.skipif(  # pragma: no cover
         sys.platform == "win32" or os.geteuid() == 0,
         reason="POSIX permissions, not bypassed by root",
     )
@@ -439,7 +448,7 @@ class TestHostileRecord:
             "unverifiable"
         )
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="no newlines in names")
+    @_posix_only("no newlines in names")  # pragma: no cover
     def test_quoted_path_with_a_newline(self, site: Path) -> None:
         content = b"x"
         _ = (site / "odd\nname.py").write_bytes(content)
@@ -484,7 +493,7 @@ class TestHostileRecord:
         _install(site, "unquoted", extra_rows=('"a.py,sha256=abc,1', "b.py,,"))
         assert _inspect(site, "unquoted").record_source is None
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="no CR in names")
+    @_posix_only("no CR in names")  # pragma: no cover
     def test_quoted_carriage_return_is_kept(self, site: Path) -> None:
         content = b"icon"
         _ = (site / "Icon\r").write_bytes(content)
@@ -517,7 +526,7 @@ class TestPathSafety:
         assert len(escaped) == 1
         assert escaped[0].size is None
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    @_posix_only("symlinks need privileges")  # pragma: no cover
     def test_symlink_out_of_the_environment_is_not_followed(
         self, site: Path, tmp_path: Path
     ) -> None:
@@ -529,7 +538,7 @@ class TestPathSafety:
             "out_of_bounds"
         )
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    @_posix_only("symlinks need privileges")  # pragma: no cover
     def test_symlink_loop_is_not_followed(self, site: Path) -> None:
         (site / "loop_a").symlink_to(site / "loop_b")
         (site / "loop_b").symlink_to(site / "loop_a")
@@ -636,7 +645,7 @@ class TestPathSafety:
 class TestMetadataSafety:
     """Metadata files are read before containment applies, so they are vetted."""
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    @_posix_only("symlinks need privileges")  # pragma: no cover
     @pytest.mark.parametrize(
         "name", ["RECORD", "entry_points.txt", "direct_url.json", "INSTALLER"]
     )
@@ -653,7 +662,7 @@ class TestMetadataSafety:
         assert "leak" not in rendered
         assert "secret:line" not in rendered
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    @_posix_only("symlinks need privileges")  # pragma: no cover
     def test_symlinked_legacy_listing_is_refused(
         self, site: Path, tmp_path: Path
     ) -> None:
@@ -667,7 +676,7 @@ class TestMetadataSafety:
         (egg_info / "installed-files.txt").symlink_to(outside)
         assert _inspect(site, "linkegg").record_source is None
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="needs named pipes")
+    @_posix_only("needs named pipes")  # pragma: no cover
     def test_special_file_is_not_read(self, site: Path) -> None:
         """A FIFO would block forever if it were opened for reading."""
         assert sys.platform != "win32"  # narrows os.mkfifo for type checkers
@@ -688,7 +697,7 @@ class TestMetadataSafety:
         (dist_info / "installed-files.txt").write_text("../x.py\n", encoding="utf-8")
         assert _inspect(site, "dirrec").record_source is None
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="symlinks need privileges")
+    @_posix_only("symlinks need privileges")  # pragma: no cover
     def test_symlinked_metadata_directory_is_refused(
         self, site: Path, tmp_path: Path
     ) -> None:
