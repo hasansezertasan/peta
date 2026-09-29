@@ -343,14 +343,31 @@ class TestMetadata:
         )
         assert _inspect(site, "blank").import_packages == ["blank"]
 
-    @pytest.mark.parametrize(("entries", "kept"), [(2, 2), (3, 0)])
+    @pytest.mark.parametrize(
+        ("entries", "separator", "kept"),
+        [(1, "\n", 1), (3, "\n", 0), (3, "\r", 0), (3, "\u2028", 0)],
+        ids=["within", "lf", "cr", "line-separator"],
+    )
     def test_entry_point_count_is_bounded(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch, entries: int, kept: int
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        entries: int,
+        separator: str,
+        kept: int,
     ) -> None:
-        text = "[g]\n" + "".join(f"e{i} = m:f\n" for i in range(entries))
+        """Every line break :meth:`str.splitlines` honors counts toward the cap."""
+        lines = ["[g]", *(f"e{i} = m:f" for i in range(entries))]
+        text = separator.join(lines)
         _install(site, "manyep", metadata_files={"entry_points.txt": text})
         monkeypatch.setattr("peta.core.installation._MAX_ENTRY_POINT_LINES", 3)
         assert len(_inspect(site, "manyep").entry_points) == kept
+
+    @pytest.mark.parametrize("separator", ["\n", "\r\n", "\r", "\u2028"])
+    def test_installer_is_the_first_line(self, site: Path, separator: str) -> None:
+        installer = f"  uv{separator}ignored{separator}"
+        _install(site, "inst", metadata_files={"INSTALLER": installer})
+        assert _inspect(site, "inst").installer == "uv"
 
     def test_top_level_txt_wins(self, site: Path) -> None:
         _install(

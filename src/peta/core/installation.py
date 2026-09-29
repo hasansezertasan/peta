@@ -340,6 +340,8 @@ can make it, which the row limit does not.
 _LINE_BREAKS = "\n\r\v\f\x1c\x1d\x1e\x85\u2028\u2029"
 """Every character :meth:`str.splitlines` ends a line at."""
 
+_LINE_BREAK = re.compile(f"[{re.escape(_LINE_BREAKS)}]")
+
 
 def _line_count_bound(text: str) -> int:
     # An upper bound on ``len(text.splitlines())``, without building them:
@@ -521,7 +523,8 @@ def _origin(dist: importlib_metadata.Distribution) -> Origin:
 
 def _installer(dist: importlib_metadata.Distribution) -> str | None:
     text = _read_text(dist, "INSTALLER")
-    first = text.strip().splitlines()[0].strip() if text and text.strip() else ""
+    # Split once, not into every line: only the first names the installer.
+    first = _LINE_BREAK.split((text or "").strip(), maxsplit=1)[0].strip()
     return first or None
 
 
@@ -539,7 +542,7 @@ def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
     text = _read_text(dist, "entry_points.txt")
     # Each line is at most one entry point, so counting lines bounds what the
     # parser would build without running it.
-    if not text or text.count("\n") > _MAX_ENTRY_POINT_LINES:
+    if not text or _line_count_bound(text) > _MAX_ENTRY_POINT_LINES:
         return []
     try:
         points = dist.entry_points
