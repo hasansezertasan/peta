@@ -12,11 +12,11 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
-from urllib.parse import SplitResult, unquote, urlsplit
+from urllib.parse import unquote, urlsplit
 
 from rich.filesize import decimal
 
-from peta.core.installation import FILE_STATES
+from peta.core.installation import FILE_STATES, is_local_scheme
 
 if TYPE_CHECKING:
     from peta.core.installation import FileState, Installation, InstalledFile, Origin
@@ -42,16 +42,6 @@ _PREFERRED_HASHES = ("sha256", "sha512", "sha384")
 """Archive digests worth showing first, in the order installers record them."""
 
 
-def _is_local(parts: SplitResult) -> bool:
-    scheme = parts.scheme
-    return (
-        scheme == "file"
-        or scheme.endswith("+file")
-        or not scheme
-        or (len(scheme) == 1 and scheme.isalpha())
-    )
-
-
 def _display_url(url: str | None) -> str:
     """Show where an origin points without exposing a local path.
 
@@ -62,7 +52,7 @@ def _display_url(url: str | None) -> str:
     if not url:
         return "-"
     parts = urlsplit(url)
-    if not _is_local(parts):
+    if not is_local_scheme(parts.scheme):
         return url
     raw = parts.path if parts.scheme == "file" else url
     # Backslashes too: a Windows URL such as ``file:C:\Users\me\pkg`` or a

@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from itertools import islice, starmap
 from pathlib import Path
 from typing import TYPE_CHECKING, Final, Literal, cast
+from urllib.parse import urlsplit
 
 from typing_extensions import TypeAliasType
 
@@ -45,6 +46,7 @@ __all__ = [
     "OriginKind",
     "RecordSource",
     "inspect_installation",
+    "is_local_scheme",
 ]
 
 OriginKind = TypeAliasType(
@@ -247,6 +249,37 @@ def _source_origin(url: str, data: dict[str, object]) -> Origin:
     return Origin(kind="unknown", url=url, reason="direct_url.json names no source.")
 
 
+def is_local_scheme(scheme: str) -> bool:
+    """Whether a URL scheme names a path on this machine rather than a host.
+
+    Covers ``file`` and VCS ``+file`` URLs, a bare path with no scheme, and a
+    Windows drive letter, which :func:`urllib.parse.urlsplit` reads as one.
+
+    Returns:
+        ``True`` for a local scheme.
+    """
+    return (
+        scheme == "file"
+        or scheme.endswith("+file")
+        or not scheme
+        or (len(scheme) == 1 and scheme.isalpha())
+    )
+
+
+def _hides_userinfo(url: str) -> bool:
+    """Whether a network URL's authority is where a credential would sit.
+
+    Without one, as when backslashes stand in for the ``//`` of
+    ``https://user:secret@host``, the userinfo lands in the path, where
+    redaction does not look for it.
+
+    Returns:
+        ``True`` when the URL is not local and has no authority.
+    """
+    parts = urlsplit(url)
+    return not parts.netloc and not is_local_scheme(parts.scheme)
+
+
 def _described_origin(data: dict[str, object]) -> Origin:
     """Interpret a decoded ``direct_url.json`` object.
 
@@ -261,8 +294,11 @@ def _described_origin(data: dict[str, object]) -> Origin:
     # user fetched the project, not metadata the project declared: they are
     # credentials, and would leak into every report of this environment.
     try:
-        url = redacted(raw_url)
+        url: str | None = redacted(raw_url)
     except ValueError:
+        url = None
+    # ``redacted`` has already split it, so this cannot raise.
+    if url is None or _hides_userinfo(raw_url):
         return Origin(kind="unknown", reason="direct_url.json has a malformed url.")
     return _source_origin(url, data)
 

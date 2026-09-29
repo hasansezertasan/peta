@@ -191,6 +191,22 @@ class TestOrigin:
         assert found.installer == "pip\ufffd"
 
     @pytest.mark.parametrize(
+        "url",
+        [
+            "https://example.com/repo",
+            "git+ssh://git@example.com/repo",
+            "file:///home/dev/src/pkg",
+            "git+file:///home/dev/src/pkg",
+            "/home/dev/src/pkg",
+            "C:\\Users\\dev\\pkg",
+        ],
+    )
+    def test_well_formed_direct_url_is_kept(self, site: Path, url: str) -> None:
+        text = json.dumps({"url": url, "dir_info": {}})
+        _install(site, "okpkg", metadata_files={"direct_url.json": text})
+        assert _inspect(site, "okpkg").origin.kind == "directory"
+
+    @pytest.mark.parametrize(
         ("text", "reason"),
         [
             pytest.param("{not json", "not valid JSON", id="malformed"),
@@ -207,6 +223,16 @@ class TestOrigin:
                 '{"url": "http://a]b/x", "dir_info": {}}',
                 "malformed url",
                 id="malformed-url",
+            ),
+            pytest.param(
+                r'{"url": "https:\\\\user:secret@example.com\\repo", "dir_info": {}}',
+                "malformed url",
+                id="backslash-authority",
+            ),
+            pytest.param(
+                '{"url": "https:user:secret@example.com/repo", "dir_info": {}}',
+                "malformed url",
+                id="missing-authority",
             ),
             pytest.param(
                 '{"url": "https://example.com/\\ud800", "archive_info": {}}',
