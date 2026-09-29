@@ -22,6 +22,7 @@ import pytest
 from typer.testing import CliRunner
 
 from peta.cli.app import app
+from peta.core import installation
 from peta.core.installation import inspect_installation
 from peta.core.local import LocalTarget, PackageNotFoundError
 
@@ -494,13 +495,57 @@ class TestIntegrity:
     ) -> None:
         _install(site, "denied", files={"denied.py": b"x"})
 
-        def refuse(path: Path, algorithm: str) -> str:
-            del algorithm
+        def refuse(path: Path, algorithm: str, probed: os.stat_result) -> str:
+            del algorithm, probed
             raise PermissionError(path)
 
         monkeypatch.setattr("peta.core.installation._digest", refuse)
         states = _states(_inspect(site, "denied", verify=True))
         assert states["denied.py"] == "unverifiable"
+
+    @pytest.mark.parametrize("swap", ["replaced", "grown"])
+    def test_file_changed_after_probing_is_unverifiable(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, swap: str
+    ) -> None:
+        """What is hashed must be the file whose containment was checked."""
+        content = b"x = 1\n"
+        _install(site, "racy", files={"racy.py": content})
+        probe = installation._probe
+
+        def probe_then_swap(located: Path) -> os.stat_result | FileState:
+            found = probe(located)
+            if swap == "replaced":
+                decoy = tmp_path / "decoy.py"
+                _ = decoy.write_bytes(content)
+                _ = decoy.replace(located)
+            else:
+                with located.open("ab") as handle:
+                    _ = handle.write(b"# grown\n")
+            return found
+
+        monkeypatch.setattr("peta.core.installation._probe", probe_then_swap)
+        states = _states(_inspect(site, "racy", verify=True))
+        assert states["racy.py"] == "unverifiable"
+
+    @_posix_only("symlinks need privileges")  # pragma: no cover
+    def test_symlink_swapped_in_after_probing_is_not_followed(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        content = b"x = 1\n"
+        _install(site, "linked", files={"linked.py": content})
+        outside = tmp_path / "outside.py"
+        _ = outside.write_bytes(content)
+        probe = installation._probe
+
+        def probe_then_link(located: Path) -> os.stat_result | FileState:
+            found = probe(located)
+            located.unlink()
+            located.symlink_to(outside)
+            return found
+
+        monkeypatch.setattr("peta.core.installation._probe", probe_then_link)
+        states = _states(_inspect(site, "linked", verify=True))
+        assert states["linked.py"] == "unverifiable"
 
     def test_refused_digest_is_unverifiable(
         self, site: Path, monkeypatch: pytest.MonkeyPatch

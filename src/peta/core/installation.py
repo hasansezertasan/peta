@@ -15,6 +15,7 @@ import importlib.metadata as importlib_metadata
 import io
 import json
 import lzma
+import os
 import re
 import stat
 import sys
@@ -23,7 +24,7 @@ import zlib
 from dataclasses import dataclass, field
 from itertools import islice, starmap
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Literal, cast
+from typing import TYPE_CHECKING, BinaryIO, Final, Literal, cast
 from urllib.parse import urlsplit
 
 from typing_extensions import TypeAliasType
@@ -668,16 +669,54 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
     return rows
 
 
-def _digest(path: Path, algorithm: str) -> str:
+_OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+"""Read-only, never through a final symlink where the platform can refuse one."""
+
+
+def _open_probed(path: Path, probed: os.stat_result) -> BinaryIO:
+    """Open the very file :func:`_probe` saw, not whatever is there now.
+
+    The path was checked for containment before it is opened, and an
+    installation being modified meanwhile could swap in a symlink to
+    ``/dev/zero`` or a file outside it. Comparing the open descriptor with
+    the probe catches that, whichever path component was swapped.
+
+    Returns:
+        The open file.
+
+    Raises:
+        OSError: When the file changed since it was probed.
+    """
+    handle = os.fdopen(os.open(path, _OPEN_FLAGS), "rb")
+    opened = os.fstat(handle.fileno())
+    if stat.S_ISREG(opened.st_mode) and os.path.samestat(opened, probed):
+        return handle
+    handle.close()
+    msg = f"{path} changed while it was being checked"
+    raise OSError(msg)
+
+
+def _digest(path: Path, algorithm: str, probed: os.stat_result) -> str:
     """Hash a file the way ``RECORD`` encodes it: urlsafe base64, unpadded.
+
+    Reads no more than the probed size, and one byte past it to notice a file
+    that grew, so nothing endless can hold the check.
 
     Returns:
         The encoded digest.
+
+    Raises:
+        OSError: When the file changed since it was probed.
     """
     hasher = hashlib.new(algorithm)
-    with path.open("rb") as handle:
-        while chunk := handle.read(_CHUNK):
+    with _open_probed(path, probed) as handle:
+        remaining = probed.st_size + 1
+        while remaining and (chunk := handle.read(min(_CHUNK, remaining))):
+            remaining -= len(chunk)
             hasher.update(chunk)
+    if not remaining:
+        msg = f"{path} grew while it was being checked"
+        raise OSError(msg)
     return base64.urlsafe_b64encode(hasher.digest()).rstrip(b"=").decode("ascii")
 
 
@@ -740,9 +779,9 @@ class _Checker:
         probed = _probe(located)
         if isinstance(probed, str):
             return InstalledFile(path, probed, None, *recorded)
-        size = probed
+        size = probed.st_size
         try:
-            state = self._state(located, size, recorded_size, recorded_hash)
+            state = self._state(located, probed, recorded_size, recorded_hash)
         # ``ValueError``: a FIPS build lists md5 as guaranteed yet refuses to
         # construct it, which leaves the digest just as uncomputable.
         except (OSError, ValueError):
@@ -753,11 +792,11 @@ class _Checker:
     def _state(
         self,
         located: Path,
-        size: int,
+        probed: os.stat_result,
         recorded_size: int | None,
         recorded_hash: str | None,
     ) -> FileState:
-        if recorded_size is not None and size != recorded_size:
+        if recorded_size is not None and probed.st_size != recorded_size:
             return "mismatch"
         if recorded_hash is None:
             return "not_recorded"
@@ -767,28 +806,30 @@ class _Checker:
         algorithm = name.lower()
         if not separator or algorithm not in _COMPUTABLE:
             return "unverifiable"
-        return "verified" if _digest(located, algorithm) == expected else "mismatch"
+        digest = _digest(located, algorithm, probed)
+        return "verified" if digest == expected else "mismatch"
 
 
-def _probe(located: Path) -> int | FileState:
+def _probe(located: Path) -> os.stat_result | FileState:
     """Stat a located file once, telling absence from inaccessibility.
 
     ``Path.is_file`` cannot be used: before 3.14 it re-raises errors such as
     EACCES, and from 3.14 it swallows them, reporting an unreachable file as
-    absent. One ``stat`` answers the same way on every version.
+    absent. One ``lstat`` answers the same way on every version; the path is
+    already resolved, so a symlink found there now was swapped in since.
 
     Returns:
-        The file's size, or the state that stands in for one: ``missing``
+        The file's status, or the state that stands in for one: ``missing``
         when nothing regular is there, ``unverifiable`` when it cannot be
         reached.
     """
     try:
-        info = located.stat()
+        info = located.lstat()
     except (FileNotFoundError, NotADirectoryError):
         return "missing"
     except (OSError, ValueError):
         return "unverifiable"
-    return info.st_size if stat.S_ISREG(info.st_mode) else "missing"
+    return info if stat.S_ISREG(info.st_mode) else "missing"
 
 
 _VERSIONED_PYTHON = re.compile(r"python(?:\d+(?:\.\d+)*t?)?", re.IGNORECASE)

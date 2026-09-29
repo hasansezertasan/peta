@@ -78,5 +78,5 @@ def test_path_distribution_read_failures(
 )
 def test_probe_tells_absence_from_inaccessibility(error: Exception, state: str) -> None:
     located = MagicMock()
-    located.stat.side_effect = error
+    located.lstat.side_effect = error
     assert _probe(located) == state
