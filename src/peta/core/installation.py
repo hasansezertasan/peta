@@ -275,7 +275,8 @@ def is_local_scheme(scheme: str) -> bool:
 def _malformed_authority(url: str) -> bool:
     """Whether a URL's host is missing where it needs one, or present where not.
 
-    A network URL without one, as when backslashes stand in for the ``//``
+    An authority whose port is not a number is malformed, and so is a
+    network URL without one, as when backslashes stand in for the ``//``
     of ``https://{user}:{token}@host``, puts the userinfo in the path, where
     redaction does not look for it. A scheme-relative ``//host/repo`` names a
     host, but would be shown as a local path, hiding it.
@@ -284,6 +285,12 @@ def _malformed_authority(url: str) -> bool:
         ``True`` when the URL cannot be reported faithfully.
     """
     parts = urlsplit(url)
+    try:
+        # ``https://user:secret/path`` has no ``@`` for redaction to find:
+        # what looks like a password sits where the port belongs.
+        _ = parts.port
+    except ValueError:
+        return True
     if not parts.scheme:
         return bool(parts.netloc)
     return not parts.netloc and not is_local_scheme(parts.scheme)
@@ -1027,31 +1034,49 @@ def _record_files(
 _HEADER_END = re.compile(r"\r?\n\r?\n")
 """The blank line that ends the core metadata's headers."""
 
-_MAX_HEADER_LINES = 100_000
-"""The most core metadata header lines parsed; far above any real project."""
+_CORE_FIELDS = ("name", "version")
+"""The core metadata fields every report needs."""
+
+_MAX_FIELD_CHARS = 256
+"""The longest ``Name`` or ``Version`` accepted; far above any real one."""
+
+_CORE_FIELD = re.compile(
+    rf"^(name|version)[ \t]*:[ \t]*([^\r\n]{{0,{_MAX_FIELD_CHARS + 1}}})",
+    re.IGNORECASE | re.MULTILINE,
+)
+"""A ``Name`` or ``Version`` header, capturing one character past the limit.
+
+A continuation line starts with whitespace, so it never matches.
+"""
 
 
-def _core_metadata(
-    dist: importlib_metadata.Distribution,
-) -> importlib_metadata.PackageMetadata:
-    """Parse the core metadata from vetted text, as every other file is read.
+def _core_fields(dist: importlib_metadata.Distribution) -> dict[str, str]:
+    """Read ``Name`` and ``Version`` from vetted core metadata, and nothing else.
+
+    Not handed to the email parser, which builds an object for every header
+    and keeps every value however long: only the header block is scanned,
+    for the first of each field, and a value past :data:`_MAX_FIELD_CHARS`
+    counts as none at all.
 
     Returns:
-        The parsed headers; empty when there are none that can be read, or
-        too many to parse.
+        ``name`` and ``version``, lowercased, as far as they were found.
     """
     text = next(filter(None, map(partial(_read_text, dist), _CORE_METADATA)), "")
-    # Only the header block is parsed: the body is the long description,
-    # and the parser builds an object for every header line it is given.
     headers = _HEADER_END.split(text, maxsplit=1)[0]
-    if _line_count_bound(headers) > _MAX_HEADER_LINES:
-        headers = ""
-    return _Vetted("METADATA", headers).metadata
+    found: dict[str, str] = {}
+    for match in _CORE_FIELD.finditer(headers):
+        # Judged before stripping: the capture stops one past the limit, so
+        # a stripped one could look short however long the value ran.
+        raw = match[2]
+        usable = raw.strip() if len(raw) <= _MAX_FIELD_CHARS else ""
+        _ = found.setdefault(match[1].lower(), usable)
+        if len(found) == len(_CORE_FIELDS):
+            break
+    return found
 
 
 def _vetted_name(dist: importlib_metadata.Distribution) -> str | None:
-    names = cast("list[str] | None", _core_metadata(dist).get_all("Name"))
-    return names[0] if names else None
+    return _core_fields(dist).get("name") or None
 
 
 def _name_and_version(
@@ -1068,14 +1093,11 @@ def _name_and_version(
         The distribution's name and version.
 
     Raises:
-        PackageNotFoundError: When either is unreadable, missing, or blank,
-            or the name is not ``name``.
+        PackageNotFoundError: When either is unreadable, missing, blank, or
+            too long, or the name is not ``name``.
     """
-    meta = _core_metadata(dist)
-    fields = [
-        (cast("list[str] | None", meta.get_all(key)) or [""])[0].strip()
-        for key in ("Name", "Version")
-    ]
+    found = _core_fields(dist)
+    fields = [found.get(key, "") for key in _CORE_FIELDS]
     # The runtime lookup matches the directory name alone, which need not be
     # the package the metadata names.
     if not all(fields) or canonicalize_name(fields[0]) != canonicalize_name(name):

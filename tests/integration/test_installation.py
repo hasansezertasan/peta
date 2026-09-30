@@ -277,6 +277,11 @@ class TestOrigin:
                 id="missing-authority",
             ),
             pytest.param(
+                '{"url": "https://u:s3cret/p", "dir_info": {}}',
+                "malformed url",
+                id="password-in-port",
+            ),
+            pytest.param(
                 '{"url": "//example.com/private/repo", "dir_info": {}}',
                 "malformed url",
                 id="scheme-relative",
@@ -1084,20 +1089,25 @@ class TestCoreMetadata:
     def test_long_description_is_not_parsed_as_headers(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Only the header block is parsed; the body does not count against it."""
-        _write_metadata(site, "headers", "\n" + "description\n" * 50)
-        monkeypatch.setattr("peta.core.installation._MAX_HEADER_LINES", 10)
+        """Only the header block is read; the body cannot rename the package."""
+        _write_metadata(site, "headers", "\nName: impostor\nVersion: 9\n")
         monkeypatch.syspath_prepend(str(site))
-        assert inspect_installation("headers").version == "1.0.0"
+        found = inspect_installation("headers")
+        assert (found.name, found.version) == ("headers", "1.0.0")
 
-    def test_too_many_core_metadata_headers_are_not_parsed(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize("field", ["Name", "Version"])
+    def test_oversized_core_field_is_not_found(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, field: str
     ) -> None:
-        _write_metadata(site, "headers", "X: y\n" * 50)
-        monkeypatch.setattr("peta.core.installation._MAX_HEADER_LINES", 10)
+        """A value past the limit is no value, however much else is there."""
+        dist_info = _install(site, "longfield")
+        value = "longfield" + " " * 300 + "x" if field == "Name" else "1" * 300
+        other = "Version: 1.0.0" if field == "Name" else "Name: longfield"
+        metadata = f"Metadata-Version: 2.1\n{field}: {value}\n{other}\n"
+        _ = (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
         monkeypatch.syspath_prepend(str(site))
         with pytest.raises(PackageNotFoundError):
-            _ = inspect_installation("headers")
+            _ = inspect_installation("longfield")
 
     def test_unreadable_metadata_on_an_explicit_path_is_not_found(
         self, site: Path
