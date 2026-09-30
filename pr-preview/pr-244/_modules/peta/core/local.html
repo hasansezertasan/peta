@@ -146,7 +146,7 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="23"><span class="kn">from</span><span class="w"> </span><span class="nn">peta.core.output</span><span class="w"> </span><span class="kn">import</span> <span class="n">utc_now</span>
 </span><span data-line="24">
 </span><span data-line="25"><span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-</span><span data-line="26">    <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Iterable</span>
+</span><span data-line="26">    <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span>
 </span><span data-line="27">
 </span><span data-line="28"><span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span>
 </span><span data-line="29">    <span class="s2">"METADATA_READ_ERRORS"</span><span class="p">,</span>
@@ -650,168 +650,195 @@ data-aria-dark="Switch to auto color mode">
 </span><span data-line="509">    <span class="k">return</span> <span class="n">legacy</span><span class="p">,</span> <span class="s2">"legacy"</span> <span class="k">if</span> <span class="n">legacy</span> <span class="k">else</span> <span class="kc">None</span>
 </span><span data-line="510">
 </span><span data-line="511">
-</span><span data-line="512"><span class="k">def</span><span class="w"> </span><span class="nf">_is_named</span><span class="p">(</span><span class="n">candidate</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">,</span> <span class="n">canonical</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-</span><span data-line="513"><span class="w">    </span><span class="sd">"""Match one enumerated distribution against a canonical package name.</span>
+</span><span data-line="512"><span class="k">def</span><span class="w"> </span><span class="nf">_stdlib_name</span><span class="p">(</span><span class="n">candidate</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="513">    <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">candidate</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">])</span>
 </span><span data-line="514">
-</span><span data-line="515"><span class="sd">    A directory on the search path can hold a ``.dist-info`` whose metadata</span>
-</span><span data-line="516"><span class="sd">    carries no ``Name``, or cannot be read at all. Skipping it keeps a single</span>
-</span><span data-line="517"><span class="sd">    corrupt entry from hiding every package enumerated after it.</span>
-</span><span data-line="518">
-</span><span data-line="519"><span class="sd">    Returns:</span>
-</span><span data-line="520"><span class="sd">        Whether this candidate is the requested distribution.</span>
-</span><span data-line="521"><span class="sd">    """</span>
-</span><span data-line="522">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="523">        <span class="n">found</span> <span class="o">=</span> <span class="n">cast</span><span class="p">(</span><span class="s2">"str | None"</span><span class="p">,</span> <span class="n">candidate</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">])</span>
-</span><span data-line="524">    <span class="k">except</span> <span class="n">METADATA_READ_ERRORS</span><span class="p">:</span>
-</span><span data-line="525">        <span class="k">return</span> <span class="kc">False</span>
-</span><span data-line="526">    <span class="k">return</span> <span class="n">found</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">found</span><span class="p">)</span> <span class="o">==</span> <span class="n">canonical</span>
-</span><span data-line="527">
-</span><span data-line="528">
+</span><span data-line="515">
+</span><span data-line="516"><span class="k">def</span><span class="w"> </span><span class="nf">_is_named</span><span class="p">(</span>
+</span><span data-line="517">    <span class="n">candidate</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">,</span>
+</span><span data-line="518">    <span class="n">canonical</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="519">    <span class="n">name_of</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">],</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">],</span>
+</span><span data-line="520"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span data-line="521"><span class="w">    </span><span class="sd">"""Match one enumerated distribution against a canonical package name.</span>
+</span><span data-line="522">
+</span><span data-line="523"><span class="sd">    A directory on the search path can hold a ``.dist-info`` whose metadata</span>
+</span><span data-line="524"><span class="sd">    carries no ``Name``, or cannot be read at all. Skipping it keeps a single</span>
+</span><span data-line="525"><span class="sd">    corrupt entry from hiding every package enumerated after it.</span>
+</span><span data-line="526">
+</span><span data-line="527"><span class="sd">    Returns:</span>
+</span><span data-line="528"><span class="sd">        Whether this candidate is the requested distribution.</span>
+</span><span data-line="529"><span class="sd">    """</span>
+</span><span data-line="530">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="531">        <span class="n">found</span> <span class="o">=</span> <span class="n">name_of</span><span class="p">(</span><span class="n">candidate</span><span class="p">)</span>
+</span><span data-line="532">    <span class="k">except</span> <span class="n">METADATA_READ_ERRORS</span><span class="p">:</span>
+</span><span data-line="533">        <span class="k">return</span> <span class="kc">False</span>
+</span><span data-line="534">    <span class="k">return</span> <span class="n">found</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">found</span><span class="p">)</span> <span class="o">==</span> <span class="n">canonical</span>
+</span><span data-line="535">
+</span><span data-line="536">
 <div class="viewcode-block" id="legacy_installed_files">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.legacy_installed_files">[docs]</a>
-</span><span data-line="529"><span class="k">def</span><span class="w"> </span><span class="nf">legacy_installed_files</span><span class="p">(</span>
-</span><span data-line="530">    <span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_missing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span>
-</span><span data-line="531"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="532"><span class="w">    </span><span class="sd">"""Read a legacy ``.egg-info``'s ``installed-files.txt``, as Python 3.12 does.</span>
-</span><span data-line="533">
-</span><span data-line="534"><span class="sd">    Python 3.11's importlib.metadata never reads this file and falls back to</span>
-</span><span data-line="535"><span class="sd">    ``SOURCES.txt``, which lists the project's source tree rather than what was</span>
-</span><span data-line="536"><span class="sd">    installed. Reading it here, relative to the search-path root and skipping</span>
-</span><span data-line="537"><span class="sd">    files that are gone, keeps ``files`` the same on every supported version.</span>
-</span><span data-line="538">
-</span><span data-line="539"><span class="sd">    A non-empty ``RECORD`` still wins, as it does in the stdlib, so a</span>
-</span><span data-line="540"><span class="sd">    ``.dist-info`` that also carries a stray ``installed-files.txt`` keeps its</span>
-</span><span data-line="541"><span class="sd">    authoritative listing.</span>
-</span><span data-line="542">
-</span><span data-line="543"><span class="sd">    ``skip_missing=False`` keeps entries whose file is gone, for callers that</span>
-</span><span data-line="544"><span class="sd">    report a missing file rather than hide it.</span>
-</span><span data-line="545">
-</span><span data-line="546"><span class="sd">    Returns:</span>
-</span><span data-line="547"><span class="sd">        The installed files, or ``None`` when ``dist`` has no such listing.</span>
-</span><span data-line="548"><span class="sd">    """</span>
-</span><span data-line="549">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">PathDistribution</span><span class="p">)</span> <span class="ow">or</span> <span class="n">dist</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="s2">"RECORD"</span><span class="p">):</span>
-</span><span data-line="550">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="551">    <span class="n">listing</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="s2">"installed-files.txt"</span><span class="p">)</span>
-</span><span data-line="552">    <span class="k">if</span> <span class="ow">not</span> <span class="n">listing</span><span class="p">:</span>
-</span><span data-line="553">        <span class="k">return</span> <span class="kc">None</span>
-</span><span data-line="554">    <span class="c1"># The stdlib reader resolves entries against the same private attribute:</span>
-</span><span data-line="555">    <span class="c1"># it is the only record of which ``.egg-info`` directory this is.</span>
-</span><span data-line="556">    <span class="n">egg_info</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">_path</span><span class="p">))</span>  <span class="c1"># ruff: ignore[private-member-access] # See above.</span>
-</span><span data-line="557">    <span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">locate_file</span><span class="p">(</span><span class="s2">""</span><span class="p">)))</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-</span><span data-line="558">    <span class="n">listed</span> <span class="o">=</span> <span class="p">(</span>
-</span><span data-line="559">        <span class="n">_legacy_entry</span><span class="p">(</span><span class="n">egg_info</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">skip_missing</span><span class="o">=</span><span class="n">skip_missing</span><span class="p">)</span>
-</span><span data-line="560">        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">listing</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
-</span><span data-line="561">        <span class="k">if</span> <span class="n">entry</span>
-</span><span data-line="562">    <span class="p">)</span>
-</span><span data-line="563">    <span class="k">return</span> <span class="p">[</span><span class="n">entry</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">listed</span> <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span></div>
+</span><span data-line="537"><span class="k">def</span><span class="w"> </span><span class="nf">legacy_installed_files</span><span class="p">(</span>
+</span><span data-line="538">    <span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">,</span>
+</span><span data-line="539">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="540">    <span class="n">skip_missing</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span>
+</span><span data-line="541">    <span class="n">listing</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="542"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="543"><span class="w">    </span><span class="sd">"""Read a legacy ``.egg-info``'s ``installed-files.txt``, as Python 3.12 does.</span>
+</span><span data-line="544">
+</span><span data-line="545"><span class="sd">    Python 3.11's importlib.metadata never reads this file and falls back to</span>
+</span><span data-line="546"><span class="sd">    ``SOURCES.txt``, which lists the project's source tree rather than what was</span>
+</span><span data-line="547"><span class="sd">    installed. Reading it here, relative to the search-path root and skipping</span>
+</span><span data-line="548"><span class="sd">    files that are gone, keeps ``files`` the same on every supported version.</span>
+</span><span data-line="549">
+</span><span data-line="550"><span class="sd">    A non-empty ``RECORD`` still wins, as it does in the stdlib, so a</span>
+</span><span data-line="551"><span class="sd">    ``.dist-info`` that also carries a stray ``installed-files.txt`` keeps its</span>
+</span><span data-line="552"><span class="sd">    authoritative listing.</span>
+</span><span data-line="553">
+</span><span data-line="554"><span class="sd">    ``skip_missing=False`` keeps entries whose file is gone, for callers that</span>
+</span><span data-line="555"><span class="sd">    report a missing file rather than hide it.</span>
+</span><span data-line="556">
+</span><span data-line="557"><span class="sd">    ``listing`` is the file's text for a caller that has already read and</span>
+</span><span data-line="558"><span class="sd">    vetted it, and has found no ``RECORD``: nothing is read a second time,</span>
+</span><span data-line="559"><span class="sd">    so nothing swapped in meanwhile is read unchecked.</span>
+</span><span data-line="560">
+</span><span data-line="561"><span class="sd">    Returns:</span>
+</span><span data-line="562"><span class="sd">        The installed files, or ``None`` when ``dist`` has no such listing.</span>
+</span><span data-line="563"><span class="sd">    """</span>
+</span><span data-line="564">    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dist</span><span class="p">,</span> <span class="n">PathDistribution</span><span class="p">):</span>
+</span><span data-line="565">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="566">    <span class="k">if</span> <span class="n">listing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="567">        <span class="n">listing</span> <span class="o">=</span> <span class="n">_unvetted_listing</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
+</span><span data-line="568">    <span class="k">if</span> <span class="ow">not</span> <span class="n">listing</span><span class="p">:</span>
+</span><span data-line="569">        <span class="k">return</span> <span class="kc">None</span>
+</span><span data-line="570">    <span class="c1"># The stdlib reader resolves entries against the same private attribute:</span>
+</span><span data-line="571">    <span class="c1"># it is the only record of which ``.egg-info`` directory this is.</span>
+</span><span data-line="572">    <span class="n">egg_info</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">_path</span><span class="p">))</span>  <span class="c1"># ruff: ignore[private-member-access] # See above.</span>
+</span><span data-line="573">    <span class="n">root</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">locate_file</span><span class="p">(</span><span class="s2">""</span><span class="p">)))</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+</span><span data-line="574">    <span class="n">listed</span> <span class="o">=</span> <span class="p">(</span>
+</span><span data-line="575">        <span class="n">_legacy_entry</span><span class="p">(</span><span class="n">egg_info</span><span class="p">,</span> <span class="n">entry</span><span class="p">,</span> <span class="n">root</span><span class="p">,</span> <span class="n">skip_missing</span><span class="o">=</span><span class="n">skip_missing</span><span class="p">)</span>
+</span><span data-line="576">        <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">listing</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
+</span><span data-line="577">        <span class="k">if</span> <span class="n">entry</span>
+</span><span data-line="578">    <span class="p">)</span>
+</span><span data-line="579">    <span class="k">return</span> <span class="p">[</span><span class="n">entry</span> <span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">listed</span> <span class="k">if</span> <span class="n">entry</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">]</span></div>
 
-</span><span data-line="564">
-</span><span data-line="565">
-</span><span data-line="566"><span class="k">def</span><span class="w"> </span><span class="nf">_legacy_entry</span><span class="p">(</span>
-</span><span data-line="567">    <span class="n">egg_info</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_missing</span><span class="p">:</span> <span class="nb">bool</span>
-</span><span data-line="568"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="569"><span class="w">    </span><span class="sd">"""Rebase one ``installed-files.txt`` entry onto the search-path root.</span>
-</span><span data-line="570">
-</span><span data-line="571"><span class="sd">    An entry that cannot be resolved (a NUL byte, a symlink loop) or that</span>
-</span><span data-line="572"><span class="sd">    lands on another drive is kept as written when missing files are wanted,</span>
-</span><span data-line="573"><span class="sd">    so a caller that bounds reads still sees it and reports it.</span>
-</span><span data-line="574">
-</span><span data-line="575"><span class="sd">    Returns:</span>
-</span><span data-line="576"><span class="sd">        The root-relative POSIX path, or ``None`` when the entry is skipped.</span>
-</span><span data-line="577"><span class="sd">    """</span>
-</span><span data-line="578">    <span class="k">try</span><span class="p">:</span>
-</span><span data-line="579">        <span class="n">path</span> <span class="o">=</span> <span class="p">(</span><span class="n">egg_info</span> <span class="o">/</span> <span class="n">entry</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-</span><span data-line="580">        <span class="n">relative</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">root</span><span class="p">))</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
-</span><span data-line="581">    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
-</span><span data-line="582">        <span class="c1"># Absolute, so a caller joining it onto the root cannot misplace it.</span>
-</span><span data-line="583">        <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">skip_missing</span> <span class="k">else</span> <span class="p">(</span><span class="n">egg_info</span> <span class="o">/</span> <span class="n">entry</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
-</span><span data-line="584">    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">skip_missing</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="n">relative</span>
+</span><span data-line="580">
+</span><span data-line="581">
+</span><span data-line="582"><span class="k">def</span><span class="w"> </span><span class="nf">_unvetted_listing</span><span class="p">(</span><span class="n">dist</span><span class="p">:</span> <span class="n">PathDistribution</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="583">    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="s2">"RECORD"</span><span class="p">)</span> <span class="k">else</span> <span class="n">dist</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="s2">"installed-files.txt"</span><span class="p">)</span>
+</span><span data-line="584">
 </span><span data-line="585">
-</span><span data-line="586">
-</span><span data-line="587"><span class="k">def</span><span class="w"> </span><span class="nf">_installed_files</span><span class="p">(</span><span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="588">    <span class="n">listed</span> <span class="o">=</span> <span class="n">legacy_installed_files</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
-</span><span data-line="589">    <span class="k">if</span> <span class="n">listed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="590">        <span class="n">listed</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span><span class="p">]</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span> <span class="k">else</span> <span class="kc">None</span>
-</span><span data-line="591">    <span class="k">return</span> <span class="n">listed</span> <span class="ow">or</span> <span class="kc">None</span>
-</span><span data-line="592">
-</span><span data-line="593">
+</span><span data-line="586"><span class="k">def</span><span class="w"> </span><span class="nf">_legacy_entry</span><span class="p">(</span>
+</span><span data-line="587">    <span class="n">egg_info</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="n">entry</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">root</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">skip_missing</span><span class="p">:</span> <span class="nb">bool</span>
+</span><span data-line="588"><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="589"><span class="w">    </span><span class="sd">"""Rebase one ``installed-files.txt`` entry onto the search-path root.</span>
+</span><span data-line="590">
+</span><span data-line="591"><span class="sd">    An entry that cannot be resolved (a NUL byte, a symlink loop) or that</span>
+</span><span data-line="592"><span class="sd">    lands on another drive is kept as written when missing files are wanted,</span>
+</span><span data-line="593"><span class="sd">    so a caller that bounds reads still sees it and reports it.</span>
+</span><span data-line="594">
+</span><span data-line="595"><span class="sd">    Returns:</span>
+</span><span data-line="596"><span class="sd">        The root-relative POSIX path, or ``None`` when the entry is skipped.</span>
+</span><span data-line="597"><span class="sd">    """</span>
+</span><span data-line="598">    <span class="k">try</span><span class="p">:</span>
+</span><span data-line="599">        <span class="n">path</span> <span class="o">=</span> <span class="p">(</span><span class="n">egg_info</span> <span class="o">/</span> <span class="n">entry</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
+</span><span data-line="600">        <span class="n">relative</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">relpath</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">root</span><span class="p">))</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+</span><span data-line="601">    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="ne">RuntimeError</span><span class="p">,</span> <span class="ne">ValueError</span><span class="p">):</span>
+</span><span data-line="602">        <span class="c1"># Absolute, so a caller joining it onto the root cannot misplace it.</span>
+</span><span data-line="603">        <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">skip_missing</span> <span class="k">else</span> <span class="p">(</span><span class="n">egg_info</span> <span class="o">/</span> <span class="n">entry</span><span class="p">)</span><span class="o">.</span><span class="n">as_posix</span><span class="p">()</span>
+</span><span data-line="604">    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">skip_missing</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">()</span> <span class="k">else</span> <span class="n">relative</span>
+</span><span data-line="605">
+</span><span data-line="606">
+</span><span data-line="607"><span class="k">def</span><span class="w"> </span><span class="nf">_installed_files</span><span class="p">(</span><span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="608">    <span class="n">listed</span> <span class="o">=</span> <span class="n">legacy_installed_files</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
+</span><span data-line="609">    <span class="k">if</span> <span class="n">listed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="610">        <span class="n">listed</span> <span class="o">=</span> <span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">f</span><span class="p">)</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span><span class="p">]</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">files</span> <span class="k">else</span> <span class="kc">None</span>
+</span><span data-line="611">    <span class="k">return</span> <span class="n">listed</span> <span class="ow">or</span> <span class="kc">None</span>
+</span><span data-line="612">
+</span><span data-line="613">
 <div class="viewcode-block" id="find_distribution">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.find_distribution">[docs]</a>
-</span><span data-line="594"><span class="k">def</span><span class="w"> </span><span class="nf">find_distribution</span><span class="p">(</span>
-</span><span data-line="595">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span data-line="596"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">:</span>
-</span><span data-line="597"><span class="w">    </span><span class="sd">"""Find an installed distribution in the selected environment.</span>
-</span><span data-line="598">
-</span><span data-line="599"><span class="sd">    Args:</span>
-</span><span data-line="600"><span class="sd">        name: Package name to look up.</span>
-</span><span data-line="601"><span class="sd">        target: The environment to search; the running one when ``None``.</span>
-</span><span data-line="602">
-</span><span data-line="603"><span class="sd">    Returns:</span>
-</span><span data-line="604"><span class="sd">        The first matching distribution on the target's search path.</span>
-</span><span data-line="605">
-</span><span data-line="606"><span class="sd">    Raises:</span>
-</span><span data-line="607"><span class="sd">        PackageNotFoundError: If the package is not installed there.</span>
-</span><span data-line="608"><span class="sd">    """</span>
-</span><span data-line="609">    <span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span>
-</span><span data-line="610">    <span class="k">try</span><span class="p">:</span>  <span class="c1"># ruff: ignore[too-many-statements-in-try-clause]</span>
-</span><span data-line="611">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="612">            <span class="n">dist</span> <span class="o">=</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distribution</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="613">        <span class="k">else</span><span class="p">:</span>
-</span><span data-line="614">            <span class="n">canonical</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
-</span><span data-line="615">            <span class="n">found</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
-</span><span data-line="616">                <span class="p">(</span>
-</span><span data-line="617">                    <span class="n">candidate</span>
-</span><span data-line="618">                    <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distributions</span><span class="p">(</span>
-</span><span data-line="619">                        <span class="n">path</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">)</span>
-</span><span data-line="620">                    <span class="p">)</span>
-</span><span data-line="621">                    <span class="k">if</span> <span class="n">_is_named</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">canonical</span><span class="p">)</span>
-</span><span data-line="622">                <span class="p">),</span>
-</span><span data-line="623">                <span class="kc">None</span><span class="p">,</span>
-</span><span data-line="624">            <span class="p">)</span>
-</span><span data-line="625">            <span class="k">if</span> <span class="n">found</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-</span><span data-line="626">                <span class="k">raise</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># ruff: ignore[raise-within-try]</span>
-</span><span data-line="627">            <span class="n">dist</span> <span class="o">=</span> <span class="n">found</span>
-</span><span data-line="628">    <span class="k">except</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
-</span><span data-line="629">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
-</span><span data-line="630">    <span class="k">return</span> <span class="n">dist</span></div>
-
-</span><span data-line="631">
+</span><span data-line="614"><span class="k">def</span><span class="w"> </span><span class="nf">find_distribution</span><span class="p">(</span>
+</span><span data-line="615">    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+</span><span data-line="616">    <span class="o">*</span><span class="p">,</span>
+</span><span data-line="617">    <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="618">    <span class="n">name_of</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">],</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="619"><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span><span class="p">:</span>
+</span><span data-line="620"><span class="w">    </span><span class="sd">"""Find an installed distribution in the selected environment.</span>
+</span><span data-line="621">
+</span><span data-line="622"><span class="sd">    Args:</span>
+</span><span data-line="623"><span class="sd">        name: Package name to look up.</span>
+</span><span data-line="624"><span class="sd">        target: The environment to search; the running one when ``None``.</span>
+</span><span data-line="625"><span class="sd">        name_of: How to read each candidate's ``Name`` when the target's</span>
+</span><span data-line="626"><span class="sd">            search path is enumerated; the stdlib parser when ``None``. A</span>
+</span><span data-line="627"><span class="sd">            caller that vets metadata files before reading them passes its</span>
+</span><span data-line="628"><span class="sd">            own, so no candidate is read unvetted.</span>
+</span><span data-line="629">
+</span><span data-line="630"><span class="sd">    Returns:</span>
+</span><span data-line="631"><span class="sd">        The first matching distribution on the target's search path.</span>
 </span><span data-line="632">
+</span><span data-line="633"><span class="sd">    Raises:</span>
+</span><span data-line="634"><span class="sd">        PackageNotFoundError: If the package is not installed there.</span>
+</span><span data-line="635"><span class="sd">    """</span>
+</span><span data-line="636">    <span class="n">dist</span><span class="p">:</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">Distribution</span>
+</span><span data-line="637">    <span class="k">try</span><span class="p">:</span>  <span class="c1"># ruff: ignore[too-many-statements-in-try-clause]</span>
+</span><span data-line="638">        <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">target</span><span class="o">.</span><span class="n">paths</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="639">            <span class="n">dist</span> <span class="o">=</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distribution</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="640">        <span class="k">else</span><span class="p">:</span>
+</span><span data-line="641">            <span class="n">canonical</span> <span class="o">=</span> <span class="n">canonicalize_name</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+</span><span data-line="642">            <span class="n">found</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
+</span><span data-line="643">                <span class="p">(</span>
+</span><span data-line="644">                    <span class="n">candidate</span>
+</span><span data-line="645">                    <span class="k">for</span> <span class="n">candidate</span> <span class="ow">in</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">distributions</span><span class="p">(</span>
+</span><span data-line="646">                        <span class="n">path</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">target</span><span class="o">.</span><span class="n">paths</span><span class="p">)</span>
+</span><span data-line="647">                    <span class="p">)</span>
+</span><span data-line="648">                    <span class="k">if</span> <span class="n">_is_named</span><span class="p">(</span><span class="n">candidate</span><span class="p">,</span> <span class="n">canonical</span><span class="p">,</span> <span class="n">name_of</span> <span class="ow">or</span> <span class="n">_stdlib_name</span><span class="p">)</span>
+</span><span data-line="649">                <span class="p">),</span>
+</span><span data-line="650">                <span class="kc">None</span><span class="p">,</span>
+</span><span data-line="651">            <span class="p">)</span>
+</span><span data-line="652">            <span class="k">if</span> <span class="n">found</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+</span><span data-line="653">                <span class="k">raise</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># ruff: ignore[raise-within-try]</span>
+</span><span data-line="654">            <span class="n">dist</span> <span class="o">=</span> <span class="n">found</span>
+</span><span data-line="655">    <span class="k">except</span> <span class="n">importlib_metadata</span><span class="o">.</span><span class="n">PackageNotFoundError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+</span><span data-line="656">        <span class="k">raise</span> <span class="n">PackageNotFoundError</span><span class="p">(</span><span class="n">name</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">exc</span>
+</span><span data-line="657">    <span class="k">return</span> <span class="n">dist</span></div>
+
+</span><span data-line="658">
+</span><span data-line="659">
 <div class="viewcode-block" id="get_package">
 <a class="viewcode-back" href="../../../modules.html#peta.core.local.get_package">[docs]</a>
-</span><span data-line="633"><span class="k">def</span><span class="w"> </span><span class="nf">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
-</span><span data-line="634"><span class="w">    </span><span class="sd">"""Get metadata for a locally installed package.</span>
-</span><span data-line="635">
-</span><span data-line="636"><span class="sd">    Args:</span>
-</span><span data-line="637"><span class="sd">        name: Package name to look up.</span>
-</span><span data-line="638">
-</span><span data-line="639"><span class="sd">    Returns:</span>
-</span><span data-line="640"><span class="sd">        A :class:`PackageInfo` with ``source="local"``.</span>
-</span><span data-line="641"><span class="sd">    """</span>
-</span><span data-line="642">    <span class="n">dist</span> <span class="o">=</span> <span class="n">find_distribution</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
-</span><span data-line="643">    <span class="n">meta</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">metadata</span>
-</span><span data-line="644">    <span class="n">files</span> <span class="o">=</span> <span class="n">_installed_files</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
-</span><span data-line="645">    <span class="n">license_value</span><span class="p">,</span> <span class="n">license_source</span> <span class="o">=</span> <span class="n">_parse_license</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
-</span><span data-line="646">    <span class="k">return</span> <span class="n">PackageInfo</span><span class="p">(</span>
-</span><span data-line="647">        <span class="n">name</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">],</span>
-</span><span data-line="648">        <span class="n">version</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Version"</span><span class="p">],</span>
-</span><span data-line="649">        <span class="n">summary</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Summary"</span><span class="p">),</span>
-</span><span data-line="650">        <span class="n">author</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Author"</span><span class="p">),</span>
-</span><span data-line="651">        <span class="n">author_email</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Author-email"</span><span class="p">),</span>
-</span><span data-line="652">        <span class="n">maintainer</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Maintainer"</span><span class="p">),</span>
-</span><span data-line="653">        <span class="n">license</span><span class="o">=</span><span class="n">license_value</span><span class="p">,</span>
-</span><span data-line="654">        <span class="n">license_source</span><span class="o">=</span><span class="n">license_source</span><span class="p">,</span>
-</span><span data-line="655">        <span class="n">python_requires</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Requires-Python"</span><span class="p">),</span>
-</span><span data-line="656">        <span class="n">homepage</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Home-page"</span><span class="p">),</span>
-</span><span data-line="657">        <span class="n">project_urls</span><span class="o">=</span><span class="n">_parse_project_urls</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
-</span><span data-line="658">        <span class="n">dependencies</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">requires</span><span class="p">)</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">requires</span> <span class="k">else</span> <span class="p">[],</span>
-</span><span data-line="659">        <span class="n">classifiers</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get_all</span><span class="p">(</span><span class="s2">"Classifier"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
-</span><span data-line="660">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
-</span><span data-line="661">        <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span>
-</span><span data-line="662">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="p">[],</span>
-</span><span data-line="663">        <span class="n">source</span><span class="o">=</span><span class="s2">"local"</span><span class="p">,</span>
-</span><span data-line="664">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">(),</span>
-</span><span data-line="665">    <span class="p">)</span></div>
+</span><span data-line="660"><span class="k">def</span><span class="w"> </span><span class="nf">get_package</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">target</span><span class="p">:</span> <span class="n">LocalTarget</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">PackageInfo</span><span class="p">:</span>
+</span><span data-line="661"><span class="w">    </span><span class="sd">"""Get metadata for a locally installed package.</span>
+</span><span data-line="662">
+</span><span data-line="663"><span class="sd">    Args:</span>
+</span><span data-line="664"><span class="sd">        name: Package name to look up.</span>
+</span><span data-line="665">
+</span><span data-line="666"><span class="sd">    Returns:</span>
+</span><span data-line="667"><span class="sd">        A :class:`PackageInfo` with ``source="local"``.</span>
+</span><span data-line="668"><span class="sd">    """</span>
+</span><span data-line="669">    <span class="n">dist</span> <span class="o">=</span> <span class="n">find_distribution</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span><span class="p">)</span>
+</span><span data-line="670">    <span class="n">meta</span> <span class="o">=</span> <span class="n">dist</span><span class="o">.</span><span class="n">metadata</span>
+</span><span data-line="671">    <span class="n">files</span> <span class="o">=</span> <span class="n">_installed_files</span><span class="p">(</span><span class="n">dist</span><span class="p">)</span>
+</span><span data-line="672">    <span class="n">license_value</span><span class="p">,</span> <span class="n">license_source</span> <span class="o">=</span> <span class="n">_parse_license</span><span class="p">(</span><span class="n">meta</span><span class="p">)</span>
+</span><span data-line="673">    <span class="k">return</span> <span class="n">PackageInfo</span><span class="p">(</span>
+</span><span data-line="674">        <span class="n">name</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Name"</span><span class="p">],</span>
+</span><span data-line="675">        <span class="n">version</span><span class="o">=</span><span class="n">meta</span><span class="p">[</span><span class="s2">"Version"</span><span class="p">],</span>
+</span><span data-line="676">        <span class="n">summary</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Summary"</span><span class="p">),</span>
+</span><span data-line="677">        <span class="n">author</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Author"</span><span class="p">),</span>
+</span><span data-line="678">        <span class="n">author_email</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Author-email"</span><span class="p">),</span>
+</span><span data-line="679">        <span class="n">maintainer</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Maintainer"</span><span class="p">),</span>
+</span><span data-line="680">        <span class="n">license</span><span class="o">=</span><span class="n">license_value</span><span class="p">,</span>
+</span><span data-line="681">        <span class="n">license_source</span><span class="o">=</span><span class="n">license_source</span><span class="p">,</span>
+</span><span data-line="682">        <span class="n">python_requires</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Requires-Python"</span><span class="p">),</span>
+</span><span data-line="683">        <span class="n">homepage</span><span class="o">=</span><span class="n">_header</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="s2">"Home-page"</span><span class="p">),</span>
+</span><span data-line="684">        <span class="n">project_urls</span><span class="o">=</span><span class="n">_parse_project_urls</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
+</span><span data-line="685">        <span class="n">dependencies</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">dist</span><span class="o">.</span><span class="n">requires</span><span class="p">)</span> <span class="k">if</span> <span class="n">dist</span><span class="o">.</span><span class="n">requires</span> <span class="k">else</span> <span class="p">[],</span>
+</span><span data-line="686">        <span class="n">classifiers</span><span class="o">=</span><span class="n">meta</span><span class="o">.</span><span class="n">get_all</span><span class="p">(</span><span class="s2">"Classifier"</span><span class="p">)</span> <span class="ow">or</span> <span class="p">[],</span>
+</span><span data-line="687">        <span class="n">keywords</span><span class="o">=</span><span class="n">_parse_keywords</span><span class="p">(</span><span class="n">meta</span><span class="p">),</span>
+</span><span data-line="688">        <span class="n">files</span><span class="o">=</span><span class="n">files</span><span class="p">,</span>
+</span><span data-line="689">        <span class="n">vulnerabilities</span><span class="o">=</span><span class="p">[],</span>
+</span><span data-line="690">        <span class="n">source</span><span class="o">=</span><span class="s2">"local"</span><span class="p">,</span>
+</span><span data-line="691">        <span class="n">retrieved_at</span><span class="o">=</span><span class="n">utc_now</span><span class="p">(),</span>
+</span><span data-line="692">    <span class="p">)</span></div>
 
 </span></pre></div>
         </article><button class="back-to-top" type="button">
