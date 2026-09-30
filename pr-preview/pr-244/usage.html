@@ -596,7 +596,12 @@ read;</p></li>
 are always compared, because that costs one <code class="docutils literal notranslate"><span class="pre">stat</span></code> per file.</p>
 <p><code class="docutils literal notranslate"><span class="pre">RECORD</span></code> is untrusted input: a row can name any path, and a symlink can
 point anywhere. The metadata files themselves are only read when they are
-regular files of plausible size, never through a symlink. A file is only read if its resolved path lies inside the
+regular files of plausible size, and never through a symlink – with one
+exception: the core metadata (<code class="docutils literal notranslate"><span class="pre">METADATA</span></code>, <code class="docutils literal notranslate"><span class="pre">PKG-INFO</span></code>, or a single-file
+<code class="docutils literal notranslate"><span class="pre">.egg-info</span></code>), which names the package and nothing more, may be a symlink,
+since environments built as symlink trees (Nix, for one) link every file. It
+must still resolve to a regular file of plausible size, and only its <code class="docutils literal notranslate"><span class="pre">Name</span></code>
+and <code class="docutils literal notranslate"><span class="pre">Version</span></code> are read from it. A file is only read if its resolved path lies inside the
 directory holding the distribution’s metadata, inside the installation scheme
 that directory belongs to, or inside the target interpreter’s prefix. The
 scheme is recognized from the standard <code class="docutils literal notranslate"><span class="pre">site-packages</span></code> layouts –

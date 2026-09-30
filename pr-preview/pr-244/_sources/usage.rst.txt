@@ -235,7 +235,12 @@ are always compared, because that costs one ``stat`` per file.
 
 ``RECORD`` is untrusted input: a row can name any path, and a symlink can
 point anywhere. The metadata files themselves are only read when they are
-regular files of plausible size, never through a symlink. A file is only read if its resolved path lies inside the
+regular files of plausible size, and never through a symlink -- with one
+exception: the core metadata (``METADATA``, ``PKG-INFO``, or a single-file
+``.egg-info``), which names the package and nothing more, may be a symlink,
+since environments built as symlink trees (Nix, for one) link every file. It
+must still resolve to a regular file of plausible size, and only its ``Name``
+and ``Version`` are read from it. A file is only read if its resolved path lies inside the
 directory holding the distribution's metadata, inside the installation scheme
 that directory belongs to, or inside the target interpreter's prefix. The
 scheme is recognized from the standard ``site-packages`` layouts --
