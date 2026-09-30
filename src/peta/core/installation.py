@@ -776,8 +776,9 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
 
 
 _NOFOLLOW: int = getattr(os, "O_NOFOLLOW", 0)
-_OPEN_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_BINARY", 0)
-"""Read-only, never through a final symlink where the platform can refuse one."""
+_NONBLOCK: int = getattr(os, "O_NONBLOCK", 0)
+_OPEN_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_BINARY", 0) | _NONBLOCK
+"""Read-only and nonblocking, never through a final symlink where refused."""
 
 _DIRECTORY_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_DIRECTORY", 0)
 """A directory to walk through, refused if it is a symlink."""

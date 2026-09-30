@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 from importlib.metadata import Distribution, PathDistribution
 from typing import TYPE_CHECKING, NoReturn
 from unittest.mock import MagicMock
@@ -92,6 +93,18 @@ def test_probe_tells_absence_from_inaccessibility(
 def test_probe_regular_file(tmp_path: Path) -> None:
     root, target = _rooted_file(tmp_path)
     assert isinstance(_probe(root, target), os.stat_result)
+
+
+@pytest.mark.skipif(  # pragma: no cover
+    sys.platform == "win32", reason="needs named pipes"
+)
+def test_probe_fifo_does_not_block(tmp_path: Path) -> None:
+    assert sys.platform != "win32"
+    root = tmp_path / "root"
+    root.mkdir()
+    fifo = root / "pipe"
+    os.mkfifo(fifo)
+    assert _probe(root, fifo) == "missing"
 
 
 def _rooted_file(tmp_path: Path) -> tuple[Path, Path]:

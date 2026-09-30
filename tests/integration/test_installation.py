@@ -882,6 +882,19 @@ class TestPathSafety:
         found = inspect_installation("zpkg", target=target, verify=True)
         assert _states(found) == {"zpkg.py": "unverifiable"}
 
+    @_posix_only("needs named pipes")  # pragma: no cover
+    def test_recorded_fifo_does_not_block(self, site: Path) -> None:
+        """A recorded FIFO is not a regular file and must not hang when probed."""
+        assert sys.platform != "win32"
+        pipe = site / "fifo_pkg" / "pipe"
+        pipe.parent.mkdir(parents=True)
+        os.mkfifo(pipe)
+        _install(site, "recorded_fifo", extra_rows=("fifo_pkg/pipe,,",))
+        states = _states(_inspect(site, "recorded_fifo"))
+        assert states["fifo_pkg/pipe"] == "missing"
+        states_verified = _states(_inspect(site, "recorded_fifo", verify=True))
+        assert states_verified["fifo_pkg/pipe"] == "missing"
+
 
 class TestMetadataSafety:
     """Metadata files are read before containment applies, so they are vetted."""
