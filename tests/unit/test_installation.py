@@ -110,4 +110,4 @@ def test_open_then_locate_refuses_a_handle_elsewhere(
     final = None if located is None else tmp_path / located
     monkeypatch.setattr(installation, "_final_path", lambda _: final)
     with pytest.raises(OSError, match="led outside"):
-        _ = installation._open_then_locate(root, target)
+        os.close(installation._open_then_locate(root, target))

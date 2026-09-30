@@ -1045,6 +1045,26 @@ class TestMetadataSafety:
         assert found.record_source is None
         assert found.files == []
 
+    @pytest.mark.parametrize(
+        ("length", "source"), [(10, "installed-files.txt"), (11, None)]
+    )
+    def test_legacy_listing_line_length_is_bounded(
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        length: int,
+        source: RecordSource | None,
+    ) -> None:
+        egg_info = site / "longegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="longegg"), encoding="utf-8"
+        )
+        entry = "../" + "a" * (length - 6) + ".py"
+        (egg_info / "installed-files.txt").write_text(entry + "\n", encoding="utf-8")
+        monkeypatch.setattr("peta.core.installation._MAX_RECORD_ROW_CHARS", 10)
+        assert _inspect(site, "longegg").record_source == source
+
     def test_legacy_listing_is_parsed_from_the_vetted_text(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

@@ -410,6 +410,21 @@ def _line_count_bound(text: str) -> int:
     return sum(map(text.count, _LINE_BREAKS)) + 1
 
 
+def _oversized_listing(text: str) -> bool:
+    """Whether a one-path-per-line listing has too many lines, or too long a one.
+
+    Checked on the text as a whole, before a single line is split off.
+
+    Returns:
+        ``True`` when either the line count or a line's length is too great.
+    """
+    too_long = f"[^{re.escape(_LINE_BREAKS)}]{{{_MAX_RECORD_ROW_CHARS + 1}}}"
+    return (
+        _line_count_bound(text) > _MAX_RECORD_ROWS
+        or re.search(too_long, text) is not None
+    )
+
+
 def _bounded_lines(text: str, spent: list[int]) -> Iterator[str]:
     """Yield the physical lines of ``text``, charging each to the current row.
 
@@ -778,19 +793,18 @@ _FINAL_PATH_CHARS = 32_768
 """Room for the longest path Windows allows, with its extended-length prefix."""
 
 if sys.platform == "win32":  # pragma: no cover - exercised by the Windows jobs
-    import ctypes
+    import ctypes.wintypes
     import msvcrt
-    from ctypes import wintypes
 
     _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
     _get_final_path = _kernel32.GetFinalPathNameByHandleW
     _get_final_path.argtypes = [
-        wintypes.HANDLE,
-        wintypes.LPWSTR,
-        wintypes.DWORD,
-        wintypes.DWORD,
+        ctypes.wintypes.HANDLE,
+        ctypes.wintypes.LPWSTR,
+        ctypes.wintypes.DWORD,
+        ctypes.wintypes.DWORD,
     ]
-    _get_final_path.restype = wintypes.DWORD
+    _get_final_path.restype = ctypes.wintypes.DWORD
 
     def _final_path(descriptor: int) -> Path | None:
         """Ask Windows where an open file is, whatever path reached it.
@@ -1145,7 +1159,7 @@ def _record_files(
     # points: the file is not read a second time. Its lines bound its
     # entries, so they are counted before any is built.
     legacy_text = _read_text(dist, "installed-files.txt")
-    if not legacy_text or _line_count_bound(legacy_text) > _MAX_RECORD_ROWS:
+    if not legacy_text or _oversized_listing(legacy_text):
         return None, []
     legacy = legacy_installed_files(dist, skip_missing=False, listing=legacy_text)
     if legacy:
