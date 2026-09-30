@@ -75,14 +75,23 @@ def test_path_distribution_read_failures(
     ("error", "state"),
     [
         pytest.param(FileNotFoundError(), "missing", id="absent"),
+        pytest.param(NotADirectoryError(), "unverifiable", id="not-a-directory"),
         pytest.param(PermissionError(), "unverifiable", id="denied"),
         pytest.param(ValueError("embedded null byte"), "unverifiable", id="nul"),
     ],
 )
-def test_probe_tells_absence_from_inaccessibility(error: Exception, state: str) -> None:
-    located = MagicMock()
-    located.lstat.side_effect = error
-    assert _probe(located) == state
+def test_probe_tells_absence_from_inaccessibility(
+    error: Exception, state: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(
+        "peta.core.installation._open_within", MagicMock(side_effect=error)
+    )
+    assert _probe(tmp_path, tmp_path / "x") == state
+
+
+def test_probe_regular_file(tmp_path: Path) -> None:
+    root, target = _rooted_file(tmp_path)
+    assert isinstance(_probe(root, target), os.stat_result)
 
 
 def _rooted_file(tmp_path: Path) -> tuple[Path, Path]:

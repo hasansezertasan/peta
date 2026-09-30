@@ -284,16 +284,17 @@ def _malformed_authority(url: str) -> bool:
     Returns:
         ``True`` when the URL cannot be reported faithfully.
     """
-    parts = urlsplit(url)
     try:
+        parts = urlsplit(url)
         # ``https://user:secret/path`` has no ``@`` for redaction to find:
         # what looks like a password sits where the port belongs.
         _ = parts.port
+        hostname = parts.hostname
     except ValueError:
         return True
     if not parts.scheme:
         return bool(parts.netloc)
-    return not parts.netloc and not is_local_scheme(parts.scheme)
+    return not hostname and not is_local_scheme(parts.scheme)
 
 
 def _described_origin(data: dict[str, object]) -> Origin:
@@ -872,8 +873,15 @@ def _open_beneath(root: Path, path: Path) -> int:  # pragma: no cover - POSIX
 
     Returns:
         A descriptor for the file.
+
+    Raises:
+        OSError: When a component cannot be opened or is the root itself.
     """
-    *directories, name = path.relative_to(root).parts
+    rel = path.relative_to(root)
+    if not rel.name:
+        msg = f"{path} is the root itself"
+        raise OSError(msg)
+    directories, name = rel.parent.parts, rel.name
     descriptor = os.open(root, _DIRECTORY_FLAGS)
     try:
         for directory in directories:
@@ -1013,12 +1021,13 @@ class _Checker:
         located = _resolved(self.base / path)
         if located is None or not _within(located, self.roots):
             return InstalledFile(path, "out_of_bounds", None, *recorded)
-        probed = _probe(located)
+        root = next(root for root in self.roots if located.is_relative_to(root))
+        probed = _probe(root, located)
         if isinstance(probed, str):
             return InstalledFile(path, probed, None, *recorded)
         size = probed.st_size
         try:
-            state = self._state(located, probed, recorded_size, recorded_hash)
+            state = self._state(located, probed, recorded_size, recorded_hash, root)
         # ``ValueError``: a FIPS build lists md5 as guaranteed yet refuses to
         # construct it, which leaves the digest just as uncomputable.
         except (OSError, ValueError):
@@ -1032,6 +1041,7 @@ class _Checker:
         probed: os.stat_result,
         recorded_size: int | None,
         recorded_hash: str | None,
+        root: Path,
     ) -> FileState:
         if recorded_size is not None and probed.st_size != recorded_size:
             return "mismatch"
@@ -1043,32 +1053,29 @@ class _Checker:
         algorithm = name.lower()
         if not separator or algorithm not in _COMPUTABLE:
             return "unverifiable"
-        # Within one of the roots: ``check`` placed it there.
-        root = next(root for root in self.roots if located.is_relative_to(root))
         digest = _digest(located, algorithm, probed, root)
         return "verified" if digest == expected else "mismatch"
 
 
-def _probe(located: Path) -> os.stat_result | FileState:
-    """Stat a located file once, telling absence from inaccessibility.
-
-    ``Path.is_file`` cannot be used: before 3.14 it re-raises errors such as
-    EACCES, and from 3.14 it swallows them, reporting an unreachable file as
-    absent. One ``lstat`` answers the same way on every version; the path is
-    already resolved, so a symlink found there now was swapped in since.
+def _probe(root: Path, path: Path) -> os.stat_result | FileState:
+    """Probe a located file under its root, following no swapped symlinks.
 
     Returns:
         The file's status, or the state that stands in for one: ``missing``
         when nothing regular is there, ``unverifiable`` when it cannot be
-        reached.
+        reached or swapped components lead elsewhere.
     """
     try:
-        info = located.lstat()
-    except (FileNotFoundError, NotADirectoryError):
+        descriptor = _open_within(root, path)
+    except FileNotFoundError:
         return "missing"
     except (OSError, ValueError):
         return "unverifiable"
-    return info if stat.S_ISREG(info.st_mode) else "missing"
+    try:
+        info = os.fstat(descriptor)
+        return info if stat.S_ISREG(info.st_mode) else "missing"
+    finally:
+        os.close(descriptor)
 
 
 _VERSIONED_PYTHON = re.compile(r"python(?:\d+(?:\.\d+)*t?)?", re.IGNORECASE)

@@ -282,6 +282,16 @@ class TestOrigin:
                 id="password-in-port",
             ),
             pytest.param(
+                '{"url": "https://u:p@/path", "dir_info": {}}',
+                "malformed url",
+                id="missing-hostname-userinfo",
+            ),
+            pytest.param(
+                '{"url": "https://:443/path", "dir_info": {}}',
+                "malformed url",
+                id="missing-hostname-port",
+            ),
+            pytest.param(
                 '{"url": "//example.com/private/repo", "dir_info": {}}',
                 "malformed url",
                 id="scheme-relative",
@@ -529,8 +539,8 @@ class TestIntegrity:
         _install(site, "racy", files={"racy.py": content})
         probe = installation._probe
 
-        def probe_then_swap(located: Path) -> os.stat_result | FileState:
-            found = probe(located)
+        def probe_then_swap(root: Path, located: Path) -> os.stat_result | FileState:
+            found = probe(root, located)
             if swap == "replaced":
                 decoy = tmp_path / "decoy.py"
                 _ = decoy.write_bytes(content)
@@ -554,8 +564,8 @@ class TestIntegrity:
         _ = outside.write_bytes(content)
         probe = installation._probe
 
-        def probe_then_link(located: Path) -> os.stat_result | FileState:
-            found = probe(located)
+        def probe_then_link(root: Path, located: Path) -> os.stat_result | FileState:
+            found = probe(root, located)
             located.unlink()
             located.symlink_to(outside)
             return found
@@ -565,8 +575,14 @@ class TestIntegrity:
         assert states["linked.py"] == "unverifiable"
 
     @_posix_only("symlinks need privileges")  # pragma: no cover
+    @pytest.mark.parametrize("verify", [True, False])
     def test_directory_swapped_in_after_resolving_is_not_followed(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        *,
+        verify: bool,
     ) -> None:
         """No path component, not only the last, may lead out once checked."""
         content = b"x = 1\n"
@@ -576,16 +592,17 @@ class TestIntegrity:
         _ = (outside / "mod.py").write_bytes(content)
         probe = installation._probe
 
-        def swap_then_probe(located: Path) -> os.stat_result | FileState:
+        def swap_then_probe(root: Path, located: Path) -> os.stat_result | FileState:
             if located.name == "mod.py":
                 package = located.parent
                 package.rename(tmp_path / "moved")
                 package.symlink_to(outside, target_is_directory=True)
-            return probe(located)
+            return probe(root, located)
 
         monkeypatch.setattr("peta.core.installation._probe", swap_then_probe)
-        states = _states(_inspect(site, "walked", verify=True))
-        assert states["walked/mod.py"] == "unverifiable"
+        inspection = _inspect(site, "walked", verify=verify)
+        assert _states(inspection)["walked/mod.py"] == "unverifiable"
+        assert inspection.files[0].size is None
 
     def test_refused_digest_is_unverifiable(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
