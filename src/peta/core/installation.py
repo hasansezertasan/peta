@@ -817,8 +817,11 @@ def _open_probed(
         The open file.
     """
     flags = _OPEN_FLAGS & ~_NOFOLLOW if follow_symlinks else _OPEN_FLAGS
-    walk = beneath is not None and _WALKABLE
-    descriptor = _open_beneath(beneath, path) if walk else os.open(path, flags)
+    descriptor = (
+        _open_beneath(beneath, path)
+        if beneath is not None and _WALKABLE
+        else os.open(path, flags)
+    )
     try:
         _ensure_probed(descriptor, path, probed)
         return os.fdopen(descriptor, "rb")
