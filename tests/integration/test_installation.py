@@ -17,6 +17,7 @@ import sys
 import zipfile
 from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
+from unittest.mock import MagicMock
 
 import pytest
 from typer.testing import CliRunner
@@ -739,6 +740,55 @@ class TestHostileRecord:
     def test_blank_record_lines_are_skipped(self, site: Path) -> None:
         _install(site, "blanks", files={"a.py": b"x"}, extra_rows=("",))
         assert "" not in _states(_inspect(site, "blanks"))
+
+    def test_duplicate_record_paths_are_deduplicated(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Duplicate rows in RECORD are checked and hashed only once."""
+        content = b"content"
+        _ = (site / "dupe.py").write_bytes(content)
+        row = f"dupe.py,{_record_hash(content)},{len(content)}"
+        _install(site, "dupepkg", extra_rows=(row, row, row))
+        mock_digest = MagicMock(side_effect=installation._digest)
+        monkeypatch.setattr(installation, "_digest", mock_digest)
+        inst = _inspect(site, "dupepkg", verify=True)
+        assert [f.path for f in inst.files if f.path == "dupe.py"] == ["dupe.py"]
+        assert mock_digest.call_count == 1
+
+    @_posix_only("needs symlinks")  # pragma: no cover
+    def test_distinct_paths_to_same_file_reuse_cached_digest(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Aliased or symlinked paths to the same file are hashed only once."""
+        content = b"shared"
+        real_file = site / "real.py"
+        _ = real_file.write_bytes(content)
+        link_file = site / "link.py"
+        link_file.symlink_to(real_file)
+        row1 = f"real.py,{_record_hash(content)},{len(content)}"
+        row2 = f"link.py,{_record_hash(content)},{len(content)}"
+        _install(site, "aliascheck", extra_rows=(row1, row2))
+        mock_digest = MagicMock(side_effect=installation._digest)
+        monkeypatch.setattr(installation, "_digest", mock_digest)
+        inst = _inspect(site, "aliascheck", verify=True)
+        states = _states(inst)
+        assert states["real.py"] == "verified"
+        assert states["link.py"] == "verified"
+        assert mock_digest.call_count == 1
+
+    def test_duplicate_legacy_listing_paths_are_deduplicated(self, site: Path) -> None:
+        """Duplicate rows in installed-files.txt are checked only once."""
+        egg_info = site / "dupeegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="dupeegg"), encoding="utf-8"
+        )
+        _ = (site / "dupe.py").write_bytes(b"content")
+        (egg_info / "installed-files.txt").write_text(
+            "../dupe.py\n../dupe.py\n", encoding="utf-8"
+        )
+        inst = _inspect(site, "dupeegg")
+        assert [f.path for f in inst.files] == ["dupe.py"]
 
 
 class TestPathSafety:

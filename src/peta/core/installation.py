@@ -1007,6 +1007,9 @@ class _Checker:
     ``False`` for a distribution found inside a zip on the search path:
     its files are archive members, which are reported rather than read.
     """
+    _digests: dict[tuple[object, ...], str] = field(
+        default_factory=dict, init=False, repr=False, compare=False
+    )
 
     def check(
         self,
@@ -1054,8 +1057,37 @@ class _Checker:
         algorithm = name.lower()
         if not separator or algorithm not in _COMPUTABLE:
             return "unverifiable"
-        digest = _digest(located, algorithm, probed, root)
+        digest = self._cached_digest(located, algorithm, probed, root)
         return "verified" if digest == expected else "mismatch"
+
+    def _cached_digest(
+        self, located: Path, algorithm: str, probed: os.stat_result, root: Path
+    ) -> str:
+        """Hash a file or reuse its previously computed digest.
+
+        Keyed by file identity so duplicate rows or distinct paths leading to
+        the same file do not read or hash it multiple times.
+
+        Returns:
+            The file's encoded digest.
+        """
+        key: tuple[object, ...] = (
+            (
+                probed.st_dev,
+                probed.st_ino,
+                probed.st_mtime_ns,
+                probed.st_size,
+                algorithm,
+            )
+            if probed.st_ino
+            else (located, probed.st_mtime_ns, probed.st_size, algorithm)
+        )
+        cached = self._digests.get(key)
+        if cached is not None:
+            return cached
+        digest = _digest(located, algorithm, probed, root)
+        self._digests[key] = digest
+        return digest
 
 
 def _probe(root: Path, path: Path) -> os.stat_result | FileState:
@@ -1128,6 +1160,23 @@ def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:
     return (base, *(root for root in candidates if root is not None))
 
 
+def _unique_rows(
+    rows: list[tuple[str, int | None, str | None]],
+) -> list[tuple[str, int | None, str | None]]:
+    """Deduplicate RECORD rows by path, keeping the first occurrence.
+
+    Returns:
+        The rows with duplicate paths removed, preserving order.
+    """
+    seen: set[str] = set()
+    unique: list[tuple[str, int | None, str | None]] = []
+    for row in rows:
+        if row[0] not in seen:
+            seen.add(row[0])
+            unique.append(row)
+    return unique
+
+
 def _recorded_files(
     record: str, checker: _Checker
 ) -> tuple[RecordSource | None, list[InstalledFile]]:
@@ -1143,7 +1192,9 @@ def _recorded_files(
         # An unterminated quote, an oversized field, or too many rows or
         # columns: the listing as a whole is unusable.
         return None, []
-    return ("RECORD", list(starmap(checker.check, rows))) if rows else (None, [])
+    if not rows:
+        return None, []
+    return "RECORD", list(starmap(checker.check, _unique_rows(rows)))
 
 
 def _record_files(
@@ -1171,7 +1222,9 @@ def _record_files(
         return None, []
     legacy = legacy_installed_files(dist, skip_missing=False, listing=legacy_text)
     if legacy:
-        return "installed-files.txt", [checker.check(path) for path in legacy]
+        return "installed-files.txt", [
+            checker.check(path) for path in dict.fromkeys(legacy)
+        ]
     return None, []
 
 
