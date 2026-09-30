@@ -52,6 +52,7 @@ __all__ = [
     "OriginKind",
     "RecordSource",
     "inspect_installation",
+    "is_drive_path",
     "is_local_scheme",
 ]
 
@@ -255,21 +256,26 @@ def _source_origin(url: str, data: dict[str, object]) -> Origin:
     return Origin(kind="unknown", url=url, reason="direct_url.json names no source.")
 
 
+def is_drive_path(url: str, scheme: str | None = None) -> bool:
+    r"""Whether a URL represents a Windows drive path without an authority.
+
+    Returns:
+        ``True`` for a path like ``C:/...`` or ``C:\\...`` rather than a URL
+        with a single-letter network scheme like ``x://...``.
+    """
+    s = scheme if scheme is not None else urlsplit(url).scheme
+    return len(s) == 1 and s.isalpha() and not url.lower().startswith(f"{s.lower()}://")
+
+
 def is_local_scheme(scheme: str) -> bool:
     """Whether a URL scheme names a path on this machine rather than a host.
 
-    Covers ``file`` and VCS ``+file`` URLs, a bare path with no scheme, and a
-    Windows drive letter, which :func:`urllib.parse.urlsplit` reads as one.
+    Covers ``file`` and VCS ``+file`` URLs, and a bare path with no scheme.
 
     Returns:
         ``True`` for a local scheme.
     """
-    return (
-        scheme == "file"
-        or scheme.endswith("+file")
-        or not scheme
-        or (len(scheme) == 1 and scheme.isalpha())
-    )
+    return scheme == "file" or scheme.endswith("+file") or not scheme
 
 
 def _malformed_authority(url: str) -> bool:
@@ -292,7 +298,7 @@ def _malformed_authority(url: str) -> bool:
         hostname = parts.hostname
     except ValueError:
         return True
-    if not parts.scheme:
+    if not parts.scheme or is_drive_path(url, parts.scheme):
         return bool(parts.netloc)
     return not hostname and not is_local_scheme(parts.scheme)
 
@@ -1316,6 +1322,7 @@ def inspect_installation(
         The distribution's origin, installer, and file evidence.
     """
     dist = find_distribution(name, target=target, name_of=_vetted_name)
+    found_name, version = _name_and_version(dist, name)
     located = dist.locate_file("")
     # A ``zipfile.Path`` for a distribution inside a zip on the search path.
     readable = isinstance(located, Path)
@@ -1323,7 +1330,6 @@ def inspect_installation(
     prefix = target.prefix if target is not None else sys.prefix
     checker = _Checker(base, _roots(base, prefix), verify, readable)
     record_source, files = _record_files(dist, checker)
-    found_name, version = _name_and_version(dist, name)
     return Installation(
         name=found_name,
         version=version,

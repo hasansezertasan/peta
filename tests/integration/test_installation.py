@@ -1506,3 +1506,39 @@ class TestCli:
         )
         assert result.exit_code == 2
         assert json.loads(result.output)["errors"][0]["code"] == "invalid_arguments"
+
+    @pytest.mark.parametrize("output_format", ["text", "markdown"])
+    def test_single_letter_scheme_url_is_preserved_in_human_output(
+        self, site: Path, output_format: str
+    ) -> None:
+        direct_url = {
+            "url": "x://example.com/private/repo",
+            "vcs_info": {"vcs": "git", "commit_id": "0123456789abcdef"},
+        }
+        _install(
+            site, "xpkg", metadata_files={"direct_url.json": json.dumps(direct_url)}
+        )
+        result = runner.invoke(
+            app, ["origin", "xpkg", "--path", str(site), "--format", output_format]
+        )
+        assert result.exit_code == 0, result.output
+        assert "x://example.com/private/repo" in result.output
+
+    def test_mismatched_metadata_name_aborts_before_record(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        dist_info = site / "spoofed-1.0.0.dist-info"
+        dist_info.mkdir(parents=True)
+        (dist_info / "METADATA").write_text(
+            "Metadata-Version: 2.1\nName: actual-pkg\nVersion: 1.0.0\n",
+            encoding="utf-8",
+        )
+        (dist_info / "RECORD").write_text("actual/mod.py,,\n", encoding="utf-8")
+
+        record_mock = MagicMock()
+        monkeypatch.setattr(installation, "_record_files", record_mock)
+
+        with pytest.raises(PackageNotFoundError):
+            _inspect(site, "spoofed")
+
+        record_mock.assert_not_called()

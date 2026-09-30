@@ -133,3 +133,50 @@ def test_open_then_locate_refuses_a_handle_elsewhere(
     monkeypatch.setattr(installation, "_final_path", lambda _: final)
     with pytest.raises(OSError, match="led outside"):
         os.close(installation._open_then_locate(root, target))
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("C:/path/to/pkg", True),
+        (r"C:\path\to\pkg", True),
+        ("c:/pkg", True),
+        ("x://example.com/repo", False),
+        ("x:///path", False),
+        ("https://example.com", False),
+        ("file:///path", False),
+    ],
+)
+def test_is_drive_path(url: str, *, expected: bool) -> None:
+    assert installation.is_drive_path(url) is expected
+
+
+@pytest.mark.parametrize(
+    ("scheme", "expected"),
+    [
+        ("file", True),
+        ("git+file", True),
+        ("", True),
+        ("http", False),
+        ("https", False),
+        ("x", False),
+    ],
+)
+def test_is_local_scheme(scheme: str, *, expected: bool) -> None:
+    assert installation.is_local_scheme(scheme) is expected
+
+
+@pytest.mark.parametrize(
+    ("url", "malformed"),
+    [
+        ("x://example.com/repo", False),
+        ("x:///repo", True),
+        ("C:/repo", False),
+        ("C:///repo", True),
+        ("https://example.com", False),
+        ("https://", True),
+        ("file:///local/path", False),
+    ],
+)
+def test_malformed_authority(url: str, *, malformed: bool) -> None:
+    assert installation._malformed_authority(url) is malformed

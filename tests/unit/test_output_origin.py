@@ -151,6 +151,16 @@ def test_archive_prefers_sha2_over_md5() -> None:
             id="windows-drive-path",
         ),
         pytest.param(
+            Origin(kind="directory", url="C:/Users/Alice/private/pkg"),
+            "local directory .../pkg",
+            id="windows-drive-forward-slash",
+        ),
+        pytest.param(
+            Origin(kind="archive", url="x://example.com/private/repo"),
+            "archive x://example.com/private/repo",
+            id="single-letter-network-scheme",
+        ),
+        pytest.param(
             Origin(kind="archive", url="https://example.com/a.tar.gz"),
             "archive https://example.com/a.tar.gz",
             id="archive-without-hashes",

@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlsplit
 
 from rich.filesize import decimal
 
-from peta.core.installation import FILE_STATES, is_local_scheme
+from peta.core.installation import FILE_STATES, is_drive_path, is_local_scheme
 
 if TYPE_CHECKING:
     from peta.core.installation import FileState, Installation, InstalledFile, Origin
@@ -52,7 +52,7 @@ def _display_url(url: str | None) -> str:
     if not url:
         return "-"
     parts = urlsplit(url)
-    if not is_local_scheme(parts.scheme):
+    if not (is_local_scheme(parts.scheme) or is_drive_path(url, parts.scheme)):
         return url
     raw = parts.path if parts.scheme == "file" else url
     # Backslashes too: a Windows URL such as ``file:C:\Users\me\pkg`` or a
