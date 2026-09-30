@@ -775,6 +775,11 @@ class TestPathSafety:
             pytest.param(
                 ("Python312", "site-packages"), "../Scripts/tool", id="windows-user"
             ),
+            pytest.param(
+                ("Python312", "site-packages"),
+                "../../share/doc.txt",
+                id="windows-user-data",
+            ),
         ],
     )
     def test_scripts_under_the_scheme_root_are_read(
@@ -1010,6 +1015,55 @@ class TestMetadataSafety:
         assert found.record_source is None
         assert found.files == []
 
+    def test_legacy_listing_is_parsed_from_the_vetted_text(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A listing rewritten after vetting is not read a second time."""
+        egg_info = site / "vettedegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="vettedegg"), encoding="utf-8"
+        )
+        (egg_info / "installed-files.txt").write_text("../kept.py\n", encoding="utf-8")
+        read = installation._read_text
+
+        def read_then_rewrite(
+            dist: importlib.metadata.Distribution, name: str
+        ) -> str | None:
+            text = read(dist, name)
+            if name == "installed-files.txt":
+                _ = (egg_info / name).write_text("../swapped.py\n", encoding="utf-8")
+            return text
+
+        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
+        assert list(_states(_inspect(site, "vettedegg"))) == ["kept.py"]
+
+    def test_entry_points_are_parsed_from_the_vetted_text(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A file rewritten after vetting is not read a second time."""
+        dist_info = _install(
+            site, "vetted", metadata_files={"entry_points.txt": "[g]\nkept = m:f\n"}
+        )
+        read = installation._read_text
+
+        def read_then_rewrite(
+            dist: importlib.metadata.Distribution, name: str
+        ) -> str | None:
+            text = read(dist, name)
+            if name == "entry_points.txt":
+                rewritten = "[g]\nswapped = m:f\n"
+                _ = (dist_info / name).write_text(rewritten, encoding="utf-8")
+            return text
+
+        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
+        points = _inspect(site, "vetted").entry_points
+        assert [point.name for point in points] == ["kept"]
+
+
+class TestCoreMetadata:
+    """The ``METADATA`` that names the package, and how it is found."""
+
     def test_unreadable_metadata_on_an_explicit_path_is_not_found(
         self, site: Path
     ) -> None:
@@ -1068,50 +1122,24 @@ class TestMetadataSafety:
         with pytest.raises(PackageNotFoundError):
             _ = _inspect(site, "bulky")
 
-    def test_legacy_listing_is_parsed_from_the_vetted_text(
+    def test_metadata_naming_another_package_is_not_found(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A listing rewritten after vetting is not read a second time."""
-        egg_info = site / "vettedegg-1.0.0.egg-info"
-        egg_info.mkdir()
-        (egg_info / "PKG-INFO").write_text(
-            _METADATA.format(name="vettedegg"), encoding="utf-8"
+        """The runtime lookup matches the directory name, not the metadata."""
+        dist_info = _install(site, "foo")
+        _ = (dist_info / "METADATA").write_text(
+            _METADATA.format(name="bar"), encoding="utf-8"
         )
-        (egg_info / "installed-files.txt").write_text("../kept.py\n", encoding="utf-8")
-        read = installation._read_text
+        monkeypatch.syspath_prepend(str(site))
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("foo")
 
-        def read_then_rewrite(
-            dist: importlib.metadata.Distribution, name: str
-        ) -> str | None:
-            text = read(dist, name)
-            if name == "installed-files.txt":
-                _ = (egg_info / name).write_text("../swapped.py\n", encoding="utf-8")
-            return text
-
-        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
-        assert list(_states(_inspect(site, "vettedegg"))) == ["kept.py"]
-
-    def test_entry_points_are_parsed_from_the_vetted_text(
+    def test_metadata_name_is_matched_canonically(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """A file rewritten after vetting is not read a second time."""
-        dist_info = _install(
-            site, "vetted", metadata_files={"entry_points.txt": "[g]\nkept = m:f\n"}
-        )
-        read = installation._read_text
-
-        def read_then_rewrite(
-            dist: importlib.metadata.Distribution, name: str
-        ) -> str | None:
-            text = read(dist, name)
-            if name == "entry_points.txt":
-                rewritten = "[g]\nswapped = m:f\n"
-                _ = (dist_info / name).write_text(rewritten, encoding="utf-8")
-            return text
-
-        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
-        points = _inspect(site, "vetted").entry_points
-        assert [point.name for point in points] == ["kept"]
+        _install(site, "Dotted.Name")
+        monkeypatch.syspath_prepend(str(site))
+        assert inspect_installation("dotted-name").name == "Dotted.Name"
 
 
 class TestZippedDistributions:

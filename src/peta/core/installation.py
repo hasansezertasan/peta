@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import IO, TYPE_CHECKING, BinaryIO, Final, Literal, NoReturn, cast
 from urllib.parse import urlsplit
 
+from packaging.utils import canonicalize_name
 from typing_extensions import TypeAliasType, override
 
 from peta.core.local import (
@@ -37,7 +38,6 @@ from peta.core.redaction import redacted
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from importlib.metadata import PackageMetadata
     from importlib.resources.abc import Traversable
 
     from peta.core.local import LocalTarget
@@ -936,7 +936,8 @@ def _scheme_root(base: Path) -> Path | None:
       ``~/.local``; ``<root>/lib/python/site-packages`` for a macOS
       framework user install;
     * ``<root>/Lib/site-packages`` -- Windows prefixes and venvs;
-    * ``<root>/PythonXY/site-packages`` -- the Windows user site.
+    * ``<root>/PythonXY/site-packages`` -- the Windows user site, whose
+      data files go straight into the user base ``<root>``.
 
     Returns:
         The scheme root, or ``None`` when ``base`` follows none of them.
@@ -949,7 +950,9 @@ def _scheme_root(base: Path) -> Path | None:
     if not _VERSIONED_PYTHON.fullmatch(parent.name):
         return None
     grandparent = parent.parent
-    return grandparent.parent if grandparent.name.lower() in _LIBRARY_DIRS else parent
+    return (
+        grandparent.parent if grandparent.name.lower() in _LIBRARY_DIRS else grandparent
+    )
 
 
 def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:
@@ -1004,7 +1007,9 @@ def _record_files(
     return None, []
 
 
-def _core_metadata(dist: importlib_metadata.Distribution) -> PackageMetadata:
+def _core_metadata(
+    dist: importlib_metadata.Distribution,
+) -> importlib_metadata.PackageMetadata:
     """Parse the core metadata from vetted text, as every other file is read.
 
     Returns:
@@ -1025,22 +1030,25 @@ def _name_and_version(
     """Read the two core metadata fields every report needs.
 
     Read through :func:`_read_text`, as every other metadata file is. A
-    distribution whose ``METADATA`` cannot be read, or lacks either field,
-    names no package, just as :func:`find_distribution` skips one whose
-    metadata has no name.
+    distribution whose ``METADATA`` cannot be read, lacks either field, or
+    names another package is not the one asked for, just as
+    :func:`find_distribution` skips one whose metadata has no name.
 
     Returns:
         The distribution's name and version.
 
     Raises:
-        PackageNotFoundError: When either is unreadable, missing, or blank.
+        PackageNotFoundError: When either is unreadable, missing, or blank,
+            or the name is not ``name``.
     """
     meta = _core_metadata(dist)
     fields = [
         (cast("list[str] | None", meta.get_all(key)) or [""])[0].strip()
         for key in ("Name", "Version")
     ]
-    if not all(fields):
+    # The runtime lookup matches the directory name alone, which need not be
+    # the package the metadata names.
+    if not all(fields) or canonicalize_name(fields[0]) != canonicalize_name(name):
         raise PackageNotFoundError(name)
     return fields[0], fields[1]
 
