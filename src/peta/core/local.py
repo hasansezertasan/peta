@@ -23,7 +23,7 @@ from peta.core.models import PackageInfo
 from peta.core.output import utc_now
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
 __all__ = [
     "METADATA_READ_ERRORS",
@@ -509,7 +509,15 @@ def _parse_license(
     return legacy, "legacy" if legacy else None
 
 
-def _is_named(candidate: importlib_metadata.Distribution, canonical: str) -> bool:
+def _stdlib_name(candidate: importlib_metadata.Distribution) -> str | None:
+    return cast("str | None", candidate.metadata["Name"])
+
+
+def _is_named(
+    candidate: importlib_metadata.Distribution,
+    canonical: str,
+    name_of: Callable[[importlib_metadata.Distribution], str | None],
+) -> bool:
     """Match one enumerated distribution against a canonical package name.
 
     A directory on the search path can hold a ``.dist-info`` whose metadata
@@ -520,14 +528,17 @@ def _is_named(candidate: importlib_metadata.Distribution, canonical: str) -> boo
         Whether this candidate is the requested distribution.
     """
     try:
-        found = cast("str | None", candidate.metadata["Name"])
+        found = name_of(candidate)
     except METADATA_READ_ERRORS:
         return False
     return found is not None and canonicalize_name(found) == canonical
 
 
 def legacy_installed_files(
-    dist: importlib_metadata.Distribution, *, skip_missing: bool = True
+    dist: importlib_metadata.Distribution,
+    *,
+    skip_missing: bool = True,
+    listing: str | None = None,
 ) -> list[str] | None:
     """Read a legacy ``.egg-info``'s ``installed-files.txt``, as Python 3.12 does.
 
@@ -543,12 +554,17 @@ def legacy_installed_files(
     ``skip_missing=False`` keeps entries whose file is gone, for callers that
     report a missing file rather than hide it.
 
+    ``listing`` is the file's text for a caller that has already read and
+    vetted it, and has found no ``RECORD``: nothing is read a second time,
+    so nothing swapped in meanwhile is read unchecked.
+
     Returns:
         The installed files, or ``None`` when ``dist`` has no such listing.
     """
-    if not isinstance(dist, PathDistribution) or dist.read_text("RECORD"):
+    if not isinstance(dist, PathDistribution):
         return None
-    listing = dist.read_text("installed-files.txt")
+    if listing is None:
+        listing = _unvetted_listing(dist)
     if not listing:
         return None
     # The stdlib reader resolves entries against the same private attribute:
@@ -561,6 +577,10 @@ def legacy_installed_files(
         if entry
     )
     return [entry for entry in listed if entry is not None]
+
+
+def _unvetted_listing(dist: PathDistribution) -> str | None:
+    return None if dist.read_text("RECORD") else dist.read_text("installed-files.txt")
 
 
 def _legacy_entry(
@@ -592,13 +612,20 @@ def _installed_files(dist: importlib_metadata.Distribution) -> list[str] | None:
 
 
 def find_distribution(
-    name: str, *, target: LocalTarget | None = None
+    name: str,
+    *,
+    target: LocalTarget | None = None,
+    name_of: Callable[[importlib_metadata.Distribution], str | None] | None = None,
 ) -> importlib_metadata.Distribution:
     """Find an installed distribution in the selected environment.
 
     Args:
         name: Package name to look up.
         target: The environment to search; the running one when ``None``.
+        name_of: How to read each candidate's ``Name`` when the target's
+            search path is enumerated; the stdlib parser when ``None``. A
+            caller that vets metadata files before reading them passes its
+            own, so no candidate is read unvetted.
 
     Returns:
         The first matching distribution on the target's search path.
@@ -618,7 +645,7 @@ def find_distribution(
                     for candidate in importlib_metadata.distributions(
                         path=list(target.paths)
                     )
-                    if _is_named(candidate, canonical)
+                    if _is_named(candidate, canonical, name_of or _stdlib_name)
                 ),
                 None,
             )

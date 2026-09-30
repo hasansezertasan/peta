@@ -28,7 +28,6 @@ from peta.core.local import LocalTarget, PackageNotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from importlib.metadata import Distribution
 
     from peta.core.installation import FileState, Installation, RecordSource
 
@@ -489,14 +488,17 @@ class TestIntegrity:
             (site / "locked").chmod(0o755)
         assert states["locked/a.py"] == "unverifiable"
 
-    def test_undecodable_legacy_listing_is_no_listing(self, site: Path) -> None:
+    def test_undecodable_legacy_listing_is_still_evidence(self, site: Path) -> None:
+        """Decoded with replacement characters, exactly as ``RECORD`` is."""
         egg_info = site / "latin-1.0.0.egg-info"
         egg_info.mkdir()
         (egg_info / "PKG-INFO").write_text(
             _METADATA.format(name="latin"), encoding="utf-8"
         )
         _ = (egg_info / "installed-files.txt").write_bytes(b"../bad\xe9.py\n")
-        assert _inspect(site, "latin").record_source is None
+        found = _inspect(site, "latin")
+        assert found.record_source == "installed-files.txt"
+        assert _states(found) == {"bad\ufffd.py": "missing"}
 
     def test_unreadable_during_hashing_is_unverifiable(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
@@ -883,8 +885,10 @@ class TestMetadataSafety:
         _ = outside.write_text("leaked\n", encoding="utf-8")
         vet = installation._plain_file
 
-        def vet_then_swap(path: Path, limit: int) -> os.stat_result | None:
-            found = vet(path, limit)
+        def vet_then_swap(
+            path: Path, policy: installation._ReadPolicy
+        ) -> os.stat_result | None:
+            found = vet(path, policy)
             if path.name == "INSTALLER":
                 path.unlink()
                 if swap == "replaced":
@@ -1006,6 +1010,113 @@ class TestMetadataSafety:
         assert found.record_source is None
         assert found.files == []
 
+    def test_unreadable_metadata_on_an_explicit_path_is_not_found(
+        self, site: Path
+    ) -> None:
+        """The lookup reads each candidate's METADATA before the inspection does."""
+        dist_info = _install(site, "badmeta")
+        _ = (dist_info / "METADATA").write_bytes(b"Name: badmeta\n\xff\xfe\n")
+        result = runner.invoke(
+            app, ["origin", "badmeta", "--path", str(site), "--json"]
+        )
+        assert result.exit_code == 1, result.output
+        assert json.loads(result.output)["errors"][0]["code"] == "package_not_found"
+
+    @pytest.mark.parametrize(
+        "metadata",
+        [
+            "Metadata-Version: 2.1\nName: partial\n",
+            "Metadata-Version: 2.1\nName:  \nVersion: 1.0.0\n",
+        ],
+        ids=["no-version", "blank-name"],
+    )
+    def test_incomplete_metadata_is_not_found(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, metadata: str
+    ) -> None:
+        """Found by its directory name alone, on the running path."""
+        dist_info = _install(site, "partial")
+        _ = (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
+        monkeypatch.syspath_prepend(str(site))
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("partial")
+
+    @_posix_only("symlinks need privileges")  # pragma: no cover
+    def test_symlinked_core_metadata_is_followed(
+        self, site: Path, tmp_path: Path
+    ) -> None:
+        """A symlink-tree environment, as Nix builds, links every file."""
+        dist_info = _install(site, "linked")
+        store = tmp_path / "store-METADATA"
+        _ = store.write_text(_METADATA.format(name="linked"), encoding="utf-8")
+        (dist_info / "METADATA").unlink()
+        (dist_info / "METADATA").symlink_to(store)
+        assert _inspect(site, "linked").version == "1.0.0"
+
+    @_posix_only("no /dev/zero")  # pragma: no cover
+    def test_core_metadata_linked_to_a_device_is_not_read(self, site: Path) -> None:
+        dist_info = _install(site, "endless")
+        (dist_info / "METADATA").unlink()
+        (dist_info / "METADATA").symlink_to("/dev/zero")
+        with pytest.raises(PackageNotFoundError):
+            _ = _inspect(site, "endless")
+
+    def test_oversized_core_metadata_is_not_read(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _install(site, "bulky")
+        monkeypatch.setattr("peta.core.installation._MAX_CORE_METADATA_BYTES", 8)
+        with pytest.raises(PackageNotFoundError):
+            _ = _inspect(site, "bulky")
+
+    def test_legacy_listing_is_parsed_from_the_vetted_text(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A listing rewritten after vetting is not read a second time."""
+        egg_info = site / "vettedegg-1.0.0.egg-info"
+        egg_info.mkdir()
+        (egg_info / "PKG-INFO").write_text(
+            _METADATA.format(name="vettedegg"), encoding="utf-8"
+        )
+        (egg_info / "installed-files.txt").write_text("../kept.py\n", encoding="utf-8")
+        read = installation._read_text
+
+        def read_then_rewrite(
+            dist: importlib.metadata.Distribution, name: str
+        ) -> str | None:
+            text = read(dist, name)
+            if name == "installed-files.txt":
+                _ = (egg_info / name).write_text("../swapped.py\n", encoding="utf-8")
+            return text
+
+        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
+        assert list(_states(_inspect(site, "vettedegg"))) == ["kept.py"]
+
+    def test_entry_points_are_parsed_from_the_vetted_text(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A file rewritten after vetting is not read a second time."""
+        dist_info = _install(
+            site, "vetted", metadata_files={"entry_points.txt": "[g]\nkept = m:f\n"}
+        )
+        read = installation._read_text
+
+        def read_then_rewrite(
+            dist: importlib.metadata.Distribution, name: str
+        ) -> str | None:
+            text = read(dist, name)
+            if name == "entry_points.txt":
+                rewritten = "[g]\nswapped = m:f\n"
+                _ = (dist_info / name).write_text(rewritten, encoding="utf-8")
+            return text
+
+        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
+        points = _inspect(site, "vetted").entry_points
+        assert [point.name for point in points] == ["kept"]
+
+
+class TestZippedDistributions:
+    """Distributions inside a zip on the search path, whose members are read."""
+
     @pytest.mark.usefixtures("release_archives")
     def test_oversized_archive_member_is_refused(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1045,56 +1156,6 @@ class TestMetadataSafety:
         found = inspect_installation("corrupt", target=target)
         assert found.record_source is None
         assert found.files == []
-
-    def test_unreadable_metadata_on_an_explicit_path_is_not_found(
-        self, site: Path
-    ) -> None:
-        """The lookup reads each candidate's METADATA before the inspection does."""
-        dist_info = _install(site, "badmeta")
-        _ = (dist_info / "METADATA").write_bytes(b"Name: badmeta\n\xff\xfe\n")
-        result = runner.invoke(
-            app, ["origin", "badmeta", "--path", str(site), "--json"]
-        )
-        assert result.exit_code == 1, result.output
-        assert json.loads(result.output)["errors"][0]["code"] == "package_not_found"
-
-    @pytest.mark.parametrize(
-        "metadata",
-        [
-            "Metadata-Version: 2.1\nName: partial\n",
-            "Metadata-Version: 2.1\nName:  \nVersion: 1.0.0\n",
-        ],
-        ids=["no-version", "blank-name"],
-    )
-    def test_incomplete_metadata_is_not_found(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch, metadata: str
-    ) -> None:
-        """Found by its directory name alone, on the running path."""
-        dist_info = _install(site, "partial")
-        _ = (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
-        monkeypatch.syspath_prepend(str(site))
-        with pytest.raises(PackageNotFoundError):
-            _ = inspect_installation("partial")
-
-    def test_entry_points_are_parsed_from_the_vetted_text(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """A file rewritten after vetting is not read a second time."""
-        dist_info = _install(
-            site, "vetted", metadata_files={"entry_points.txt": "[g]\nkept = m:f\n"}
-        )
-        read = installation._read_text
-
-        def read_then_rewrite(dist: Distribution, name: str) -> str | None:
-            text = read(dist, name)
-            if name == "entry_points.txt":
-                rewritten = "[g]\nswapped = m:f\n"
-                _ = (dist_info / name).write_text(rewritten, encoding="utf-8")
-            return text
-
-        monkeypatch.setattr("peta.core.installation._read_text", read_then_rewrite)
-        points = _inspect(site, "vetted").entry_points
-        assert [point.name for point in points] == ["kept"]
 
     @pytest.mark.usefixtures("release_archives")
     def test_unreadable_metadata_is_a_structured_error(

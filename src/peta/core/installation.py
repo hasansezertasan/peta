@@ -19,6 +19,7 @@ import re
 import stat
 import sys
 from dataclasses import dataclass, field
+from functools import partial
 from itertools import islice, starmap
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, BinaryIO, Final, Literal, NoReturn, cast
@@ -36,6 +37,7 @@ from peta.core.redaction import redacted
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from importlib.metadata import PackageMetadata
     from importlib.resources.abc import Traversable
 
     from peta.core.local import LocalTarget
@@ -317,6 +319,9 @@ def _described_origin(data: dict[str, object]) -> Origin:
 _MAX_METADATA_BYTES = 64 * 1024 * 1024
 """The largest file listing read; far above any real ``RECORD``."""
 
+_MAX_CORE_METADATA_BYTES = 64 * 1024 * 1024
+"""The largest ``METADATA`` read: it embeds the whole long description."""
+
 _MAX_SMALL_METADATA_BYTES = 1024 * 1024
 """The largest of any other metadata file read; far above any real one.
 
@@ -327,6 +332,39 @@ allowance, one could still turn into millions of objects.
 
 _LISTINGS = frozenset({"RECORD", "installed-files.txt"})
 """The metadata files that list every installed file, and so can be large."""
+
+_CORE_METADATA = ("METADATA", "PKG-INFO", "")
+"""Where the core metadata can be, in the order the stdlib looks.
+
+``""`` is an ``.egg-info`` that is a single file rather than a directory.
+"""
+
+
+@dataclass(frozen=True)
+class _ReadPolicy:
+    """How strictly one metadata file is vetted before it is read."""
+
+    limit: int
+    """The most bytes read."""
+
+    follow_symlinks: bool = False
+    """Whether a symlinked file, or one in a symlinked directory, is read.
+
+    Only for the core metadata, which names the package and nothing else:
+    an environment built as a symlink tree, as Nix builds one, links every
+    file, and refusing those would hide every package in it. A symlinked
+    listing is refused, since it could pass off files outside the
+    environment as installed ones.
+    """
+
+
+def _read_policy(name: str) -> _ReadPolicy:
+    if name in _LISTINGS:
+        return _ReadPolicy(_MAX_METADATA_BYTES)
+    if name in _CORE_METADATA:
+        return _ReadPolicy(_MAX_CORE_METADATA_BYTES, follow_symlinks=True)
+    return _ReadPolicy(_MAX_SMALL_METADATA_BYTES)
+
 
 _MAX_RECORD_ROWS = 1_000_000
 """The most ``RECORD`` or ``installed-files.txt`` entries checked.
@@ -409,14 +447,13 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
     # The same private attribute :func:`legacy_installed_files` reads. It may
     # be a ``zipfile.Path`` for a zipped distribution, so it is used as-is.
     folder: Traversable = cast("Traversable", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.
-    limit = _MAX_METADATA_BYTES if name in _LISTINGS else _MAX_SMALL_METADATA_BYTES
-    return _read_entry(folder.joinpath(name), limit)
+    return _read_entry(folder.joinpath(name), _read_policy(name))
 
 
 def _read_bounded(
-    entry: Traversable, limit: int, probed: os.stat_result | None
+    entry: Traversable, policy: _ReadPolicy, probed: os.stat_result | None
 ) -> bytes | None:
-    """Read up to ``limit`` bytes from any traversable entry.
+    """Read up to ``policy.limit`` bytes from any traversable entry.
 
     A file on disk is opened only if it is still the one ``probed`` saw, as
     for a hashed file; an archive member has nothing to swap.
@@ -428,19 +465,19 @@ def _read_bounded(
     total = 0
     opened: IO[bytes]
     if isinstance(entry, Path) and probed is not None:
-        opened = _open_probed(entry, probed)
+        opened = _open_probed(entry, probed, follow_symlinks=policy.follow_symlinks)
     else:
         opened = entry.open("rb")
     with opened as stream:
         while chunk := stream.read(_CHUNK):
             total += len(chunk)
-            if total > limit:
+            if total > policy.limit:
                 return None
             chunks.append(chunk)
     return b"".join(chunks)
 
 
-def _read_entry(entry: Traversable, limit: int) -> str | None:
+def _read_entry(entry: Traversable, policy: _ReadPolicy) -> str | None:
     """Read one metadata entry, refusing what :func:`_plain_file` refuses.
 
     Returns:
@@ -449,17 +486,17 @@ def _read_entry(entry: Traversable, limit: int) -> str | None:
     """
     probed = None
     if isinstance(entry, Path):
-        probed = _plain_file(entry, limit)
+        probed = _plain_file(entry, policy)
         if probed is None:
             return _refused(entry)
-    return _decoded(entry, limit, probed)
+    return _decoded(entry, policy, probed)
 
 
 def _decoded(
-    entry: Traversable, limit: int, probed: os.stat_result | None
+    entry: Traversable, policy: _ReadPolicy, probed: os.stat_result | None
 ) -> str | None:
     try:
-        raw = _read_bounded(entry, limit, probed)
+        raw = _read_bounded(entry, policy, probed)
     except _ABSENT:
         return None
     except _UNREADABLE:
@@ -473,7 +510,7 @@ def _refused(path: Path) -> str | None:
     return "" if present else None
 
 
-def _plain_file(path: Path, limit: int) -> os.stat_result | None:
+def _plain_file(path: Path, policy: _ReadPolicy) -> os.stat_result | None:
     """Report whether a metadata file is safe to read.
 
     Metadata files are read before any ``RECORD`` containment check applies,
@@ -483,19 +520,20 @@ def _plain_file(path: Path, limit: int) -> os.stat_result | None:
     read; anything else is present but refused.
 
     Returns:
-        The status of a regular, non-symlinked file of at most ``limit``
-        bytes, to open it against; ``None`` for anything else.
+        The status of a regular file of at most ``policy.limit`` bytes, not
+        reached through a symlink unless the policy allows one, to open it
+        against; ``None`` for anything else.
     """
     try:
-        info = path.lstat()
+        info = path.stat() if policy.follow_symlinks else path.lstat()
         parent_info = path.parent.lstat()
     except (OSError, ValueError):
         return None
     plain = (
         stat.S_ISREG(info.st_mode)
-        and stat.S_ISDIR(parent_info.st_mode)
-        and not stat.S_ISLNK(parent_info.st_mode)
-        and info.st_size <= limit
+        and info.st_size <= policy.limit
+        # An ``lstat`` that finds a directory has found no symlink to one.
+        and (policy.follow_symlinks or stat.S_ISDIR(parent_info.st_mode))
     )
     return info if plain else None
 
@@ -549,20 +587,21 @@ into an object and kept.
 """
 
 
-class _VettedEntryPoints(importlib_metadata.Distribution):
-    """Hands the stdlib entry-point parser text that was already vetted.
+class _Vetted(importlib_metadata.Distribution):
+    """Hands a stdlib metadata parser one file's text, already vetted.
 
     Asking the distribution instead would have it reopen the file, after
     :func:`_read_text` checked it: whatever had been swapped in since, a
     symlink, a device, or a far larger file, would be read unchecked.
     """
 
-    def __init__(self, text: str) -> None:
+    def __init__(self, filename: str, text: str) -> None:
+        self._filename: str = filename
         self._text: str = text
 
     @override
     def read_text(self, filename: str) -> str | None:
-        return self._text if filename == "entry_points.txt" else None
+        return self._text if filename == self._filename else None
 
     @override
     def locate_file(self, path: str | os.PathLike[str]) -> NoReturn:
@@ -576,7 +615,7 @@ def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
     if not text or _line_count_bound(text) > _MAX_ENTRY_POINT_LINES:
         return []
     try:
-        points = _VettedEntryPoints(text).entry_points
+        points = _Vetted("entry_points.txt", text).entry_points
     # The stdlib parser raises ``TypeError`` for a line without ``=``.
     except (TypeError, UnicodeDecodeError, ValueError):
         return []
@@ -696,11 +735,14 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
     return rows
 
 
-_OPEN_FLAGS = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_BINARY", 0)
+_NOFOLLOW: int = getattr(os, "O_NOFOLLOW", 0)
+_OPEN_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_BINARY", 0)
 """Read-only, never through a final symlink where the platform can refuse one."""
 
 
-def _open_probed(path: Path, probed: os.stat_result) -> BinaryIO:
+def _open_probed(
+    path: Path, probed: os.stat_result, *, follow_symlinks: bool = False
+) -> BinaryIO:
     """Open the very file :func:`_probe` saw, not whatever is there now.
 
     The path was checked for containment before it is opened, and an
@@ -711,7 +753,8 @@ def _open_probed(path: Path, probed: os.stat_result) -> BinaryIO:
     Returns:
         The open file.
     """
-    descriptor = os.open(path, _OPEN_FLAGS)
+    flags = _OPEN_FLAGS & ~_NOFOLLOW if follow_symlinks else _OPEN_FLAGS
+    descriptor = os.open(path, flags)
     try:
         _ensure_probed(descriptor, path, probed)
         return os.fdopen(descriptor, "rb")
@@ -949,18 +992,31 @@ def _record_files(
     record = _read_text(dist, "RECORD")
     if record is not None:
         return _recorded_files(record, checker)
-    # Vetted first, as for entry points: the legacy reader opens it directly.
-    # Its lines bound its entries, so they are counted before it runs.
+    # Vetted and bounded here, then parsed from this same text, as for entry
+    # points: the file is not read a second time. Its lines bound its
+    # entries, so they are counted before any is built.
     legacy_text = _read_text(dist, "installed-files.txt")
     if not legacy_text or _line_count_bound(legacy_text) > _MAX_RECORD_ROWS:
         return None, []
-    try:
-        legacy = legacy_installed_files(dist, skip_missing=False)
-    except UnicodeDecodeError:
-        legacy = None
+    legacy = legacy_installed_files(dist, skip_missing=False, listing=legacy_text)
     if legacy:
         return "installed-files.txt", [checker.check(path) for path in legacy]
     return None, []
+
+
+def _core_metadata(dist: importlib_metadata.Distribution) -> PackageMetadata:
+    """Parse the core metadata from vetted text, as every other file is read.
+
+    Returns:
+        The parsed metadata; empty when there is none that can be read.
+    """
+    text = next(filter(None, map(partial(_read_text, dist), _CORE_METADATA)), "")
+    return _Vetted("METADATA", text).metadata
+
+
+def _vetted_name(dist: importlib_metadata.Distribution) -> str | None:
+    names = cast("list[str] | None", _core_metadata(dist).get_all("Name"))
+    return names[0] if names else None
 
 
 def _name_and_version(
@@ -968,7 +1024,8 @@ def _name_and_version(
 ) -> tuple[str, str]:
     """Read the two core metadata fields every report needs.
 
-    A distribution whose ``METADATA`` cannot be read, or lacks either field,
+    Read through :func:`_read_text`, as every other metadata file is. A
+    distribution whose ``METADATA`` cannot be read, or lacks either field,
     names no package, just as :func:`find_distribution` skips one whose
     metadata has no name.
 
@@ -978,10 +1035,7 @@ def _name_and_version(
     Raises:
         PackageNotFoundError: When either is unreadable, missing, or blank.
     """
-    try:
-        meta = dist.metadata
-    except _UNREADABLE as exc:
-        raise PackageNotFoundError(name) from exc
+    meta = _core_metadata(dist)
     fields = [
         (cast("list[str] | None", meta.get_all(key)) or [""])[0].strip()
         for key in ("Name", "Version")
@@ -1004,7 +1058,7 @@ def inspect_installation(
     Returns:
         The distribution's origin, installer, and file evidence.
     """
-    dist = find_distribution(name, target=target)
+    dist = find_distribution(name, target=target, name_of=_vetted_name)
     located = dist.locate_file("")
     # A ``zipfile.Path`` for a distribution inside a zip on the search path.
     readable = isinstance(located, Path)
