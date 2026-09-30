@@ -1061,8 +1061,43 @@ class TestMetadataSafety:
         assert [point.name for point in points] == ["kept"]
 
 
+def _write_metadata(site: Path, name: str, extra: str) -> None:
+    dist_info = _install(site, name)
+    metadata = _METADATA.format(name=name) + extra
+    _ = (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
+
+
 class TestCoreMetadata:
     """The ``METADATA`` that names the package, and how it is found."""
+
+    def test_undecodable_core_metadata_is_not_found(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Core metadata is UTF-8; a damaged file names no package."""
+        dist_info = _install(site, "damaged")
+        damaged = _METADATA.format(name="damaged").encode() + b"Summary: \xff\n"
+        _ = (dist_info / "METADATA").write_bytes(damaged)
+        monkeypatch.syspath_prepend(str(site))
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("damaged")
+
+    def test_long_description_is_not_parsed_as_headers(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Only the header block is parsed; the body does not count against it."""
+        _write_metadata(site, "headers", "\n" + "description\n" * 50)
+        monkeypatch.setattr("peta.core.installation._MAX_HEADER_LINES", 10)
+        monkeypatch.syspath_prepend(str(site))
+        assert inspect_installation("headers").version == "1.0.0"
+
+    def test_too_many_core_metadata_headers_are_not_parsed(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _write_metadata(site, "headers", "X: y\n" * 50)
+        monkeypatch.setattr("peta.core.installation._MAX_HEADER_LINES", 10)
+        monkeypatch.syspath_prepend(str(site))
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("headers")
 
     def test_unreadable_metadata_on_an_explicit_path_is_not_found(
         self, site: Path

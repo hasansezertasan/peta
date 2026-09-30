@@ -347,6 +347,14 @@ class _ReadPolicy:
     limit: int
     """The most bytes read."""
 
+    strict_text: bool = False
+    """Whether text that is not valid UTF-8 makes the file unreadable.
+
+    Only for the core metadata, which the specification requires to be
+    UTF-8 and which names the package: a damaged ``Name`` is no name. Other
+    files are evidence, decoded with replacement characters.
+    """
+
     follow_symlinks: bool = False
     """Whether a symlinked file, or one in a symlinked directory, is read.
 
@@ -362,7 +370,9 @@ def _read_policy(name: str) -> _ReadPolicy:
     if name in _LISTINGS:
         return _ReadPolicy(_MAX_METADATA_BYTES)
     if name in _CORE_METADATA:
-        return _ReadPolicy(_MAX_CORE_METADATA_BYTES, follow_symlinks=True)
+        return _ReadPolicy(
+            _MAX_CORE_METADATA_BYTES, strict_text=True, follow_symlinks=True
+        )
     return _ReadPolicy(_MAX_SMALL_METADATA_BYTES)
 
 
@@ -501,7 +511,14 @@ def _decoded(
         return None
     except _UNREADABLE:
         return ""
-    return "" if raw is None else raw.decode("utf-8", errors="replace")
+    return "" if raw is None else _text(raw, strict=policy.strict_text)
+
+
+def _text(raw: bytes, *, strict: bool) -> str:
+    try:
+        return raw.decode("utf-8", errors="strict" if strict else "replace")
+    except UnicodeDecodeError:
+        return ""
 
 
 def _refused(path: Path) -> str | None:
@@ -1007,16 +1024,29 @@ def _record_files(
     return None, []
 
 
+_HEADER_END = re.compile(r"\r?\n\r?\n")
+"""The blank line that ends the core metadata's headers."""
+
+_MAX_HEADER_LINES = 100_000
+"""The most core metadata header lines parsed; far above any real project."""
+
+
 def _core_metadata(
     dist: importlib_metadata.Distribution,
 ) -> importlib_metadata.PackageMetadata:
     """Parse the core metadata from vetted text, as every other file is read.
 
     Returns:
-        The parsed metadata; empty when there is none that can be read.
+        The parsed headers; empty when there are none that can be read, or
+        too many to parse.
     """
     text = next(filter(None, map(partial(_read_text, dist), _CORE_METADATA)), "")
-    return _Vetted("METADATA", text).metadata
+    # Only the header block is parsed: the body is the long description,
+    # and the parser builds an object for every header line it is given.
+    headers = _HEADER_END.split(text, maxsplit=1)[0]
+    if _line_count_bound(headers) > _MAX_HEADER_LINES:
+        headers = ""
+    return _Vetted("METADATA", headers).metadata
 
 
 def _vetted_name(dist: importlib_metadata.Distribution) -> str | None:
