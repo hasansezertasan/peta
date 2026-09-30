@@ -769,12 +769,87 @@ _DIRECTORY_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_DIRECTORY", 0)
 _WALKABLE = os.open in os.supports_dir_fd and bool(_NOFOLLOW)
 """Whether a path can be opened one component at a time, following none.
 
-Not on Windows, which has no ``dir_fd``: there, only the final component
-is protected, and a directory swapped for a link mid-check goes unnoticed.
+Not on Windows, which has no ``dir_fd``: there, the opened handle is asked
+for its final path instead, by :func:`_open_then_locate`.
 """
 
 
-def _open_beneath(root: Path, path: Path) -> int:
+_FINAL_PATH_CHARS = 32_768
+"""Room for the longest path Windows allows, with its extended-length prefix."""
+
+if sys.platform == "win32":  # pragma: no cover - exercised by the Windows jobs
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    _get_final_path = _kernel32.GetFinalPathNameByHandleW
+    _get_final_path.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+    ]
+    _get_final_path.restype = wintypes.DWORD
+
+    def _final_path(descriptor: int) -> Path | None:
+        """Ask Windows where an open file is, whatever path reached it.
+
+        Returns:
+            The file's path with every link resolved, or ``None`` when
+            Windows cannot say.
+        """
+        buffer = ctypes.create_unicode_buffer(_FINAL_PATH_CHARS)
+        handle = msvcrt.get_osfhandle(descriptor)
+        length = cast("int", _get_final_path(handle, buffer, _FINAL_PATH_CHARS, 0))
+        if not 0 < length < _FINAL_PATH_CHARS:
+            return None
+        name = ctypes.wstring_at(buffer, length)
+        if name.startswith("\\\\?\\UNC\\"):
+            return Path("\\\\" + name.removeprefix("\\\\?\\UNC\\"))
+        return Path(name.removeprefix("\\\\?\\"))
+
+else:  # pragma: no cover - never called where the walk is possible
+
+    def _final_path(descriptor: int) -> Path | None:
+        del descriptor
+        return None
+
+
+def _open_then_locate(root: Path, path: Path) -> int:  # pragma: no cover - Windows
+    """Open ``path``, then refuse it unless the handle really lies under ``root``.
+
+    For where the walk of :func:`_open_beneath` is not available: the path
+    was followed wherever its directories now lead, so the open handle is
+    asked where it ended up, which no later swap can change.
+
+    Returns:
+        A descriptor for the file.
+    """
+    descriptor = os.open(path, _OPEN_FLAGS)
+    try:
+        _ensure_located_beneath(descriptor, path, root)
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _ensure_located_beneath(  # pragma: no cover - Windows
+    descriptor: int, path: Path, root: Path
+) -> None:
+    """Raise unless an open file lies under ``root``.
+
+    Raises:
+        OSError: When it is elsewhere, or its location cannot be told.
+    """
+    final = _final_path(descriptor)
+    if final is None or not final.is_relative_to(root):
+        msg = f"{path} led outside {root} while it was being checked"
+        raise OSError(msg)
+
+
+def _open_beneath(root: Path, path: Path) -> int:  # pragma: no cover - POSIX
     """Open ``path`` by walking down from ``root``, following no symlink.
 
     ``O_NOFOLLOW`` guards only the last component: a directory swapped for a
@@ -794,6 +869,10 @@ def _open_beneath(root: Path, path: Path) -> int:
         return os.open(name, _OPEN_FLAGS, dir_fd=descriptor)
     finally:
         os.close(descriptor)
+
+
+_open_within = _open_beneath if _WALKABLE else _open_then_locate
+"""Open a file found under a root, so that it cannot turn out to lie elsewhere."""
 
 
 def _open_probed(
@@ -818,9 +897,7 @@ def _open_probed(
     """
     flags = _OPEN_FLAGS & ~_NOFOLLOW if follow_symlinks else _OPEN_FLAGS
     descriptor = (
-        _open_beneath(beneath, path)
-        if beneath is not None and _WALKABLE
-        else os.open(path, flags)
+        os.open(path, flags) if beneath is None else _open_within(beneath, path)
     )
     try:
         _ensure_probed(descriptor, path, probed)

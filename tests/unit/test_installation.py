@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 
+import os
 from importlib.metadata import Distribution, PathDistribution
 from typing import TYPE_CHECKING, NoReturn
 from unittest.mock import MagicMock
 
 import pytest
 
+from peta.core import installation
 from peta.core.installation import _probe, _read_text
 
 if TYPE_CHECKING:
     from os import PathLike
+    from pathlib import Path
 
 pytestmark = pytest.mark.unit
 
@@ -80,3 +83,31 @@ def test_probe_tells_absence_from_inaccessibility(error: Exception, state: str) 
     located = MagicMock()
     located.lstat.side_effect = error
     assert _probe(located) == state
+
+
+def _rooted_file(tmp_path: Path) -> tuple[Path, Path]:
+    root = tmp_path / "root"
+    root.mkdir()
+    target = root / "mod.py"
+    _ = target.write_bytes(b"x")
+    return root, target
+
+
+def test_open_then_locate_accepts_a_handle_inside(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Where no walk is possible, the handle is asked where it really is."""
+    root, target = _rooted_file(tmp_path)
+    monkeypatch.setattr(installation, "_final_path", lambda _: target)
+    os.close(installation._open_then_locate(root, target))
+
+
+@pytest.mark.parametrize("located", ["elsewhere.py", None], ids=["outside", "unknown"])
+def test_open_then_locate_refuses_a_handle_elsewhere(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, located: str | None
+) -> None:
+    root, target = _rooted_file(tmp_path)
+    final = None if located is None else tmp_path / located
+    monkeypatch.setattr(installation, "_final_path", lambda _: final)
+    with pytest.raises(OSError, match="led outside"):
+        _ = installation._open_then_locate(root, target)
