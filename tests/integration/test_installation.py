@@ -510,8 +510,10 @@ class TestIntegrity:
     ) -> None:
         _install(site, "denied", files={"denied.py": b"x"})
 
-        def refuse(path: Path, algorithm: str, probed: os.stat_result) -> str:
-            del algorithm, probed
+        def refuse(
+            path: Path, algorithm: str, probed: os.stat_result, root: Path
+        ) -> str:
+            del algorithm, probed, root
             raise PermissionError(path)
 
         monkeypatch.setattr("peta.core.installation._digest", refuse)
@@ -561,6 +563,29 @@ class TestIntegrity:
         monkeypatch.setattr("peta.core.installation._probe", probe_then_link)
         states = _states(_inspect(site, "linked", verify=True))
         assert states["linked.py"] == "unverifiable"
+
+    @_posix_only("symlinks need privileges")  # pragma: no cover
+    def test_directory_swapped_in_after_resolving_is_not_followed(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """No path component, not only the last, may lead out once checked."""
+        content = b"x = 1\n"
+        _install(site, "walked", files={"walked/mod.py": content})
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        _ = (outside / "mod.py").write_bytes(content)
+        probe = installation._probe
+
+        def swap_then_probe(located: Path) -> os.stat_result | FileState:
+            if located.name == "mod.py":
+                package = located.parent
+                package.rename(tmp_path / "moved")
+                package.symlink_to(outside, target_is_directory=True)
+            return probe(located)
+
+        monkeypatch.setattr("peta.core.installation._probe", swap_then_probe)
+        states = _states(_inspect(site, "walked", verify=True))
+        assert states["walked/mod.py"] == "unverifiable"
 
     def test_refused_digest_is_unverifiable(
         self, site: Path, monkeypatch: pytest.MonkeyPatch

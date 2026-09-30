@@ -763,9 +763,45 @@ _NOFOLLOW: int = getattr(os, "O_NOFOLLOW", 0)
 _OPEN_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_BINARY", 0)
 """Read-only, never through a final symlink where the platform can refuse one."""
 
+_DIRECTORY_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_DIRECTORY", 0)
+"""A directory to walk through, refused if it is a symlink."""
+
+_WALKABLE = os.open in os.supports_dir_fd and bool(_NOFOLLOW)
+"""Whether a path can be opened one component at a time, following none.
+
+Not on Windows, which has no ``dir_fd``: there, only the final component
+is protected, and a directory swapped for a link mid-check goes unnoticed.
+"""
+
+
+def _open_beneath(root: Path, path: Path) -> int:
+    """Open ``path`` by walking down from ``root``, following no symlink.
+
+    ``O_NOFOLLOW`` guards only the last component: a directory swapped for a
+    link to somewhere else after containment was checked would otherwise be
+    followed, and the file it leads to opened as though it were inside.
+
+    Returns:
+        A descriptor for the file.
+    """
+    *directories, name = path.relative_to(root).parts
+    descriptor = os.open(root, _DIRECTORY_FLAGS)
+    try:
+        for directory in directories:
+            child = os.open(directory, _DIRECTORY_FLAGS, dir_fd=descriptor)
+            os.close(descriptor)
+            descriptor = child
+        return os.open(name, _OPEN_FLAGS, dir_fd=descriptor)
+    finally:
+        os.close(descriptor)
+
 
 def _open_probed(
-    path: Path, probed: os.stat_result, *, follow_symlinks: bool = False
+    path: Path,
+    probed: os.stat_result,
+    *,
+    follow_symlinks: bool = False,
+    beneath: Path | None = None,
 ) -> BinaryIO:
     """Open the very file :func:`_probe` saw, not whatever is there now.
 
@@ -774,11 +810,15 @@ def _open_probed(
     ``/dev/zero`` or a file outside it. Comparing the open descriptor with
     the probe catches that, whichever path component was swapped.
 
+    ``beneath`` is a root the path was found inside, to walk down from where
+    the platform allows it.
+
     Returns:
         The open file.
     """
     flags = _OPEN_FLAGS & ~_NOFOLLOW if follow_symlinks else _OPEN_FLAGS
-    descriptor = os.open(path, flags)
+    walk = beneath is not None and _WALKABLE
+    descriptor = _open_beneath(beneath, path) if walk else os.open(path, flags)
     try:
         _ensure_probed(descriptor, path, probed)
         return os.fdopen(descriptor, "rb")
@@ -799,7 +839,7 @@ def _ensure_probed(descriptor: int, path: Path, probed: os.stat_result) -> None:
         raise OSError(msg)
 
 
-def _digest(path: Path, algorithm: str, probed: os.stat_result) -> str:
+def _digest(path: Path, algorithm: str, probed: os.stat_result, root: Path) -> str:
     """Hash a file the way ``RECORD`` encodes it: urlsafe base64, unpadded.
 
     Reads no more than the probed size, and one byte past it to notice a file
@@ -812,7 +852,7 @@ def _digest(path: Path, algorithm: str, probed: os.stat_result) -> str:
         OSError: When the file changed since it was probed.
     """
     hasher = hashlib.new(algorithm)
-    with _open_probed(path, probed) as handle:
+    with _open_probed(path, probed, beneath=root) as handle:
         remaining = probed.st_size + 1
         while remaining and (chunk := handle.read(min(_CHUNK, remaining))):
             remaining -= len(chunk)
@@ -909,7 +949,9 @@ class _Checker:
         algorithm = name.lower()
         if not separator or algorithm not in _COMPUTABLE:
             return "unverifiable"
-        digest = _digest(located, algorithm, probed)
+        # Within one of the roots: ``check`` placed it there.
+        root = next(root for root in self.roots if located.is_relative_to(root))
+        digest = _digest(located, algorithm, probed, root)
         return "verified" if digest == expected else "mismatch"
 
 
