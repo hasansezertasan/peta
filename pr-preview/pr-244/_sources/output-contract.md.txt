@@ -105,9 +105,11 @@ envelope `partial` rather than discarding the artifact listing.
 `origin` describes one locally installed distribution. `result.origin` is the
 structured `direct_url.json` record: `kind` is `index` (no `direct_url.json`),
 `vcs`, `archive`, `directory`, or `unknown` (present but unreadable or
-incomplete -- a `vcs_info` without `vcs` and `commit_id` -- with a `reason`), alongside `url`, `editable`, `vcs`, `requested_revision`,
+incomplete -- a `vcs_info` without `vcs` and `commit_id` -- or containing
+conflicting source descriptors, with a `reason`), alongside `url`, `editable`, `vcs`, `requested_revision`,
 `commit_id`, `archive_hashes`, and `subdirectory`, which is `null` unless it is
-the relative path PEP 610 requires. Credentials are removed from `url`. `result.installer` and `result.requested` report the `INSTALLER` and
+the relative path PEP 610 requires, without an anchor or `..` components.
+Credentials are removed from `url`. `result.installer` and `result.requested` report the `INSTALLER` and
 `REQUESTED` markers; `requested` is `false` both when the marker is absent and
 when the installer never writes one. `result.import_packages` and
 `result.entry_points` list what the distribution provides. `result.files` has
