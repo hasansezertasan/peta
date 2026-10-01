@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import os
+import stat
 import sys
 from importlib.metadata import Distribution, PathDistribution
+from pathlib import Path
 from typing import TYPE_CHECKING, NoReturn
 from unittest.mock import MagicMock
 
@@ -15,7 +17,6 @@ from peta.core.installation import _probe, _read_text
 
 if TYPE_CHECKING:
     from os import PathLike
-    from pathlib import Path
 
 pytestmark = pytest.mark.unit
 
@@ -180,3 +181,60 @@ def test_is_local_scheme(scheme: str, *, expected: bool) -> None:
 )
 def test_malformed_authority(url: str, *, malformed: bool) -> None:
     assert installation._malformed_authority(url) is malformed
+
+
+def test_is_plain_dir(tmp_path: Path) -> None:
+    dir_stat = tmp_path.stat()
+    assert installation._is_plain_dir(dir_stat) is True
+
+    reparse_dir = MagicMock(
+        st_mode=stat.S_IFDIR, st_file_attributes=installation._REPARSE_POINT
+    )
+    assert installation._is_plain_dir(reparse_dir) is False
+
+    non_dir = MagicMock(st_mode=stat.S_IFREG, st_file_attributes=0)
+    assert installation._is_plain_dir(non_dir) is False
+
+
+def test_plain_file_refuses_junction_parent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pkg_dir = tmp_path / "pkg-1.0.dist-info"
+    pkg_dir.mkdir()
+    target = pkg_dir / "INSTALLER"
+    _ = target.write_text("pip\n", encoding="utf-8")
+
+    reparse_dir = MagicMock(
+        st_mode=stat.S_IFDIR, st_file_attributes=installation._REPARSE_POINT
+    )
+    real_lstat = Path.lstat
+    monkeypatch.setattr(
+        Path, "lstat", lambda p: reparse_dir if p == pkg_dir else real_lstat(p)
+    )
+
+    policy = installation._read_policy("INSTALLER")
+    assert installation._plain_file(target, policy) is None
+
+    core_policy = installation._read_policy("METADATA")
+    assert installation._plain_file(target, core_policy) is not None
+
+
+def test_refused_recognizes_junction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pkg_dir = tmp_path / "pkg-1.0.dist-info"
+    target = pkg_dir / "RECORD"
+
+    reparse_dir = MagicMock(
+        st_mode=stat.S_IFDIR, st_file_attributes=installation._REPARSE_POINT
+    )
+
+    def fake_lstat(p: Path) -> os.stat_result:
+        if p == pkg_dir:
+            return reparse_dir  # type: ignore[return-value]
+        raise FileNotFoundError
+
+    monkeypatch.setattr(Path, "lstat", fake_lstat)
+    refused = installation._refused(target)
+    assert refused is not None
+    assert not refused

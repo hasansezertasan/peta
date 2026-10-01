@@ -550,10 +550,42 @@ def _text(raw: bytes, *, strict: bool) -> str:
         return ""
 
 
+_REPARSE_POINT: Final[int] = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+"""Windows file attribute indicating a reparse point (junction or symlink)."""
+
+
+def _is_link_or_junction(path: Path) -> bool:
+    """Whether a path is a symbolic link or a Windows junction.
+
+    Returns:
+        ``True`` when the path is a symbolic link or a Windows junction.
+    """
+    if path.is_symlink():
+        return True
+    try:
+        info = path.lstat()
+    except (OSError, ValueError):
+        return False
+    return bool(getattr(info, "st_file_attributes", 0) & _REPARSE_POINT)
+
+
 def _refused(path: Path) -> str | None:
     # Refused is still present, unless nothing at all is there.
-    present = path.is_symlink() or path.parent.is_symlink() or path.exists()
+    present = (
+        _is_link_or_junction(path) or _is_link_or_junction(path.parent) or path.exists()
+    )
     return "" if present else None
+
+
+def _is_plain_dir(info: os.stat_result) -> bool:
+    """Whether stat attributes describe a real directory, not a link or junction.
+
+    Returns:
+        ``True`` when ``info`` is a directory and not a reparse point.
+    """
+    return stat.S_ISDIR(info.st_mode) and not bool(
+        getattr(info, "st_file_attributes", 0) & _REPARSE_POINT
+    )
 
 
 def _plain_file(path: Path, policy: _ReadPolicy) -> os.stat_result | None:
@@ -578,8 +610,8 @@ def _plain_file(path: Path, policy: _ReadPolicy) -> os.stat_result | None:
     plain = (
         stat.S_ISREG(info.st_mode)
         and info.st_size <= policy.limit
-        # An ``lstat`` that finds a directory has found no symlink to one.
-        and (policy.follow_symlinks or stat.S_ISDIR(parent_info.st_mode))
+        # An ``lstat`` that finds a directory has found no symlink or junction.
+        and (policy.follow_symlinks or _is_plain_dir(parent_info))
     )
     return info if plain else None
 
