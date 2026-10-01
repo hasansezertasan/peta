@@ -734,6 +734,27 @@ class TestHostileRecord:
         _install(site, "algo", extra_rows=(f"algo.py,{recorded},{len(content)}",))
         assert _states(_inspect(site, "algo", verify=True))["algo.py"] == state
 
+    @pytest.mark.parametrize(
+        "digest",
+        [
+            pytest.param("sha256=", id="empty"),
+            pytest.param("sha256=not_base64!", id="non-base64"),
+            pytest.param("sha256=abc+", id="standard-base64-plus"),
+            pytest.param("sha256=abc/", id="standard-base64-slash"),
+            pytest.param("sha256=abc=", id="padded"),
+            pytest.param("sha256=abc", id="wrong-length"),
+        ],
+    )
+    def test_malformed_digest_is_unverifiable(self, site: Path, digest: str) -> None:
+        content = b"x"
+        _ = (site / "malformed.py").write_bytes(content)
+        _install(
+            site, "malformed", extra_rows=(f"malformed.py,{digest},{len(content)}",)
+        )
+        assert _states(_inspect(site, "malformed", verify=True))["malformed.py"] == (
+            "unverifiable"
+        )
+
     def test_oversized_size_is_unrecorded(self, site: Path) -> None:
         _ = (site / "big.py").write_bytes(b"")
         _install(site, "big", extra_rows=("big.py,," + "9" * 5000,))

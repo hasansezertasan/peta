@@ -9,6 +9,7 @@ never anything outside the selected environment.
 from __future__ import annotations
 
 import base64
+import binascii
 import csv
 import hashlib
 import importlib.metadata as importlib_metadata
@@ -17,6 +18,7 @@ import json
 import os
 import re
 import stat
+import string
 import sys
 from dataclasses import dataclass, field
 from functools import partial
@@ -390,11 +392,12 @@ def _read_policy(name: str) -> _ReadPolicy:
     return _ReadPolicy(_MAX_SMALL_METADATA_BYTES)
 
 
-_MAX_RECORD_ROWS = 1_000_000
+_MAX_RECORD_ROWS = 100_000
 """The most ``RECORD`` or ``installed-files.txt`` entries checked.
 
-Far above any real distribution. The byte limit alone still admits millions
-of tiny entries, each one kept in memory and probed on disk.
+Far above any real distribution (even massive ML distributions contain under
+50,000 files). The byte limit alone still admits millions of tiny entries,
+each one kept in memory and probed on disk.
 """
 
 _MAX_RECORD_ROW_CHARS = 64 * 1024
@@ -1004,6 +1007,48 @@ def _digest(path: Path, algorithm: str, probed: os.stat_result, root: Path) -> s
     return base64.urlsafe_b64encode(hasher.digest()).rstrip(b"=").decode("ascii")
 
 
+_URLSAFE_B64_CHARS: Final[frozenset[str]] = frozenset(
+    string.ascii_letters + string.digits + "-_"
+)
+"""The alphabet of an unpadded urlsafe base64 digest."""
+
+
+def _valid_digest(algorithm: str, expected: str) -> bool:
+    """Whether ``expected`` is a valid unpadded urlsafe base64 digest.
+
+    Returns:
+        ``True`` when ``expected`` decodes to the algorithm's digest size.
+    """
+    if not (expected and _URLSAFE_B64_CHARS.issuperset(expected)):
+        return False
+    padded = expected + "=" * (-len(expected) % 4)
+    standard = padded.replace("-", "+").replace("_", "/")
+    try:
+        raw = base64.b64decode(standard, validate=True)
+        size = hashlib.new(algorithm).digest_size
+        return (
+            len(raw) == size
+            and base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii") == expected
+        )
+    except (binascii.Error, ValueError):
+        return False
+
+
+def _verifiable_hash(recorded_hash: str) -> tuple[str, str] | None:
+    """Extract a known algorithm and valid expected digest, or ``None``.
+
+    Returns:
+        A pair of ``(algorithm, expected_digest)`` if verifiable, else ``None``.
+    """
+    name, separator, expected = recorded_hash.partition("=")
+    if not separator:
+        return None
+    algorithm = name.lower()
+    if algorithm not in _COMPUTABLE or not _valid_digest(algorithm, expected):
+        return None
+    return algorithm, expected
+
+
 _UNRESOLVABLE = (OSError, RuntimeError, ValueError)
 """What resolving a hostile ``RECORD`` path can raise.
 
@@ -1091,10 +1136,10 @@ class _Checker:
             return "not_recorded"
         if not self.verify:
             return "unchecked"
-        name, separator, expected = recorded_hash.partition("=")
-        algorithm = name.lower()
-        if not separator or algorithm not in _COMPUTABLE:
+        parsed = _verifiable_hash(recorded_hash)
+        if parsed is None:
             return "unverifiable"
+        algorithm, expected = parsed
         digest = self._cached_digest(located, algorithm, probed, root)
         return "verified" if digest == expected else "mismatch"
 

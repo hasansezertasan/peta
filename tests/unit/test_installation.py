@@ -238,3 +238,30 @@ def test_refused_recognizes_junction(
     refused = installation._refused(target)
     assert refused is not None
     assert not refused
+
+
+def test_valid_digest() -> None:
+    valid_sha256 = (
+        "LPJNul-wow4m6DsqxbninhsWHlwfp0JecwQzYpOLmCQ"  # pragma: allowlist secret
+    )
+    assert installation._valid_digest("sha256", valid_sha256)
+    assert not installation._valid_digest("sha256", "")
+    assert not installation._valid_digest("sha256", "not_base64!")
+    assert not installation._valid_digest("sha256", valid_sha256.replace("-", "+"))
+    assert not installation._valid_digest("sha256", valid_sha256.replace("-", "/"))
+    assert not installation._valid_digest("sha256", valid_sha256 + "=")
+    assert not installation._valid_digest("sha256", valid_sha256[:-1])
+    assert not installation._valid_digest("sha512", valid_sha256)
+
+
+def test_verifiable_hash() -> None:
+    valid_sha256 = (
+        "LPJNul-wow4m6DsqxbninhsWHlwfp0JecwQzYpOLmCQ"  # pragma: allowlist secret
+    )
+    assert installation._verifiable_hash(f"sha256={valid_sha256}") == (
+        "sha256",
+        valid_sha256,
+    )
+    assert installation._verifiable_hash("sha256=not_base64!") is None
+    assert installation._verifiable_hash("unknown=abc") is None
+    assert installation._verifiable_hash("no_separator") is None
