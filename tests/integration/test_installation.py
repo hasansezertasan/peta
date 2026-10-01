@@ -187,6 +187,11 @@ class TestOrigin:
         ("subdirectory", "kept"),
         [
             pytest.param("pkg/sub", "pkg/sub", id="relative"),
+            pytest.param("pkg/..hidden", "pkg/..hidden", id="dots-in-name"),
+            pytest.param("../../home/alice/private", None, id="posix-parent"),
+            pytest.param("pkg/../private", None, id="embedded-parent"),
+            pytest.param(r"pkg\..\private", None, id="windows-parent"),
+            pytest.param("..", None, id="parent-only"),
             pytest.param("/home/alice/private", None, id="posix-absolute"),
             pytest.param("C:\\Users\\alice", None, id="windows-drive"),
             pytest.param("\\\\host\\share", None, id="unc"),
@@ -195,7 +200,7 @@ class TestOrigin:
     def test_only_a_relative_subdirectory_is_kept(
         self, site: Path, subdirectory: str, kept: str | None
     ) -> None:
-        """An absolute one would print a full path beside a shortened origin."""
+        """Paths outside the project must not appear beside a shortened origin."""
         direct_url = {
             "url": "file:///home/alice/mono",
             "dir_info": {},
@@ -205,6 +210,31 @@ class TestOrigin:
             site, "subpkg", metadata_files={"direct_url.json": json.dumps(direct_url)}
         )
         assert _inspect(site, "subpkg").origin.subdirectory == kept
+
+    @pytest.mark.parametrize(
+        "sources",
+        [
+            {"vcs_info": {"vcs": "git", "commit_id": "abc"}, "archive_info": {}},
+            {"vcs_info": {"vcs": "git", "commit_id": "abc"}, "dir_info": {}},
+            {"archive_info": {}, "dir_info": {}},
+            {"vcs_info": {}, "archive_info": {}, "dir_info": {}},
+            {"archive_info": {}, "dir_info": None},
+        ],
+        ids=["vcs-archive", "vcs-directory", "archive-directory", "all", "invalid"],
+    )
+    def test_conflicting_sources_are_unknown(
+        self, site: Path, sources: dict[str, object]
+    ) -> None:
+        """Conflicting evidence cannot establish a definite installation origin."""
+        direct_url = {"url": "https://example.com/project", **sources}
+        _install(
+            site,
+            "ambiguous",
+            metadata_files={"direct_url.json": json.dumps(direct_url)},
+        )
+        origin = _inspect(site, "ambiguous").origin
+        assert origin.kind == "unknown"
+        assert origin.reason == "direct_url.json names conflicting sources."
 
     def test_archive_install(self, site: Path) -> None:
         direct_url = {
@@ -1219,6 +1249,34 @@ class TestCoreMetadata:
         )
         assert result.exit_code == 1, result.output
         assert json.loads(result.output)["errors"][0]["code"] == "package_not_found"
+
+    @pytest.mark.parametrize("field", ["Name", "Version"])
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    @pytest.mark.parametrize("indent", [" ", "\t"], ids=["space", "tab"])
+    @pytest.mark.parametrize("explicit_path", [False, True], ids=["runtime", "path"])
+    def test_continued_core_field_is_not_found(
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        field: str,
+        newline: str,
+        indent: str,
+        *,
+        explicit_path: bool,
+    ) -> None:
+        """A required field cannot be accepted by truncating its continuation."""
+        dist_info = _install(site, "continued")
+        value = "continued" if field == "Name" else "1.0.0"
+        metadata = _METADATA.format(name="continued").replace(
+            f"{field}: {value}\n", f"{field}: {value}\n{indent}injected\n"
+        )
+        _ = (dist_info / "METADATA").write_bytes(
+            metadata.replace("\n", newline).encode()
+        )
+        monkeypatch.syspath_prepend(str(site))
+        target = LocalTarget.create(None, (str(site),)) if explicit_path else None
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("continued", target=target)
 
     @pytest.mark.parametrize(
         "metadata",

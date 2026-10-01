@@ -255,23 +255,30 @@ def _vcs_origin(url: str, info: dict[str, object], sub: str | None) -> Origin:
 def _subdirectory(data: dict[str, object]) -> str | None:
     """Read the recorded subdirectory, if it is the relative path PEP 610 requires.
 
-    An absolute one would be printed verbatim beside an origin whose own path
-    is shortened, revealing where the source lives; it is dropped instead.
+    Anchored paths and parent traversal would reveal paths outside the project
+    beside an origin whose own path is shortened; they are dropped instead.
 
     Returns:
-        The subdirectory, or ``None`` when absent or anchored.
+        The subdirectory, or ``None`` when absent, anchored, or parent-traversing.
     """
     sub = _optional_str(data, "subdirectory")
     # A Windows anchor covers POSIX roots too: ``/x`` has the anchor ``\``.
-    return None if sub is None or PureWindowsPath(sub).anchor else sub
+    if sub is None:
+        return None
+    path = PureWindowsPath(sub)
+    return None if path.anchor or ".." in path.parts else sub
 
 
 def _source_origin(url: str, data: dict[str, object]) -> Origin:
-    """Pick the origin kind from whichever ``*_info`` object is present.
+    """Pick the origin kind from the sole ``*_info`` object present.
 
     Returns:
-        The described origin, or an ``unknown`` one when none is present.
+        The described origin, or ``unknown`` for absent or conflicting sources.
     """
+    if len({"vcs_info", "archive_info", "dir_info"}.intersection(data)) > 1:
+        return Origin(
+            kind="unknown", url=url, reason="direct_url.json names conflicting sources."
+        )
     sub = _subdirectory(data)
     if (vcs := _object(data.get("vcs_info"))) is not None:
         return _vcs_origin(url, vcs, sub)
@@ -1164,12 +1171,12 @@ _MAX_FIELD_CHARS = 256
 """The longest ``Name`` or ``Version`` accepted; far above any real one."""
 
 _CORE_FIELD = re.compile(
-    rf"^(name|version)[ \t]*:[ \t]*([^\r\n]{{0,{_MAX_FIELD_CHARS + 1}}})",
+    rf"^(name|version)[ \t]*:[ \t]*([^\r\n]{{0,{_MAX_FIELD_CHARS + 1}}})(\r?\n[ \t])?",
     re.IGNORECASE | re.MULTILINE,
 )
 """A ``Name`` or ``Version`` header, capturing one character past the limit.
 
-A continuation line starts with whitespace, so it never matches.
+The final group detects a continuation on the following physical line.
 """
 
 
@@ -1178,8 +1185,8 @@ def _core_fields(dist: importlib_metadata.Distribution) -> dict[str, str]:
 
     Not handed to the email parser, which builds an object for every header
     and keeps every value however long: only the header block is scanned,
-    for the first of each field, and a value past :data:`_MAX_FIELD_CHARS`
-    counts as none at all.
+    for the first of each field. A continued value or one past
+    :data:`_MAX_FIELD_CHARS` counts as none at all.
 
     Returns:
         ``name`` and ``version``, lowercased, as far as they were found.
@@ -1191,7 +1198,7 @@ def _core_fields(dist: importlib_metadata.Distribution) -> dict[str, str]:
         # Judged before stripping: the capture stops one past the limit, so
         # a stripped one could look short however long the value ran.
         raw = match[2]
-        usable = raw.strip() if len(raw) <= _MAX_FIELD_CHARS else ""
+        usable = raw.strip() if len(raw) <= _MAX_FIELD_CHARS and not match[3] else ""
         _ = found.setdefault(match[1].lower(), usable)
         if len(found) == len(_CORE_FIELDS):
             break
