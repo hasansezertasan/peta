@@ -435,6 +435,19 @@ class TestMetadata:
         monkeypatch.setattr("peta.core.installation._MAX_ENTRY_POINT_LINES", 3)
         assert len(_inspect(site, "manyep").entry_points) == kept
 
+    def test_entry_point_expansion_is_bounded(self, site: Path) -> None:
+        """A long group shared by many entries must not multiply into the output."""
+        group = "g" * 200_000
+        lines = [f"[{group}]", *(f"e{i} = m:f" for i in range(100))]
+        _install(site, "wideep", metadata_files={"entry_points.txt": "\n".join(lines)})
+        assert _inspect(site, "wideep").entry_points == []
+
+    def test_entry_point_expansion_within_the_bound_is_kept(self, site: Path) -> None:
+        group = "g" * 1_000
+        lines = [f"[{group}]", *(f"e{i} = m:f" for i in range(100))]
+        _install(site, "fineep", metadata_files={"entry_points.txt": "\n".join(lines)})
+        assert len(_inspect(site, "fineep").entry_points) == 100
+
     @pytest.mark.parametrize("separator", ["\n", "\r\n", "\r", "\u2028"])
     def test_installer_is_the_first_line(self, site: Path, separator: str) -> None:
         installer = f"  uv{separator}ignored{separator}"

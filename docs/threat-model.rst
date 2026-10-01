@@ -195,7 +195,8 @@ Every provider must preserve these invariants when it is added or changed:
   the core metadata, and the files ``RECORD`` names — is treated as possibly
   corrupt or hostile *content*. ``peta origin`` must stay bounded and must not
   crash on it: every metadata file has a byte limit, listings have a row
-  limit, and anything that cannot be read or parsed degrades to a reported
+  limit, what peta builds or prints from a file stays proportional to the
+  bytes it read, and anything that cannot be read or parsed degrades to a reported
   state rather than an exception. Files are read only when they resolve inside
   the selected environment, and a listing is never read through a symlink.
   The installation is **not** defended against a party modifying it *while*

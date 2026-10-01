@@ -676,6 +676,21 @@ The byte limit alone still admits millions of tiny entries, each one parsed
 into an object and kept.
 """
 
+_MAX_ENTRY_POINT_CHARS = _MAX_SMALL_METADATA_BYTES
+"""The most characters the parsed entry points may hold between them.
+
+Each entry point carries its section's group, and every renderer writes it
+once per entry: a long section name over many short entries would otherwise
+expand a bounded file into gigabytes of output. A real file expands to
+little more than its own size, so its own byte limit bounds the expansion.
+"""
+
+
+def _expanded_chars(points: importlib_metadata.EntryPoints) -> int:
+    return sum(
+        len(point.group) + len(point.name) + len(point.value) for point in points
+    )
+
 
 class _Vetted(importlib_metadata.Distribution):
     """Hands a stdlib metadata parser one file's text, already vetted.
@@ -707,6 +722,8 @@ def _entry_points(dist: importlib_metadata.Distribution) -> list[EntryPoint]:
         points = _Vetted("entry_points.txt", text).entry_points
     # The stdlib parser raises ``TypeError`` for a line without ``=``.
     except (TypeError, UnicodeDecodeError, ValueError):
+        return []
+    if _expanded_chars(points) > _MAX_ENTRY_POINT_CHARS:
         return []
     found = {
         EntryPoint(group=point.group, name=point.name, value=point.value)
