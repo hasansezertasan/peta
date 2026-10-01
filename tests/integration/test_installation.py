@@ -1251,6 +1251,29 @@ class TestCoreMetadata:
         assert json.loads(result.output)["errors"][0]["code"] == "package_not_found"
 
     @pytest.mark.parametrize("field", ["Name", "Version"])
+    @pytest.mark.parametrize("whitespace", [" ", "\t"], ids=["space", "tab"])
+    @pytest.mark.parametrize("explicit_path", [False, True], ids=["runtime", "path"])
+    def test_core_field_with_whitespace_before_colon_is_not_found(
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        field: str,
+        whitespace: str,
+        *,
+        explicit_path: bool,
+    ) -> None:
+        """Required header names must be followed immediately by a colon."""
+        dist_info = _install(site, "spaced")
+        metadata = _METADATA.format(name="spaced").replace(
+            f"{field}:", f"{field}{whitespace}:"
+        )
+        _ = (dist_info / "METADATA").write_text(metadata, encoding="utf-8")
+        monkeypatch.syspath_prepend(str(site))
+        target = LocalTarget.create(None, (str(site),)) if explicit_path else None
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("spaced", target=target)
+
+    @pytest.mark.parametrize("field", ["Name", "Version"])
     @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
     @pytest.mark.parametrize("indent", [" ", "\t"], ids=["space", "tab"])
     @pytest.mark.parametrize("explicit_path", [False, True], ids=["runtime", "path"])

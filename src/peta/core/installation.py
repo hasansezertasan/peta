@@ -1171,7 +1171,7 @@ _MAX_FIELD_CHARS = 256
 """The longest ``Name`` or ``Version`` accepted; far above any real one."""
 
 _CORE_FIELD = re.compile(
-    rf"^(name|version)[ \t]*:[ \t]*([^\r\n]{{0,{_MAX_FIELD_CHARS + 1}}})(\r?\n[ \t])?",
+    rf"^(name|version):[ \t]*([^\r\n]{{0,{_MAX_FIELD_CHARS + 1}}})(\r?\n[ \t])?",
     re.IGNORECASE | re.MULTILINE,
 )
 """A ``Name`` or ``Version`` header, capturing one character past the limit.
