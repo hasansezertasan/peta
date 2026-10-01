@@ -183,6 +183,29 @@ class TestOrigin:
         # A credential the installer recorded must never be reported.
         assert origin.url == "https://github.com/org/v.git"
 
+    @pytest.mark.parametrize(
+        ("subdirectory", "kept"),
+        [
+            pytest.param("pkg/sub", "pkg/sub", id="relative"),
+            pytest.param("/home/alice/private", None, id="posix-absolute"),
+            pytest.param("C:\\Users\\alice", None, id="windows-drive"),
+            pytest.param("\\\\host\\share", None, id="unc"),
+        ],
+    )
+    def test_only_a_relative_subdirectory_is_kept(
+        self, site: Path, subdirectory: str, kept: str | None
+    ) -> None:
+        """An absolute one would print a full path beside a shortened origin."""
+        direct_url = {
+            "url": "file:///home/alice/mono",
+            "dir_info": {},
+            "subdirectory": subdirectory,
+        }
+        _install(
+            site, "subpkg", metadata_files={"direct_url.json": json.dumps(direct_url)}
+        )
+        assert _inspect(site, "subpkg").origin.subdirectory == kept
+
     def test_archive_install(self, site: Path) -> None:
         direct_url = {
             "url": "https://example.com/archpkg-1.0.0.tar.gz",
@@ -311,6 +334,26 @@ class TestOrigin:
                 '{"url": "https://x", "archive_info": {"hashes": {"\\udfff": "a"}}}',
                 "malformed text",
                 id="surrogate-hash-name",
+            ),
+            pytest.param(
+                '{"url": "https://x", "vcs_info": {}}',
+                "incomplete vcs_info",
+                id="empty-vcs-info",
+            ),
+            pytest.param(
+                '{"url": "https://x", "vcs_info": {"vcs": "git"}}',
+                "incomplete vcs_info",
+                id="vcs-without-commit",
+            ),
+            pytest.param(
+                '{"url": "https://x", "vcs_info": {"commit_id": "abc"}}',
+                "incomplete vcs_info",
+                id="commit-without-vcs",
+            ),
+            pytest.param(
+                '{"url": "https://x", "vcs_info": {"vcs": " ", "commit_id": "abc"}}',
+                "incomplete vcs_info",
+                id="blank-vcs",
             ),
         ],
     )

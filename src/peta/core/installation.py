@@ -27,7 +27,7 @@ import sys
 from dataclasses import dataclass, field
 from functools import partial
 from itertools import islice, starmap
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import TYPE_CHECKING, Final, Literal, NoReturn, cast
 from urllib.parse import urlsplit
 
@@ -235,14 +235,35 @@ def _archive_hashes(info: dict[str, object]) -> dict[str, str]:
 
 
 def _vcs_origin(url: str, info: dict[str, object], sub: str | None) -> Origin:
+    vcs, commit_id = _optional_str(info, "vcs"), _optional_str(info, "commit_id")
+    # PEP 610 requires both: without them nothing supports calling it a VCS
+    # checkout.
+    if not (vcs and vcs.strip() and commit_id and commit_id.strip()):
+        return Origin(
+            kind="unknown", url=url, reason="direct_url.json has incomplete vcs_info."
+        )
     return Origin(
         kind="vcs",
         url=url,
-        vcs=_optional_str(info, "vcs"),
+        vcs=vcs,
         requested_revision=_optional_str(info, "requested_revision"),
-        commit_id=_optional_str(info, "commit_id"),
+        commit_id=commit_id,
         subdirectory=sub,
     )
+
+
+def _subdirectory(data: dict[str, object]) -> str | None:
+    """Read the recorded subdirectory, if it is the relative path PEP 610 requires.
+
+    An absolute one would be printed verbatim beside an origin whose own path
+    is shortened, revealing where the source lives; it is dropped instead.
+
+    Returns:
+        The subdirectory, or ``None`` when absent or anchored.
+    """
+    sub = _optional_str(data, "subdirectory")
+    # A Windows anchor covers POSIX roots too: ``/x`` has the anchor ``\``.
+    return None if sub is None or PureWindowsPath(sub).anchor else sub
 
 
 def _source_origin(url: str, data: dict[str, object]) -> Origin:
@@ -251,7 +272,7 @@ def _source_origin(url: str, data: dict[str, object]) -> Origin:
     Returns:
         The described origin, or an ``unknown`` one when none is present.
     """
-    sub = _optional_str(data, "subdirectory")
+    sub = _subdirectory(data)
     if (vcs := _object(data.get("vcs_info"))) is not None:
         return _vcs_origin(url, vcs, sub)
     if (archive := _object(data.get("archive_info"))) is not None:
