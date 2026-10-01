@@ -20,7 +20,6 @@ import hashlib
 import importlib.metadata as importlib_metadata
 import io
 import json
-import os
 import re
 import stat
 import string
@@ -29,7 +28,7 @@ from dataclasses import dataclass, field
 from functools import partial
 from itertools import islice, starmap
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, BinaryIO, Final, Literal, NoReturn, cast
+from typing import TYPE_CHECKING, Final, Literal, NoReturn, cast
 from urllib.parse import urlsplit
 
 from packaging.utils import canonicalize_name
@@ -44,6 +43,7 @@ from peta.core.local import (
 from peta.core.redaction import redacted
 
 if TYPE_CHECKING:
+    import os
     from collections.abc import Iterator
     from importlib.resources.abc import Traversable
 
@@ -497,25 +497,15 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
     return _read_entry(folder.joinpath(name), _read_policy(name))
 
 
-def _read_bounded(
-    entry: Traversable, policy: _ReadPolicy, probed: os.stat_result | None
-) -> bytes | None:
+def _read_bounded(entry: Traversable, policy: _ReadPolicy) -> bytes | None:
     """Read up to ``policy.limit`` bytes from any traversable entry.
-
-    A file on disk is opened only if it is still the one ``probed`` saw, as
-    for a hashed file; an archive member has nothing to swap.
 
     Returns:
         The raw bytes, or ``None`` when the entry exceeds the byte limit.
     """
     chunks: list[bytes] = []
     total = 0
-    opened: IO[bytes]
-    if isinstance(entry, Path) and probed is not None:
-        opened = _open_probed(entry, probed, follow_symlinks=policy.follow_symlinks)
-    else:
-        opened = entry.open("rb")
-    with opened as stream:
+    with entry.open("rb") as stream:
         while chunk := stream.read(_CHUNK):
             total += len(chunk)
             if total > policy.limit:
@@ -531,19 +521,14 @@ def _read_entry(entry: Traversable, policy: _ReadPolicy) -> str | None:
         The decoded text; ``None`` when absent, ``""`` when present but
         unreadable or refused.
     """
-    probed = None
-    if isinstance(entry, Path):
-        probed = _plain_file(entry, policy)
-        if probed is None:
-            return _refused(entry)
-    return _decoded(entry, policy, probed)
+    if isinstance(entry, Path) and not _plain_file(entry, policy):
+        return _refused(entry)
+    return _decoded(entry, policy)
 
 
-def _decoded(
-    entry: Traversable, policy: _ReadPolicy, probed: os.stat_result | None
-) -> str | None:
+def _decoded(entry: Traversable, policy: _ReadPolicy) -> str | None:
     try:
-        raw = _read_bounded(entry, policy, probed)
+        raw = _read_bounded(entry, policy)
     except _ABSENT:
         return None
     except _UNREADABLE:
@@ -596,7 +581,7 @@ def _is_plain_dir(info: os.stat_result) -> bool:
     )
 
 
-def _plain_file(path: Path, policy: _ReadPolicy) -> os.stat_result | None:
+def _plain_file(path: Path, policy: _ReadPolicy) -> bool:
     """Report whether a metadata file is safe to read.
 
     Metadata files are read before any ``RECORD`` containment check applies,
@@ -606,22 +591,20 @@ def _plain_file(path: Path, policy: _ReadPolicy) -> os.stat_result | None:
     read; anything else is present but refused.
 
     Returns:
-        The status of a regular file of at most ``policy.limit`` bytes, not
-        reached through a symlink unless the policy allows one, to open it
-        against; ``None`` for anything else.
+        ``True`` for a regular file of at most ``policy.limit`` bytes, not
+        reached through a symlink unless the policy allows one.
     """
     try:
         info = path.stat() if policy.follow_symlinks else path.lstat()
         parent_info = path.parent.lstat()
     except (OSError, ValueError):
-        return None
-    plain = (
+        return False
+    return (
         stat.S_ISREG(info.st_mode)
         and info.st_size <= policy.limit
         # An ``lstat`` that finds a directory has found no symlink or junction.
         and (policy.follow_symlinks or _is_plain_dir(parent_info))
     )
-    return info if plain else None
 
 
 def _encodable(data: object) -> bool:
@@ -676,9 +659,8 @@ into an object and kept.
 class _Vetted(importlib_metadata.Distribution):
     """Hands a stdlib metadata parser one file's text, already vetted.
 
-    Asking the distribution instead would have it reopen the file, after
-    :func:`_read_text` checked it: whatever had been swapped in since, a
-    symlink, a device, or a far larger file, would be read unchecked.
+    Asking the distribution instead would have it read the file again,
+    without the vetting and byte limit :func:`_read_text` applies.
     """
 
     def __init__(self, filename: str, text: str) -> None:
@@ -821,194 +803,14 @@ def _record_rows(text: str) -> list[tuple[str, int | None, str | None]]:
     return rows
 
 
-_NOFOLLOW: int = getattr(os, "O_NOFOLLOW", 0)
-_NONBLOCK: int = getattr(os, "O_NONBLOCK", 0)
-_OPEN_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_BINARY", 0) | _NONBLOCK
-"""Read-only and nonblocking, never through a final symlink where refused."""
-
-_DIRECTORY_FLAGS = os.O_RDONLY | _NOFOLLOW | getattr(os, "O_DIRECTORY", 0)
-"""A directory to walk through, refused if it is a symlink."""
-
-_WALKABLE = os.open in os.supports_dir_fd and bool(_NOFOLLOW)
-"""Whether a path can be opened one component at a time, following none.
-
-Not on Windows, which has no ``dir_fd``: there, the opened handle is asked
-for its final path instead, by :func:`_open_then_locate`.
-"""
-
-
-_FINAL_PATH_CHARS = 32_768
-"""Room for the longest path Windows allows, with its extended-length prefix."""
-
-if sys.platform == "win32":  # pragma: no cover - exercised by the Windows jobs
-    import ctypes.wintypes
-    import msvcrt
-
-    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    _get_final_path = _kernel32.GetFinalPathNameByHandleW
-    _get_final_path.argtypes = [
-        ctypes.wintypes.HANDLE,
-        ctypes.wintypes.LPWSTR,
-        ctypes.wintypes.DWORD,
-        ctypes.wintypes.DWORD,
-    ]
-    _get_final_path.restype = ctypes.wintypes.DWORD
-
-    def _final_path(descriptor: int) -> Path | None:
-        """Ask Windows where an open file is, whatever path reached it.
-
-        Returns:
-            The file's path with every link resolved, or ``None`` when
-            Windows cannot say.
-        """
-        buffer = ctypes.create_unicode_buffer(_FINAL_PATH_CHARS)
-        handle = msvcrt.get_osfhandle(descriptor)
-        length = cast("int", _get_final_path(handle, buffer, _FINAL_PATH_CHARS, 0))
-        if not 0 < length < _FINAL_PATH_CHARS:
-            return None
-        name = ctypes.wstring_at(buffer, length)
-        if name.startswith("\\\\?\\UNC\\"):
-            return Path("\\\\" + name.removeprefix("\\\\?\\UNC\\"))
-        return Path(name.removeprefix("\\\\?\\"))
-
-else:  # pragma: no cover - never called where the walk is possible
-
-    def _final_path(descriptor: int) -> Path | None:
-        del descriptor
-        return None
-
-
-def _open_then_locate(root: Path, path: Path) -> int:  # pragma: no cover - Windows
-    """Open ``path``, then refuse it unless the handle really lies under ``root``.
-
-    For where the walk of :func:`_open_beneath` is not available: the path
-    was followed wherever its directories now lead, so the open handle is
-    asked where it ended up, which no later swap can change.
-
-    Returns:
-        A descriptor for the file.
-    """
-    descriptor = os.open(path, _OPEN_FLAGS)
-    try:
-        _ensure_located_beneath(descriptor, path, root)
-    except BaseException:
-        os.close(descriptor)
-        raise
-    return descriptor
-
-
-def _ensure_located_beneath(  # pragma: no cover - Windows
-    descriptor: int, path: Path, root: Path
-) -> None:
-    """Raise unless an open file lies under ``root``.
-
-    Raises:
-        OSError: When it is elsewhere, or its location cannot be told.
-    """
-    final = _final_path(descriptor)
-    if final is None or not final.is_relative_to(root):
-        msg = f"{path} led outside {root} while it was being checked"
-        raise OSError(msg)
-
-
-def _open_beneath(root: Path, path: Path) -> int:  # pragma: no cover - POSIX
-    """Open ``path`` by walking down from the filesystem root, following no symlink.
-
-    ``O_NOFOLLOW`` guards every component: an ancestor or directory swapped
-    for a link to somewhere else after containment was checked would otherwise
-    be followed, and the file it leads to opened as though it were inside.
-
-    Returns:
-        A descriptor for the file.
-
-    Raises:
-        OSError: When a component cannot be opened or is the root itself.
-    """
-    rel = path.relative_to(root)
-    if not rel.name:
-        msg = f"{path} is the root itself"
-        raise OSError(msg)
-    directories, name = (*root.parts[1:], *rel.parent.parts), rel.name
-    descriptor = os.open(root.parts[0], _DIRECTORY_FLAGS)
-    try:
-        for directory in directories:
-            child = os.open(directory, _DIRECTORY_FLAGS, dir_fd=descriptor)
-            os.close(descriptor)
-            descriptor = child
-        return os.open(name, _OPEN_FLAGS, dir_fd=descriptor)
-    finally:
-        os.close(descriptor)
-
-
-_open_within = _open_beneath if _WALKABLE else _open_then_locate
-"""Open a file found under a root, so that it cannot turn out to lie elsewhere."""
-
-
-def _open_probed(
-    path: Path,
-    probed: os.stat_result,
-    *,
-    follow_symlinks: bool = False,
-    beneath: Path | None = None,
-) -> BinaryIO:
-    """Open the very file :func:`_probe` saw, not whatever is there now.
-
-    The path was checked for containment before it is opened, and an
-    installation being modified meanwhile could swap in a symlink to
-    ``/dev/zero`` or a file outside it. Comparing the open descriptor with
-    the probe catches that, whichever path component was swapped.
-
-    ``beneath`` is a root the path was found inside, to walk down from where
-    the platform allows it.
-
-    Returns:
-        The open file.
-    """
-    flags = _OPEN_FLAGS & ~_NOFOLLOW if follow_symlinks else _OPEN_FLAGS
-    descriptor = (
-        os.open(path, flags) if beneath is None else _open_within(beneath, path)
-    )
-    try:
-        _ensure_probed(descriptor, path, probed)
-        return os.fdopen(descriptor, "rb")
-    except BaseException:
-        os.close(descriptor)
-        raise
-
-
-def _ensure_probed(descriptor: int, path: Path, probed: os.stat_result) -> None:
-    """Raise unless an open descriptor is the regular file that was probed.
-
-    Raises:
-        OSError: When it is some other file.
-    """
-    opened = os.fstat(descriptor)
-    if not (stat.S_ISREG(opened.st_mode) and os.path.samestat(opened, probed)):
-        msg = f"{path} changed while it was being checked"
-        raise OSError(msg)
-
-
-def _digest(path: Path, algorithm: str, probed: os.stat_result, root: Path) -> str:
+def _digest(path: Path, algorithm: str) -> str:
     """Hash a file the way ``RECORD`` encodes it: urlsafe base64, unpadded.
-
-    Reads no more than the probed size, and one byte past it to notice a file
-    that grew, so nothing endless can hold the check.
 
     Returns:
         The encoded digest.
-
-    Raises:
-        OSError: When the file changed since it was probed.
     """
-    hasher = hashlib.new(algorithm)
-    with _open_probed(path, probed, beneath=root) as handle:
-        remaining = probed.st_size + 1
-        while remaining and (chunk := handle.read(min(_CHUNK, remaining))):
-            remaining -= len(chunk)
-            hasher.update(chunk)
-    if not remaining:
-        msg = f"{path} grew while it was being checked"
-        raise OSError(msg)
+    with path.open("rb") as handle:
+        hasher = hashlib.file_digest(handle, algorithm)
     return base64.urlsafe_b64encode(hasher.digest()).rstrip(b"=").decode("ascii")
 
 
@@ -1113,13 +915,12 @@ class _Checker:
             return InstalledFile(path, "out_of_bounds", None, *recorded)
         if not self.readable:
             return InstalledFile(path, "unverifiable", None, *recorded)
-        root = next(root for root in self.roots if located.is_relative_to(root))
-        probed = _probe(root, located)
+        probed = _probe(located)
         if isinstance(probed, str):
             return InstalledFile(path, probed, None, *recorded)
         size = probed.st_size
         try:
-            state = self._state(located, probed, recorded_size, recorded_hash, root)
+            state = self._state(located, probed, recorded_size, recorded_hash)
         # ``ValueError``: a FIPS build lists md5 as guaranteed yet refuses to
         # construct it, which leaves the digest just as uncomputable.
         except (OSError, ValueError):
@@ -1133,7 +934,6 @@ class _Checker:
         probed: os.stat_result,
         recorded_size: int | None,
         recorded_hash: str | None,
-        root: Path,
     ) -> FileState:
         if recorded_size is not None and probed.st_size != recorded_size:
             return "mismatch"
@@ -1145,11 +945,11 @@ class _Checker:
         if parsed is None:
             return "unverifiable"
         algorithm, expected = parsed
-        digest = self._cached_digest(located, algorithm, probed, root)
+        digest = self._cached_digest(located, algorithm, probed)
         return "verified" if digest == expected else "mismatch"
 
     def _cached_digest(
-        self, located: Path, algorithm: str, probed: os.stat_result, root: Path
+        self, located: Path, algorithm: str, probed: os.stat_result
     ) -> str:
         """Hash a file or reuse its previously computed digest.
 
@@ -1173,30 +973,26 @@ class _Checker:
         cached = self._digests.get(key)
         if cached is not None:
             return cached
-        digest = _digest(located, algorithm, probed, root)
+        digest = _digest(located, algorithm)
         self._digests[key] = digest
         return digest
 
 
-def _probe(root: Path, path: Path) -> os.stat_result | FileState:
-    """Probe a located file under its root, following no swapped symlinks.
+def _probe(path: Path) -> os.stat_result | FileState:
+    """Probe a located file without opening it, so a FIFO cannot block.
 
     Returns:
         The file's status, or the state that stands in for one: ``missing``
         when nothing regular is there, ``unverifiable`` when it cannot be
-        reached or swapped components lead elsewhere.
+        reached.
     """
     try:
-        descriptor = _open_within(root, path)
+        info = path.stat()
     except FileNotFoundError:
         return "missing"
     except (OSError, ValueError):
         return "unverifiable"
-    try:
-        info = os.fstat(descriptor)
-        return info if stat.S_ISREG(info.st_mode) else "missing"
-    finally:
-        os.close(descriptor)
+    return info if stat.S_ISREG(info.st_mode) else "missing"
 
 
 _VERSIONED_PYTHON = re.compile(r"python(?:\d+(?:\.\d+)*t?)?", re.IGNORECASE)
