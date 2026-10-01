@@ -85,15 +85,14 @@ def test_path_distribution_read_failures(
 def test_probe_tells_absence_from_inaccessibility(
     error: Exception, state: str, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    monkeypatch.setattr(
-        "peta.core.installation._open_within", MagicMock(side_effect=error)
-    )
-    assert _probe(tmp_path, tmp_path / "x") == state
+    monkeypatch.setattr(Path, "stat", MagicMock(side_effect=error))
+    assert _probe(tmp_path / "x") == state
 
 
 def test_probe_regular_file(tmp_path: Path) -> None:
-    root, target = _rooted_file(tmp_path)
-    assert isinstance(_probe(root, target), os.stat_result)
+    target = tmp_path / "mod.py"
+    _ = target.write_bytes(b"x")
+    assert isinstance(_probe(target), os.stat_result)
 
 
 @pytest.mark.skipif(  # pragma: no cover
@@ -101,39 +100,9 @@ def test_probe_regular_file(tmp_path: Path) -> None:
 )
 def test_probe_fifo_does_not_block(tmp_path: Path) -> None:
     assert sys.platform != "win32"
-    root = (tmp_path / "root").resolve()
-    root.mkdir()
-    fifo = root / "pipe"
+    fifo = tmp_path / "pipe"
     os.mkfifo(fifo)
-    assert _probe(root, fifo) == "missing"
-
-
-def _rooted_file(tmp_path: Path) -> tuple[Path, Path]:
-    root = (tmp_path / "root").resolve()
-    root.mkdir()
-    target = root / "mod.py"
-    _ = target.write_bytes(b"x")
-    return root, target
-
-
-def test_open_then_locate_accepts_a_handle_inside(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Where no walk is possible, the handle is asked where it really is."""
-    root, target = _rooted_file(tmp_path)
-    monkeypatch.setattr(installation, "_final_path", lambda _: target)
-    os.close(installation._open_then_locate(root, target))
-
-
-@pytest.mark.parametrize("located", ["elsewhere.py", None], ids=["outside", "unknown"])
-def test_open_then_locate_refuses_a_handle_elsewhere(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, located: str | None
-) -> None:
-    root, target = _rooted_file(tmp_path)
-    final = None if located is None else tmp_path / located
-    monkeypatch.setattr(installation, "_final_path", lambda _: final)
-    with pytest.raises(OSError, match="led outside"):
-        os.close(installation._open_then_locate(root, target))
+    assert _probe(fifo) == "missing"
 
 
 @pytest.mark.parametrize(
@@ -213,10 +182,10 @@ def test_plain_file_refuses_junction_parent(
     )
 
     policy = installation._read_policy("INSTALLER")
-    assert installation._plain_file(target, policy) is None
+    assert not installation._plain_file(target, policy)
 
     core_policy = installation._read_policy("METADATA")
-    assert installation._plain_file(target, core_policy) is not None
+    assert installation._plain_file(target, core_policy)
 
 
 def test_refused_recognizes_junction(

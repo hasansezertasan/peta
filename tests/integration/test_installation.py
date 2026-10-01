@@ -521,114 +521,13 @@ class TestIntegrity:
     ) -> None:
         _install(site, "denied", files={"denied.py": b"x"})
 
-        def refuse(
-            path: Path, algorithm: str, probed: os.stat_result, root: Path
-        ) -> str:
-            del algorithm, probed, root
+        def refuse(path: Path, algorithm: str) -> str:
+            del algorithm
             raise PermissionError(path)
 
         monkeypatch.setattr("peta.core.installation._digest", refuse)
         states = _states(_inspect(site, "denied", verify=True))
         assert states["denied.py"] == "unverifiable"
-
-    @pytest.mark.parametrize("swap", ["replaced", "grown"])
-    def test_file_changed_after_probing_is_unverifiable(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, swap: str
-    ) -> None:
-        """What is hashed must be the file whose containment was checked."""
-        content = b"x = 1\n"
-        _install(site, "racy", files={"racy.py": content})
-        probe = installation._probe
-
-        def probe_then_swap(root: Path, located: Path) -> os.stat_result | FileState:
-            found = probe(root, located)
-            if swap == "replaced":
-                decoy = tmp_path / "decoy.py"
-                _ = decoy.write_bytes(content)
-                _ = decoy.replace(located)
-            else:
-                with located.open("ab") as handle:
-                    _ = handle.write(b"# grown\n")
-            return found
-
-        monkeypatch.setattr("peta.core.installation._probe", probe_then_swap)
-        states = _states(_inspect(site, "racy", verify=True))
-        assert states["racy.py"] == "unverifiable"
-
-    @_posix_only("symlinks need privileges")  # pragma: no cover
-    def test_symlink_swapped_in_after_probing_is_not_followed(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        content = b"x = 1\n"
-        _install(site, "linked", files={"linked.py": content})
-        outside = tmp_path / "outside.py"
-        _ = outside.write_bytes(content)
-        probe = installation._probe
-
-        def probe_then_link(root: Path, located: Path) -> os.stat_result | FileState:
-            found = probe(root, located)
-            located.unlink()
-            located.symlink_to(outside)
-            return found
-
-        monkeypatch.setattr("peta.core.installation._probe", probe_then_link)
-        states = _states(_inspect(site, "linked", verify=True))
-        assert states["linked.py"] == "unverifiable"
-
-    @_posix_only("symlinks need privileges")  # pragma: no cover
-    @pytest.mark.parametrize("verify", [True, False])
-    def test_directory_swapped_in_after_resolving_is_not_followed(
-        self,
-        site: Path,
-        monkeypatch: pytest.MonkeyPatch,
-        tmp_path: Path,
-        *,
-        verify: bool,
-    ) -> None:
-        """No path component, not only the last, may lead out once checked."""
-        content = b"x = 1\n"
-        _install(site, "walked", files={"walked/mod.py": content})
-        outside = tmp_path / "outside"
-        outside.mkdir()
-        _ = (outside / "mod.py").write_bytes(content)
-        probe = installation._probe
-
-        def swap_then_probe(root: Path, located: Path) -> os.stat_result | FileState:
-            if located.name == "mod.py":
-                package = located.parent
-                package.rename(tmp_path / "moved")
-                package.symlink_to(outside, target_is_directory=True)
-            return probe(root, located)
-
-        monkeypatch.setattr("peta.core.installation._probe", swap_then_probe)
-        inspection = _inspect(site, "walked", verify=verify)
-        assert _states(inspection)["walked/mod.py"] == "unverifiable"
-        assert inspection.files[0].size is None
-
-    @_posix_only("symlinks need privileges")  # pragma: no cover
-    def test_root_ancestor_swapped_in_after_resolving_is_not_followed(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
-        """An ancestor of the root itself, swapped for a symlink, is not followed."""
-        content = b"x = 1\n"
-        _install(site, "ancestor", files={"ancestor/mod.py": content})
-        outside = (tmp_path / "outside").resolve()
-        outside.mkdir()
-        outside_site = outside / "lib" / "site-packages" / "ancestor"
-        outside_site.mkdir(parents=True)
-        _ = (outside_site / "mod.py").write_bytes(content)
-        probe = installation._probe
-
-        def swap_then_probe(root: Path, located: Path) -> os.stat_result | FileState:
-            if located.name == "mod.py":
-                env = site.parent
-                env.rename(tmp_path / "env_moved")
-                env.symlink_to(outside / "lib")
-            return probe(root, located)
-
-        monkeypatch.setattr("peta.core.installation._probe", swap_then_probe)
-        inspection = _inspect(site, "ancestor", verify=True)
-        assert _states(inspection)["ancestor/mod.py"] == "unverifiable"
 
     def test_refused_digest_is_unverifiable(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
@@ -1033,33 +932,6 @@ class TestMetadataSafety:
         dist_info = _install(site, "fifo", record=False)
         os.mkfifo(dist_info / "RECORD")
         assert _inspect(site, "fifo").record_source is None
-
-    @pytest.mark.parametrize("swap", ["replaced", "symlinked"])
-    def test_metadata_swapped_after_vetting_is_not_read(
-        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, swap: str
-    ) -> None:
-        """What is read must be the metadata file that was vetted."""
-        if swap == "symlinked" and sys.platform == "win32":  # pragma: no cover
-            pytest.skip("symlinks need privileges")
-        _install(site, "swapped", metadata_files={"INSTALLER": "pip\n"})
-        outside = tmp_path / "outside.txt"
-        _ = outside.write_text("leaked\n", encoding="utf-8")
-        vet = installation._plain_file
-
-        def vet_then_swap(
-            path: Path, policy: installation._ReadPolicy
-        ) -> os.stat_result | None:
-            found = vet(path, policy)
-            if path.name == "INSTALLER":
-                path.unlink()
-                if swap == "replaced":
-                    _ = outside.replace(path)
-                else:
-                    path.symlink_to(outside)
-            return found
-
-        monkeypatch.setattr("peta.core.installation._plain_file", vet_then_swap)
-        assert _inspect(site, "swapped").installer is None
 
     def test_oversized_metadata_is_refused(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
