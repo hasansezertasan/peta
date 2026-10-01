@@ -5,12 +5,10 @@ from __future__ import annotations
 import importlib
 import importlib.metadata as importlib_metadata
 import json
-import lzma
 import os
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
 import sys
 import zipfile
-import zlib
 from dataclasses import dataclass
 from importlib.metadata import PathDistribution
 from pathlib import Path
@@ -36,34 +34,32 @@ __all__ = [
 ]
 
 
-def _zstd_errors() -> tuple[type[Exception], ...]:
-    """Name what a corrupt Zstandard member raises, where :mod:`zipfile` reads one.
+def _compression_errors(module: str, exception: str) -> tuple[type[Exception], ...]:
+    """Name a corrupt-stream exception only when its backend is available.
 
-    Imported by name: the module is new in Python 3.14, and even there
-    CPython can be built without libzstd.
+    CPython can be built without optional compression extensions, and
+    ``compression.zstd`` is available only from Python 3.14.
 
     Returns:
-        ``ZstdError`` when the module exists, otherwise nothing.
+        The backend's exception when the module exists, otherwise nothing.
     """
     try:
-        zstd = importlib.import_module("compression.zstd")
-    except ImportError:  # pragma: no cover - only before Python 3.14
+        backend = importlib.import_module(module)
+    except ImportError:
         return ()
-    error = cast("type[Exception]", zstd.ZstdError)
-    return (error,)  # pragma: no cover - only from Python 3.14
+    error = cast("type[Exception]", getattr(backend, exception))
+    return (error,)
 
-
-_ZSTD_ERRORS = _zstd_errors()
 
 METADATA_READ_ERRORS: tuple[type[Exception], ...] = (
     OSError,
     RuntimeError,
     ValueError,
-    lzma.LZMAError,
     zipfile.BadZipFile,
     zipfile.LargeZipFile,
-    zlib.error,
-    *_ZSTD_ERRORS,
+    *_compression_errors("lzma", "LZMAError"),
+    *_compression_errors("zlib", "error"),
+    *_compression_errors("compression.zstd", "ZstdError"),
 )
 """What reading an unreadable metadata file or archive member can raise.
 

@@ -27,6 +27,24 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize("backend", ["lzma", "zlib", "compression.zstd"])
+def test_metadata_reader_imports_without_optional_compression(backend: str) -> None:
+    """A missing compression backend must not prevent importing the reader."""
+    script = f"""\
+import sys
+sys.modules[{backend!r}] = None
+from peta.core.local import METADATA_READ_ERRORS
+assert OSError in METADATA_READ_ERRORS
+"""
+    _ = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] # Fixed Python script, with no shell.
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+
 def test_interpreter_target_marker_environment_matches_packaging() -> None:
     target = LocalTarget.create(sys.executable)
     expected = default_environment()
