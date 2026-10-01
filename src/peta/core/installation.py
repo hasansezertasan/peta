@@ -1029,7 +1029,7 @@ def _resolved(path: Path) -> Path | None:
 
 
 def _within(path: Path, roots: tuple[Path, ...]) -> bool:
-    return any(path.is_relative_to(root) for root in roots)
+    return any(path != root and path.is_relative_to(root) for root in roots)
 
 
 @dataclass(frozen=True)
@@ -1056,13 +1056,13 @@ class _Checker:
         recorded_hash: str | None = None,
     ) -> InstalledFile:
         recorded = (recorded_size, recorded_hash)
-        if not self.readable:
-            return InstalledFile(path, "unverifiable", None, *recorded)
         # ``resolve`` follows symlinks, so a link inside site-packages that
         # points elsewhere is judged by where it leads, not where it sits.
         located = _resolved(self.base / path)
         if located is None or not _within(located, self.roots):
             return InstalledFile(path, "out_of_bounds", None, *recorded)
+        if not self.readable:
+            return InstalledFile(path, "unverifiable", None, *recorded)
         root = next(root for root in self.roots if located.is_relative_to(root))
         probed = _probe(root, located)
         if isinstance(probed, str):
@@ -1193,7 +1193,11 @@ def _scheme_root(base: Path) -> Path | None:
     )
 
 
-def _roots(base: Path, prefix: str | None) -> tuple[Path, ...]:
+def _roots(
+    base: Path, prefix: str | None, *, readable: bool = True
+) -> tuple[Path, ...]:
+    if not readable:
+        return (base,)
     candidates = [_scheme_root(base), _resolved(Path(prefix)) if prefix else None]
     return (base, *(root for root in candidates if root is not None))
 
@@ -1360,7 +1364,7 @@ def inspect_installation(
     readable = isinstance(located, Path)
     base = Path(str(located)).resolve()
     prefix = target.prefix if target is not None else sys.prefix
-    checker = _Checker(base, _roots(base, prefix), verify, readable)
+    checker = _Checker(base, _roots(base, prefix, readable=readable), verify, readable)
     record_source, files = _record_files(dist, checker)
     return Installation(
         name=found_name,

@@ -1451,6 +1451,33 @@ class TestZippedDistributions:
         assert found.record_source is None
         assert found.files == []
 
+    @pytest.mark.usefixtures("release_archives")
+    def test_archive_escaping_rows_are_out_of_bounds(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """RECORD paths in an archive that escape it are reported out_of_bounds."""
+        archive = tmp_path / "escapes.zip"
+        with zipfile.ZipFile(archive, "w") as bundle:
+            bundle.writestr(
+                "escapes-1.0.0.dist-info/METADATA", _METADATA.format(name="escapes")
+            )
+            record = (
+                "pkg.py,sha256=xxx,10\n"
+                "../secret.txt,sha256=xxx,10\n"
+                f"{os.sep}outside.txt,sha256=xxx,10\n"
+                "../../../outside.txt,sha256=xxx,10\n"
+            )
+            bundle.writestr("escapes-1.0.0.dist-info/RECORD", record)
+            bundle.writestr("pkg.py", "x = 1\n")
+        monkeypatch.syspath_prepend(str(archive))
+        found = inspect_installation("escapes")
+        states = {file.path: file.state for file in found.files}
+        assert states["pkg.py"] == "unverifiable"
+        assert states["../secret.txt"] == "out_of_bounds"
+        assert states[f"{os.sep}outside.txt"] == "out_of_bounds"
+        assert states["../../../outside.txt"] == "out_of_bounds"
+        assert all(file.size is None for file in found.files)
+
 
 class TestCli:
     """The ``peta origin`` command end to end."""
