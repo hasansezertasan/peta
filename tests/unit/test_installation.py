@@ -101,7 +101,7 @@ def test_probe_regular_file(tmp_path: Path) -> None:
 )
 def test_probe_fifo_does_not_block(tmp_path: Path) -> None:
     assert sys.platform != "win32"
-    root = tmp_path / "root"
+    root = (tmp_path / "root").resolve()
     root.mkdir()
     fifo = root / "pipe"
     os.mkfifo(fifo)
@@ -109,7 +109,7 @@ def test_probe_fifo_does_not_block(tmp_path: Path) -> None:
 
 
 def _rooted_file(tmp_path: Path) -> tuple[Path, Path]:
-    root = tmp_path / "root"
+    root = (tmp_path / "root").resolve()
     root.mkdir()
     target = root / "mod.py"
     _ = target.write_bytes(b"x")

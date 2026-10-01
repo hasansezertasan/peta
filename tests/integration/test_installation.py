@@ -605,6 +605,31 @@ class TestIntegrity:
         assert _states(inspection)["walked/mod.py"] == "unverifiable"
         assert inspection.files[0].size is None
 
+    @_posix_only("symlinks need privileges")  # pragma: no cover
+    def test_root_ancestor_swapped_in_after_resolving_is_not_followed(
+        self, site: Path, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """An ancestor of the root itself, swapped for a symlink, is not followed."""
+        content = b"x = 1\n"
+        _install(site, "ancestor", files={"ancestor/mod.py": content})
+        outside = (tmp_path / "outside").resolve()
+        outside.mkdir()
+        outside_site = outside / "lib" / "site-packages" / "ancestor"
+        outside_site.mkdir(parents=True)
+        _ = (outside_site / "mod.py").write_bytes(content)
+        probe = installation._probe
+
+        def swap_then_probe(root: Path, located: Path) -> os.stat_result | FileState:
+            if located.name == "mod.py":
+                env = site.parent
+                env.rename(tmp_path / "env_moved")
+                env.symlink_to(outside / "lib")
+            return probe(root, located)
+
+        monkeypatch.setattr("peta.core.installation._probe", swap_then_probe)
+        inspection = _inspect(site, "ancestor", verify=True)
+        assert _states(inspection)["ancestor/mod.py"] == "unverifiable"
+
     def test_refused_digest_is_unverifiable(
         self, site: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

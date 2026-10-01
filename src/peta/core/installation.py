@@ -904,11 +904,11 @@ def _ensure_located_beneath(  # pragma: no cover - Windows
 
 
 def _open_beneath(root: Path, path: Path) -> int:  # pragma: no cover - POSIX
-    """Open ``path`` by walking down from ``root``, following no symlink.
+    """Open ``path`` by walking down from the filesystem root, following no symlink.
 
-    ``O_NOFOLLOW`` guards only the last component: a directory swapped for a
-    link to somewhere else after containment was checked would otherwise be
-    followed, and the file it leads to opened as though it were inside.
+    ``O_NOFOLLOW`` guards every component: an ancestor or directory swapped
+    for a link to somewhere else after containment was checked would otherwise
+    be followed, and the file it leads to opened as though it were inside.
 
     Returns:
         A descriptor for the file.
@@ -920,8 +920,8 @@ def _open_beneath(root: Path, path: Path) -> int:  # pragma: no cover - POSIX
     if not rel.name:
         msg = f"{path} is the root itself"
         raise OSError(msg)
-    directories, name = rel.parent.parts, rel.name
-    descriptor = os.open(root, _DIRECTORY_FLAGS)
+    directories, name = (*root.parts[1:], *rel.parent.parts), rel.name
+    descriptor = os.open(root.parts[0], _DIRECTORY_FLAGS)
     try:
         for directory in directories:
             child = os.open(directory, _DIRECTORY_FLAGS, dir_fd=descriptor)
