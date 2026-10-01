@@ -315,7 +315,8 @@ never import the inspected distribution or invoke its build backend.</p></li>
 the core metadata, and the files <code class="docutils literal notranslate"><span class="pre">RECORD</span></code> names — is treated as possibly
 corrupt or hostile <em>content</em>. <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">origin</span></code> must stay bounded and must not
 crash on it: every metadata file has a byte limit, listings have a row
-limit, and anything that cannot be read or parsed degrades to a reported
+limit, what peta builds or prints from a file stays proportional to the
+bytes it read, and anything that cannot be read or parsed degrades to a reported
 state rather than an exception. Files are read only when they resolve inside
 the selected environment, and a listing is never read through a symlink.
 The installation is <strong>not</strong> defended against a party modifying it <em>while</em>
