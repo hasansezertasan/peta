@@ -1224,6 +1224,41 @@ class TestCoreMetadata:
         found = inspect_installation("headers")
         assert (found.name, found.version) == ("headers", "1.0.0")
 
+    @pytest.mark.parametrize(
+        "boundary", ["garbage", "Invalid Header: value", "", "Bad\x00Header: value"]
+    )
+    @pytest.mark.parametrize("newline", ["\n", "\r\n"], ids=["lf", "crlf"])
+    @pytest.mark.parametrize("explicit_path", [False, True], ids=["runtime", "path"])
+    def test_required_fields_after_header_boundary_are_not_found(
+        self,
+        site: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        boundary: str,
+        newline: str,
+        *,
+        explicit_path: bool,
+    ) -> None:
+        """Malformed and blank lines end headers before later apparent fields."""
+        dist_info = _install(site, "bodyfields")
+        metadata = (
+            f"Metadata-Version: 2.1\n{boundary}\nName: bodyfields\nVersion: 1.0.0\n"
+        )
+        _ = (dist_info / "METADATA").write_bytes(
+            metadata.replace("\n", newline).encode()
+        )
+        monkeypatch.syspath_prepend(str(site))
+        target = LocalTarget.create(None, (str(site),)) if explicit_path else None
+        with pytest.raises(PackageNotFoundError):
+            _ = inspect_installation("bodyfields", target=target)
+
+    def test_valid_headers_before_malformed_boundary_are_kept(self, site: Path) -> None:
+        """A malformed body boundary does not discard preceding valid fields."""
+        _write_metadata(
+            site, "beforebody", "Summary: first\n continued\ngarbage\nName: impostor\n"
+        )
+        found = _inspect(site, "beforebody")
+        assert (found.name, found.version) == ("beforebody", "1.0.0")
+
     @pytest.mark.parametrize("field", ["Name", "Version"])
     def test_oversized_core_field_is_not_found(
         self, site: Path, monkeypatch: pytest.MonkeyPatch, field: str

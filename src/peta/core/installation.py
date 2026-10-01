@@ -1161,8 +1161,12 @@ def _record_files(
     return None, []
 
 
-_HEADER_END = re.compile(r"\r?\n\r?\n")
-"""The blank line that ends the core metadata's headers."""
+_HEADER_END = re.compile(r"^(?![!-9;-~]+:|[ \t])", re.MULTILINE)
+"""A blank or malformed physical line ends the core metadata's headers.
+
+RFC header names contain printable ASCII other than colon; continuation lines
+start with a space or tab. Anything else begins the body.
+"""
 
 _CORE_FIELDS = ("name", "version")
 """The core metadata fields every report needs."""
