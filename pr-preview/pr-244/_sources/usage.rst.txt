@@ -255,6 +255,12 @@ A distribution without a ``RECORD`` falls back to a legacy
 ``installed-files.txt``, which carries no hashes; with neither, integrity is
 reported as unavailable rather than guessed from ``SOURCES.txt``.
 
+``--verify`` detects drift from what the installer recorded -- an edited,
+truncated, or replaced file. It is not a tamper-proof integrity check: the
+``RECORD`` it compares against lives beside the files it describes, and peta
+does not defend against the installation being modified while it is being
+read. See :doc:`threat-model`.
+
 Human output names a local origin by its final path component only, so a report
 can be shared without disclosing where a checkout lives; the JSON output keeps
 the full URL. Credentials an installer recorded in an origin URL are removed

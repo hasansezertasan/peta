@@ -615,6 +615,11 @@ does not read archive members.
 A distribution without a <code class="docutils literal notranslate"><span class="pre">RECORD</span></code> falls back to a legacy
 <code class="docutils literal notranslate"><span class="pre">installed-files.txt</span></code>, which carries no hashes; with neither, integrity is
 reported as unavailable rather than guessed from <code class="docutils literal notranslate"><span class="pre">SOURCES.txt</span></code>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">--verify</span></code> detects drift from what the installer recorded – an edited,
+truncated, or replaced file. It is not a tamper-proof integrity check: the
+<code class="docutils literal notranslate"><span class="pre">RECORD</span></code> it compares against lives beside the files it describes, and peta
+does not defend against the installation being modified while it is being
+read. See <a class="reference internal" href="threat-model.html"><span class="doc">Threat Model</span></a>.</p>
 <p>Human output names a local origin by its final path component only, so a report
 can be shared without disclosing where a checkout lives; the JSON output keeps
 the full URL. Credentials an installer recorded in an origin URL are removed
