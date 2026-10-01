@@ -4,6 +4,11 @@ Reads only what the distribution's own metadata directory records --
 ``direct_url.json``, ``INSTALLER``, ``REQUESTED``, ``entry_points.txt``,
 ``top_level.txt``, and ``RECORD`` -- and the installed files ``RECORD`` names,
 never anything outside the selected environment.
+
+Metadata is treated as possibly corrupt or hostile content: every read is
+bounded and every failure degrades to a reported state. The installation is
+not defended against being modified while it is read; see
+``docs/threat-model.rst``.
 """
 
 from __future__ import annotations
