@@ -232,7 +232,7 @@ def test_refused_recognizes_junction(
     def fake_lstat(p: Path) -> os.stat_result:
         if p == pkg_dir:
             return reparse_dir  # type: ignore[return-value]
-        raise FileNotFoundError
+        raise FileNotFoundError(2, "No such file or directory")
 
     monkeypatch.setattr(Path, "lstat", fake_lstat)
     refused = installation._refused(target)

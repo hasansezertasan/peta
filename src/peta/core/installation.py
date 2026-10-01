@@ -560,13 +560,13 @@ def _is_link_or_junction(path: Path) -> bool:
     Returns:
         ``True`` when the path is a symbolic link or a Windows junction.
     """
-    if path.is_symlink():
-        return True
     try:
         info = path.lstat()
     except (OSError, ValueError):
         return False
-    return bool(getattr(info, "st_file_attributes", 0) & _REPARSE_POINT)
+    return stat.S_ISLNK(info.st_mode) or bool(
+        getattr(info, "st_file_attributes", 0) & _REPARSE_POINT
+    )
 
 
 def _refused(path: Path) -> str | None:
