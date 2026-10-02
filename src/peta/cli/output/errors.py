@@ -25,6 +25,7 @@ _COMMANDS: frozenset[CommandName] = frozenset({
     "compare",
     "deps",
     "files",
+    "origin",
     "versions",
 })
 

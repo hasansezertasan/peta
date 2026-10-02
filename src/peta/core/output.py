@@ -52,7 +52,8 @@ undocumented nested object in front of exact consumers.
 # CodeQL does not yet recognize PEP 695 ``type`` statements as definitions when
 # checking ``__all__``. Keep these runtime-visible assignments until it does.
 CommandName = TypeAliasType(
-    "CommandName", Literal["info", "compare", "deps", "files", "versions", "artifacts"]
+    "CommandName",
+    Literal["info", "compare", "deps", "files", "origin", "versions", "artifacts"],
 )
 EnvelopeStatus = TypeAliasType(
     "EnvelopeStatus", Literal["success", "partial", "empty", "failed"]

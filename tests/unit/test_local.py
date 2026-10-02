@@ -27,6 +27,24 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize("backend", ["lzma", "zlib", "compression.zstd"])
+def test_metadata_reader_imports_without_optional_compression(backend: str) -> None:
+    """A missing compression backend must not prevent importing the reader."""
+    script = f"""\
+import sys
+sys.modules[{backend!r}] = None
+from peta.core.local import METADATA_READ_ERRORS
+assert OSError in METADATA_READ_ERRORS
+"""
+    _ = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] # Fixed Python script, with no shell.
+        [sys.executable, "-c", script],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+
 def test_interpreter_target_marker_environment_matches_packaging() -> None:
     target = LocalTarget.create(sys.executable)
     expected = default_environment()
@@ -68,6 +86,12 @@ def test_interpreter_inspection_uses_a_timeout() -> None:
             '{"paths": [], "marker_environment": {"sys_platform": "linux"}}',
             id="missing-required-markers",
         ),
+        pytest.param(
+            '{"paths": [], "prefix": 1, "marker_environment": {'
+            '"platform_python_implementation": "CPython", '
+            '"python_full_version": "3.14.0", "sys_platform": "linux"}}',
+            id="non-string-prefix",
+        ),
     ],
 )
 def test_malformed_inspection_payload_rejected(payload: str) -> None:
@@ -76,6 +100,24 @@ def test_malformed_inspection_payload_rejected(payload: str) -> None:
     with (
         patch("peta.core.local.subprocess.run", return_value=completed),
         pytest.raises(InvalidTargetError, match="invalid environment data"),
+    ):
+        LocalTarget.create(sys.executable)
+
+
+def test_output_that_is_not_json_is_a_target_error() -> None:
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="not json")
+    with (
+        patch("peta.core.local.subprocess.run", return_value=completed),
+        pytest.raises(InvalidTargetError, match="could not inspect"),
+    ):
+        LocalTarget.create(sys.executable)
+
+
+def test_undecodable_interpreter_output_is_a_target_error() -> None:
+    error = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+    with (
+        patch("peta.core.local.subprocess.run", side_effect=error),
+        pytest.raises(InvalidTargetError, match="could not inspect"),
     ):
         LocalTarget.create(sys.executable)
 
@@ -93,6 +135,54 @@ def test_valid_payload_is_accepted() -> None:
     assert target.paths == ("/site-packages",)
     assert target.marker_environment == markers
     assert target.output_environment()["markers"] == markers
+
+
+def test_payload_prefix_bounds_the_target() -> None:
+    """The interpreter's own prefix is what lets its scripts be read."""
+    markers = {
+        "platform_python_implementation": "CPython",
+        "python_full_version": "3.14.0",
+        "sys_platform": "linux",
+    }
+    stdout = json.dumps({
+        "paths": ["/venv/lib/site-packages"],
+        "marker_environment": markers,
+        "prefix": "/venv",
+    })
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout)
+    with patch("peta.core.local.subprocess.run", return_value=completed):
+        target = LocalTarget.create(sys.executable)
+    assert target.prefix == "/venv"
+
+
+def test_path_overrides_the_interpreters_prefix(tmp_path: Path) -> None:
+    """--path metadata is not bounded by the --python interpreter's prefix."""
+    markers = {
+        "platform_python_implementation": "CPython",
+        "python_full_version": "3.14.0",
+        "sys_platform": "linux",
+    }
+    stdout = json.dumps({"paths": [], "marker_environment": markers, "prefix": "/v"})
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout=stdout)
+    with patch("peta.core.local.subprocess.run", return_value=completed):
+        target = LocalTarget.create(sys.executable, (str(tmp_path),))
+    assert target.prefix is None
+
+
+def test_prefix_is_unknown_for_a_path_only_target(tmp_path: Path) -> None:
+    """Named metadata directories need not live under the running prefix."""
+    assert LocalTarget.create(None, (str(tmp_path),)).prefix is None
+    assert LocalTarget.create(None).prefix == sys.prefix
+
+
+def test_target_script_reports_the_prefix() -> None:
+    completed = subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true] # The test's own interpreter.
+        [sys.executable, "-c", _TARGET_SCRIPT],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert json.loads(completed.stdout)["prefix"] == sys.prefix
 
 
 def test_describe_reports_the_marker_values() -> None:

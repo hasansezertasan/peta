@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.metadata as importlib_metadata
 import json
 import os
 import subprocess  # ruff: ignore[suspicious-subprocess-import] # Controlled interpreter invocation below.
+import sys
+import zipfile
 from dataclasses import dataclass
 from importlib.metadata import PathDistribution
 from pathlib import Path
@@ -18,9 +21,53 @@ from peta.core.models import PackageInfo
 from peta.core.output import utc_now
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
 
-__all__ = ["InvalidTargetError", "LocalTarget", "PackageNotFoundError", "get_package"]
+__all__ = [
+    "METADATA_READ_ERRORS",
+    "InvalidTargetError",
+    "LocalTarget",
+    "PackageNotFoundError",
+    "find_distribution",
+    "get_package",
+    "legacy_installed_files",
+]
+
+
+def _compression_errors(module: str, exception: str) -> tuple[type[Exception], ...]:
+    """Name a corrupt-stream exception only when its backend is available.
+
+    CPython can be built without optional compression extensions, and
+    ``compression.zstd`` is available only from Python 3.14.
+
+    Returns:
+        The backend's exception when the module exists, otherwise nothing.
+    """
+    try:
+        backend = importlib.import_module(module)
+    except ImportError:
+        return ()
+    error = cast("type[Exception]", getattr(backend, exception))
+    return (error,)
+
+
+METADATA_READ_ERRORS: tuple[type[Exception], ...] = (
+    OSError,
+    RuntimeError,
+    ValueError,
+    zipfile.BadZipFile,
+    zipfile.LargeZipFile,
+    *_compression_errors("lzma", "LZMAError"),
+    *_compression_errors("zlib", "error"),
+    *_compression_errors("compression.zstd", "ZstdError"),
+)
+"""What reading an unreadable metadata file or archive member can raise.
+
+A zipped member can also fail to decompress: ``RuntimeError`` when it is
+encrypted, ``NotImplementedError`` (a ``RuntimeError``) for a compression
+method :mod:`zipfile` lacks, and ``LZMAError``, ``zlib.error`` or
+``ZstdError`` for a corrupt stream.
+"""
 
 
 class PackageNotFoundError(Exception):
@@ -98,14 +145,17 @@ def _run_inspection(interpreter: Path, python: str) -> object:
     except subprocess.TimeoutExpired as exc:
         detail = f"it did not respond within {_INSPECT_TIMEOUT:g}s."
         raise InvalidTargetError(_interpreter_problem(python, detail)) from exc
-    except (OSError, subprocess.CalledProcessError) as exc:
+    # ``UnicodeDecodeError``: ``text=True`` decodes whatever the target printed.
+    except (OSError, UnicodeDecodeError, subprocess.CalledProcessError) as exc:
         msg = _interpreter_problem(python, "could not inspect it.")
         raise InvalidTargetError(msg) from exc
     try:
         # Cast rather than returned directly: ``json.loads`` is typed ``Any``,
         # and letting that escape would defeat the validation that follows.
         payload = cast("object", json.loads(completed.stdout))
-    except json.JSONDecodeError as exc:
+    # Not only ``JSONDecodeError``: an integer past the digit limit is a plain
+    # ``ValueError``, and absurd nesting a ``RecursionError``.
+    except (RecursionError, ValueError) as exc:
         msg = _interpreter_problem(python, "could not inspect it.")
         raise InvalidTargetError(msg) from exc
     return payload
@@ -151,9 +201,26 @@ def _validated_paths(search_paths: object, msg: str) -> tuple[str, ...]:
     return tuple(cast("list[str]", raw))
 
 
+def _validated_prefix(prefix: object, msg: str) -> str | None:
+    """Check the installation prefix an interpreter reported.
+
+    Absent is accepted and means "unknown", which only narrows what origin
+    inspection is willing to read; a value of the wrong type is not.
+
+    Returns:
+        The interpreter's ``sys.prefix``, or ``None`` when it was not reported.
+
+    Raises:
+        InvalidTargetError: If the prefix is present but not a string.
+    """
+    if prefix is None or isinstance(prefix, str):
+        return prefix
+    raise InvalidTargetError(msg)
+
+
 def _validated_inspection(
     payload: object, python: str
-) -> tuple[tuple[str, ...], dict[str, str]]:
+) -> tuple[tuple[str, ...], dict[str, str], str | None]:
     """Check an inspection payload before any part of it is trusted.
 
     ``json.loads`` returns whatever the interpreter chose to print, so every
@@ -163,7 +230,8 @@ def _validated_inspection(
     only fail once the bad values had reached the output.
 
     Returns:
-        The interpreter's search paths and its marker environment.
+        The interpreter's search paths, its marker environment, and its
+        installation prefix.
 
     Raises:
         InvalidTargetError: If the payload is not a JSON object.
@@ -175,6 +243,7 @@ def _validated_inspection(
     return (
         _validated_paths(details.get("paths"), msg),
         _validated_markers(details.get("marker_environment"), msg),
+        _validated_prefix(details.get("prefix"), msg),
     )
 
 
@@ -208,6 +277,14 @@ class LocalTarget:
     paths: tuple[str, ...] | None
     interpreter: str | None
     marker_environment: dict[str, str]
+    prefix: str | None = None
+    """The environment's installation prefix, when it is known.
+
+    Bounds which files origin inspection may read: a ``RECORD`` legitimately
+    lists console scripts outside ``site-packages`` but inside the prefix.
+    Unknown for a ``--path``-only target, which names metadata directories
+    rather than an environment.
+    """
 
     @classmethod
     def create(
@@ -234,6 +311,9 @@ class LocalTarget:
                 checked or None,
                 None,
                 _target_markers(marker_environment, python_version, platform),
+                # Only the running environment's own search path lives under
+                # its prefix; directories named with --path need not.
+                None if checked else sys.prefix,
             )
         if not python.strip():
             msg = _interpreter_problem(python, "no interpreter path given.")
@@ -244,13 +324,16 @@ class LocalTarget:
         if not interpreter.is_file():
             msg = _interpreter_problem(python, "file does not exist.")
             raise InvalidTargetError(msg)
-        inspected, marker_environment = _validated_inspection(
+        inspected, marker_environment, prefix = _validated_inspection(
             _run_inspection(interpreter, python), python
         )
         return cls(
             checked or inspected,
             str(interpreter),
             _target_markers(marker_environment, python_version, platform),
+            # With --path the metadata comes from elsewhere, so the
+            # interpreter's prefix bounds nothing that was actually searched.
+            None if checked else prefix,
         )
 
     def describe(self) -> str:
@@ -371,7 +454,11 @@ marker_environment = {
     "python_version": ".".join(version.split(".")[:2]),
     "sys_platform": sys.platform,
 }
-print(json.dumps({"paths": sys.path, "marker_environment": marker_environment}))
+print(json.dumps({
+    "paths": sys.path,
+    "marker_environment": marker_environment,
+    "prefix": sys.prefix,
+}))
 """
 
 
@@ -418,22 +505,36 @@ def _parse_license(
     return legacy, "legacy" if legacy else None
 
 
-def _is_named(candidate: importlib_metadata.Distribution, canonical: str) -> bool:
+def _stdlib_name(candidate: importlib_metadata.Distribution) -> str | None:
+    return cast("str | None", candidate.metadata["Name"])
+
+
+def _is_named(
+    candidate: importlib_metadata.Distribution,
+    canonical: str,
+    name_of: Callable[[importlib_metadata.Distribution], str | None],
+) -> bool:
     """Match one enumerated distribution against a canonical package name.
 
     A directory on the search path can hold a ``.dist-info`` whose metadata
-    carries no ``Name``. Skipping it keeps a single corrupt entry from hiding
-    every package enumerated after it.
+    carries no ``Name``, or cannot be read at all. Skipping it keeps a single
+    corrupt entry from hiding every package enumerated after it.
 
     Returns:
         Whether this candidate is the requested distribution.
     """
-    found = cast("str | None", candidate.metadata["Name"])
+    try:
+        found = name_of(candidate)
+    except METADATA_READ_ERRORS:
+        return False
     return found is not None and canonicalize_name(found) == canonical
 
 
-def _egg_info_installed_files(
+def legacy_installed_files(
     dist: importlib_metadata.Distribution,
+    *,
+    skip_missing: bool = True,
+    listing: str | None = None,
 ) -> list[str] | None:
     """Read a legacy ``.egg-info``'s ``installed-files.txt``, as Python 3.12 does.
 
@@ -446,46 +547,87 @@ def _egg_info_installed_files(
     ``.dist-info`` that also carries a stray ``installed-files.txt`` keeps its
     authoritative listing.
 
+    ``skip_missing=False`` keeps entries whose file is gone, for callers that
+    report a missing file rather than hide it.
+
+    ``listing`` is the file's text for a caller that has already read and
+    vetted it, and has found no ``RECORD``: nothing is read a second time,
+    so nothing swapped in meanwhile is read unchecked.
+
     Returns:
         The installed files, or ``None`` when ``dist`` has no such listing.
     """
-    if not isinstance(dist, PathDistribution) or dist.read_text("RECORD"):
+    if not isinstance(dist, PathDistribution):
         return None
-    listing = dist.read_text("installed-files.txt")
+    if listing is None:
+        listing = _unvetted_listing(dist)
     if not listing:
         return None
     # The stdlib reader resolves entries against the same private attribute:
     # it is the only record of which ``.egg-info`` directory this is.
     egg_info = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
     root = Path(str(dist.locate_file(""))).resolve()
-    installed = (
-        (egg_info / entry).resolve() for entry in listing.splitlines() if entry
+    listed = (
+        _legacy_entry(egg_info, entry, root, skip_missing=skip_missing)
+        for entry in listing.splitlines()
+        if entry
     )
-    return [
-        Path(os.path.relpath(path, root)).as_posix()
-        for path in installed
-        if path.exists()
-    ]
+    return [entry for entry in listed if entry is not None]
+
+
+def _unvetted_listing(dist: PathDistribution) -> str | None:
+    return None if dist.read_text("RECORD") else dist.read_text("installed-files.txt")
+
+
+def _legacy_entry(
+    egg_info: Path, entry: str, root: Path, *, skip_missing: bool
+) -> str | None:
+    """Rebase one ``installed-files.txt`` entry onto the search-path root.
+
+    An entry that cannot be resolved (a NUL byte, a symlink loop) or that
+    lands on another drive is kept as written when missing files are wanted,
+    so a caller that bounds reads still sees it and reports it.
+
+    Returns:
+        The root-relative POSIX path, or ``None`` when the entry is skipped.
+    """
+    try:
+        path = (egg_info / entry).resolve()
+        relative = Path(os.path.relpath(path, root)).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        # Absolute, so a caller joining it onto the root cannot misplace it.
+        return None if skip_missing else (egg_info / entry).as_posix()
+    return None if skip_missing and not path.exists() else relative
 
 
 def _installed_files(dist: importlib_metadata.Distribution) -> list[str] | None:
-    listed = _egg_info_installed_files(dist)
+    listed = legacy_installed_files(dist)
     if listed is None:
         listed = [str(f) for f in dist.files] if dist.files else None
     return listed or None
 
 
-def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
-    """Get metadata for a locally installed package.
+def find_distribution(
+    name: str,
+    *,
+    target: LocalTarget | None = None,
+    name_of: Callable[[importlib_metadata.Distribution], str | None] | None = None,
+) -> importlib_metadata.Distribution:
+    """Find an installed distribution in the selected environment.
 
     Args:
         name: Package name to look up.
+        target: The environment to search; the running one when ``None``.
+        name_of: How to read each candidate's ``Name`` when the target's
+            search path is enumerated; the stdlib parser when ``None``. A
+            caller that vets metadata files before reading them passes its
+            own, so no candidate is read unvetted.
 
     Returns:
-        A :class:`PackageInfo` with ``source="local"``.
+        The first matching distribution on the target's search path.
 
     Raises:
-        PackageNotFoundError: If the package is not installed.
+        PackageNotFoundError: If the package is not installed there.
     """
     dist: importlib_metadata.Distribution
     try:  # ruff: ignore[too-many-statements-in-try-clause]
@@ -499,7 +641,7 @@ def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
                     for candidate in importlib_metadata.distributions(
                         path=list(target.paths)
                     )
-                    if _is_named(candidate, canonical)
+                    if _is_named(candidate, canonical, name_of or _stdlib_name)
                 ),
                 None,
             )
@@ -508,7 +650,19 @@ def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
             dist = found
     except importlib_metadata.PackageNotFoundError as exc:
         raise PackageNotFoundError(name) from exc
+    return dist
 
+
+def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
+    """Get metadata for a locally installed package.
+
+    Args:
+        name: Package name to look up.
+
+    Returns:
+        A :class:`PackageInfo` with ``source="local"``.
+    """
+    dist = find_distribution(name, target=target)
     meta = dist.metadata
     files = _installed_files(dist)
     license_value, license_source = _parse_license(meta)

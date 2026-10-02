@@ -6,6 +6,11 @@ from typing import TYPE_CHECKING, cast
 
 from peta.cli.output.changes import sections
 from peta.cli.output.console import inline
+from peta.cli.output.installation import (
+    flagged_files,
+    installation_notes,
+    installation_rows,
+)
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -18,6 +23,7 @@ from peta.core.diff import diff_packages
 if TYPE_CHECKING:
     from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
     from peta.core.changes import ChangeSet
+    from peta.core.installation import Installation
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -26,6 +32,7 @@ __all__ = [
     "format_dep_tree",
     "format_files",
     "format_info",
+    "format_origin",
     "format_versions",
     "format_why",
 ]
@@ -330,3 +337,25 @@ def _artifact_notes(release: ReleaseArtifacts) -> list[str]:
     if not notes:
         return []
     return ["", "Notes:", *notes]
+
+
+def format_origin(installation: Installation) -> str:
+    """Format how a distribution was installed as plain text.
+
+    Returns:
+        A heading, one ``label: value`` line per row, flagged files as
+        tab-separated ``state``/``path`` pairs, and any notes.
+    """
+    lines = [f"Origin of {_field(installation.name)} {_field(installation.version)}"]
+    lines.extend(
+        f"{label}: {_field(value)}" if label else f"  {_field(value)}"
+        for label, value in installation_rows(installation)
+    )
+    flagged = flagged_files(installation)
+    if flagged:
+        lines.extend(["", "State\tPath"])
+        lines.extend(f"{file.state}\t{_field(file.path)}" for file in flagged)
+    notes = installation_notes(installation)
+    if notes:
+        lines.extend(["", *notes])
+    return "\n".join(lines)
