@@ -24,6 +24,6 @@ jobs:
         # uv must be on PATH first: mise's pipx backend then installs cobo via
         # uv, which provisions the Python >=3.14 cobo requires instead of the
         # runner's older system interpreter (same order as ci.yml's hooks job).
-        uses: jdx/mise-action@94c60b39bc2d90ab2f9bab27f38d3cc4812c1834  # v5.1.0
+        uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca  # v5.1.1
       - name: Sync dependencies
         run: uv sync
