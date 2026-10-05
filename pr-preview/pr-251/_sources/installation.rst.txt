@@ -30,7 +30,7 @@ end of life. Python 3.10 was left out for that reason: its end of life
 so it would have been added only to be dropped again.
 
 The interpreter ``peta`` *runs on* and the environment it *inspects* are
-separate. On ``info``, ``compare``, ``deps`` and ``files``, ``--python PATH``
+separate. On ``info``, ``compare``, ``deps``, ``files`` and ``origin``, ``--python PATH``
 (an interpreter) and ``--path DIR`` (a metadata directory) point an isolated
 ``peta`` at another environment, and that environment may be older than
 ``peta``'s own floor. CI points ``--python`` at a real Python 3.8 interpreter

@@ -191,6 +191,23 @@ Every provider must preserve these invariants when it is added or changed:
   offline answers, and ``304`` revalidations alike.
 * Local inspection uses metadata APIs or a fixed subprocess query only. It must
   never import the inspected distribution or invoke its build backend.
+* Installed metadata — ``RECORD``, ``direct_url.json``, ``entry_points.txt``,
+  the core metadata, and the files ``RECORD`` names — is treated as possibly
+  corrupt or hostile *content*. ``peta origin`` must stay bounded and must not
+  crash on it: every metadata file has a byte limit, listings have a row
+  limit, what peta builds or prints from a file stays proportional to the
+  bytes it read, and anything that cannot be read or parsed degrades to a reported
+  state rather than an exception. Files are read only when they resolve inside
+  the selected environment, and a listing is never read through a symlink.
+  The installation is **not** defended against a party modifying it *while*
+  peta reads it. Swapping a directory or file between a check and the read
+  that follows it is out of scope, as it is for ``pip`` and
+  ``importlib.metadata``: anyone who can rewrite the environment
+  concurrently can already rewrite what peta would report. ``--verify``
+  detects drift from what the installer recorded; it is not a tamper-proof
+  integrity check, and a ``verified`` result is only as trustworthy as the
+  ``RECORD`` it was compared against, which lives beside the files it
+  describes.
 
 Regression contract
 --------------------
@@ -241,6 +258,6 @@ Operational non-goals
 ---------------------
 
 Peta does not replace a package installer, malware scanner, signature verifier,
-network firewall, or OS sandbox. Users remain responsible for the interpreter
+file-integrity monitor, network firewall, or OS sandbox. Users remain responsible for the interpreter
 passed with ``--python``, network policy outside Peta, and deciding whether a
 reported artifact should be installed.

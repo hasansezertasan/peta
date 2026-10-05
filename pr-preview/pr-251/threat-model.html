@@ -311,6 +311,23 @@ a miss when replayed, so the transport limit holds for cache hits, stale
 offline answers, and <code class="docutils literal notranslate"><span class="pre">304</span></code> revalidations alike.</p></li>
 <li><p>Local inspection uses metadata APIs or a fixed subprocess query only. It must
 never import the inspected distribution or invoke its build backend.</p></li>
+<li><p>Installed metadata — <code class="docutils literal notranslate"><span class="pre">RECORD</span></code>, <code class="docutils literal notranslate"><span class="pre">direct_url.json</span></code>, <code class="docutils literal notranslate"><span class="pre">entry_points.txt</span></code>,
+the core metadata, and the files <code class="docutils literal notranslate"><span class="pre">RECORD</span></code> names — is treated as possibly
+corrupt or hostile <em>content</em>. <code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">origin</span></code> must stay bounded and must not
+crash on it: every metadata file has a byte limit, listings have a row
+limit, what peta builds or prints from a file stays proportional to the
+bytes it read, and anything that cannot be read or parsed degrades to a reported
+state rather than an exception. Files are read only when they resolve inside
+the selected environment, and a listing is never read through a symlink.
+The installation is <strong>not</strong> defended against a party modifying it <em>while</em>
+peta reads it. Swapping a directory or file between a check and the read
+that follows it is out of scope, as it is for <code class="docutils literal notranslate"><span class="pre">pip</span></code> and
+<code class="docutils literal notranslate"><span class="pre">importlib.metadata</span></code>: anyone who can rewrite the environment
+concurrently can already rewrite what peta would report. <code class="docutils literal notranslate"><span class="pre">--verify</span></code>
+detects drift from what the installer recorded; it is not a tamper-proof
+integrity check, and a <code class="docutils literal notranslate"><span class="pre">verified</span></code> result is only as trustworthy as the
+<code class="docutils literal notranslate"><span class="pre">RECORD</span></code> it was compared against, which lives beside the files it
+describes.</p></li>
 </ul>
 </section>
 <section id="regression-contract">
@@ -360,7 +377,7 @@ origin, and credential policy here before it is enabled.</p>
 <section id="operational-non-goals">
 <h2>Operational non-goals<a class="headerlink" href="#operational-non-goals" title="Link to this heading">#</a></h2>
 <p>Peta does not replace a package installer, malware scanner, signature verifier,
-network firewall, or OS sandbox. Users remain responsible for the interpreter
+file-integrity monitor, network firewall, or OS sandbox. Users remain responsible for the interpreter
 passed with <code class="docutils literal notranslate"><span class="pre">--python</span></code>, network policy outside Peta, and deciding whether a
 reported artifact should be installed.</p>
 </section>

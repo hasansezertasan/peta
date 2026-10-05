@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+from dataclasses import asdict, replace
 from typing import TYPE_CHECKING
 
 from peta.core.diff import diff_packages
@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from peta.core.cache import Freshness
     from peta.core.changes import ChangeSet
     from peta.core.diff import ReleaseEvidence
+    from peta.core.installation import Installation
     from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
     from peta.core.output import CommandName, MessageCode
 
@@ -33,6 +34,7 @@ __all__ = [
     "format_error",
     "format_files",
     "format_info",
+    "format_origin",
     "format_versions",
     "format_why",
 ]
@@ -965,5 +967,53 @@ def format_error(
         result=None,
         errors=[OutputMessage(code=code, message=message, source=source)],
         generated_at=generated_at,
+    )
+    return _dump(envelope.to_dict())
+
+
+def _origin_result(installation: Installation) -> dict[str, object]:
+    return {
+        "name": installation.name,
+        "version": installation.version,
+        "origin": asdict(installation.origin),
+        "installer": installation.installer,
+        "requested": installation.requested,
+        "import_packages": installation.import_packages,
+        "entry_points": [asdict(point) for point in installation.entry_points],
+        "integrity": {
+            "record_source": installation.record_source,
+            "hashes_verified": installation.hashes_verified,
+            "file_count": len(installation.files),
+            "total_size": installation.total_size,
+            "states": installation.state_counts(),
+        },
+        "files": [asdict(file) for file in installation.files],
+    }
+
+
+def format_origin(
+    installation: Installation,
+    *,
+    arguments: dict[str, object] | None = None,
+    generated_at: str | None = None,
+) -> str:
+    """Format a distribution's origin and file integrity in the JSON envelope.
+
+    File states are data, not diagnostics: a changed file is what the command
+    was asked to find, so it never makes the envelope ``partial``.
+
+    Returns:
+        An indented JSON string.
+    """
+    timestamp = generated_at or utc_now()
+    envelope = make_envelope(
+        "origin",
+        arguments=arguments,
+        status="success",
+        result=_origin_result(installation),
+        sources=[
+            _source("local", "success", installation.name, timestamp, fields=["result"])
+        ],
+        generated_at=timestamp,
     )
     return _dump(envelope.to_dict())

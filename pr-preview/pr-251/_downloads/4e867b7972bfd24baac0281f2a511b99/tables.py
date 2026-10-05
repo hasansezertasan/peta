@@ -11,6 +11,11 @@ from rich.tree import Tree
 
 from peta.cli.output.changes import sections
 from peta.cli.output.console import inline, render as _render
+from peta.cli.output.installation import (
+    flagged_files,
+    installation_notes,
+    installation_rows,
+)
 from peta.cli.output.summary import (
     file_flags,
     file_publishers,
@@ -27,6 +32,7 @@ if TYPE_CHECKING:
 
     from peta.core.artifacts import ReleaseArtifacts
     from peta.core.changes import ChangeSet
+    from peta.core.installation import Installation
     from peta.core.models import DependencyNode, PackageInfo
 
 __all__ = [
@@ -35,6 +41,7 @@ __all__ = [
     "render_dep_tree",
     "render_files",
     "render_info",
+    "render_origin",
     "render_versions",
     "render_why",
 ]
@@ -410,3 +417,26 @@ def render_artifacts(
     if detailed:
         rendered += "\n\n" + _artifact_lines(release)
     return rendered + _artifact_notes(release)
+
+
+def render_origin(installation: Installation, *, color: bool) -> str:
+    """Render how a distribution was installed as a Rich summary.
+
+    Returns:
+        The summary panel, any flagged files, and explanatory notes.
+    """
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Field", style="bold cyan")
+    table.add_column("Value")
+    for label, value in installation_rows(installation):
+        table.add_row(label, value)
+    panel = Panel(
+        table,
+        title=Text(f"{installation.name} {installation.version}"),
+        subtitle="origin",
+    )
+    rendered = _to_string(panel, color=color)
+    extra = [f"  {file.state}  {file.path}" for file in flagged_files(installation)]
+    extra.extend(installation_notes(installation))
+    # The panel already ends in a newline; one more leaves a single blank line.
+    return rendered.rstrip("\n") + ("\n\n" + _lines(extra) if extra else "")
