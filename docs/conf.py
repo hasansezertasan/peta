@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess  # ruff: ignore[suspicious-subprocess-import]
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,7 +51,13 @@ extensions = [
 
 # Both reStructuredText and (via MyST) Markdown source files are supported.
 source_suffix = {".rst": "restructuredtext", ".md": "markdown"}
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store", "superpowers/**"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    "superpowers/**",
+    "_generated/**",
+]
 
 # autosectionlabel can emit duplicate-label warnings across documents; the
 # document prefix keeps them unique, so no blanket suppression is needed.
@@ -97,30 +104,16 @@ html_theme_options = {
 # ``_switcher_base = "/"`` instead.
 _switcher_base = "/peta/"
 _versions_file = Path(__file__).parent / "_static" / "versions.json"
-<<<<<<< before updating
-_switcher_context: dict[str, object] = {}
-if _versions_file.exists():
-    _versions = json.loads(_versions_file.read_text(encoding="utf-8"))
-    _current = os.environ.get("DOCS_BUILD_VERSION_SLUG") or _versions.get("latest", "")
-    _switcher_context = {
-=======
 html_context: dict[str, object] = {}
 if _versions_file.exists():
     _versions = json.loads(_versions_file.read_text(encoding="utf-8"))
     _current = os.environ.get("DOCS_BUILD_VERSION_SLUG") or _versions.get("latest", "")
     html_context.update({
->>>>>>> after updating
         "current_version": _current,
         "versions": [
             ["latest", f"{_switcher_base}latest/"],
             *([slug, f"{_switcher_base}{slug}/"] for slug in _versions["versions"]),
         ],
-<<<<<<< before updating
-    }
-# Assigned unconditionally (Sphinx's default is ``{}``) so static analysis sees a
-# plain Sphinx setting rather than a conditionally-defined, "unused" global.
-html_context = _switcher_context
-=======
     })
 
 # -- Generated interface schemas and reference material ----------------------
@@ -133,9 +126,6 @@ html_context = _switcher_context
 # regenerated on every docs build, and is not committed (``docs/_generated/`` is
 # gitignored). Each generator runs with ``check=True``, so a broken app import or
 # a failed generation raises and fails the docs build.
-import subprocess  # noqa: E402, S404
-import sys  # noqa: E402
-
 _generated_dir = Path(__file__).parent / "_generated"
 _generated_dir.mkdir(exist_ok=True)
 
@@ -144,7 +134,7 @@ _generated_dir.mkdir(exist_ok=True)
 # "CLI reference" page ``{include}``s the emitted Markdown. ``include_cli`` always
 # makes the CLI the primary component, so the documented program name is the bare
 # ``peta`` console script.
-subprocess.run(  # noqa: S603
+subprocess.run(  # ruff: ignore[subprocess-without-shell-equals-true]
     [
         sys.executable,
         "-m",
@@ -159,4 +149,3 @@ subprocess.run(  # noqa: S603
     ],
     check=True,
 )
->>>>>>> after updating

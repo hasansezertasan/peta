@@ -278,17 +278,17 @@ ignore_decorators = [
 # Public API surfaces vulture cannot see being used: ``main`` entry points are
 # referenced only via pyproject scripts, ``model_config`` is consumed by
 # pydantic-settings, ``logger`` is imported only by optional components, the MCP
-<<<<<<< before updating
-# ``arguments`` parameter is mandated by the call_tool signature, and
-# ``pytestmark``, ``pytest_configure`` and ``pytest_runtest_setup`` are consumed
-# by pytest at collection and setup time.
+# ``arguments`` parameter is mandated by the call_tool signature, the Textual
+# names (CSS/compose/on_mount/title/BINDINGS) are invoked by the TUI framework,
+# and ``pytestmark``/``pytest_*`` (conftest hooks) are consumed by pytest at
+# collection time.
 ignore_names = [
   "CONFIG_FILE_PATH",
-  "pytest_configure",
-  "pytest_runtest_setup",
   "logger",
   "main",
   "model_config",
+  "pytest_*",
+  "collect_ignore_glob",
   # pytest markers, mock attributes, and external PyPI-schema TypedDict fields (accessed via string keys)
   "pytestmark",
   "return_value",
@@ -313,13 +313,6 @@ ignore_names = [
   "freshness",
   "upstream_id",
 ]
-=======
-# ``arguments`` parameter is mandated by the call_tool signature, the Textual
-# names (CSS/compose/on_mount/title/BINDINGS) are invoked by the TUI framework,
-# and ``pytestmark``/``pytest_*`` (conftest hooks) are consumed by pytest at
-# collection time.
-ignore_names = ["CONFIG_FILE_PATH", "logger", "main", "model_config", "pytest_*", "collect_ignore_glob"]
->>>>>>> after updating
 min_confidence = 60
 paths = ["src", "tests"]
 
