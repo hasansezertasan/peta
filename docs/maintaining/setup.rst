@@ -53,6 +53,12 @@ head branches**.
 Branch protection
 -----------------
 
+Branch protection and rulesets are free on public repositories, but a
+**private** repository needs a paid GitHub plan (Pro, Team or Enterprise) for
+them to be enforced. On a free-plan private repository mark this section
+**not applicable** and skip its commands and checks.
+Continue with the remaining applicable steps.
+
 Protect ``main`` so a PR can only merge once its checks pass. Mark these check
 contexts as required (the names are the **check runs**, not the workflow files):
 
@@ -67,11 +73,12 @@ contexts as required (the names are the **check runs**, not the workflow files):
   follow the ``<type>/<description>`` format.
 - ``Verify linked issue`` — the linked-issue check (``check-linked-issues.yml``),
   which fails a PR with no linked issue.
-- ``Task Completed Checker`` — the PR task-list gate (``task-completed-check.yml``),
-  which fails while any unticked checkbox remains in the PR description. This is
-  the name of the **check run** the action publishes, not of the job around it
-  (``Check PR task list``) — the job is green even when boxes are unticked, so
-  requiring the job name would not gate anything.
+- ``Check PR task list`` — the PR task-list gate (``task-completed-check.yml``),
+  which fails while any unticked checkbox remains in the PR description. This
+  is the name of the **job**, whose enforce step promotes a non-success task
+  check into a job failure. (An earlier revision required the action's
+  ``Task Completed Checker`` check run instead; ruleset evaluation stopped
+  honoring those synthetic runs, blocking every bot PR.)
 
 **[AGENT]**
 
@@ -82,7 +89,7 @@ contexts as required (the names are the **check runs**, not the workflow files):
    {
      "required_status_checks": {
        "strict": true,
-       "contexts": ["check", "Validate PR title", "Validate branch name", "Verify linked issue", "Task Completed Checker"]
+       "contexts": ["check", "Validate PR title", "Validate branch name", "Verify linked issue", "Check PR task list"]
      },
      "enforce_admins": null,
      "required_pull_request_reviews": null,
@@ -95,7 +102,7 @@ contexts as required (the names are the **check runs**, not the workflow files):
 .. code-block:: sh
 
    gh api repos/hasansezertasan/peta/branches/main/protection \
-     --jq '(.required_status_checks.strict == true) and ((["check","Validate PR title","Validate branch name","Verify linked issue","Task Completed Checker"] - (.required_status_checks.contexts // [])) == [])' | grep -qx true
+      --jq '(.required_status_checks.strict == true) and ((["check","Validate PR title","Validate branch name","Verify linked issue","Check PR task list"] - (.required_status_checks.contexts // [])) == [])' | grep -qx true
 
 UI equivalent: **Settings → Branches → Add branch ruleset** (or **Add rule** for
 ``main``) — enable **Require status checks to pass before merging**, then search
@@ -462,7 +469,10 @@ preview for each pull request under ``pr-preview/pr-<N>/`` on the same
 ``gh-pages`` branch and comments the URL on the PR (removed automatically when
 the PR closes). Previews are built only for pull requests opened from branches
 on this repository — a fork PR receives a read-only token and is skipped — and
-require no extra setup beyond Pages.
+require no extra setup beyond Pages. The docs are built by ``docs-preview.yml``
+with a read-only token and published by ``docs-preview-deploy.yml``, a
+``workflow_run`` workflow that always runs from the default branch, so a branch
+or dependency update cannot edit the job that holds the write token.
 
 Automated dependency updates (Renovate)
 ---------------------------------------
@@ -501,6 +511,13 @@ check on them
 (`renovate#31600 <https://github.com/renovatebot/renovate/issues/31600>`_), so a
 copier PR can look mergeable while carrying conflicts. Reconcile before merging:
 keep your project identity, adopt the template's tooling/config changes.
+
+Where the project maintains an overlay on a file the template also renders
+(e.g. project-specific entries in ``.vscode/launch.json`` that the template
+cannot derive from its answers), resolve the conflict in favour of the committed
+file and port only genuine template-side improvements instead of taking the
+template file wholesale. Re-applying the overlay is expected, not a merge
+failure.
 
 If the update touches dependency metadata in ``pyproject.toml`` — the
 ``dependencies`` list, a dependency group, or the optional-dependency table —

@@ -10,11 +10,15 @@ maintainers = [
 dynamic = ["version"]
 keywords = [
   "packaging",
+<<<<<<< before updating
   "metadata",
   "pypi",
   "cli",
   "command-line",
   "python",
+=======
+  "sphinx",
+>>>>>>> after updating
   "typer",
 ]
 classifiers = [
@@ -70,14 +74,20 @@ peta = "peta.cli.app:run"
 
 [dependency-groups]
 dev = [
+<<<<<<< before updating
   "peta",
   "tox==4.65.4",
   "tox-uv==1.37.0",
+=======
+  "tox==4.64.10",
+  "tox-uv==1.36.1",
+>>>>>>> after updating
   "debugpy==1.8.22",
   { include-group = "style" },
   { include-group = "test" },
 ]
 style = [
+<<<<<<< before updating
   "actionlint-py==1.7.12.25",
   "basedpyright==1.40.1",
   "detect-secrets==1.5.0",
@@ -103,6 +113,40 @@ style = [
   # "yamlfix>=1.18.0",
   # "yamlfmt>=1.1.1",
   # "yamllint>=1.37.1",
+=======
+  "basedpyright==1.40.2",
+  "detect-secrets==1.5.0",
+  "editorconfig-checker==3.8.0",
+  "import-linter==2.15",
+  "mypy==2.4.0",
+  "pylint==4.0.6",
+  "pyrefly==1.2.0",
+  "ruff==0.16.1",
+  "slotscheck==0.21.0",
+  "sphinx-lint==1.0.2",
+  "taplo==0.9.3",
+  "ty==0.0.66",
+  "typos==1.49.0",
+  "zuban==0.9.1",
+]
+# semgrep is deliberately its own group rather than part of `style`: `dev`
+# includes `style` wholesale, so a plain `uv sync` — and every Windows/macOS
+# cell in ci.yml, which runs `uv run --locked tox run` — would download and
+# unpack ~215 MB (the wheel bundles a native semgrep-core) for a tool that only
+# ever executes in the Linux-only `style` job. The tox `style` env lists this
+# group explicitly. Still a single version source, same as every other pin.
+sast = [
+  "semgrep==1.180.0",
+]
+# Dependency hygiene gets its own group for the same reason `sast` does: it is
+# only ever run by the on-demand `deps` tox env and the `deps` CI job, so a plain
+# `uv sync` should not install it. deptry checks the imports against the declared
+# dependencies (missing, transitive, misplaced or obsolete); creosote flags
+# declared runtime dependencies that nothing imports.
+deps = [
+  "creosote==5.2.0",
+  "deptry==0.25.1",
+>>>>>>> after updating
 ]
 test = [
   "coverage-enable-subprocess==1.0",
@@ -126,12 +170,17 @@ docs = [
   "sphinx-togglebutton==0.4.5",
   "sphinx-paramlinks==0.6.0",
   "auto-pytabs[sphinx]==0.5.0",
+<<<<<<< before updating
   "myst-parser==5.1.0",
   # Per-page "last updated" footer sourced from git commit dates (ADR-027);
+=======
+  "myst-parser==4.0.1",
+  # Per-page "last updated" footer sourced from git commit dates (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#per-page-last-updated-comes-from-git-history);
+>>>>>>> after updating
   # offline, no network. Works from full history (docs CI checks out depth 0).
   "sphinx-last-updated-by-git==0.3.8",
   # PEP 440 version parsing/sorting used by tools/build_docs.py to order
-  # published versions and pick the `latest` alias (ADR-027). Also a Sphinx
+  # published versions and pick the `latest` alias (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages). Also a Sphinx
   # transitive dependency; pinned here for the explicit direct use.
   "packaging>=24.0",
 ]
@@ -205,9 +254,16 @@ name = "cz_conventional_commits"
 
 [tool.pytest.ini_options]
 # addopts = "-rXs --strict-config --strict-markers"
+<<<<<<< before updating
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
 filterwarnings = ["error"]
+=======
+addopts = "-v --tb=short --doctest-glob=README.md"
+# One marker per component, auto-applied by tests/conftest.py from each test's
+# top-level tests/<dir>/. Enables `pytest -m web` locally and per-component CI
+# jobs (issue #160, https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component); `integration` (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#real-broker-integration-tests-testcontainers-locally-per-broker-ci-mechanism) is one axis of the scheme.
+>>>>>>> after updating
 markers = [
   "smoke: fast import/entrypoint checks",
   "unit: pure logic, fully mocked, no I/O",
@@ -221,20 +277,20 @@ xfail_strict = true
 [tool.coverage.run]
 branch = true
 # Match `_version.py` wherever it resolves: `src/...` in editable dev installs and
-# `.../site-packages/...` when tox/CI installs the built wheel or sdist. A
+# `.../site-packages/...` when tox/CI installs the built (non-editable) wheel. A
 # `src/**`-only pattern silently misses the installed copy and reports it at 0%.
 omit = ["*/_version.py"]
 parallel = true
 # Store data-file paths relative to the project root so `.coverage` files produced
 # on different runners/OSes merge in the `coverage-combine` CI job without
 # absolute-path mismatches. Complements the `[tool.coverage.paths]` remap below
-# (which unifies the src/ vs site-packages layouts). See ADR-026.
+# (which unifies the src/ vs site-packages layouts). See https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#a-single-union-coverage-gate-across-the-whole-matrix.
 relative_files = true
 source_pkgs = ["peta", "tests"]
 
 
 [tool.coverage.paths]
-# Unify coverage data across environments. tox installs the built wheel/sdist into
+# Unify coverage data across environments. tox installs the built wheel into
 # each env's site-packages, so the same source file is measured under a different
 # `.tox/<env>/.../site-packages/peta` path per interpreter. Without
 # remapping those back to the canonical `src/` tree, `coverage combine` keeps a
@@ -250,8 +306,17 @@ peta = ["src/peta", "*/site-packages/peta"]
 # patterns here: a regex matching a `def` line excludes the *whole function body*,
 # so a pattern like `def main\(` would silently un-measure any future `main()`
 # with real logic (and did mask the tested GUI/TUI entrypoints). Pragmas carry the
+<<<<<<< before updating
 # exclusion decision next to the code it affects. See ADR-008.
 exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
+=======
+# exclusion decision next to the code it affects. See https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#coverage-exclusions-are-per-site-pragmas-and-the-globs-must-match-the-installed-layout.
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+>>>>>>> after updating
 fail_under = 99
 # Patterns match both the `src/` (editable) and installed (`site-packages`)
 # layouts (see [tool.coverage.run] omit).
@@ -317,11 +382,34 @@ min_confidence = 60
 paths = ["src", "tests"]
 
 
+<<<<<<< before updating
 [tool.typos.default.extend-words]
 # `certifi` is a real PyPI package name (the CA-bundle package), not a typo of
 # "certify"/"certified"; it shows up in the PyPI-schema example payload under
 # docs/superpowers/plans.
 certifi = "certifi"
+=======
+[tool.deptry]
+# `known_first_party` is explicit because the tox `deps` env installs the built
+# wheel, so without it deptry reads the project's own imports as a third-party
+# transitive dependency (DEP003). Add further `per_rule_ignores` entries for the
+# project's own findings, e.g. DEP003 for a package only importable through
+# another declared one, or DEP002 for an optional import guarded by try/except.
+# See https://deptry.com/rules-violations/.
+# Excluded: the Sphinx config, the build hook (its imports belong to
+# `[build-system].requires`, not the runtime dependencies), the benchmarks and the
+# worker probe script (neither ships in the wheel; pytest and anyio come from
+# the dev tooling).
+extend_exclude = [
+  "docs/conf.py",
+]
+known_first_party = ["peta"]
+
+[tool.deptry.per_rule_ignores]
+# tools/build_docs.py imports `packaging`, pinned in the `docs` group for that
+# script alone, so deptry reads it as a misplaced dev dependency.
+DEP004 = ["packaging"]
+>>>>>>> after updating
 
 
 [tool.slotscheck]
@@ -448,6 +536,7 @@ convention = "pep257"
 # package) whose whole job is to print GitHub `::error::` annotations to stdout.
 "docs/check_warnings.py" = ["implicit-namespace-package", "print"]
 # The versioned-docs build orchestrator is a standalone CLI script under tools/,
+<<<<<<< before updating
 # not part of an importable package (ADR-027).
 "tools/build_docs.py" = ["implicit-namespace-package"]
 # Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
@@ -459,6 +548,10 @@ convention = "pep257"
 ]
 # dataclass fields `id`/`license` shadow builtins by design.
 "src/peta/core/models.py" = ["builtin-attribute-shadowing"]
+=======
+# not part of an importable package (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages).
+"tools/build_docs.py" = ["INP001"]
+>>>>>>> after updating
 
 
 [tool.ruff.lint.pyupgrade]
@@ -504,8 +597,58 @@ error-on-warning = true
 
 
 [tool.pyrefly]
+<<<<<<< before updating
 python-version = "3.11"
 project-includes = ["src"]
+=======
+python-version = "3.10"
+project-includes = ["src", "docs/examples"]
+
+[tool.pylint.main]
+# pylint runs as an always-on gate that deliberately overlaps ruff's PL* rules.
+# Its canonical invocation is `pylint src docs/examples`, so it never descends into tests; this
+# ignore-paths is a defensive scope guard for broader invocations (`pylint .`,
+# filename-passing hooks). Tests are linted by ruff, not pylint.
+ignore-paths = ["^tests/.*$"]
+# `.pyi` stubs (the c-extension type stub) are signature-only: their bodies are
+# `...` and every parameter is unused by construction, so pylint's unused-argument
+# check is a guaranteed false positive there. Stubs are type-checked by the
+# type-checker gate, not pylint.
+ignore-patterns = ['.*\.pyi$']
+
+[tool.pylint."messages control"]
+# Only formatter-owned checks, the docstring family, and too-few-public-methods
+# are disabled so pylint is usable out of the box; everything else stays on.
+disable = [
+  "line-too-long", # C0301 — ruff-format owns line length
+  "missing-module-docstring", # C0114
+  "missing-class-docstring", # C0115
+  "missing-function-docstring", # C0116
+  "too-few-public-methods", # R0903 — trips dataclasses / config / Protocol classes
+  # C0415 — the cli->tui/gui/web dispatch, and each component's own heavy or
+  # platform-conditional import (tkinter, uvicorn, the worker's uvloop probe),
+  # are deliberately lazy so import-linter's layering contract holds and a
+  # framework is only imported when the code path that needs it actually runs.
+  # Textual is the exception: the TUI imports it at module scope so `InfoApp`
+  # can be defined there and driven by the headless pilot (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#interactive-components-expose-injected-driver-seams-so-headless-ci-measures-everything-but-the-blocking-call).
+  "import-outside-toplevel",
+  # W0706 — the generated TUI entry point explicitly re-raises
+  # KeyboardInterrupt/SystemExit ahead of a broad `except Exception` to make the
+  # "let these propagate" intent obvious to readers, even though BaseException
+  # subclasses wouldn't be caught by the Exception clause anyway.
+  "try-except-raise",
+  # R0801 — the component skeletons (gui/tui/mcp/worker) are deliberately
+  # parallel: each fetches package metadata and formats the same info block the
+  # same way. That structural symmetry is a feature of the scaffold, not
+  # copy-paste debt, and R0801 cannot be suppressed inline at the call site.
+  "duplicate-code",
+]
+
+[tool.pylint.design]
+max-args = 10
+max-positional-arguments = 10
+max-branches = 20
+>>>>>>> after updating
 
 [tool.typos.files]
 # copier records `_commit` as a `git describe` string (`v1.2.3-4-g<hash>`) when
@@ -553,7 +696,6 @@ commands = [
     ], extend = true },
   ],
 ]
-constrain_package_deps = true
 dependency_groups = ["test"]
 description = "Run the tests under {base_python}"
 env_tmp_dir = "{toxworkdir}/tmp/{envname}"
@@ -561,15 +703,23 @@ env_tmp_dir = "{toxworkdir}/tmp/{envname}"
 # `coverage run` plus `parallel = true` writes per-env data files that the CI
 # `coverage combine` step merges.
 set_env = { COVERAGE_PROCESS_START = "{tox_root}/pyproject.toml" }
+<<<<<<< before updating
 # CI names an interpreter older than peta's own floor here, and the --python
 # integration tests inspect it for real; unset, they target the running one.
 pass_env = ["PETA_TEST_TARGET_PYTHON"]
 
+=======
+# Non-editable: `uv sync --no-editable` builds the project and installs it into
+# site-packages, the layout `[tool.coverage.paths]` remaps and the per-component
+# coverage gates measure (https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component).
+>>>>>>> after updating
 package = "wheel"
-
-runner = "uv-venv-runner"
-use_frozen_constraints = true
-wheel_build_env = ".pkg"
+# Every env installs from uv.lock (`uv sync --locked`), so tox tests and lints
+# the exact versions the lockfile pins. The plain `uv-venv-runner` resolves the
+# project's own dependencies fresh on every env creation (tox's
+# `use_frozen_constraints` never reaches its `uv pip install`), so a newer
+# release could float in and clash with a pinned tool such as semgrep.
+runner = "uv-venv-lock-runner"
 
 
 [tool.tox.env.style]
@@ -584,6 +734,7 @@ commands = [
   ["mypy", "--python-version", "3.14"],
   # Style runs once on Linux, so explicitly sweep platform-gated branches that
   # mypy would otherwise prune as unreachable on the host platform.
+<<<<<<< before updating
   ["mypy", "--platform", "win32"],
   ["mypy", "--platform", "darwin"],
   ["basedpyright"],
@@ -597,6 +748,74 @@ commands = [
   # A strict `--check` gate, not fix mode: a file that taplo would rewrite
   # fails CI instead of drifting silently. `.taplo.toml` disables array auto
   # expand/collapse so the committed layout is the canonical one. The `*.toml`
+=======
+  [
+    "mypy",
+    "--platform",
+    "win32",
+  ],
+  [
+    "mypy",
+    "--platform",
+    "darwin",
+  ],
+  [
+    "basedpyright",
+  ],
+  [
+    "ty",
+    "check",
+  ],
+  [
+    "pyrefly",
+    "check",
+  ],
+  [
+    "zuban",
+    "check",
+    "src",
+    "docs/examples",
+  ],
+  [
+    "pylint",
+    "src",
+    "docs/examples",
+  ],
+  [
+    "python",
+    "-m",
+    "slotscheck",
+    "src",
+  ],
+  [
+    "lint-imports",
+  ],
+  # Rules-database SAST. Deliberately style-env-only (like ty/pyrefly/zuban) and
+  # not a prek hook: semgrep keeps no on-disk rule cache, so a pre-commit hook
+  # would make a registry request on every `git commit`. The ruleset is named
+  # explicitly rather than `--config auto` so rule selection does not depend on
+  # language auto-detection; it is still fetched from the registry, which is why
+  # this cannot be vendored (see https://hasansezertasan.github.io/copier-pyproject/context/lint-orchestration/#semgrep-runs-in-the-style-env-against-a-named-registry-ruleset-never-vendored). `--error` makes findings blocking;
+  # silence a false positive with a trailing `# nosemgrep: <rule-id>`.
+  [
+    "semgrep",
+    "scan",
+    "--config",
+    "p/python",
+    "--error",
+    "--metrics=off",
+    "src",
+  ],
+  [
+    "taplo",
+    "lint",
+    "*.toml",
+  ],
+  # A strict `--check` gate, not fix mode: a generated file that taplo would
+  # rewrite fails its own CI on first push and drifts on every `copier update`.
+  # `.taplo.toml` disables array auto expand/collapse so the shipped layout is
+  # the canonical one regardless of which components are enabled. The `*.toml`
+>>>>>>> after updating
   # glob is non-recursive, so it scopes taplo to this project's own root TOML
   # (pyproject/prek/mise/taplo) without walking vendored `.tox`/`.venv`/
   # site-packages trees.
@@ -616,14 +835,44 @@ commands = [
 # resolve pytest and other test-only imports.
 dependency_groups = ["style", "test"]
 description = "Run Checkers, Linters and Formatters"
-runner = "uv-venv-runner"
+runner = "uv-venv-lock-runner"
+
+
+# On-demand and CI-only (not in env_list, like `integration`): the `deps` job in
+# ci.yml runs it and `check` aggregates that job. `test` is included so deptry
+# and creosote can resolve the project's own test-only imports. creosote needs
+# the installed distributions to map import names, which the lock runner provides.
+[tool.tox.env.deps]
+commands = [
+  [
+    "deptry",
+    ".",
+  ],
+  [
+    "creosote",
+    "--deps-file",
+    "pyproject.toml",
+    "--section",
+    "project.dependencies",
+    # Without this creosote skips imports inside functions, so a dependency used
+    # only through a lazy import (the worker's uvloop) is reported as unused.
+    "--include-deferred",
+  ],
+]
+dependency_groups = ["deps", "test"]
+description = "Check dependency hygiene (deptry, creosote)"
+runner = "uv-venv-lock-runner"
 
 
 [tool.tox.env.prek]
 commands = [["prek", "run", "--all-files"]]
 dependency_groups = ["prek"]
 description = "Run prek hooks"
-runner = "uv-venv-runner"
+# The hooks that need the project call `uv run --locked`, which syncs it (and the
+# groups they name) into this env through the runner's UV_PROJECT_ENVIRONMENT;
+# installing the wheel here too would only be swapped for that install each run.
+package = "skip"
+runner = "uv-venv-lock-runner"
 
 
 [tool.tox.env.docs-build]
@@ -645,10 +894,21 @@ commands = [
 ]
 dependency_groups = ["docs"]
 description = "Build Docs"
+<<<<<<< before updating
 runner = "uv-venv-runner"
 # Keep build log output unbuffered/ordered. Local `tox` runs deliberately do NOT
 # export SOURCE_DATE_EPOCH (an empty value breaks hatchling's reproducible
 # timestamp), so conf.py falls back to the current year.
+=======
+runner = "uv-venv-lock-runner"
+# Keep build log output unbuffered/ordered. Reproducible builds pin Sphinx's
+# "today"/copyright to SOURCE_DATE_EPOCH, which the CI docs steps
+# (docs-preview.yml, release.yml) export from the last commit date before
+# invoking sphinx-build directly. Local `tox` runs deliberately do NOT export
+# it: an empty value ("{env:SOURCE_DATE_EPOCH:}") is *present but blank*, which
+# breaks hatchling's get_reproducible_timestamp (`int("")`), so we leave it
+# unset locally and conf.py falls back to the current year.
+>>>>>>> after updating
 set_env = { PYTHONUNBUFFERED = "1" }
 
 
@@ -656,7 +916,7 @@ set_env = { PYTHONUNBUFFERED = "1" }
 commands = [["sphinx-autobuild", "docs", "docs/_build/html"]]
 dependency_groups = ["docs"]
 description = "Start the live-reloading docs server"
-runner = "uv-venv-runner"
+runner = "uv-venv-lock-runner"
 set_env = { PYTHONUNBUFFERED = "1" }
 
 
@@ -665,7 +925,7 @@ set_env = { PYTHONUNBUFFERED = "1" }
 commands = [["sphinx-build", "-b", "doctest", "docs", "docs/_build/doctest"]]
 dependency_groups = ["docs"]
 description = "Run documentation doctests"
-runner = "uv-venv-runner"
+runner = "uv-venv-lock-runner"
 set_env = { PYTHONUNBUFFERED = "1" }
 
 
@@ -683,7 +943,7 @@ commands = [
 ]
 dependency_groups = ["docs"]
 description = "Check documentation for broken links"
-runner = "uv-venv-runner"
+runner = "uv-venv-lock-runner"
 set_env = { PYTHONUNBUFFERED = "1" }
 
 [tool.tox.env.cli]
@@ -696,4 +956,4 @@ commands = [
   ],
 ]
 description = "Run the CLI application."
-runner = "uv-venv-runner"
+runner = "uv-venv-lock-runner"
