@@ -39,7 +39,7 @@ def _resolve_and_enrich(
     return enrich(pkg, no_osv=no_osv, no_stats=no_stats)
 
 
-def info(  # ruff: ignore[complex-structure, too-many-arguments]
+def info(  # ruff: ignore[complex-structure, too-many-arguments]  # pylint: disable=too-many-locals
     package: str,
     *,
     use_json: bool = False,

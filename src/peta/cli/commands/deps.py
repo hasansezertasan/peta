@@ -136,7 +136,7 @@ def _build_or_fail(
         )
 
 
-def deps(  # ruff: ignore[complex-structure, too-many-arguments]
+def deps(  # ruff: ignore[complex-structure, too-many-arguments]  # pylint: disable=too-many-locals, too-many-arguments
     package: str,
     *,
     use_json: bool = False,

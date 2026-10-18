@@ -565,7 +565,7 @@ def legacy_installed_files(
         return None
     # The stdlib reader resolves entries against the same private attribute:
     # it is the only record of which ``.egg-info`` directory this is.
-    egg_info = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.
+    egg_info = Path(str(dist._path))  # ruff: ignore[private-member-access] # See above.  # pylint: disable=protected-access
     root = Path(str(dist.locate_file(""))).resolve()
     listed = (
         _legacy_entry(egg_info, entry, root, skip_missing=skip_missing)

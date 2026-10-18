@@ -1,4 +1,12 @@
-"""Typer application and command registration."""
+"""CLI application for the project.
+
+The ``peta`` command is the single Typer root. Every enabled
+component other than the primary (CLI > GUI > TUI > web > MCP > worker) is hung
+off it as a lazily-imported subcommand — ``peta interactive``
+(TUI), ``peta web``, ``peta mcp``, ... — rather
+than a separate ``peta-<name>`` console script (see https://hasansezertasan.github.io/copier-pyproject/context/components/#secondary-components-are-subcommands-of-one-console-root-not-separate-scripts).
+"""
+# mypy: disable-error-code="misc"
 
 from __future__ import annotations
 
@@ -218,7 +226,7 @@ def info(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
 
 
 @app.command()
-def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
+def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]  # pylint: disable=too-many-arguments, too-many-positional-arguments
     ctx: typer.Context,
     a: Annotated[str, typer.Argument(help="First package, as name or name==version.")],
     b: Annotated[str, typer.Argument(help="Second package, as name or name==version.")],
@@ -249,7 +257,7 @@ def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
         bool,
         typer.Option("--changes-only", help="Show only the grouped semantic changes."),
     ] = False,
-    artifacts: Annotated[
+    with_artifacts: Annotated[
         bool,
         typer.Option(
             "--artifacts",
@@ -273,12 +281,12 @@ def compare(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
         python=python,
         paths=tuple(path),
         changes_only=changes_only,
-        artifacts=artifacts,
+        artifacts=with_artifacts,
     )
 
 
 @app.command()
-def deps(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]
+def deps(  # ruff: ignore[too-many-arguments, too-many-positional-arguments]  # pylint: disable=too-many-arguments, too-many-positional-arguments
     ctx: typer.Context,
     package: Annotated[str, typer.Argument(help="Package name.")],
     use_json: Annotated[bool, typer.Option("--json", help="Output as JSON.")] = False,

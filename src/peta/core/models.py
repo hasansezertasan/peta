@@ -136,7 +136,7 @@ class DependencyResolutionFailure:
 
 
 @dataclass
-class PackageInfo:
+class PackageInfo:  # pylint: disable=too-many-instance-attributes
     """Package metadata from a local installation or PyPI."""
 
     name: str
@@ -187,7 +187,7 @@ class PackageInfo:
 
 
 @dataclass
-class DependencyNode:
+class DependencyNode:  # pylint: disable=too-many-instance-attributes
     """A node in a package's recursive dependency tree."""
 
     name: str
@@ -211,7 +211,7 @@ class DependencyNode:
     resolution_failure: DependencyResolutionFailure | None = None
     conflict_reason: Literal["version", "target"] | None = None
 
-    def __init__(  # ruff: ignore[too-many-arguments]
+    def __init__(  # ruff: ignore[too-many-arguments]  # pylint: disable=too-many-arguments
         self,
         name: str,
         version_spec: str,

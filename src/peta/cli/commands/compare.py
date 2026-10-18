@@ -112,7 +112,7 @@ def _fetch_releases(
     return first, second
 
 
-def compare(  # ruff: ignore[complex-structure, too-many-arguments]
+def compare(  # ruff: ignore[complex-structure, too-many-arguments]  # pylint: disable=too-many-locals, too-many-arguments
     a: str,
     b: str,
     *,

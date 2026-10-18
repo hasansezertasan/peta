@@ -11,7 +11,7 @@ carries no compatibility guarantees outside this package.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field  # pylint: disable=unused-import
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 
 from typing_extensions import TypeAliasType
@@ -243,7 +243,7 @@ def _validate_capability(capability: Capability, evidence: Evidence | None) -> N
     expected = _EVIDENCE_TYPES.get(capability)
     # Identity, not ``isinstance``: the evidence union covers both variants, so
     # a subtype check narrows to "always true" and hides the mismatch.
-    if expected is None or type(evidence) is not expected:
+    if expected is None or type(evidence) is not expected:  # pylint: disable=unidiomatic-typecheck
         msg = f"{type(evidence).__name__} does not match capability {capability!r}"
         raise TypeError(msg)
 
@@ -279,7 +279,7 @@ def _validate_warnings(warnings: list[ProviderWarning]) -> None:
 
 
 @dataclass(frozen=True)
-class ProviderResult:
+class ProviderResult:  # pylint: disable=too-many-instance-attributes
     """One provider's answer for one package, evidence and provenance together.
 
     ``state`` reuses the output contract's :data:`~peta.core.output.SourceState`

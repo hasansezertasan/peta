@@ -337,7 +337,7 @@ def _is_arbitrary_pin(specifier: SpecifierSet, raw: str) -> bool:
     )
 
 
-def _release_candidates(  # ruff: ignore[complex-structure]
+def _release_candidates(  # ruff: ignore[complex-structure]  # pylint: disable=too-many-locals
     releases: dict[str, list[PyPIReleaseFile]], specifier: SpecifierSet
 ) -> tuple[list[str], set[Version], set[str]]:
     candidates: list[Version] = []

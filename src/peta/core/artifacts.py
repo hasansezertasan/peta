@@ -242,7 +242,7 @@ class PublisherFailure:
 
 
 @dataclass(frozen=True)
-class ArtifactFile:
+class ArtifactFile:  # pylint: disable=too-many-instance-attributes
     """One distribution file of a release, with its compatibility verdict."""
 
     filename: str

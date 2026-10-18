@@ -66,12 +66,19 @@ def _pyproject() -> dict[str, Any]:
     return tomllib.loads((_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
 
 
-def _ci_job() -> str:
-    """Return the ``ci`` job's block of the workflow, up to the next job."""
+def _ci_jobs(prefix: str) -> dict[str, str]:
+    """Return each ``<prefix>*`` job's block of the workflow, up to the next job."""
     workflow = _CI_WORKFLOW.read_text(encoding="utf-8")
-    job = re.search(r"^  ci:\n(?P<body>(?:(?:    .*)?\n)*)", workflow, re.MULTILINE)
-    assert job is not None, "ci.yml has no ci job"
-    return job["body"]
+    jobs = {
+        match["name"]: match["body"]
+        for match in re.finditer(
+            rf"^  (?P<name>{prefix}[\w-]*):\n(?P<body>(?:(?:    .*)?\n)*)",
+            workflow,
+            re.MULTILINE,
+        )
+    }
+    assert jobs, f"ci.yml has no {prefix}* job"
+    return jobs
 
 
 def test_tox_has_a_test_env_per_classified_version() -> None:
@@ -111,36 +118,30 @@ _IN_REPO = pytest.mark.skipif(
 
 
 @_IN_REPO
-def test_ci_matrix_has_a_row_per_classified_version() -> None:
-    job = _ci_job()
-    row = re.search(r"^\s*python-version: \[(?P<versions>[^\]]*)\]", job, re.MULTILINE)
-    assert row is not None, "the ci job has no python-version matrix"
-    matrix = [entry.strip().strip("\"'") for entry in row["versions"].split(",")]
-    assert matrix == _minors(_classified_versions())
-    # A row dropped (or added) per OS would escape the list comparison above.
-    assert not re.search(r"^\s*(?:exclude|include):", job, re.MULTILINE)
+def test_ci_sweeps_a_tox_env_per_classified_version() -> None:
+    """Each component's test job sweeps every classified interpreter on Linux."""
+    expected = sorted(_minors(_classified_versions()))
+    for name, job in _ci_jobs("test-").items():
+        sweep = re.search(r'tox_args: "-e (?P<envs>[\d.,]+)"', job)
+        assert sweep is not None, f"{name} has no interpreter sweep"
+        assert sorted(sweep["envs"].split(",")) == expected, name
 
 
 @_IN_REPO
-def test_dev_interpreter_is_the_ceiling_and_gates_the_style_step() -> None:
-    """The non-test envs run on one matrix row, which must exist."""
+def test_dev_interpreter_is_the_ceiling() -> None:
+    """The style job and the tooling run on the newest supported interpreter."""
     ceiling = _minors(_classified_versions())[-1]
     dev = (_ROOT / ".python-version").read_text(encoding="utf-8").strip()
     assert dev == ceiling
-    step = re.search(
-        r"^      - name: Run style, docs and CLI checks\n(?P<body>(?:        .*\n)*)",
-        _ci_job(),
-        re.MULTILINE,
-    )
-    assert step is not None, "the ci job has no style/docs/CLI step"
-    assert f"if: ${{{{ matrix.python-version == '{ceiling}' }}}}" in step["body"]
+    (style,) = _ci_jobs("style").values()
+    assert "python-version-file: .python-version" in style
 
 
 @_IN_REPO
 def test_ci_provides_an_older_target_interpreter() -> None:
     """Without it the real ``--python`` tests quietly target peta's own runtime."""
-    job = _ci_job()
-    assert "uv python install" in job
-    assert "PETA_TEST_TARGET_PYTHON=" in job
+    for name, job in _ci_jobs("test-").items():
+        assert "uv python install" in job, name
+        assert "PETA_TEST_TARGET_PYTHON=" in job, name
     tox = _pyproject()["tool"]["tox"]["env_run_base"]
     assert "PETA_TEST_TARGET_PYTHON" in tox["pass_env"]
