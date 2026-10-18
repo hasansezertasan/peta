@@ -100,7 +100,7 @@ def _consult(
         capability = provider.capability
         return _dispatch(name, capability, provider, pkg, disabled)
     # A misbehaving provider is contained here, never propagated to the caller.
-    except Exception as exc:  # ruff: ignore[blind-except]
+    except Exception as exc:  # ruff: ignore[blind-except]  # pylint: disable=broad-exception-caught
         reason = f"provider raised {type(exc).__name__}: {exc}"
         return _rejected(name, capability, pkg, reason)
 

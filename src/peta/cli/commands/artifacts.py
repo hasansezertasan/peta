@@ -35,7 +35,7 @@ def _target_or_fail(
         )
 
 
-def artifacts(
+def artifacts(  # pylint: disable=too-many-locals
     package: str,
     *,
     use_json: bool = False,

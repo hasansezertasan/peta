@@ -10,15 +10,11 @@ maintainers = [
 dynamic = ["version"]
 keywords = [
   "packaging",
-<<<<<<< before updating
   "metadata",
   "pypi",
   "cli",
   "command-line",
   "python",
-=======
-  "sphinx",
->>>>>>> after updating
   "typer",
 ]
 classifiers = [
@@ -74,26 +70,21 @@ peta = "peta.cli.app:run"
 
 [dependency-groups]
 dev = [
-<<<<<<< before updating
   "peta",
   "tox==4.65.4",
   "tox-uv==1.37.0",
-=======
-  "tox==4.64.10",
-  "tox-uv==1.36.1",
->>>>>>> after updating
   "debugpy==1.8.22",
   { include-group = "style" },
   { include-group = "test" },
 ]
 style = [
-<<<<<<< before updating
   "actionlint-py==1.7.12.25",
-  "basedpyright==1.40.1",
+  "basedpyright==1.40.2",
   "detect-secrets==1.5.0",
   "editorconfig-checker==3.11.1",
   "import-linter==2.15",
-  "mypy==2.3.1",
+  "mypy==2.4.0",
+  "pylint==4.0.6",
   "pyrefly==1.3.1",
   "ruff==0.16.10",
   "slotscheck==0.21.0",
@@ -102,32 +93,7 @@ style = [
   "ty==0.0.84",
   "typos==1.50.3",
   "validate-pyproject[all]==0.26",
-  "vulture==2.16",
   "zuban==0.10.0",
-  # "google-yamlfmt",
-  # "shellcheck-makefile>=1.27.3",
-  # "shellcheck-py>=0.10.0.1",
-  # "types-PyYAML",
-  # "types-setuptools",
-  # "types-ujson",
-  # "yamlfix>=1.18.0",
-  # "yamlfmt>=1.1.1",
-  # "yamllint>=1.37.1",
-=======
-  "basedpyright==1.40.2",
-  "detect-secrets==1.5.0",
-  "editorconfig-checker==3.8.0",
-  "import-linter==2.15",
-  "mypy==2.4.0",
-  "pylint==4.0.6",
-  "pyrefly==1.2.0",
-  "ruff==0.16.1",
-  "slotscheck==0.21.0",
-  "sphinx-lint==1.0.2",
-  "taplo==0.9.3",
-  "ty==0.0.66",
-  "typos==1.49.0",
-  "zuban==0.9.1",
 ]
 # semgrep is deliberately its own group rather than part of `style`: `dev`
 # includes `style` wholesale, so a plain `uv sync` — and every Windows/macOS
@@ -146,7 +112,6 @@ sast = [
 deps = [
   "creosote==5.2.0",
   "deptry==0.25.1",
->>>>>>> after updating
 ]
 test = [
   "coverage-enable-subprocess==1.0",
@@ -170,13 +135,8 @@ docs = [
   "sphinx-togglebutton==0.4.5",
   "sphinx-paramlinks==0.6.0",
   "auto-pytabs[sphinx]==0.5.0",
-<<<<<<< before updating
   "myst-parser==5.1.0",
-  # Per-page "last updated" footer sourced from git commit dates (ADR-027);
-=======
-  "myst-parser==4.0.1",
   # Per-page "last updated" footer sourced from git commit dates (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#per-page-last-updated-comes-from-git-history);
->>>>>>> after updating
   # offline, no network. Works from full history (docs CI checks out depth 0).
   "sphinx-last-updated-by-git==0.3.8",
   # PEP 440 version parsing/sorting used by tools/build_docs.py to order
@@ -254,16 +214,12 @@ name = "cz_conventional_commits"
 
 [tool.pytest.ini_options]
 # addopts = "-rXs --strict-config --strict-markers"
-<<<<<<< before updating
-addopts = "-v --tb=short"
-asyncio_mode = "auto"
-filterwarnings = ["error"]
-=======
 addopts = "-v --tb=short --doctest-glob=README.md"
 # One marker per component, auto-applied by tests/conftest.py from each test's
 # top-level tests/<dir>/. Enables `pytest -m web` locally and per-component CI
 # jobs (issue #160, https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component); `integration` (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#real-broker-integration-tests-testcontainers-locally-per-broker-ci-mechanism) is one axis of the scheme.
->>>>>>> after updating
+asyncio_mode = "auto"
+filterwarnings = ["error"]
 markers = [
   "smoke: fast import/entrypoint checks",
   "unit: pure logic, fully mocked, no I/O",
@@ -306,17 +262,12 @@ peta = ["src/peta", "*/site-packages/peta"]
 # patterns here: a regex matching a `def` line excludes the *whole function body*,
 # so a pattern like `def main\(` would silently un-measure any future `main()`
 # with real logic (and did mask the tested GUI/TUI entrypoints). Pragmas carry the
-<<<<<<< before updating
-# exclusion decision next to the code it affects. See ADR-008.
-exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
-=======
 # exclusion decision next to the code it affects. See https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#coverage-exclusions-are-per-site-pragmas-and-the-globs-must-match-the-installed-layout.
 exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
   "if TYPE_CHECKING:",
 ]
->>>>>>> after updating
 fail_under = 99
 # Patterns match both the `src/` (editable) and installed (`site-packages`)
 # layouts (see [tool.coverage.run] omit).
@@ -382,13 +333,11 @@ min_confidence = 60
 paths = ["src", "tests"]
 
 
-<<<<<<< before updating
 [tool.typos.default.extend-words]
 # `certifi` is a real PyPI package name (the CA-bundle package), not a typo of
 # "certify"/"certified"; it shows up in the PyPI-schema example payload under
 # docs/superpowers/plans.
 certifi = "certifi"
-=======
 [tool.deptry]
 # `known_first_party` is explicit because the tox `deps` env installs the built
 # wheel, so without it deptry reads the project's own imports as a third-party
@@ -409,7 +358,6 @@ known_first_party = ["peta"]
 # tools/build_docs.py imports `packaging`, pinned in the `docs` group for that
 # script alone, so deptry reads it as a misplaced dev dependency.
 DEP004 = ["packaging"]
->>>>>>> after updating
 
 
 [tool.slotscheck]
@@ -536,8 +484,7 @@ convention = "pep257"
 # package) whose whole job is to print GitHub `::error::` annotations to stdout.
 "docs/check_warnings.py" = ["implicit-namespace-package", "print"]
 # The versioned-docs build orchestrator is a standalone CLI script under tools/,
-<<<<<<< before updating
-# not part of an importable package (ADR-027).
+# not part of an importable package (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages).
 "tools/build_docs.py" = ["implicit-namespace-package"]
 # Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
 "src/peta/cli/**/*.py" = [
@@ -548,10 +495,6 @@ convention = "pep257"
 ]
 # dataclass fields `id`/`license` shadow builtins by design.
 "src/peta/core/models.py" = ["builtin-attribute-shadowing"]
-=======
-# not part of an importable package (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages).
-"tools/build_docs.py" = ["INP001"]
->>>>>>> after updating
 
 
 [tool.ruff.lint.pyupgrade]
@@ -597,16 +540,12 @@ error-on-warning = true
 
 
 [tool.pyrefly]
-<<<<<<< before updating
 python-version = "3.11"
 project-includes = ["src"]
-=======
-python-version = "3.10"
-project-includes = ["src", "docs/examples"]
 
 [tool.pylint.main]
 # pylint runs as an always-on gate that deliberately overlaps ruff's PL* rules.
-# Its canonical invocation is `pylint src docs/examples`, so it never descends into tests; this
+# Its canonical invocation is `pylint src`, so it never descends into tests; this
 # ignore-paths is a defensive scope guard for broader invocations (`pylint .`,
 # filename-passing hooks). Tests are linted by ruff, not pylint.
 ignore-paths = ["^tests/.*$"]
@@ -648,7 +587,6 @@ disable = [
 max-args = 10
 max-positional-arguments = 10
 max-branches = 20
->>>>>>> after updating
 
 [tool.typos.files]
 # copier records `_commit` as a `git describe` string (`v1.2.3-4-g<hash>`) when
@@ -703,16 +641,13 @@ env_tmp_dir = "{toxworkdir}/tmp/{envname}"
 # `coverage run` plus `parallel = true` writes per-env data files that the CI
 # `coverage combine` step merges.
 set_env = { COVERAGE_PROCESS_START = "{tox_root}/pyproject.toml" }
-<<<<<<< before updating
 # CI names an interpreter older than peta's own floor here, and the --python
 # integration tests inspect it for real; unset, they target the running one.
 pass_env = ["PETA_TEST_TARGET_PYTHON"]
 
-=======
 # Non-editable: `uv sync --no-editable` builds the project and installs it into
 # site-packages, the layout `[tool.coverage.paths]` remaps and the per-component
 # coverage gates measure (https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component).
->>>>>>> after updating
 package = "wheel"
 # Every env installs from uv.lock (`uv sync --locked`), so tox tests and lints
 # the exact versions the lockfile pins. The plain `uv-venv-runner` resolves the
@@ -734,21 +669,6 @@ commands = [
   ["mypy", "--python-version", "3.14"],
   # Style runs once on Linux, so explicitly sweep platform-gated branches that
   # mypy would otherwise prune as unreachable on the host platform.
-<<<<<<< before updating
-  ["mypy", "--platform", "win32"],
-  ["mypy", "--platform", "darwin"],
-  ["basedpyright"],
-  ["ty", "check"],
-  ["pyrefly", "check"],
-  ["zuban", "check", "src"],
-  ["vulture"],
-  ["python", "-m", "slotscheck", "src"],
-  ["lint-imports"],
-  ["taplo", "lint", "*.toml"],
-  # A strict `--check` gate, not fix mode: a file that taplo would rewrite
-  # fails CI instead of drifting silently. `.taplo.toml` disables array auto
-  # expand/collapse so the committed layout is the canonical one. The `*.toml`
-=======
   [
     "mypy",
     "--platform",
@@ -774,12 +694,10 @@ commands = [
     "zuban",
     "check",
     "src",
-    "docs/examples",
   ],
   [
     "pylint",
     "src",
-    "docs/examples",
   ],
   [
     "python",
@@ -815,7 +733,6 @@ commands = [
   # rewrite fails its own CI on first push and drifts on every `copier update`.
   # `.taplo.toml` disables array auto expand/collapse so the shipped layout is
   # the canonical one regardless of which components are enabled. The `*.toml`
->>>>>>> after updating
   # glob is non-recursive, so it scopes taplo to this project's own root TOML
   # (pyproject/prek/mise/taplo) without walking vendored `.tox`/`.venv`/
   # site-packages trees.
@@ -894,12 +811,6 @@ commands = [
 ]
 dependency_groups = ["docs"]
 description = "Build Docs"
-<<<<<<< before updating
-runner = "uv-venv-runner"
-# Keep build log output unbuffered/ordered. Local `tox` runs deliberately do NOT
-# export SOURCE_DATE_EPOCH (an empty value breaks hatchling's reproducible
-# timestamp), so conf.py falls back to the current year.
-=======
 runner = "uv-venv-lock-runner"
 # Keep build log output unbuffered/ordered. Reproducible builds pin Sphinx's
 # "today"/copyright to SOURCE_DATE_EPOCH, which the CI docs steps
@@ -908,7 +819,6 @@ runner = "uv-venv-lock-runner"
 # it: an empty value ("{env:SOURCE_DATE_EPOCH:}") is *present but blank*, which
 # breaks hatchling's get_reproducible_timestamp (`int("")`), so we leave it
 # unset locally and conf.py falls back to the current year.
->>>>>>> after updating
 set_env = { PYTHONUNBUFFERED = "1" }
 
 

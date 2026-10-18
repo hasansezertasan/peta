@@ -275,7 +275,7 @@ def _cycle_node(
     )
 
 
-def _child_node(
+def _child_node(  # pylint: disable=too-many-locals
     req: Requirement,
     path: dict[str, tuple[PackageInfo, frozenset[str]]],
     cache: dict[str, PackageInfo | DependencyResolutionFailure],

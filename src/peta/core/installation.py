@@ -10,6 +10,7 @@ bounded and every failure degrades to a reported state. The installation is
 not defended against being modified while it is read; see
 ``docs/threat-model.rst``.
 """
+# pylint: disable=too-many-lines
 
 from __future__ import annotations
 
@@ -127,7 +128,7 @@ _CHUNK = 1 << 16
 
 
 @dataclass(frozen=True)
-class Origin:
+class Origin:  # pylint: disable=too-many-instance-attributes
     """A distribution's origin, from ``direct_url.json``."""
 
     kind: OriginKind
@@ -165,7 +166,7 @@ class InstalledFile:
 
 
 @dataclass(frozen=True)
-class Installation:
+class Installation:  # pylint: disable=too-many-instance-attributes
     """Origin, installer, and file-integrity evidence for one distribution."""
 
     name: str
@@ -521,7 +522,7 @@ def _read_text(dist: importlib_metadata.Distribution, name: str) -> str | None:
             return ""
     # The same private attribute :func:`legacy_installed_files` reads. It may
     # be a ``zipfile.Path`` for a zipped distribution, so it is used as-is.
-    folder: Traversable = cast("Traversable", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.
+    folder: Traversable = cast("Traversable", cast("object", dist._path))  # ruff: ignore[private-member-access] # See above.  # pylint: disable=protected-access
     return _read_entry(folder.joinpath(name), _read_policy(name))
 
 

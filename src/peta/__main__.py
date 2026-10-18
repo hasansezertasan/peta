@@ -1,6 +1,3 @@
-<<<<<<< before updating
-"""Entry point for ``python -m peta``.
-=======
 """Module entrypoint for the project.
 
 This is the single runnable entrypoint used by ``python -m peta``
@@ -19,7 +16,6 @@ template-generation time (via the Jinja conditionals below). To change the
 default entrypoint, re-render with a different component enabled or edit the
 import/``main`` binding here directly. With no runnable component enabled,
 ``main()`` exits non-zero with an explanatory message.
->>>>>>> after updating
 
 Either binding routes its import through a loader that turns a missing
 dependency into one actionable line instead of a traceback (https://hasansezertasan.github.io/copier-pyproject/context/components/#launcher-imports-are-guarded-with-exact-match-preflighted-dependency-errors).

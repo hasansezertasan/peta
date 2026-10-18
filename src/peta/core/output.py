@@ -189,7 +189,7 @@ class SourceRecord:
 
 
 @dataclass(frozen=True)
-class OutputEnvelope:
+class OutputEnvelope:  # pylint: disable=too-many-instance-attributes
     """Stable top-level shape for machine-readable output."""
 
     query: OutputQuery
