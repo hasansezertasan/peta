@@ -28,7 +28,6 @@ jobs:
       pull-requests: read
     outputs:
       core: ${{ steps.filter.outputs.core }}
-      cli: ${{ steps.filter.outputs.cli }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
@@ -54,9 +53,6 @@ jobs:
               - 'tests/conftest.py'
               - 'tests/core/**'
               - 'tests/test_*.py'
-            cli:
-              - 'src/peta/cli/**'
-              - 'tests/cli/**'
   hooks:
     name: Run prek hooks
     if: ${{ github.event.pull_request.draft != true }}
@@ -293,7 +289,7 @@ jobs:
         # after `--` select this component's marked tests (issue #160).
         # `matrix.tox_args` is a workflow-defined (trusted) context, used inline
         # like `matrix.os` in the System Info step — not untrusted GitHub context.
-        run: uv run --locked tox run ${{ matrix.tox_args }} -- -m "not (cli)"
+        run: uv run --locked tox run ${{ matrix.tox_args }}
 
       - name: Store coverage data
         # Combine this cell's per-interpreter data and hand the raw `.coverage`
@@ -314,102 +310,6 @@ jobs:
         with:
           name: coverage-core-${{ matrix.os }}
           path: .coverage.core.${{ matrix.os }}
-          include-hidden-files: true
-
-  test-cli:
-    name: Test cli on ${{ matrix.os }}
-    needs: changes
-    if: >-
-      ${{ github.event.pull_request.draft != true && (needs.changes.outputs.cli == 'true' || needs.changes.outputs.core == 'true') }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {os: ubuntu-latest, tox_args: "-e 3.14,3.13,3.12,3.11"}
-          - {os: macos-latest, tox_args: "-e py"}
-          - {os: windows-latest, tox_args: "-e py"}
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    steps:
-      - name: System Info
-        shell: bash
-        run: |
-          if [[ ${{ matrix.os }} == "ubuntu-latest" ]]; then
-              echo "The system is Linux."
-              uname -a || true
-              lsb_release -a || true
-              gcc --version || true
-          elif [[ ${{ matrix.os }} == "macos-latest" ]]; then
-              echo "The system is macOS."
-              sw_vers || true
-              uname -a || true
-              gcc --version || true
-          elif [[ ${{ matrix.os }} == "windows-latest" ]]; then
-              echo "The system is Windows (using a Unix-like environment)."
-              systeminfo || true
-          else
-              echo "Unknown OS: $OS_TYPE"
-              exit 1
-          fi
-      - name: Environment Info
-        run: |
-          env || true
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
-        with:
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version-file: .python-version
-      - name: Setup uv
-        id: setup-uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
-        with:
-          enable-cache: true
-          cache-dependency-glob: |
-            pyproject.toml
-            uv.lock
-      - name: Restore cache
-        if: steps.setup-uv.outputs.cache-hit == 'true'
-        run: echo "Cache was restored"
-      - name: Install an older target interpreter
-        # `--python` may point peta at an environment older than peta's own
-        # floor (an isolated modern peta inspecting an older project), so the
-        # integration suite inspects a real one. uv's managed builds cover all
-        # three OSes; tox passes the variable through (pass_env).
-        shell: bash
-        run: |
-          uv python install 3.8
-          echo "PETA_TEST_TARGET_PYTHON=$(uv python find --no-project 3.8)" >> "$GITHUB_ENV"
-      - name: Run the tests
-        # `matrix.tox_args` selects the interpreter sweep (#159); the posargs
-        # after `--` select this component's marked tests (issue #160).
-        # `matrix.tox_args` is a workflow-defined (trusted) context, used inline
-        # like `matrix.os` in the System Info step — not untrusted GitHub context.
-        run: uv run --locked tox run ${{ matrix.tox_args }} -- -m "cli"
-
-      - name: Store coverage data
-        # Combine this cell's per-interpreter data and hand the raw `.coverage`
-        # off (under a per-component, per-OS name) to this component's
-        # `coverage-cli` gate job, which merges its OS cells and
-        # enforces the scoped `fail_under` gate. The per-cell `coverage report`
-        # here stays for fast feedback but does NOT gate (`--fail-under=0`): a
-        # line covered on one OS yet version/OS-gated off on another only
-        # balances in the per-component union. See https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component (decomposes https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#a-single-union-coverage-gate-across-the-whole-matrix).
-        run: |
-          uv run coverage combine
-          uv run coverage report --show-missing --fail-under=0
-          mv .coverage ".coverage.cli.${{ matrix.os }}"
-      - name: Upload coverage data
-        # `include-hidden-files` is required for upload-artifact to pick up the
-        # dotfile `.coverage.*`. Downloaded and merged by `coverage-cli`.
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
-        with:
-          name: coverage-cli-${{ matrix.os }}
-          path: .coverage.cli.${{ matrix.os }}
           include-hidden-files: true
 
   coverage-core:
@@ -439,36 +339,7 @@ jobs:
         # project. `relative_files` (pyproject) lets cross-runner paths merge.
         run: |
           uv run --locked --only-group test coverage combine
-          uv run --locked --only-group test coverage report --show-missing --omit="*/_version.py,*/peta/cli/*,*/tests/cli/*" --fail-under=99
-
-  coverage-cli:
-    name: Coverage gate (cli)
-    needs: [changes, test-cli]
-    if: >-
-      ${{ !cancelled() && github.event.pull_request.draft != true && (needs.changes.outputs.cli == 'true' || needs.changes.outputs.core == 'true') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
-        with:
-          persist-credentials: false
-      - name: Setup uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884  # v10.3.0
-      - name: Download cli coverage data
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
-        with:
-          pattern: coverage-cli-*
-          merge-multiple: true
-      - name: Combine and gate the cli subtree
-        # `--locked --only-group test` pins the SAME coverage version that produced
-        # the `.coverage.*` data files (no unpinned drift), without building the
-        # project. `relative_files` (pyproject) lets cross-runner paths merge.
-        run: |
-          uv run --locked --only-group test coverage combine
-          uv run --locked --only-group test coverage report --show-missing --include="*/peta/cli/*,*/tests/cli/*" --fail-under=99
+          uv run --locked --only-group test coverage report --show-missing --omit="*/_version.py" --fail-under=99
 
   coverage-report:
     name: Combine coverage and publish
@@ -476,7 +347,7 @@ jobs:
     # Renders combined HTML/XML from whatever component gates ran and uploads to
     # Codecov + (optionally) smokeshow. `if: !cancelled()` so it runs even when a
     # component is path-skipped; downloads all present `coverage-*-*` artifacts.
-    needs: [changes, coverage-core, coverage-cli]
+    needs: [changes, coverage-core]
     # `!cancelled()` still publishes when a component gate failed, but must ALSO
     # carry the draft guard: on a draft PR every dependency is *skipped* (not
     # cancelled), so without it this job would run with zero coverage artifacts
@@ -513,15 +384,11 @@ jobs:
         # The `changes` booleans are workflow-derived (trusted), passed via env.
         env:
           CHANGED_CORE: ${{ needs.changes.outputs.core }}
-          CHANGED_CLI: ${{ needs.changes.outputs.cli }}
         run: |
           uv run --locked --only-group test coverage combine
           # `--omit` on the CLI overrides the pyproject omit, so re-add the always
           # -omitted files, then append each component that was skipped this run.
           omit="*/_version.py"
-          if [ "$CHANGED_CORE" != "true" ] && [ "$CHANGED_CLI" != "true" ]; then
-            omit="$omit,*/peta/cli/*,*/tests/cli/*"
-          fi
           uv run --locked --only-group test coverage report --show-missing --omit="$omit" --fail-under=0
           uv run --locked --only-group test coverage html --omit="$omit"
           uv run --locked --only-group test coverage xml --omit="$omit"
@@ -548,7 +415,7 @@ jobs:
         run: echo "::notice::CODECOV_TOKEN secret is not set and this repo is private — skipping the Codecov upload. See docs/maintaining/setup.rst (Repository setup) to enable coverage reporting."
   check:
     if: ${{ always() && github.event.pull_request.draft != true }}
-    needs: [changes, test-core, test-cli, coverage-core, coverage-cli, coverage-report, hooks, style, deps, docs-doctest, cli-installed]
+    needs: [changes, test-core, coverage-core, coverage-report, hooks, style, deps, docs-doctest, cli-installed]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions: {}
@@ -556,8 +423,4 @@ jobs:
       - name: Decide whether the needed jobs succeeded or failed
         uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35  # release/v1
         with:
-          # The gate counts a skipped job as a failure unless it is listed
-          # here. These jobs are path-gated by `changes`, so they skip whenever
-          # their component (and core) is untouched. Real failures still fail.
-          allowed-skips: test-cli, coverage-cli
           jobs: ${{ toJSON(needs) }}

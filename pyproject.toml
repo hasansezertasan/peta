@@ -351,6 +351,7 @@ certifi = "certifi"
 # the dev tooling).
 extend_exclude = [
   "docs/conf.py",
+  "docs/_ext",
 ]
 known_first_party = ["peta"]
 
@@ -750,7 +751,7 @@ commands = [
 ]
 # `test` is included so the type checkers that scope tests (e.g. ty) can
 # resolve pytest and other test-only imports.
-dependency_groups = ["style", "test"]
+dependency_groups = ["style", "sast", "test"]
 description = "Run Checkers, Linters and Formatters"
 runner = "uv-venv-lock-runner"
 
