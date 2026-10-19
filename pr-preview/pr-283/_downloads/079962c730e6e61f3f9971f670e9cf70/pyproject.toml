@@ -1,0 +1,870 @@
+[project]
+name = "peta"
+description = "Human-friendly Python package metadata viewer"
+license = "MIT"
+readme = "README.md"
+authors = [{ name = "Hasan Sezer Tasan", email = "hasansezertasan@gmail.com" }]
+maintainers = [
+  { name = "Hasan Sezer Tasan", email = "hasansezertasan@gmail.com" },
+]
+dynamic = ["version"]
+keywords = [
+  "packaging",
+  "metadata",
+  "pypi",
+  "cli",
+  "command-line",
+  "python",
+  "typer",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Information Technology",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: MIT License",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Software Development",
+  "Typing :: Typed",
+  "Topic :: Utilities",
+  "Topic :: Terminals",
+]
+requires-python = ">=3.11"
+# packaging>=24.2 for ``packaging.licenses``, which the compare diff uses to
+# canonicalize SPDX license expressions. typing-extensions>=4.6 backports
+# ``TypeAliasType`` and ``override`` (both stdlib from Python 3.12) to the 3.11
+# floor; drop it, and switch those imports to ``typing``, when the floor reaches
+# 3.12 (ruff's UP035 flags them once ``target-version`` moves).
+dependencies = [
+  "typer",
+  "rich",
+  "httpx",
+  "packaging>=24.2",
+  "typing-extensions>=4.6",
+]
+
+
+[project.urls]
+changelog = "https://github.com/hasansezertasan/peta/blob/main/CHANGELOG.md"
+documentation = "https://hasansezertasan.github.io/peta"
+homepage = "https://github.com/hasansezertasan/peta"
+issues = "https://github.com/hasansezertasan/peta/issues"
+releasenotes = "https://github.com/hasansezertasan/peta/releases"
+source = "https://github.com/hasansezertasan/peta.git"
+
+
+[project.scripts]
+peta = "peta.cli.app:run"
+
+
+[dependency-groups]
+dev = [
+  "peta",
+  "tox==4.67.1",
+  "tox-uv==1.37.0",
+  "debugpy==1.8.22",
+  { include-group = "style" },
+  { include-group = "test" },
+]
+style = [
+  "actionlint-py==1.7.12.25",
+  "basedpyright==1.40.2",
+  "detect-secrets==1.5.0",
+  "editorconfig-checker==3.11.1",
+  "import-linter==2.15",
+  "mypy==2.4.0",
+  "pylint==4.0.6",
+  "pyrefly==1.3.1",
+  "ruff==0.16.10",
+  "slotscheck==0.21.0",
+  "sphinx-lint==1.0.2",
+  "taplo==0.9.3",
+  "ty==0.0.84",
+  "typos==1.50.3",
+  "validate-pyproject[all]==0.26",
+  "zuban==0.10.0",
+]
+# semgrep is deliberately its own group rather than part of `style`: `dev`
+# includes `style` wholesale, so a plain `uv sync` — and every Windows/macOS
+# cell in ci.yml, which runs `uv run --locked tox run` — would download and
+# unpack ~215 MB (the wheel bundles a native semgrep-core) for a tool that only
+# ever executes in the Linux-only `style` job. The tox `style` env lists this
+# group explicitly. Still a single version source, same as every other pin.
+sast = [
+  "semgrep==1.180.0",
+]
+# Dependency hygiene gets its own group for the same reason `sast` does: it is
+# only ever run by the on-demand `deps` tox env and the `deps` CI job, so a plain
+# `uv sync` should not install it. deptry checks the imports against the declared
+# dependencies (missing, transitive, misplaced or obsolete); creosote flags
+# declared runtime dependencies that nothing imports.
+deps = [
+  "creosote==5.2.0",
+  "deptry==0.25.1",
+]
+test = [
+  "coverage-enable-subprocess==1.0",
+  "coverage[toml]==7.16.2",
+  "pytest-mock==3.16.0",
+  "pytest-rerunfailures==16.7",
+  "pytest-xdist[psutil]==3.8.0",
+  "pytest==9.1.1",
+  "pytest-sugar",
+  "pytest-asyncio>=0.23.0",
+  "dirty-equals",
+  "inline-snapshot",
+  "pytest-deadfixtures==3.1.0",
+]
+docs = [
+  "sphinx==9.1.0",
+  "shibuya==2026.7.12",
+  "sphinx-autobuild==2025.8.25", # 2025.x drops Python 3.10 (requires-python >= 3.11)
+  "sphinx-copybutton==0.5.2",
+  "sphinx-design==0.7.0", # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
+  "sphinx-togglebutton==0.4.5",
+  "sphinx-paramlinks==0.6.0",
+  "auto-pytabs[sphinx]==0.5.0",
+  "myst-parser==5.1.0",
+  # Per-page "last updated" footer sourced from git commit dates (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#per-page-last-updated-comes-from-git-history);
+  # offline, no network. Works from full history (docs CI checks out depth 0).
+  "sphinx-last-updated-by-git==0.3.8",
+  # PEP 440 version parsing/sorting used by tools/build_docs.py to order
+  # published versions and pick the `latest` alias (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages). Also a Sphinx
+  # transitive dependency; pinned here for the explicit direct use.
+  "packaging>=24.0",
+]
+tool = [
+  "commitizen==4.19.0",
+  # "marimo==0.15.2",
+  # "inflection==0.5.1",
+  # "copier==9.11.0",
+]
+prek = ["prek==0.5.4"]
+
+
+[build-system]
+
+requires = ["hatchling", "hatch-vcs"]
+
+build-backend = "hatchling.build"
+
+
+[tool.uv]
+add-bounds = "exact"
+cache-keys = [
+  { file = "pyproject.toml" },
+  { git = { commit = true, tags = true } },
+]
+package = true
+trusted-publishing = "always"
+
+# The docs toolchain (sphinx 9.1 needs Python >=3.12) only ever runs on the
+# 3.14 dev interpreter, so scope it above the package's own 3.11 floor rather
+# than holding every docs pin back to what 3.11 can install.
+[tool.uv.dependency-groups]
+docs = { requires-python = ">=3.12" }
+
+
+[tool.hatch.version]
+source = "vcs"
+# Last-resort sentinel: only used when a build sees neither a .git directory nor
+# an expanded .git_archival.txt (e.g. an archive of a commit with no reachable
+# tag). "0.0.0" reads clearly as "version could not be determined" rather than
+# masquerading as a real early release. See .git_archival.txt + .gitattributes
+# `export-subst` for the archive path that recovers the real tag-derived version.
+fallback-version = "0.0.0"
+
+
+[tool.hatch.build]
+hooks.vcs.version-file = "src/peta/_version.py"
+
+
+[tool.hatch.version.raw-options]
+version_scheme = "only-version"
+local_scheme = "no-local-version"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+
+[tool.hatch.build.targets.sdist]
+# The package uses a src layout, so the source tree lives under /src (not
+# /peta); including /src ships the actual modules -- and, for
+# C-extension projects, the .pyx/.pxd sources needed to compile from the sdist.
+include = ["/README.md", "LICENSE", "/src", "/tests"]
+
+
+[tool.commitizen]
+# Commit-authoring and message linting only. release-please owns version
+# bumping, git tagging, and CHANGELOG.md (see .github/release-please-config.json),
+# so the bump/tag/changelog settings are intentionally omitted here to avoid two
+# tools competing over the same tags and changelog file.
+name = "cz_conventional_commits"
+
+[tool.pytest.ini_options]
+# addopts = "-rXs --strict-config --strict-markers"
+addopts = "-v --tb=short --doctest-glob=README.md"
+# One marker per component, auto-applied by tests/conftest.py from each test's
+# top-level tests/<dir>/. Enables `pytest -m web` locally and per-component CI
+# jobs (issue #160, https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component); `integration` (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#real-broker-integration-tests-testcontainers-locally-per-broker-ci-mechanism) is one axis of the scheme.
+asyncio_mode = "auto"
+filterwarnings = ["error"]
+markers = [
+  "smoke: fast import/entrypoint checks",
+  "unit: pure logic, fully mocked, no I/O",
+  "integration: real components wired, no external network",
+  "e2e: full CLI via entry point; e2e-remote hits real PyPI (opt-in)",
+]
+testpaths = ["tests"]
+xfail_strict = true
+
+
+[tool.coverage.run]
+branch = true
+# Match `_version.py` wherever it resolves: `src/...` in editable dev installs and
+# `.../site-packages/...` when tox/CI installs the built (non-editable) wheel. A
+# `src/**`-only pattern silently misses the installed copy and reports it at 0%.
+omit = ["*/_version.py"]
+parallel = true
+# Store data-file paths relative to the project root so `.coverage` files produced
+# on different runners/OSes merge in the `coverage-combine` CI job without
+# absolute-path mismatches. Complements the `[tool.coverage.paths]` remap below
+# (which unifies the src/ vs site-packages layouts). See https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#a-single-union-coverage-gate-across-the-whole-matrix.
+relative_files = true
+source_pkgs = ["peta", "tests"]
+
+
+[tool.coverage.paths]
+# Unify coverage data across environments. tox installs the built wheel into
+# each env's site-packages, so the same source file is measured under a different
+# `.tox/<env>/.../site-packages/peta` path per interpreter. Without
+# remapping those back to the canonical `src/` tree, `coverage combine` keeps a
+# separate copy per env and a version-gated line covered in one interpreter but not
+# another is wrongly counted as missed — silently failing the `fail_under` gate.
+# `tests` needs no remapping: it is never installed, so every environment measures
+# it at the same repo-local path.
+peta = ["src/peta", "*/site-packages/peta"]
+
+
+[tool.coverage.report]
+# Untestable code is excluded per site with `# pragma: no cover`, not with blanket
+# patterns here: a regex matching a `def` line excludes the *whole function body*,
+# so a pattern like `def main\(` would silently un-measure any future `main()`
+# with real logic (and did mask the tested GUI/TUI entrypoints). Pragmas carry the
+# exclusion decision next to the code it affects. See https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#coverage-exclusions-are-per-site-pragmas-and-the-globs-must-match-the-installed-layout.
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+fail_under = 99
+# Patterns match both the `src/` (editable) and installed (`site-packages`)
+# layouts (see [tool.coverage.run] omit).
+omit = ["*/_version.py"]
+show_missing = true
+skip_covered = true
+
+
+[tool.vulture]
+# Framework-invoked handlers: Typer commands, FastAPI routes, FastStream
+# lifecycle hooks, and the MCP tool dispatcher.
+ignore_decorators = [
+  "@app.command",
+  "@app.get",
+  "@app.after_startup",
+  "@app.after_shutdown",
+  "@server.call_tool",
+  # A fixture used through ``@pytest.mark.usefixtures("name")`` -- or from
+  # another test module -- is only ever named in a string, which vulture cannot
+  # see. Unused fixtures are caught properly by ``pytest --dead-fixtures`` in
+  # the tox ``style`` env, so this delegates rather than suppresses.
+  "@pytest.fixture",
+]
+# Public API surfaces vulture cannot see being used: ``main`` entry points are
+# referenced only via pyproject scripts, ``model_config`` is consumed by
+# pydantic-settings, ``logger`` is imported only by optional components, the MCP
+# ``arguments`` parameter is mandated by the call_tool signature, the Textual
+# names (CSS/compose/on_mount/title/BINDINGS) are invoked by the TUI framework,
+# and ``pytestmark``/``pytest_*`` (conftest hooks) are consumed by pytest at
+# collection time.
+ignore_names = [
+  "CONFIG_FILE_PATH",
+  "logger",
+  "main",
+  "model_config",
+  "pytest_*",
+  "collect_ignore_glob",
+  # pytest markers, mock attributes, and external PyPI-schema TypedDict fields (accessed via string keys)
+  "pytestmark",
+  "return_value",
+  "side_effect",
+  "author_email",
+  "home_page",
+  "license_expression",
+  "releases",
+  "requires_dist",
+  "requires_python",
+  # OSV-schema TypedDict fields read via string keys in core/osv.py
+  "vulns",
+  "details",
+  "events",
+  "ranges",
+  "score",
+  # pypistats.org/libraries.io-schema TypedDict fields read via string keys
+  # in core/stats.py
+  "last_month",
+  "dependents_count",
+  # ProviderResult fields populated by future providers (#106, #111)
+  "freshness",
+  "upstream_id",
+]
+min_confidence = 60
+paths = ["src", "tests"]
+
+
+[tool.typos.default.extend-words]
+# `certifi` is a real PyPI package name (the CA-bundle package), not a typo of
+# "certify"/"certified"; it shows up in the PyPI-schema example payload under
+# docs/superpowers/plans.
+certifi = "certifi"
+[tool.deptry]
+# `known_first_party` is explicit because the tox `deps` env installs the built
+# wheel, so without it deptry reads the project's own imports as a third-party
+# transitive dependency (DEP003). Add further `per_rule_ignores` entries for the
+# project's own findings, e.g. DEP003 for a package only importable through
+# another declared one, or DEP002 for an optional import guarded by try/except.
+# See https://deptry.com/rules-violations/.
+# Excluded: the Sphinx config, the build hook (its imports belong to
+# `[build-system].requires`, not the runtime dependencies), the benchmarks and the
+# worker probe script (neither ships in the wheel; pytest and anyio come from
+# the dev tooling).
+extend_exclude = [
+  "docs/conf.py",
+  "docs/_ext",
+]
+known_first_party = ["peta"]
+
+[tool.deptry.per_rule_ignores]
+# tools/build_docs.py imports `packaging`, pinned in the `docs` group for that
+# script alone, so deptry reads it as a misplaced dev dependency.
+DEP004 = ["packaging"]
+
+
+[tool.slotscheck]
+strict-imports = false
+
+
+[tool.importlinter]
+root_package = "peta"
+
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture with independent components"
+type = "layers"
+# Layers are listed high -> low: a layer may import lower layers but never a
+# higher one. `cli` is the top layer (commands + rendering, including
+# `peta.cli.output`), sitting above `core` (data + I/O).
+#
+# `exhaustive` makes the contract fail when a subpackage of `peta` is not named
+# in `layers` — so a new top-level subpackage is a deliberate architecture
+# decision (add it to a layer here) rather than something that silently accretes
+# at the package root. See "Package Structure" in `AGENTS.md`. The
+# `exhaustive_ignores` entries are the non-layer foundations: the metadata and
+# hatch-vcs version modules and the `python -m` dispatcher.
+containers = ["peta"]
+exhaustive = true
+exhaustive_ignores = ["__main__", "__metadata__", "_version"]
+layers = ["cli", "core"]
+
+
+[tool.ruff]
+# SDD plan/spec docs under docs/superpowers embed the package source as fenced
+# code blocks; they are historical artifacts (also excluded from the Sphinx
+# build) and must not be lint-fixed or reformatted as if they were live source.
+extend-exclude = ["docs/superpowers"]
+fix = true
+output-format = "full"
+preview = true
+show-fixes = true
+src = ["src", "tests"]
+target-version = "py311"
+unsafe-fixes = true
+
+
+[tool.ruff.analyze]
+detect-string-imports = true
+preview = true
+
+
+[tool.ruff.format]
+docstring-code-format = true
+line-ending = "lf"
+preview = true
+skip-magic-trailing-comma = true
+
+
+[tool.ruff.lint]
+fixable = ["ALL"]
+ignore = ["missing-trailing-comma", "CPY", "FIX", "TD"]
+preview = true
+select = ["ALL"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+# skip-magic-trailing-comma = true
+split-on-trailing-comma = false
+
+[tool.ruff.lint.flake8-copyright]
+author = "Hasan Sezer Tasan <hasansezertasan@gmail.com>"
+
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+
+[tool.ruff.lint.mccabe]
+max-complexity = 5
+
+
+[tool.ruff.lint.pylint]
+# Typer command handlers accumulate one boolean flag per feature (--local,
+# --remote, --no-osv, --no-stats, ...); the default of 5 is too tight for
+# that pattern. `compare(ctx, a, b, use_json, local, remote, no_osv, no_stats)`
+# needs 9 (two package arguments plus the legacy --json alias and --format).
+max-args = 9
+
+
+[tool.ruff.lint.pycodestyle]
+ignore-overlong-task-comments = true
+
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+
+[tool.ruff.lint.per-file-ignores]
+# Recursive glob so nested test packages (tests/cli, tests/gui, ...) are covered.
+# Tests legitimately use asserts/magic values, reach into package internals,
+# don't need docstrings on test classes/functions/fixtures nor return-value
+# documentation, use self-less test methods (pytest style), and import lazily
+# inside a test to exercise import-time behavior. They are implicit namespace
+# packages (no __init__.py required).
+"tests/**/*.py" = [
+  "assert",
+  "magic-value-comparison",
+  "import-private-name",
+  # Sibling of `import-private-name` for attribute access: a test that resets a
+  # private cache to exercise first-use behavior would otherwise force a public
+  # reset hook to exist for no reason other than to be called by tests.
+  "private-member-access",
+  "docstring-missing-returns",
+  "implicit-namespace-package",
+  "undocumented-public-class",
+  "undocumented-public-method",
+  "undocumented-public-function",
+  "undocumented-public-package",
+  "undocumented-magic-method",
+  "undocumented-public-init",
+  "no-self-use",
+  "import-outside-top-level",
+]
+# The Sphinx config is a standalone module, not part of an importable package.
+"docs/conf.py" = ["implicit-namespace-package"]
+# The docs warning-allowlist gate is a standalone script (not an importable
+# package) whose whole job is to print GitHub `::error::` annotations to stdout.
+"docs/check_warnings.py" = ["implicit-namespace-package", "print"]
+# The versioned-docs build orchestrator is a standalone CLI script under tools/,
+# not part of an importable package (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages).
+"tools/build_docs.py" = ["implicit-namespace-package"]
+# Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
+"src/peta/cli/**/*.py" = [
+  "function-call-in-default-argument",
+  "boolean-type-hint-positional-argument",
+  "boolean-default-value-positional-argument",
+  "boolean-positional-value-in-call",
+]
+# dataclass fields `id`/`license` shadow builtins by design.
+"src/peta/core/models.py" = ["builtin-attribute-shadowing"]
+
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
+
+
+[tool.ruff.lint.ruff]
+parenthesize-tuple-in-subscript = true
+
+
+# Every type checker targets the 3.11 floor so a stdlib API newer than the
+# oldest supported interpreter fails the style gate; the tox ``style`` env adds
+# an explicit ``mypy --python-version`` pass for each newer supported version.
+[tool.mypy]
+files = ["src"]
+pretty = true
+python_version = "3.11"
+strict = true
+
+
+[tool.basedpyright]
+exclude = [".venv"]
+include = ["src/peta"]
+pythonVersion = "3.11"
+venv = ".venv"
+# venvPath is the directory *containing* the venv, not the venv itself; ".venv"
+# here would make basedpyright look for ".venv/.venv". Use "." so both the venv
+# and basedpyright's strict ruleset resolve the project's installed deps.
+venvPath = "."
+
+
+[tool.ty.src]
+include = ["src", "tests"]
+respect-ignore-files = false
+
+
+[tool.ty.environment]
+python-version = "3.11"
+
+
+[tool.ty.terminal]
+error-on-warning = true
+
+
+[tool.pyrefly]
+python-version = "3.11"
+project-includes = ["src"]
+
+[tool.pylint.main]
+# pylint runs as an always-on gate that deliberately overlaps ruff's PL* rules.
+# Its canonical invocation is `pylint src`, so it never descends into tests; this
+# ignore-paths is a defensive scope guard for broader invocations (`pylint .`,
+# filename-passing hooks). Tests are linted by ruff, not pylint.
+ignore-paths = ["^tests/.*$"]
+# `.pyi` stubs (the c-extension type stub) are signature-only: their bodies are
+# `...` and every parameter is unused by construction, so pylint's unused-argument
+# check is a guaranteed false positive there. Stubs are type-checked by the
+# type-checker gate, not pylint.
+ignore-patterns = ['.*\.pyi$']
+
+[tool.pylint."messages control"]
+# Only formatter-owned checks, the docstring family, and too-few-public-methods
+# are disabled so pylint is usable out of the box; everything else stays on.
+disable = [
+  "line-too-long", # C0301 — ruff-format owns line length
+  "missing-module-docstring", # C0114
+  "missing-class-docstring", # C0115
+  "missing-function-docstring", # C0116
+  "too-few-public-methods", # R0903 — trips dataclasses / config / Protocol classes
+  # C0415 — the cli->tui/gui/web dispatch, and each component's own heavy or
+  # platform-conditional import (tkinter, uvicorn, the worker's uvloop probe),
+  # are deliberately lazy so import-linter's layering contract holds and a
+  # framework is only imported when the code path that needs it actually runs.
+  # Textual is the exception: the TUI imports it at module scope so `InfoApp`
+  # can be defined there and driven by the headless pilot (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#interactive-components-expose-injected-driver-seams-so-headless-ci-measures-everything-but-the-blocking-call).
+  "import-outside-toplevel",
+  # W0706 — the generated TUI entry point explicitly re-raises
+  # KeyboardInterrupt/SystemExit ahead of a broad `except Exception` to make the
+  # "let these propagate" intent obvious to readers, even though BaseException
+  # subclasses wouldn't be caught by the Exception clause anyway.
+  "try-except-raise",
+  # R0801 — the component skeletons (gui/tui/mcp/worker) are deliberately
+  # parallel: each fetches package metadata and formats the same info block the
+  # same way. That structural symmetry is a feature of the scaffold, not
+  # copy-paste debt, and R0801 cannot be suppressed inline at the call site.
+  "duplicate-code",
+]
+
+[tool.pylint.design]
+max-args = 10
+max-positional-arguments = 10
+max-branches = 20
+
+[tool.typos.files]
+# copier records `_commit` as a `git describe` string (`v1.2.3-4-g<hash>`) when
+# the template is rendered from an untagged ref, and a fragment of the hex hash
+# can read as a misspelled word, failing the check on a hash nobody chose. The
+# file is machine-written with no prose to check. The prek hook passes
+# `--force-exclude`, so the exclusion holds there as well as in `tox -e style`.
+extend-exclude = [
+  ".copier-answers.yml",
+]
+
+[tool.tox]
+# The ``worker`` env is intentionally omitted: it starts a broker-bound process
+# and would hang/fail under ``tox run`` in CI (where no broker is available).
+# The worker is covered by its pytest TestBroker suite; run it on demand with
+# ``tox -e worker`` when a broker is up (e.g. inside the devcontainer).
+env_list = [
+  "style",
+  # Inline ``>>>`` snippets are part of the tested-documentation contract,
+  # so run them in the default CI ``tox run`` invocation.
+  "docs-doctest",
+  "cli",
+  # One test env per supported interpreter: keep in step with requires-python,
+  # the classifiers, and the CI matrix (tests/smoke/test_python_support.py
+  # enforces the first two).
+  "3.11",
+  "3.12",
+  "3.13",
+  "3.14",
+]
+requires = ["tox>=4"]
+
+
+[tool.tox.env_run_base]
+commands = [
+  [
+    "coverage",
+    "run",
+    "--module",
+    "pytest",
+    "-v",
+    "--tb=short",
+    "--basetemp={env_tmp_dir}",
+    { replace = "posargs", default = [
+    ], extend = true },
+  ],
+]
+dependency_groups = ["test"]
+description = "Run the tests under {base_python}"
+env_tmp_dir = "{toxworkdir}/tmp/{envname}"
+# Arms coverage-enable-subprocess so xdist/subprocess workers are measured too;
+# `coverage run` plus `parallel = true` writes per-env data files that the CI
+# `coverage combine` step merges.
+set_env = { COVERAGE_PROCESS_START = "{tox_root}/pyproject.toml" }
+# CI names an interpreter older than peta's own floor here, and the --python
+# integration tests inspect it for real; unset, they target the running one.
+pass_env = ["PETA_TEST_TARGET_PYTHON"]
+
+# Non-editable: `uv sync --no-editable` builds the project and installs it into
+# site-packages, the layout `[tool.coverage.paths]` remaps and the per-component
+# coverage gates measure (https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component).
+package = "wheel"
+# Every env installs from uv.lock (`uv sync --locked`), so tox tests and lints
+# the exact versions the lockfile pins. The plain `uv-venv-runner` resolves the
+# project's own dependencies fresh on every env creation (tox's
+# `use_frozen_constraints` never reaches its `uv pip install`), so a newer
+# release could float in and clash with a pinned tool such as semgrep.
+runner = "uv-venv-lock-runner"
+
+
+[tool.tox.env.style]
+base_python = ["3.14"]
+commands = [
+  ["ruff", "check", "--no-fix"],
+  ["ruff", "format", "--check", "--diff"],
+  # The config targets the 3.11 floor; one explicit pass per newer supported
+  # version (tests/smoke/test_python_support.py keeps this list complete).
+  ["mypy", "--python-version", "3.12"],
+  ["mypy", "--python-version", "3.13"],
+  ["mypy", "--python-version", "3.14"],
+  # Style runs once on Linux, so explicitly sweep platform-gated branches that
+  # mypy would otherwise prune as unreachable on the host platform.
+  [
+    "mypy",
+    "--platform",
+    "win32",
+  ],
+  [
+    "mypy",
+    "--platform",
+    "darwin",
+  ],
+  [
+    "basedpyright",
+  ],
+  [
+    "ty",
+    "check",
+  ],
+  [
+    "pyrefly",
+    "check",
+  ],
+  [
+    "zuban",
+    "check",
+    "src",
+  ],
+  [
+    "pylint",
+    "src",
+  ],
+  [
+    "python",
+    "-m",
+    "slotscheck",
+    "src",
+  ],
+  [
+    "lint-imports",
+  ],
+  # Rules-database SAST. Deliberately style-env-only (like ty/pyrefly/zuban) and
+  # not a prek hook: semgrep keeps no on-disk rule cache, so a pre-commit hook
+  # would make a registry request on every `git commit`. The ruleset is named
+  # explicitly rather than `--config auto` so rule selection does not depend on
+  # language auto-detection; it is still fetched from the registry, which is why
+  # this cannot be vendored (see https://hasansezertasan.github.io/copier-pyproject/context/lint-orchestration/#semgrep-runs-in-the-style-env-against-a-named-registry-ruleset-never-vendored). `--error` makes findings blocking;
+  # silence a false positive with a trailing `# nosemgrep: <rule-id>`.
+  [
+    "semgrep",
+    "scan",
+    "--config",
+    "p/python",
+    "--error",
+    "--metrics=off",
+    "src",
+  ],
+  [
+    "taplo",
+    "lint",
+    "*.toml",
+  ],
+  # A strict `--check` gate, not fix mode: a generated file that taplo would
+  # rewrite fails its own CI on first push and drifts on every `copier update`.
+  # `.taplo.toml` disables array auto expand/collapse so the shipped layout is
+  # the canonical one regardless of which components are enabled. The `*.toml`
+  # glob is non-recursive, so it scopes taplo to this project's own root TOML
+  # (pyproject/prek/mise/taplo) without walking vendored `.tox`/`.venv`/
+  # site-packages trees.
+  ["taplo", "format", "--check", "--diff", "*.toml"],
+  ["validate-pyproject", "pyproject.toml"],
+  ["typos", "--diff"],
+  ["actionlint"],
+  ["ec"],
+  ["sphinx-lint", "docs"],
+  # Collects (does not run) the suite and flags fixtures that are never used --
+  # cheap, deterministic, and a natural fit next to the other whole-program
+  # analyzers above (lint-imports, slotscheck).
+  ["pytest", "--dead-fixtures"],
+  # ["yamlfmt", "."],
+]
+# `test` is included so the type checkers that scope tests (e.g. ty) can
+# resolve pytest and other test-only imports.
+dependency_groups = ["style", "sast", "test"]
+description = "Run Checkers, Linters and Formatters"
+runner = "uv-venv-lock-runner"
+
+
+# On-demand and CI-only (not in env_list, like `integration`): the `deps` job in
+# ci.yml runs it and `check` aggregates that job. `test` is included so deptry
+# and creosote can resolve the project's own test-only imports. creosote needs
+# the installed distributions to map import names, which the lock runner provides.
+[tool.tox.env.deps]
+commands = [
+  [
+    "deptry",
+    ".",
+  ],
+  [
+    "creosote",
+    "--deps-file",
+    "pyproject.toml",
+    "--section",
+    "project.dependencies",
+    # Without this creosote skips imports inside functions, so a dependency used
+    # only through a lazy import (the worker's uvloop) is reported as unused.
+    "--include-deferred",
+  ],
+]
+dependency_groups = ["deps", "test"]
+description = "Check dependency hygiene (deptry, creosote)"
+runner = "uv-venv-lock-runner"
+
+
+[tool.tox.env.prek]
+commands = [["prek", "run", "--all-files"]]
+dependency_groups = ["prek"]
+description = "Run prek hooks"
+# The hooks that need the project call `uv run --locked`, which syncs it (and the
+# groups they name) into this env through the runner's UV_PROJECT_ENVIRONMENT;
+# installing the wheel here too would only be swapped for that install each run.
+package = "skip"
+runner = "uv-venv-lock-runner"
+
+
+[tool.tox.env.docs-build]
+# Write the warning stream to a file (`-w`) instead of `-W` turning the first
+# warning into a hard error, then let docs/check_warnings.py own the pass/fail:
+# it diffs the emitted warnings against the docs/expected_warnings.txt allowlist,
+# failing on both unexpected new warnings and expected ones that vanished.
+commands = [
+  [
+    "sphinx-build",
+    "-w",
+    "docs/_build/warnings.txt",
+    "-b",
+    "html",
+    "docs",
+    "docs/_build/html",
+  ],
+  ["python", "docs/check_warnings.py"],
+]
+dependency_groups = ["docs"]
+description = "Build Docs"
+runner = "uv-venv-lock-runner"
+# Keep build log output unbuffered/ordered. Reproducible builds pin Sphinx's
+# "today"/copyright to SOURCE_DATE_EPOCH, which the CI docs steps
+# (docs-preview.yml, release.yml) export from the last commit date before
+# invoking sphinx-build directly. Local `tox` runs deliberately do NOT export
+# it: an empty value ("{env:SOURCE_DATE_EPOCH:}") is *present but blank*, which
+# breaks hatchling's get_reproducible_timestamp (`int("")`), so we leave it
+# unset locally and conf.py falls back to the current year.
+set_env = { PYTHONUNBUFFERED = "1" }
+
+
+[tool.tox.env.docs-server]
+commands = [["sphinx-autobuild", "docs", "docs/_build/html"]]
+dependency_groups = ["docs"]
+description = "Start the live-reloading docs server"
+runner = "uv-venv-lock-runner"
+set_env = { PYTHONUNBUFFERED = "1" }
+
+
+[tool.tox.env.docs-doctest]
+# Executes the occasional ``>>>`` snippet that belongs inline with prose.
+commands = [["sphinx-build", "-b", "doctest", "docs", "docs/_build/doctest"]]
+dependency_groups = ["docs"]
+description = "Run documentation doctests"
+runner = "uv-venv-lock-runner"
+set_env = { PYTHONUNBUFFERED = "1" }
+
+
+[tool.tox.env.docs-linkcheck]
+# On-demand link checker. Also run weekly (non-blocking) by docs-linkcheck.yml.
+# Hits the network, so it is deliberately not part of the `style` env or PR CI.
+commands = [
+  [
+    "sphinx-build",
+    "-b",
+    "linkcheck",
+    "docs",
+    "docs/_build/linkcheck",
+  ],
+]
+dependency_groups = ["docs"]
+description = "Check documentation for broken links"
+runner = "uv-venv-lock-runner"
+set_env = { PYTHONUNBUFFERED = "1" }
+
+[tool.tox.env.cli]
+commands = [
+  [
+    "peta",
+    { replace = "posargs", default = [
+      "--version",
+    ], extend = true },
+  ],
+]
+description = "Run the CLI application."
+runner = "uv-venv-lock-runner"
