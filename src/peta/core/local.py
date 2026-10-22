@@ -535,7 +535,8 @@ def _declared_entry_points(
             EntryPointDeclaration(point.group, point.name, point.value)
             for point in dist.entry_points
         ]
-    except METADATA_READ_ERRORS:
+    except METADATA_READ_ERRORS + (TypeError,):
+        # A line with no ``=`` makes the stdlib parser raise ``TypeError``.
         return []
 
 

@@ -207,3 +207,18 @@ def test_text_and_markdown_views_show_the_summary() -> None:
         assert "Metadata-Version" in rendered
         assert "cli, docs" in rendered
         assert "Future-Field" not in rendered
+
+
+def test_local_malformed_entry_points_do_not_break_the_dossier() -> None:
+    dist = MagicMock()
+    dist.metadata = Message()
+    dist.metadata["Name"] = "demo"
+    dist.metadata["Version"] = "1.0"
+    dist.requires = None
+    dist.files = None
+    type(dist).entry_points = property(MagicMock(side_effect=TypeError("bad")))
+    with patch("peta.core.local.importlib_metadata") as mock_meta:
+        mock_meta.distribution.return_value = dist
+        meta = get_local("demo").core_metadata
+    assert meta is not None
+    assert meta.entry_points == []
