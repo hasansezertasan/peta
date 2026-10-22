@@ -110,7 +110,6 @@ def test_remote_maps_the_same_model(fake_http: FakeTransport) -> None:
                 "author_email": "ada@example.com",
                 "provides_extra": ["cli"],
                 "license_files": ["LICENSE"],
-                "import_names": ["demo"],
                 "dynamic": ["version"],
             }
         }
@@ -120,7 +119,6 @@ def test_remote_maps_the_same_model(fake_http: FakeTransport) -> None:
         source="pypi",
         license_files=["LICENSE"],
         provides_extra=["cli"],
-        import_names=["demo"],
         authors=[Person("Ada", "ada@example.com")],
         dynamic=["version"],
     )
