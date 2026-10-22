@@ -68,8 +68,6 @@ class PyPIInfo(TypedDict, total=False):
     maintainer_email: str | None
     provides_extra: list[str] | None
     license_files: list[str] | None
-    import_names: list[str] | None
-    import_namespaces: list[str] | None
     dynamic: list[str] | None
 
 
@@ -220,14 +218,7 @@ def _validate_info(value: object) -> None:
         _ = optional_string(info, key, source="PyPI", path="$.info")
     _ = optional_string_mapping(info, "project_urls", source="PyPI", path="$.info")
     _ = optional_string_list(info, "requires_dist", source="PyPI", path="$.info")
-    for key in (
-        "classifiers",
-        "provides_extra",
-        "license_files",
-        "import_names",
-        "import_namespaces",
-        "dynamic",
-    ):
+    for key in ("classifiers", "provides_extra", "license_files", "dynamic"):
         _ = optional_string_list(info, key, source="PyPI", path="$.info")
 
 
@@ -293,8 +284,8 @@ def _parse_license(
 def _core_metadata(info: PyPIInfo) -> CoreMetadata:
     """Read the Core Metadata PyPI's JSON API exposes.
 
-    The JSON API carries neither ``Metadata-Version`` nor entry points, so
-    those stay unknown rather than being inferred from other fields.
+    The JSON API carries no ``Metadata-Version``, entry points, or import
+    names and namespaces, so those stay unknown rather than being inferred.
 
     Returns:
         The package-declared metadata, sourced from PyPI.
@@ -303,8 +294,6 @@ def _core_metadata(info: PyPIInfo) -> CoreMetadata:
         source="pypi",
         license_files=info.get("license_files") or [],
         provides_extra=info.get("provides_extra") or [],
-        import_names=info.get("import_names") or [],
-        import_namespaces=info.get("import_namespaces") or [],
         authors=parse_people(info.get("author"), info.get("author_email")),
         maintainers=parse_people(info.get("maintainer"), info.get("maintainer_email")),
         dynamic=info.get("dynamic") or [],
