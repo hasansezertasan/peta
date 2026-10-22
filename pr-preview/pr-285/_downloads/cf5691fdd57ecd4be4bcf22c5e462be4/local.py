@@ -527,6 +527,11 @@ def _unrecognized_headers(
     return {name: _all_headers(meta, name) for name in sorted(names.values())}
 
 
+_ENTRY_POINT_ERRORS: tuple[type[Exception], ...] = (*METADATA_READ_ERRORS, TypeError)
+"""Unreadable ``entry_points.txt``, plus the ``TypeError`` the stdlib parser
+raises for a line with no ``=``."""
+
+
 def _declared_entry_points(
     dist: importlib_metadata.Distribution,
 ) -> list[EntryPointDeclaration]:
@@ -535,7 +540,7 @@ def _declared_entry_points(
             EntryPointDeclaration(point.group, point.name, point.value)
             for point in dist.entry_points
         ]
-    except METADATA_READ_ERRORS:
+    except _ENTRY_POINT_ERRORS:
         return []
 
 
