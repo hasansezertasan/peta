@@ -507,14 +507,24 @@ def _parse_license(
 
 
 def _all_headers(meta: importlib_metadata.PackageMetadata, field: str) -> list[str]:
-    return [value for value in cast("list[str]", meta.get_all(field) or []) if value]
+    return cast("list[str]", meta.get_all(field) or [])
+
+
+def _joined_emails(meta: importlib_metadata.PackageMetadata, field: str) -> str:
+    return ", ".join(value for value in _all_headers(meta, field) if value)
 
 
 def _unrecognized_headers(
     meta: importlib_metadata.PackageMetadata,
 ) -> dict[str, list[str]]:
-    names = {key for key in meta if key.casefold() not in MODELED_HEADERS}
-    return {name: _all_headers(meta, name) for name in sorted(names)}
+    # Header names are case-insensitive and ``get_all`` matches them so, so
+    # each unknown header is keyed once, under its first spelling.
+    names = {
+        key.casefold(): key
+        for key in reversed(list(meta))
+        if key.casefold() not in MODELED_HEADERS
+    }
+    return {name: _all_headers(meta, name) for name in sorted(names.values())}
 
 
 def _declared_entry_points(
@@ -540,11 +550,10 @@ def _core_metadata(dist: importlib_metadata.Distribution) -> CoreMetadata:
         import_namespaces=_all_headers(meta, "Import-Namespace"),
         entry_points=_declared_entry_points(dist),
         authors=parse_people(
-            _header(meta, "Author"), ", ".join(_all_headers(meta, "Author-email"))
+            _header(meta, "Author"), _joined_emails(meta, "Author-email")
         ),
         maintainers=parse_people(
-            _header(meta, "Maintainer"),
-            ", ".join(_all_headers(meta, "Maintainer-email")),
+            _header(meta, "Maintainer"), _joined_emails(meta, "Maintainer-email")
         ),
         dynamic=_all_headers(meta, "Dynamic"),
         unrecognized=_unrecognized_headers(meta),
