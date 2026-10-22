@@ -312,6 +312,7 @@ ignore_names = [
   "author_email",
   "home_page",
   "license_expression",
+  "maintainer_email",
   "releases",
   "requires_dist",
   "requires_python",

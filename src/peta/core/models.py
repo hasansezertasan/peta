@@ -13,10 +13,13 @@ if TYPE_CHECKING:
 
 __all__ = [
     "VULNERABILITY_FIELD",
+    "CoreMetadata",
     "DependencyNode",
     "DependencyResolutionFailure",
     "EnrichmentFailure",
+    "EntryPointDeclaration",
     "PackageInfo",
+    "Person",
     "ProviderConflict",
     "ProviderWarning",
     "Vulnerability",
@@ -135,6 +138,55 @@ class DependencyResolutionFailure:
         object.__setattr__(self, "reason", redacted_text(self.reason))
 
 
+@dataclass(frozen=True)
+class Person:
+    """One author or maintainer, kept as the name/address pair it declares."""
+
+    name: str | None
+    email: str | None
+
+
+@dataclass(frozen=True)
+class EntryPointDeclaration:
+    """One ``[group] name = value`` line of a distribution's entry points."""
+
+    group: str
+    name: str
+    value: str
+
+
+@dataclass
+class CoreMetadata:  # pylint: disable=too-many-instance-attributes
+    """Standardized Core Metadata, separate from third-party enrichment.
+
+    Everything here was declared by the package itself and read from one
+    metadata source, named by :attr:`source`; OSV advisories, download counts
+    and dependent counts stay on :class:`PackageInfo` because they are not
+    package-authored. Multi-value fields stay lists, in declaration order.
+    A field the source does not carry is empty, never guessed: the PyPI JSON
+    API omits entry points and ``Metadata-Version``, for instance, so they are
+    only known for an installed distribution.
+    """
+
+    source: Literal["installed", "pypi"]
+    """Which metadata supplied these values: the install or PyPI's JSON API."""
+    metadata_version: str | None = None
+    """The Core Metadata revision the source declares, or ``None`` if unstated."""
+    license_files: list[str] = field(default_factory=list)
+    provides_extra: list[str] = field(default_factory=list)
+    import_names: list[str] = field(default_factory=list)
+    import_namespaces: list[str] = field(default_factory=list)
+    entry_points: list[EntryPointDeclaration] = field(default_factory=list)
+    authors: list[Person] = field(default_factory=list)
+    maintainers: list[Person] = field(default_factory=list)
+    dynamic: list[str] = field(default_factory=list)
+    unrecognized: dict[str, list[str]] = field(default_factory=dict)
+    """Headers peta does not model, verbatim, so a newer revision loses nothing.
+
+    These are unverified: nothing has checked them against the specification.
+    """
+
+
 @dataclass
 class PackageInfo:  # pylint: disable=too-many-instance-attributes
     """Package metadata from a local installation or PyPI."""
@@ -170,6 +222,7 @@ class PackageInfo:  # pylint: disable=too-many-instance-attributes
     retrieval to be fresh or stale relative to.
     """
     enrichment_sources: list[SourceRecord] = field(default_factory=list)
+    core_metadata: CoreMetadata | None = None
 
     @property
     def vulnerabilities_unknown(self) -> bool:
