@@ -10,7 +10,8 @@ from packaging.version import InvalidVersion, Version
 
 from peta.core import cache, http, validation
 from peta.core.compatibility import supports_python
-from peta.core.models import PackageInfo, Vulnerability
+from peta.core.metadata import parse_people
+from peta.core.models import CoreMetadata, PackageInfo, Vulnerability
 from peta.core.validation import (
     ResponseValidationError,
     expect_list,
@@ -64,6 +65,10 @@ class PyPIInfo(TypedDict, total=False):
     requires_dist: list[str] | None
     classifiers: list[str]
     keywords: str | None
+    maintainer_email: str | None
+    provides_extra: list[str] | None
+    license_files: list[str] | None
+    dynamic: list[str] | None
 
 
 class PyPIVulnerability(TypedDict, total=False):
@@ -208,11 +213,13 @@ def _validate_info(value: object) -> None:
         "requires_python",
         "home_page",
         "keywords",
+        "maintainer_email",
     ):
         _ = optional_string(info, key, source="PyPI", path="$.info")
     _ = optional_string_mapping(info, "project_urls", source="PyPI", path="$.info")
     _ = optional_string_list(info, "requires_dist", source="PyPI", path="$.info")
-    _ = optional_string_list(info, "classifiers", source="PyPI", path="$.info")
+    for key in ("classifiers", "provides_extra", "license_files", "dynamic"):
+        _ = optional_string_list(info, key, source="PyPI", path="$.info")
 
 
 def _validate_releases(value: object) -> None:
@@ -274,6 +281,25 @@ def _parse_license(
     return legacy, "legacy" if legacy else None
 
 
+def _core_metadata(info: PyPIInfo) -> CoreMetadata:
+    """Read the Core Metadata PyPI's JSON API exposes.
+
+    The JSON API carries no ``Metadata-Version``, entry points, or import
+    names and namespaces, so those stay unknown rather than being inferred.
+
+    Returns:
+        The package-declared metadata, sourced from PyPI.
+    """
+    return CoreMetadata(
+        source="pypi",
+        license_files=info.get("license_files") or [],
+        provides_extra=info.get("provides_extra") or [],
+        authors=parse_people(info.get("author"), info.get("author_email")),
+        maintainers=parse_people(info.get("maintainer"), info.get("maintainer_email")),
+        dynamic=info.get("dynamic") or [],
+    )
+
+
 def _package_from_response(data: PyPIResponse, provenance: Provenance) -> PackageInfo:
     info = data["info"]
     license_value, license_source = _parse_license(info)
@@ -293,6 +319,7 @@ def _package_from_response(data: PyPIResponse, provenance: Provenance) -> Packag
         classifiers=info.get("classifiers") or [],
         keywords=_parse_keywords(info.get("keywords")),
         files=None,
+        core_metadata=_core_metadata(info),
         vulnerabilities=_parse_vulnerabilities(data.get("vulnerabilities", [])),
         source="remote",
         retrieved_at=provenance.retrieved_at,

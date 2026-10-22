@@ -102,6 +102,7 @@ data-aria-dark="Switch to auto color mode">
 <li><a class="reference internal" href="#color">Color</a></li>
 <li><a class="reference internal" href="#caching-and-offline-use">Caching and offline use</a></li>
 <li><a class="reference internal" href="#concurrent-lookups">Concurrent lookups</a></li>
+<li><a class="reference internal" href="#core-metadata">Core Metadata</a></li>
 <li><a class="reference internal" href="#vulnerabilities">Vulnerabilities</a></li>
 <li><a class="reference internal" href="#download-and-dependent-counts">Download and dependent counts</a></li>
 <li><a class="reference internal" href="#dependency-tree">Dependency tree</a></li>
@@ -458,6 +459,25 @@ not depend on completion order: results are always assembled in the order they
 were asked for, so a comparison renders the same way round every time, and two
 sources disagreeing about the same field are still resolved by which was
 consulted first.</p>
+</section>
+<section id="core-metadata">
+<h2>Core Metadata<a class="headerlink" href="#core-metadata" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">peta</span> <span class="pre">info</span></code> reads the standardized <a class="reference external" href="https://packaging.python.org/en/latest/specifications/core-metadata/">Core Metadata</a> a
+package declares about itself. The human view summarizes it (metadata
+revision, extras, license files, import names, an entry-point count);
+<code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">json</span></code> carries the detail under <code class="docutils literal notranslate"><span class="pre">result.core_metadata</span></code>:
+<code class="docutils literal notranslate"><span class="pre">metadata_version</span></code>, <code class="docutils literal notranslate"><span class="pre">license_files</span></code>, <code class="docutils literal notranslate"><span class="pre">provides_extra</span></code>, <code class="docutils literal notranslate"><span class="pre">import_names</span></code>,
+<code class="docutils literal notranslate"><span class="pre">import_namespaces</span></code>, <code class="docutils literal notranslate"><span class="pre">entry_points</span></code>, <code class="docutils literal notranslate"><span class="pre">authors</span></code>, <code class="docutils literal notranslate"><span class="pre">maintainers</span></code> and
+<code class="docutils literal notranslate"><span class="pre">dynamic</span></code>, with multi-value fields kept as lists in declaration order.</p>
+<p><code class="docutils literal notranslate"><span class="pre">result.core_metadata.source</span></code> says which metadata supplied the values:
+<code class="docutils literal notranslate"><span class="pre">installed</span></code> for a distribution’s own <code class="docutils literal notranslate"><span class="pre">METADATA</span></code> and <code class="docutils literal notranslate"><span class="pre">entry_points.txt</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">pypi</span></code> for the PyPI JSON API. PyPI’s API omits <code class="docutils literal notranslate"><span class="pre">Metadata-Version</span></code>,
+entry points, and import names and namespaces, so those are empty or null for <code class="docutils literal notranslate"><span class="pre">pypi</span></code> rather than guessed.
+Headers peta does not model are kept verbatim under <code class="docutils literal notranslate"><span class="pre">unrecognized</span></code>; they are
+unverified and are never shown in the human view.</p>
+<p>Everything under <code class="docutils literal notranslate"><span class="pre">core_metadata</span></code> is package-declared. Vulnerabilities
+(OSV and PyPI advisories), download counts and dependent counts are
+third-party enrichment, reported separately with their own sources.</p>
 </section>
 <section id="vulnerabilities">
 <h2>Vulnerabilities<a class="headerlink" href="#vulnerabilities" title="Link to this heading">#</a></h2>

@@ -25,7 +25,13 @@ if TYPE_CHECKING:
     from peta.core.changes import ChangeSet
     from peta.core.diff import ReleaseEvidence
     from peta.core.installation import Installation
-    from peta.core.models import DependencyNode, EnrichmentFailure, PackageInfo
+    from peta.core.models import (
+        CoreMetadata,
+        DependencyNode,
+        EnrichmentFailure,
+        PackageInfo,
+        Person,
+    )
     from peta.core.output import CommandName, MessageCode
 
 __all__ = [
@@ -39,6 +45,31 @@ __all__ = [
     "format_versions",
     "format_why",
 ]
+
+
+def _people(people: list[Person]) -> list[dict[str, str | None]]:
+    return [{"name": person.name, "email": person.email} for person in people]
+
+
+def _core_metadata_dict(metadata: CoreMetadata | None) -> dict[str, object] | None:
+    if metadata is None:
+        return None
+    return {
+        "source": metadata.source,
+        "metadata_version": metadata.metadata_version,
+        "license_files": metadata.license_files,
+        "provides_extra": metadata.provides_extra,
+        "import_names": metadata.import_names,
+        "import_namespaces": metadata.import_namespaces,
+        "entry_points": [
+            {"group": point.group, "name": point.name, "value": point.value}
+            for point in metadata.entry_points
+        ],
+        "authors": _people(metadata.authors),
+        "maintainers": _people(metadata.maintainers),
+        "dynamic": metadata.dynamic,
+        "unrecognized": metadata.unrecognized,
+    }
 
 
 def _package_dict(pkg: PackageInfo) -> dict[str, object]:
@@ -57,6 +88,7 @@ def _package_dict(pkg: PackageInfo) -> dict[str, object]:
         "classifiers": pkg.classifiers,
         "keywords": pkg.keywords,
         "dependencies": pkg.dependencies,
+        "core_metadata": _core_metadata_dict(pkg.core_metadata),
         "vulnerabilities": [
             {
                 "id": vulnerability.id,
