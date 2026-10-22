@@ -83,6 +83,25 @@ def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
         table.add_row(f"  {url_label}", url)
 
 
+def _add_metadata_rows(table: Table, pkg: PackageInfo) -> None:
+    """Add a concise summary of the Core Metadata; ``--format json`` has the rest."""
+    metadata = pkg.core_metadata
+    if metadata is None:
+        return
+    for label, value in (
+        ("Metadata-Version", metadata.metadata_version),
+        ("Extras", ", ".join(metadata.provides_extra)),
+        ("License files", ", ".join(metadata.license_files)),
+        ("Import names", ", ".join(metadata.import_names)),
+        (
+            "Entry points",
+            str(len(metadata.entry_points)) if metadata.entry_points else None,
+        ),
+    ):
+        if value:
+            table.add_row(label, value)
+
+
 def _add_stats_rows(table: Table, pkg: PackageInfo) -> None:
     if pkg.download_count is not None:
         table.add_row("Downloads (last month)", f"{pkg.download_count:,}")
@@ -105,6 +124,7 @@ def _info_table(pkg: PackageInfo) -> Table:
     table.add_row("Name", pkg.name)
     table.add_row("Version", pkg.version)
     _add_optional_rows(table, pkg)
+    _add_metadata_rows(table, pkg)
     _add_stats_rows(table, pkg)
     _add_dependency_rows(table, pkg)
     return table

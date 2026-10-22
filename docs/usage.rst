@@ -90,6 +90,29 @@ were asked for, so a comparison renders the same way round every time, and two
 sources disagreeing about the same field are still resolved by which was
 consulted first.
 
+Core Metadata
+-------------
+
+``peta info`` reads the standardized `Core Metadata
+<https://packaging.python.org/en/latest/specifications/core-metadata/>`_ a
+package declares about itself. The human view summarizes it (metadata
+revision, extras, license files, import names, an entry-point count);
+``--format json`` carries the detail under ``result.core_metadata``:
+``metadata_version``, ``license_files``, ``provides_extra``, ``import_names``,
+``import_namespaces``, ``entry_points``, ``authors``, ``maintainers`` and
+``dynamic``, with multi-value fields kept as lists in declaration order.
+
+``result.core_metadata.source`` says which metadata supplied the values:
+``installed`` for a distribution's own ``METADATA`` and ``entry_points.txt``,
+or ``pypi`` for the PyPI JSON API. PyPI's API omits ``Metadata-Version`` and
+entry points, so those are empty or null for ``pypi`` rather than guessed.
+Headers peta does not model are kept verbatim under ``unrecognized``; they are
+unverified and are never shown in the human view.
+
+Everything under ``core_metadata`` is package-declared. Vulnerabilities
+(OSV and PyPI advisories), download counts and dependent counts are
+third-party enrichment, reported separately with their own sources.
+
 Vulnerabilities
 ----------------
 

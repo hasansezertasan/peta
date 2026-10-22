@@ -17,7 +17,8 @@ from typing import TYPE_CHECKING, Final, Literal, cast
 from packaging.markers import default_environment
 from packaging.utils import canonicalize_name
 
-from peta.core.models import PackageInfo
+from peta.core.metadata import MODELED_HEADERS, parse_people
+from peta.core.models import CoreMetadata, EntryPointDeclaration, PackageInfo
 from peta.core.output import utc_now
 
 if TYPE_CHECKING:
@@ -505,6 +506,51 @@ def _parse_license(
     return legacy, "legacy" if legacy else None
 
 
+def _all_headers(meta: importlib_metadata.PackageMetadata, field: str) -> list[str]:
+    return [value for value in cast("list[str]", meta.get_all(field) or []) if value]
+
+
+def _unrecognized_headers(
+    meta: importlib_metadata.PackageMetadata,
+) -> dict[str, list[str]]:
+    names = {key for key in meta if key.casefold() not in MODELED_HEADERS}
+    return {name: _all_headers(meta, name) for name in sorted(names)}
+
+
+def _declared_entry_points(
+    dist: importlib_metadata.Distribution,
+) -> list[EntryPointDeclaration]:
+    try:
+        return [
+            EntryPointDeclaration(point.group, point.name, point.value)
+            for point in dist.entry_points
+        ]
+    except METADATA_READ_ERRORS:
+        return []
+
+
+def _core_metadata(dist: importlib_metadata.Distribution) -> CoreMetadata:
+    meta = dist.metadata
+    return CoreMetadata(
+        source="installed",
+        metadata_version=_header(meta, "Metadata-Version"),
+        license_files=_all_headers(meta, "License-File"),
+        provides_extra=_all_headers(meta, "Provides-Extra"),
+        import_names=_all_headers(meta, "Import-Name"),
+        import_namespaces=_all_headers(meta, "Import-Namespace"),
+        entry_points=_declared_entry_points(dist),
+        authors=parse_people(
+            _header(meta, "Author"), ", ".join(_all_headers(meta, "Author-email"))
+        ),
+        maintainers=parse_people(
+            _header(meta, "Maintainer"),
+            ", ".join(_all_headers(meta, "Maintainer-email")),
+        ),
+        dynamic=_all_headers(meta, "Dynamic"),
+        unrecognized=_unrecognized_headers(meta),
+    )
+
+
 def _stdlib_name(candidate: importlib_metadata.Distribution) -> str | None:
     return cast("str | None", candidate.metadata["Name"])
 
@@ -683,6 +729,7 @@ def get_package(name: str, *, target: LocalTarget | None = None) -> PackageInfo:
         keywords=_parse_keywords(meta),
         files=files,
         vulnerabilities=[],
+        core_metadata=_core_metadata(dist),
         source="local",
         retrieved_at=utc_now(),
     )
