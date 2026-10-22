@@ -20,6 +20,7 @@ from peta.cli.output.summary import (
     file_flags,
     file_publishers,
     file_size,
+    metadata_rows,
     summary_rows,
     verdict,
 )
@@ -84,22 +85,8 @@ def _add_optional_rows(table: Table, pkg: PackageInfo) -> None:
 
 
 def _add_metadata_rows(table: Table, pkg: PackageInfo) -> None:
-    """Add a concise summary of the Core Metadata; ``--format json`` has the rest."""
-    metadata = pkg.core_metadata
-    if metadata is None:
-        return
-    for label, value in (
-        ("Metadata-Version", metadata.metadata_version),
-        ("Extras", ", ".join(metadata.provides_extra)),
-        ("License files", ", ".join(metadata.license_files)),
-        ("Import names", ", ".join(metadata.import_names)),
-        (
-            "Entry points",
-            str(len(metadata.entry_points)) if metadata.entry_points else None,
-        ),
-    ):
-        if value:
-            table.add_row(label, value)
+    for label, value in metadata_rows(pkg):
+        table.add_row(label, value)
 
 
 def _add_stats_rows(table: Table, pkg: PackageInfo) -> None:

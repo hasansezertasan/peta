@@ -15,6 +15,7 @@ from peta.cli.output.summary import (
     file_flags,
     file_publishers,
     file_size,
+    metadata_rows,
     summary_rows,
     verdict,
 )
@@ -123,6 +124,7 @@ def format_info(pkg: PackageInfo) -> str:
         ("Dependents", pkg.dependent_count),
     ]
     lines = [f"{label}: {_value(value)}" for label, value in rows]
+    lines.extend(f"{label}: {_value(value)}" for label, value in metadata_rows(pkg))
     lines.extend(_security_lines(pkg))
     return "\n".join(lines)
 

@@ -15,7 +15,6 @@ MODELED_HEADERS = frozenset(
         "Name",
         "Version",
         "Summary",
-        "Description",
         "Keywords",
         "Home-page",
         "Author",
@@ -48,7 +47,8 @@ def parse_people(names: str | None, emails: str | None) -> list[Person]:
     ``Author-email`` is the only field that holds several people in a form
     that can be split reliably (``Name <addr>, Name <addr>``). ``Author`` is
     free text, so it is never split: it names the person when the email field
-    carries one bare address, and stands alone when there is no email field.
+    carries one bare address, and otherwise is kept as its own name-only
+    entry unless the email field already names it.
 
     Returns:
         The declared people, in declaration order.
@@ -64,4 +64,6 @@ def parse_people(names: str | None, emails: str | None) -> list[Person]:
         return [Person(names, None)]
     if len(parsed) == 1 and parsed[0].name is None:
         return [Person(names, parsed[0].email)]
-    return parsed
+    if names in {person.name for person in parsed}:
+        return parsed
+    return [Person(names, None), *parsed]

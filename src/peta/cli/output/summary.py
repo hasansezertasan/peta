@@ -14,8 +14,16 @@ from rich.filesize import decimal
 
 if TYPE_CHECKING:
     from peta.core.artifacts import ArtifactFile, ReleaseArtifacts
+    from peta.core.models import PackageInfo
 
-__all__ = ["file_flags", "file_publishers", "file_size", "summary_rows", "verdict"]
+__all__ = [
+    "file_flags",
+    "file_publishers",
+    "file_size",
+    "metadata_rows",
+    "summary_rows",
+    "verdict",
+]
 
 
 def verdict(file: ArtifactFile) -> str:
@@ -132,3 +140,28 @@ def summary_rows(release: ReleaseArtifacts) -> list[tuple[str, str]]:
     if release.publishers:
         rows.append(("Published by", "; ".join(release.publishers)))
     return rows
+
+
+def metadata_rows(pkg: PackageInfo) -> list[tuple[str, str]]:
+    """Summarize a package's Core Metadata as the rows every human view shows.
+
+    Only declared values get a row, and entry points are counted rather than
+    listed; ``--format json`` carries the detail.
+
+    Returns:
+        ``(label, value)`` pairs, empty when nothing was declared.
+    """
+    metadata = pkg.core_metadata
+    if metadata is None:
+        return []
+    rows = (
+        ("Metadata-Version", metadata.metadata_version or ""),
+        ("Extras", ", ".join(metadata.provides_extra)),
+        ("License files", ", ".join(metadata.license_files)),
+        ("Import names", ", ".join(metadata.import_names)),
+        (
+            "Entry points",
+            str(len(metadata.entry_points)) if metadata.entry_points else "",
+        ),
+    )
+    return [(label, value) for label, value in rows if value]

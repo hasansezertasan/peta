@@ -10,7 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from peta.cli.output.json import format_info
+from peta.cli.output.markdown import format_info as markdown_info
 from peta.cli.output.tables import render_info
+from peta.cli.output.text import format_info as text_info
 from peta.core.local import get_package as get_local
 from peta.core.metadata import parse_people
 from peta.core.models import CoreMetadata, EntryPointDeclaration, PackageInfo, Person
@@ -23,9 +25,7 @@ pytestmark = pytest.mark.unit
 
 
 def test_people_split_only_the_email_field() -> None:
-    people = parse_people(
-        "Ignored, Text", "Ada <ada@example.com>, Bob <bob@example.com>"
-    )
+    people = parse_people("Ada", "Ada <ada@example.com>, Bob <bob@example.com>")
     assert people == [
         Person("Ada", "ada@example.com"),
         Person("Bob", "bob@example.com"),
@@ -34,6 +34,14 @@ def test_people_split_only_the_email_field() -> None:
 
 def test_people_name_field_names_a_bare_address() -> None:
     assert parse_people("Ada", "ada@example.com") == [Person("Ada", "ada@example.com")]
+
+
+def test_people_keep_a_name_the_email_field_does_not_carry() -> None:
+    assert parse_people("Team", "a@example.com, b@example.com") == [
+        Person("Team", None),
+        Person(None, "a@example.com"),
+        Person(None, "b@example.com"),
+    ]
 
 
 def test_people_name_field_alone_is_not_split() -> None:
@@ -173,3 +181,29 @@ def test_structured_output_carries_the_detail() -> None:
         {"group": "console_scripts", "name": "demo", "value": "d:m"}
     ]
     assert metadata["unrecognized"] == {"Future-Field": ["x"]}
+
+
+def test_local_keeps_an_explicitly_empty_import_name() -> None:
+    meta = _local([("Import-Name", "")], []).core_metadata
+    assert meta is not None
+    assert meta.import_names == [""]
+
+
+def test_local_unknown_headers_merge_case_variants() -> None:
+    meta = _local([("Future-Field", "a"), ("future-field", "b")], []).core_metadata
+    assert meta is not None
+    assert meta.unrecognized == {"Future-Field": ["a", "b"]}
+
+
+def test_local_description_header_is_not_lost() -> None:
+    meta = _local([("Description", "long text")], []).core_metadata
+    assert meta is not None
+    assert meta.unrecognized == {"Description": ["long text"]}
+
+
+def test_text_and_markdown_views_show_the_summary() -> None:
+    package = _package()
+    for rendered in (text_info(package), markdown_info(package)):
+        assert "Metadata-Version" in rendered
+        assert "cli, docs" in rendered
+        assert "Future-Field" not in rendered
