@@ -20,9 +20,10 @@ from email.parser import Parser
 from typing import TYPE_CHECKING
 
 import httpx
+from packaging.utils import canonicalize_name
 
 from peta.core import http, validation
-from peta.core.index import files_for_version, get_project_page
+from peta.core.index import PYPI_SIMPLE_URL, files_for_version, get_project_page
 from peta.core.metadata import core_metadata_from_headers
 from peta.core.models import EnrichmentFailure
 from peta.core.output import SourceRecord, utc_now
@@ -68,7 +69,7 @@ def _strongest_digest(hashes: dict[str, str]) -> tuple[str, str] | None:
     return None
 
 
-def _advertised(entry: IndexFile) -> _Advertised | None:
+def _advertised(entry: IndexFile, page_url: httpx.URL) -> _Advertised | None:
     """Read what one file entry advertises for its ``.metadata``.
 
     An advertisement without a usable hash is passed over, not trusted:
@@ -84,7 +85,8 @@ def _advertised(entry: IndexFile) -> _Advertised | None:
     if found is None:
         return None
     try:
-        base = httpx.URL(entry["url"])
+        # PEP 691 allows a file URL relative to the project page.
+        base = page_url.join(entry["url"])
     except httpx.InvalidURL:
         return None
     # PEP 658 appends the suffix to the file's path, ahead of any fragment.
@@ -92,7 +94,7 @@ def _advertised(entry: IndexFile) -> _Advertised | None:
     return _Advertised(str(url), *found)
 
 
-def _choose(files: list[IndexFile]) -> _Advertised | None:
+def _choose(files: list[IndexFile], page_url: httpx.URL) -> _Advertised | None:
     """Pick the file to read: a wheel's metadata before an sdist's.
 
     Every file of a release declares the same metadata, so the first usable
@@ -103,7 +105,7 @@ def _choose(files: list[IndexFile]) -> _Advertised | None:
         The chosen advertisement, or ``None`` when no file offers one.
     """
     for entry in sorted(files, key=lambda f: not f["filename"].endswith(".whl")):
-        advertised = _advertised(entry)
+        advertised = _advertised(entry, page_url)
         if advertised is not None:
             return advertised
     return None
@@ -236,9 +238,15 @@ def attach_release_metadata(pkg: PackageInfo) -> PackageInfo:
     """
     try:
         page, _ = get_project_page(pkg.name)
-    except (NetworkError, http.OfflineError):
+    except http.OfflineError:
         return pkg
-    advertised = _choose(files_for_version(page, pkg.version))
+    except NetworkError as exc:
+        return _failed(pkg, f"could not read the project page: {exc}")
+    page_url = httpx.URL(f"{PYPI_SIMPLE_URL}/{canonicalize_name(pkg.name)}/")
+    advertised = _choose(files_for_version(page, pkg.version), page_url)
     if advertised is None:
         return pkg
-    return _verified(pkg, advertised)
+    try:
+        return _verified(pkg, advertised)
+    except http.OfflineError:
+        return pkg

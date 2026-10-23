@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import httpx
 import pytest
 
+from peta.core import http
 from peta.core.models import CoreMetadata, PackageInfo, Person
 from peta.core.release_metadata import SOURCE_NAME, attach_release_metadata
 
@@ -174,14 +175,6 @@ def test_a_wheel_is_preferred_over_an_sdist(fake_http: FakeTransport) -> None:
     assert str(fake_http.requests[-1].url) == f"{_WHEEL}.metadata"
 
 
-def test_an_unreadable_project_page_leaves_the_package_alone(
-    fake_http: FakeTransport,
-) -> None:
-    fake_http.reply(url="/simple/demo/", status=500)
-    package = _package()
-    assert attach_release_metadata(package) == package
-
-
 def test_a_failed_download_is_a_failure(fake_http: FakeTransport) -> None:
     text = _metadata()
     fake_http.reply(
@@ -203,3 +196,42 @@ def test_a_file_without_a_revision_is_refused(fake_http: FakeTransport) -> None:
     result = attach_release_metadata(_package())
     (failure,) = result.enrichment_failures
     assert "Metadata-Version" in failure.reason
+
+
+def test_offline_without_the_file_cached_keeps_the_json_values(
+    fake_http: FakeTransport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    text = _metadata()
+    fake_http.reply(
+        url="/simple/demo/",
+        json=_page(_file(_WHEEL, core_metadata={"sha256": _sha256(text)})),
+    )
+    package = _package()
+
+    def refuse(url: str) -> None:
+        raise http.OfflineError(url)
+
+    monkeypatch.setattr(http, "_refuse_offline", refuse)
+    assert attach_release_metadata(package).core_metadata == package.core_metadata
+
+
+def test_a_relative_file_url_is_resolved_against_the_project_page(
+    fake_http: FakeTransport,
+) -> None:
+    text = _metadata()
+    entry = _file(_WHEEL, core_metadata={"sha256": _sha256(text)})
+    entry["url"] = "../../files/demo-1.0-py3-none-any.whl"
+    fake_http.reply(url="/simple/demo/", json=_page(entry))
+    fake_http.reply(url=".metadata", text=text)
+    meta = attach_release_metadata(_package()).core_metadata
+    assert meta is not None
+    assert meta.source == "release_metadata"
+    assert str(fake_http.requests[-1].url) == (
+        "https://pypi.org/files/demo-1.0-py3-none-any.whl.metadata"
+    )
+
+
+def test_a_failed_project_page_is_reported(fake_http: FakeTransport) -> None:
+    fake_http.reply(url="/simple/demo/", status=500)
+    result = attach_release_metadata(_package())
+    assert [f.source for f in result.enrichment_failures] == [SOURCE_NAME]
