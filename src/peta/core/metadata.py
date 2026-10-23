@@ -81,15 +81,13 @@ def parse_people(names: str | None, emails: str | None) -> list[Person]:
 class HeaderSource(Protocol):
     """The part of an email message Core Metadata is read through."""
 
-    # pylint: disable=unnecessary-ellipsis
-
     def get_all(self, name: str) -> list[str] | None:
         """Return every value of a header, or ``None`` when it is absent."""
-        ...
+        raise NotImplementedError
 
     def __iter__(self) -> Iterator[str]:
         """Iterate the header names, repeated once per occurrence."""
-        ...
+        raise NotImplementedError
 
 
 def _all_headers(meta: HeaderSource, field: str) -> list[str]:

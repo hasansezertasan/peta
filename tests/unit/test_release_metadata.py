@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import httpx
 import pytest
 
-from peta.core import http
+from peta.core import http, validation
 from peta.core.models import CoreMetadata, PackageInfo, Person
 from peta.core.release_metadata import SOURCE_NAME, attach_release_metadata
 
@@ -235,3 +235,31 @@ def test_a_failed_project_page_is_reported(fake_http: FakeTransport) -> None:
     fake_http.reply(url="/simple/demo/", status=500)
     result = attach_release_metadata(_package())
     assert [f.source for f in result.enrichment_failures] == [SOURCE_NAME]
+
+
+def test_a_malformed_header_line_refuses_the_file(fake_http: FakeTransport) -> None:
+    text = "Metadata-Version: 2.4\nName: demo\nnot a header line\nImport-Name: x\n\n"
+    fake_http.reply(
+        url="/simple/demo/",
+        json=_page(_file(_WHEEL, core_metadata={"sha256": _sha256(text)})),
+    )
+    fake_http.reply(url=f"{_WHEEL}.metadata", text=text)
+    package = _package()
+    result = attach_release_metadata(package)
+    assert result.core_metadata == package.core_metadata
+    assert [f.source for f in result.enrichment_failures] == [SOURCE_NAME]
+
+
+def test_too_many_headers_are_refused_before_parsing(
+    fake_http: FakeTransport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 10)
+    text = _metadata("2.4", *[(f"H{n}", "x") for n in range(10)])
+    fake_http.reply(
+        url="/simple/demo/",
+        json=_page(_file(_WHEEL, core_metadata={"sha256": _sha256(text)})),
+    )
+    fake_http.reply(url=f"{_WHEEL}.metadata", text=text)
+    result = attach_release_metadata(_package())
+    (failure,) = result.enrichment_failures
+    assert "more than" in failure.reason

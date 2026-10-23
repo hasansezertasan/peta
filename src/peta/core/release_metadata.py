@@ -15,6 +15,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import hmac
+import re
 from dataclasses import dataclass
 from email.parser import Parser
 from typing import TYPE_CHECKING
@@ -141,6 +142,26 @@ def _download(advertised: _Advertised) -> bytes:
     return content
 
 
+def _header_block(text: str) -> str:
+    """Cut a file down to its headers, bounding their count before parsing.
+
+    Counted on the raw text because the parser builds every header it is
+    given: millions of tiny ones fit under the body limit and would cost far
+    more as objects than as bytes.
+
+    Returns:
+        The text up to the first blank line.
+
+    Raises:
+        ReleaseMetadataError: If the block has too many lines.
+    """
+    block = re.split(r"\r?\n\r?\n", text, maxsplit=1)[0]
+    if block.count("\n") >= validation.MAX_COLLECTION_ITEMS:
+        msg = f"metadata file has more than {validation.MAX_COLLECTION_ITEMS:,} headers"
+        raise ReleaseMetadataError(msg)
+    return block
+
+
 def _parse(content: bytes) -> CoreMetadata:
     """Read the headers of a ``METADATA`` file, within the response limits.
 
@@ -161,12 +182,14 @@ def _parse(content: bytes) -> CoreMetadata:
     except UnicodeDecodeError as exc:
         msg = "metadata file is not valid UTF-8"
         raise ReleaseMetadataError(msg) from exc
-    headers = Parser().parsestr(text, headersonly=True)
-    items = headers.items()
-    if len(items) > validation.MAX_COLLECTION_ITEMS:
-        msg = f"metadata file has more than {validation.MAX_COLLECTION_ITEMS:,} headers"
+    block = _header_block(text)
+    headers = Parser().parsestr(block, headersonly=True)
+    if headers.defects:
+        msg = f"metadata file has a malformed header: {headers.defects[0]}"
         raise ReleaseMetadataError(msg)
-    if any(len(str(value)) > validation.MAX_STRING_LENGTH for _, value in items):
+    if any(
+        len(str(value)) > validation.MAX_STRING_LENGTH for value in headers.values()
+    ):
         limit = validation.MAX_STRING_LENGTH
         msg = f"metadata file has a header over {limit:,} characters"
         raise ReleaseMetadataError(msg)
