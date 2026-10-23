@@ -12,6 +12,7 @@ from peta.core import http
 from peta.core.enrich import enrich
 from peta.core.local import LocalTarget, PackageNotFoundError as LocalNotFound
 from peta.core.output import TARGET_ENVIRONMENT_KEY
+from peta.core.release_metadata import attach_release_metadata
 from peta.core.remote import NetworkError, PackageNotFoundError as RemoteNotFound
 from peta.core.resolve import not_found_source, resolve_package
 
@@ -36,6 +37,8 @@ def _resolve_and_enrich(
     target: LocalTarget | None,
 ) -> PackageInfo:
     pkg = resolve_package(package, local=local, remote=remote, target=target)
+    if pkg.source == "remote":
+        pkg = attach_release_metadata(pkg)
     return enrich(pkg, no_osv=no_osv, no_stats=no_stats)
 
 

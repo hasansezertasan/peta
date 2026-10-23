@@ -164,12 +164,17 @@ class CoreMetadata:  # pylint: disable=too-many-instance-attributes
     and dependent counts stay on :class:`PackageInfo` because they are not
     package-authored. Multi-value fields stay lists, in declaration order.
     A field the source does not carry is empty, never guessed: the PyPI JSON
-    API omits entry points and ``Metadata-Version``, for instance, so they are
-    only known for an installed distribution.
+    API omits entry points and ``Metadata-Version``, for instance. Entry points
+    live in ``entry_points.txt``, not ``METADATA``, so they are only known for
+    an installed distribution.
     """
 
-    source: Literal["installed", "pypi"]
-    """Which metadata supplied these values: the install or PyPI's JSON API."""
+    source: Literal["installed", "pypi", "release_metadata"]
+    """Which metadata supplied these values.
+
+    The install, PyPI's JSON API, or the release's own PEP 658 ``METADATA``
+    file, which carries the revision and import names the JSON API drops.
+    """
     metadata_version: str | None = None
     """The Core Metadata revision the source declares, or ``None`` if unstated."""
     license_files: list[str] = field(default_factory=list)
