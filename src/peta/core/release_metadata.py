@@ -15,6 +15,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import hmac
+import itertools
 import re
 from dataclasses import dataclass
 from email.parser import Parser
@@ -31,6 +32,8 @@ from peta.core.output import SourceRecord, utc_now
 from peta.core.remote import NetworkError
 
 if TYPE_CHECKING:
+    from email.message import Message
+
     from peta.core.index import IndexFile
     from peta.core.models import CoreMetadata, PackageInfo
 
@@ -47,6 +50,11 @@ _ALGORITHMS = ("sha512", "sha384", "sha256")
 nothing about who wrote the bytes.
 """
 _OK = 200
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+"""A line ending as the email parser reads it: CRLF, a lone CR, or LF."""
+_BLANK_LINE = re.compile(r"(?>\r\n|\r|\n)(?>\r\n|\r|\n)")
+"""The empty line ending the header block, matched atomically so the CRLF of
+one line is never split into the two breaks of a blank one."""
 
 
 class ReleaseMetadataError(Exception):
@@ -155,11 +163,36 @@ def _header_block(text: str) -> str:
     Raises:
         ReleaseMetadataError: If the block has too many lines.
     """
-    block = re.split(r"\r?\n\r?\n", text, maxsplit=1)[0]
-    if block.count("\n") >= validation.MAX_COLLECTION_ITEMS:
+    end = _BLANK_LINE.search(text)
+    block = text if end is None else text[: end.start()]
+    # Stops counting at the limit instead of listing every break, so the
+    # check itself costs nothing proportional to the file.
+    breaks = _LINE_BREAK.finditer(block)
+    if next(itertools.islice(breaks, validation.MAX_COLLECTION_ITEMS - 1, None), None):
         msg = f"metadata file has more than {validation.MAX_COLLECTION_ITEMS:,} headers"
         raise ReleaseMetadataError(msg)
     return block
+
+
+def _check_headers(headers: Message) -> None:
+    """Refuse headers the parser flagged, oversized ones, or missing identity.
+
+    Raises:
+        ReleaseMetadataError: If the file is malformed or breaks a limit.
+    """
+    if headers.defects:
+        msg = f"metadata file has a malformed header: {headers.defects[0]}"
+        raise ReleaseMetadataError(msg)
+    if any(
+        len(str(value)) > validation.MAX_STRING_LENGTH for value in headers.values()
+    ):
+        limit = validation.MAX_STRING_LENGTH
+        msg = f"metadata file has a header over {limit:,} characters"
+        raise ReleaseMetadataError(msg)
+    for required in ("Metadata-Version", "Name", "Version"):
+        if required not in headers:
+            msg = f"metadata file declares no {required}"
+            raise ReleaseMetadataError(msg)
 
 
 def _parse(content: bytes) -> CoreMetadata:
@@ -182,20 +215,8 @@ def _parse(content: bytes) -> CoreMetadata:
     except UnicodeDecodeError as exc:
         msg = "metadata file is not valid UTF-8"
         raise ReleaseMetadataError(msg) from exc
-    block = _header_block(text)
-    headers = Parser().parsestr(block, headersonly=True)
-    if headers.defects:
-        msg = f"metadata file has a malformed header: {headers.defects[0]}"
-        raise ReleaseMetadataError(msg)
-    if any(
-        len(str(value)) > validation.MAX_STRING_LENGTH for value in headers.values()
-    ):
-        limit = validation.MAX_STRING_LENGTH
-        msg = f"metadata file has a header over {limit:,} characters"
-        raise ReleaseMetadataError(msg)
-    if "Metadata-Version" not in headers:
-        msg = "metadata file declares no Metadata-Version"
-        raise ReleaseMetadataError(msg)
+    headers = Parser().parsestr(_header_block(text), headersonly=True)
+    _check_headers(headers)
     return core_metadata_from_headers(headers, source="release_metadata")
 
 

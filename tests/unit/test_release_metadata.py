@@ -263,3 +263,37 @@ def test_too_many_headers_are_refused_before_parsing(
     result = attach_release_metadata(_package())
     (failure,) = result.enrichment_failures
     assert "more than" in failure.reason
+
+
+def test_lone_cr_line_endings_count_towards_the_header_limit(
+    fake_http: FakeTransport, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(validation, "MAX_COLLECTION_ITEMS", 10)
+    text = "Metadata-Version: 2.4\rName: demo\rVersion: 1.0\r"
+    text += "\r".join(f"H{n}: x" for n in range(10)) + "\r\r"
+    fake_http.reply(
+        url="/simple/demo/",
+        json=_page(_file(_WHEEL, core_metadata={"sha256": _sha256(text)})),
+    )
+    fake_http.reply(url=f"{_WHEEL}.metadata", text=text)
+    (failure,) = attach_release_metadata(_package()).enrichment_failures
+    assert "more than" in failure.reason
+
+
+@pytest.mark.parametrize("missing", ["Name", "Version"])
+def test_a_file_without_an_identity_header_is_refused(
+    fake_http: FakeTransport, missing: str
+) -> None:
+    lines = [
+        line
+        for line in _metadata().splitlines(keepends=True)
+        if not line.startswith(f"{missing}:")
+    ]
+    text = "".join(lines)
+    fake_http.reply(
+        url="/simple/demo/",
+        json=_page(_file(_WHEEL, core_metadata={"sha256": _sha256(text)})),
+    )
+    fake_http.reply(url=f"{_WHEEL}.metadata", text=text)
+    (failure,) = attach_release_metadata(_package()).enrichment_failures
+    assert missing in failure.reason
