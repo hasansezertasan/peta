@@ -104,8 +104,23 @@ revision, extras, license files, import names, an entry-point count);
 
 ``result.core_metadata.source`` says which metadata supplied the values:
 ``installed`` for a distribution's own ``METADATA`` and ``entry_points.txt``,
-or ``pypi`` for the PyPI JSON API. PyPI's API omits ``Metadata-Version``,
-entry points, and import names and namespaces, so those are empty or null for ``pypi`` rather than guessed.
+``release_metadata`` for the release's own ``METADATA`` file, or ``pypi`` for
+PyPI's JSON API.
+
+For a remote package peta reads the release's `PEP 658
+<https://peps.python.org/pep-0658/>`_ ``.metadata`` file whenever the Simple
+API advertises one with a hash. The file is the same ``METADATA`` an installed
+copy has, so ``Metadata-Version``, import names and namespaces, and headers
+peta does not model are filled in like they are locally. The file is used only
+after its bytes match the advertised hash; a mismatch, a malformed file or one
+over the response limits is reported as a failed ``pypi-metadata`` source and
+the JSON API's values stay. Without an advertised file, offline, or when the
+project page cannot be read, peta falls back to the JSON API, which omits
+``Metadata-Version``, import names and namespaces, so those are empty or null
+for ``pypi`` rather than guessed. Entry points are never available remotely:
+they live in ``entry_points.txt``, not ``METADATA``. The ``.metadata`` file is
+fetched on every run and is not cached.
+
 Headers peta does not model are kept verbatim under ``unrecognized``; they are
 unverified and are never shown in the human view.
 

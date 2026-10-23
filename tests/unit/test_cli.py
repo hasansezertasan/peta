@@ -1196,9 +1196,13 @@ class TestCacheAndOffline:
         self, fake_http: FakeTransport, tmp_path: Path
     ) -> None:
         # The headline promise: a pinned release's metadata cannot change, so
-        # asking twice must cost one request — and the second must succeed
-        # with the network taken away entirely.
+        # asking twice must cost one lookup — the JSON document and the project
+        # page that says whether a ``.metadata`` file exists — and the second
+        # must succeed with the network taken away entirely.
         fake_http.reply(json=_PYPI_BODY)
+        fake_http.reply(
+            url="/simple/", json={"name": "requests", "versions": [], "files": []}
+        )
         warm = ["info", "requests==2.31.0", "--no-osv", "--no-stats", "--json"]
         cached = ["--offline", *warm]
 
@@ -1208,7 +1212,7 @@ class TestCacheAndOffline:
         assert first.exit_code == 0
         assert second.exit_code == 0
         assert json.loads(second.output)["result"]["version"] == "2.31.0"
-        assert len(fake_http.requests) == 1
+        assert len(fake_http.requests) == 2
 
     def test_the_envelope_says_where_the_data_came_from(
         self, fake_http: FakeTransport, tmp_path: Path
@@ -1257,12 +1261,16 @@ class TestCacheAndOffline:
         self, fake_http: FakeTransport, tmp_path: Path
     ) -> None:
         fake_http.reply(json=_PYPI_BODY)
+        fake_http.reply(
+            url="/simple/", json={"name": "requests", "versions": [], "files": []}
+        )
         args = ["info", "requests==2.31.0", "--no-osv", "--no-stats", "--json"]
 
         _ = runner.invoke(app, ["--cache-dir", str(tmp_path), *args])
         _ = runner.invoke(app, ["--cache-dir", str(tmp_path), "--refresh", *args])
 
-        assert len(fake_http.requests) == 2
+        # Each run asks for the JSON document and the project page.
+        assert len(fake_http.requests) == 4
 
     def test_offline_and_refresh_are_rejected_together(self, tmp_path: Path) -> None:
         # Contradictory: one says refetch everything, the other says make no
