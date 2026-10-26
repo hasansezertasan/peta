@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.0](https://github.com/hasansezertasan/peta/compare/v0.3.0...v0.4.0) (2026-10-26)
+
+
+### 🚀 Features
+
+* **info:** expand the package dossier with modern Core Metadata ([#285](https://github.com/hasansezertasan/peta/issues/285)) ([a832209](https://github.com/hasansezertasan/peta/commit/a83220995fd38a06e9ff6ec885ed95ba30a2ef35))
+* **info:** read remote Core Metadata from PEP 658 .metadata files ([#288](https://github.com/hasansezertasan/peta/issues/288)) ([2c67a0f](https://github.com/hasansezertasan/peta/commit/2c67a0fc57cbb26ec1b9ec05d6507a475c735f85))
+
 ## [0.3.0](https://github.com/hasansezertasan/peta/compare/v0.2.0...v0.3.0) (2026-10-02)
 
 
