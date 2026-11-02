@@ -41,20 +41,11 @@ classifiers = [
   "Topic :: Terminals",
 ]
 requires-python = ">=3.11"
-<<<<<<< before updating
 # packaging>=24.2 for ``packaging.licenses``, which the compare diff uses to
 # canonicalize SPDX license expressions. typing-extensions>=4.6 backports
 # ``TypeAliasType`` and ``override`` (both stdlib from Python 3.12) to the 3.11
 # floor; drop it, and switch those imports to ``typing``, when the floor reaches
 # 3.12 (ruff's UP035 flags them once ``target-version`` moves).
-=======
-# The enabled component's runtime deps live here, not in an optional extra: a
-# selected component is chosen at generation time and ``__main__`` imports it
-# unconditionally (see the CLI > GUI > TUI > web > MCP > worker precedence
-# there), so ``pip install peta`` must pull them or the binary
-# fails at launch. Same for pydantic-settings, which ``core.config`` imports
-# unconditionally when enabled.
->>>>>>> after updating
 dependencies = [
   "typer",
   "rich",
@@ -138,7 +129,6 @@ test = [
 docs = [
   "sphinx==9.1.0",
   "shibuya==2026.7.12",
-<<<<<<< before updating
   "sphinx-autobuild==2025.8.25", # 2025.x drops Python 3.10 (requires-python >= 3.11)
   "sphinx-copybutton==0.5.2",
   "sphinx-design==0.7.0", # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
@@ -147,16 +137,6 @@ docs = [
   "auto-pytabs[sphinx]==0.5.0",
   "myst-parser==5.1.0",
   # Per-page "last updated" footer sourced from git commit dates (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#per-page-last-updated-comes-from-git-history);
-=======
-  "sphinx-autobuild==2025.8.25",
-  "sphinx-copybutton==0.5.2",
-  "sphinx-design==0.7.0",
-  "sphinx-togglebutton==0.4.5",
-  "sphinx-paramlinks==0.6.0",
-  "auto-pytabs[sphinx]==0.5.0",
-  "myst-parser==4.0.1",
-  # Per-page "last updated" footer sourced from git commit dates;
->>>>>>> after updating
   # offline, no network. Works from full history (docs CI checks out depth 0).
   "sphinx-last-updated-by-git==0.3.8",
   # PEP 440 version parsing/sorting used by tools/build_docs.py to order
@@ -236,13 +216,9 @@ name = "cz_conventional_commits"
 addopts = "-v --tb=short --doctest-glob=README.md"
 # One marker per component, auto-applied by tests/conftest.py from each test's
 # top-level tests/<dir>/. Enables `pytest -m web` locally and per-component CI
-<<<<<<< before updating
 # jobs (issue #160, https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component); `integration` (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#real-broker-integration-tests-testcontainers-locally-per-broker-ci-mechanism) is one axis of the scheme.
 asyncio_mode = "auto"
 filterwarnings = ["error"]
-=======
-# jobs; `integration` is one axis of the scheme.
->>>>>>> after updating
 markers = [
   "smoke: fast import/entrypoint checks",
   "unit: pure logic, fully mocked, no I/O",
@@ -421,11 +397,7 @@ fix = true
 output-format = "full"
 preview = true
 show-fixes = true
-<<<<<<< before updating
 src = ["src", "tests"]
-=======
-src = ["src", "tests", "examples", "docs/examples"]
->>>>>>> after updating
 target-version = "py311"
 unsafe-fixes = true
 
@@ -513,7 +485,6 @@ convention = "pep257"
 # package) whose whole job is to print GitHub `::error::` annotations to stdout.
 "docs/check_warnings.py" = ["implicit-namespace-package", "print"]
 # The versioned-docs build orchestrator is a standalone CLI script under tools/,
-<<<<<<< before updating
 # not part of an importable package (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages).
 "tools/build_docs.py" = ["implicit-namespace-package"]
 # Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
@@ -525,10 +496,6 @@ convention = "pep257"
 ]
 # dataclass fields `id`/`license` shadow builtins by design.
 "src/peta/core/models.py" = ["builtin-attribute-shadowing"]
-=======
-# not part of an importable package.
-"tools/build_docs.py" = ["INP001"]
->>>>>>> after updating
 
 
 [tool.ruff.lint.pyupgrade]
@@ -551,11 +518,7 @@ strict = true
 
 [tool.basedpyright]
 exclude = [".venv"]
-<<<<<<< before updating
 include = ["src/peta"]
-=======
-include = ["src/peta", "docs/examples"]
->>>>>>> after updating
 pythonVersion = "3.11"
 venv = ".venv"
 # venvPath is the directory *containing* the venv, not the venv itself; ".venv"
@@ -579,11 +542,7 @@ error-on-warning = true
 
 [tool.pyrefly]
 python-version = "3.11"
-<<<<<<< before updating
 project-includes = ["src"]
-=======
-project-includes = ["src", "docs/examples"]
->>>>>>> after updating
 
 [tool.pylint.main]
 # pylint runs as an always-on gate that deliberately overlaps ruff's PL* rules.
@@ -654,12 +613,9 @@ env_list = [
   # the classifiers, and the CI matrix (tests/smoke/test_python_support.py
   # enforces the first two).
   "3.11",
-<<<<<<< before updating
   "3.12",
   "3.13",
   "3.14",
-=======
->>>>>>> after updating
 ]
 requires = ["tox>=4"]
 
@@ -702,7 +658,6 @@ runner = "uv-venv-lock-runner"
 
 
 [tool.tox.env.style]
-<<<<<<< before updating
 base_python = ["3.14"]
 commands = [
   ["ruff", "check", "--no-fix"],
@@ -712,31 +667,6 @@ commands = [
   ["mypy", "--python-version", "3.12"],
   ["mypy", "--python-version", "3.13"],
   ["mypy", "--python-version", "3.14"],
-=======
-base_python = ["3.11"]
-commands = [
-  [
-    "ruff",
-    "check",
-    "--no-fix",
-  ],
-  [
-    "ruff",
-    "format",
-    "--check",
-    "--diff",
-  ],
-  [
-    "mypy",
-    "--python-version",
-    "3.11",
-  ],
-  [
-    "mypy",
-    "--python-version",
-    "3.14",
-  ],
->>>>>>> after updating
   # Style runs once on Linux, so explicitly sweep platform-gated branches that
   # mypy would otherwise prune as unreachable on the host platform.
   [
@@ -805,36 +735,13 @@ commands = [
   # the canonical one regardless of which components are enabled. The `*.toml`
   # glob is non-recursive, so it scopes taplo to this project's own root TOML
   # (pyproject/prek/mise/taplo) without walking vendored `.tox`/`.venv`/
-<<<<<<< before updating
   # site-packages trees.
   ["taplo", "format", "--check", "--diff", "*.toml"],
   ["validate-pyproject", "pyproject.toml"],
   ["typos", "--diff"],
   ["actionlint"],
   ["ec"],
-  ["sphinx-lint", "docs"],
-=======
-  # site-packages trees — no `.taplo.toml` exclude config needed.
-  [
-    "taplo",
-    "format",
-    "--check",
-    "--diff",
-    "*.toml",
-  ],
-  [
-    "typos",
-    "--diff",
-  ],
-  [
-    "ec",
-  ],
-  [
-    "sphinx-lint",
-    "docs",
-    "REPOSITORY_SETUP.rst",
-  ],
->>>>>>> after updating
+  ["sphinx-lint", "docs", "REPOSITORY_SETUP.rst"],
   # Collects (does not run) the suite and flags fixtures that are never used --
   # cheap, deterministic, and a natural fit next to the other whole-program
   # analyzers above (lint-imports, slotscheck).

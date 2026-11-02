@@ -7,11 +7,8 @@ from __future__ import annotations
 
 import json
 import os
-<<<<<<< before updating
 import subprocess  # ruff: ignore[suspicious-subprocess-import]
 import sys
-=======
->>>>>>> after updating
 from datetime import UTC, datetime
 from pathlib import Path
 

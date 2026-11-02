@@ -177,22 +177,12 @@ hooks = [{ id = "zizmor", name = "Zizmor GitHub Actions Auditor" }]
 [[repos]]
 repo = "https://github.com/adrienverge/yamllint"
 rev = "v1.38.0"
-<<<<<<< before updating
 hooks = [
   { id = "yamllint", name = "YAML Linter", exclude = "^\\.copier-answers\\.yml$", args = [
     "-c",
     ".github/yamllint.yaml",
   ] },
 ]
-=======
-# `.copier-answers.yml` is excluded for the same reason the yamlfmt hook below
-# excludes it: it is machine-written ("NEVER EDIT MANUALLY") with block
-# sequences unindented, which yamllint's `indentation` rule rejects. The only
-# way to satisfy the linter would be to hand-edit a file that is overwritten,
-# so the gate can only ever produce an unfixable failure — it fires the moment
-# any answer is a list.
-hooks = [{ id = "yamllint", exclude = "^\\.copier-answers\\.yml$", args = ["-c", ".github/yamllint.yaml"] }]
->>>>>>> after updating
 
 [[repos]]
 repo = "https://github.com/DavidAnson/markdownlint-cli2"
