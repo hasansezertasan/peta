@@ -4,7 +4,7 @@ The ``peta`` command is the single Typer root. Every enabled
 component other than the primary (CLI > GUI > TUI > web > MCP > worker) is hung
 off it as a lazily-imported subcommand — ``peta interactive``
 (TUI), ``peta web``, ``peta mcp``, ... — rather
-than a separate ``peta-<name>`` console script (see https://hasansezertasan.github.io/copier-pyproject/context/components/#secondary-components-are-subcommands-of-one-console-root-not-separate-scripts).
+than a separate ``peta-<name>`` console script.
 """
 # mypy: disable-error-code="misc"
 

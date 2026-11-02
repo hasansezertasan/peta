@@ -41,11 +41,20 @@ classifiers = [
   "Topic :: Terminals",
 ]
 requires-python = ">=3.11"
+<<<<<<< before updating
 # packaging>=24.2 for ``packaging.licenses``, which the compare diff uses to
 # canonicalize SPDX license expressions. typing-extensions>=4.6 backports
 # ``TypeAliasType`` and ``override`` (both stdlib from Python 3.12) to the 3.11
 # floor; drop it, and switch those imports to ``typing``, when the floor reaches
 # 3.12 (ruff's UP035 flags them once ``target-version`` moves).
+=======
+# The enabled component's runtime deps live here, not in an optional extra: a
+# selected component is chosen at generation time and ``__main__`` imports it
+# unconditionally (see the CLI > GUI > TUI > web > MCP > worker precedence
+# there), so ``pip install peta`` must pull them or the binary
+# fails at launch. Same for pydantic-settings, which ``core.config`` imports
+# unconditionally when enabled.
+>>>>>>> after updating
 dependencies = [
   "typer",
   "rich",
@@ -129,6 +138,7 @@ test = [
 docs = [
   "sphinx==9.1.0",
   "shibuya==2026.7.12",
+<<<<<<< before updating
   "sphinx-autobuild==2025.8.25", # 2025.x drops Python 3.10 (requires-python >= 3.11)
   "sphinx-copybutton==0.5.2",
   "sphinx-design==0.7.0", # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
@@ -137,10 +147,20 @@ docs = [
   "auto-pytabs[sphinx]==0.5.0",
   "myst-parser==5.1.0",
   # Per-page "last updated" footer sourced from git commit dates (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#per-page-last-updated-comes-from-git-history);
+=======
+  "sphinx-autobuild==2025.8.25",
+  "sphinx-copybutton==0.5.2",
+  "sphinx-design==0.7.0",
+  "sphinx-togglebutton==0.4.5",
+  "sphinx-paramlinks==0.6.0",
+  "auto-pytabs[sphinx]==0.5.0",
+  "myst-parser==4.0.1",
+  # Per-page "last updated" footer sourced from git commit dates;
+>>>>>>> after updating
   # offline, no network. Works from full history (docs CI checks out depth 0).
   "sphinx-last-updated-by-git==0.3.8",
   # PEP 440 version parsing/sorting used by tools/build_docs.py to order
-  # published versions and pick the `latest` alias (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages). Also a Sphinx
+  # published versions and pick the `latest` alias. Also a Sphinx
   # transitive dependency; pinned here for the explicit direct use.
   "packaging>=24.0",
 ]
@@ -148,7 +168,6 @@ tool = [
   "commitizen==4.19.0",
   # "marimo==0.15.2",
   # "inflection==0.5.1",
-  # "copier==9.11.0",
 ]
 prek = ["prek==0.5.4"]
 
@@ -217,9 +236,13 @@ name = "cz_conventional_commits"
 addopts = "-v --tb=short --doctest-glob=README.md"
 # One marker per component, auto-applied by tests/conftest.py from each test's
 # top-level tests/<dir>/. Enables `pytest -m web` locally and per-component CI
+<<<<<<< before updating
 # jobs (issue #160, https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component); `integration` (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#real-broker-integration-tests-testcontainers-locally-per-broker-ci-mechanism) is one axis of the scheme.
 asyncio_mode = "auto"
 filterwarnings = ["error"]
+=======
+# jobs; `integration` is one axis of the scheme.
+>>>>>>> after updating
 markers = [
   "smoke: fast import/entrypoint checks",
   "unit: pure logic, fully mocked, no I/O",
@@ -240,7 +263,7 @@ parallel = true
 # Store data-file paths relative to the project root so `.coverage` files produced
 # on different runners/OSes merge in the `coverage-combine` CI job without
 # absolute-path mismatches. Complements the `[tool.coverage.paths]` remap below
-# (which unifies the src/ vs site-packages layouts). See https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#a-single-union-coverage-gate-across-the-whole-matrix.
+# (which unifies the src/ vs site-packages layouts).
 relative_files = true
 source_pkgs = ["peta", "tests"]
 
@@ -262,7 +285,7 @@ peta = ["src/peta", "*/site-packages/peta"]
 # patterns here: a regex matching a `def` line excludes the *whole function body*,
 # so a pattern like `def main\(` would silently un-measure any future `main()`
 # with real logic (and did mask the tested GUI/TUI entrypoints). Pragmas carry the
-# exclusion decision next to the code it affects. See https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#coverage-exclusions-are-per-site-pragmas-and-the-globs-must-match-the-installed-layout.
+# exclusion decision next to the code it affects.
 exclude_lines = [
   "no cov",
   "if __name__ == .__main__.:",
@@ -398,7 +421,11 @@ fix = true
 output-format = "full"
 preview = true
 show-fixes = true
+<<<<<<< before updating
 src = ["src", "tests"]
+=======
+src = ["src", "tests", "examples", "docs/examples"]
+>>>>>>> after updating
 target-version = "py311"
 unsafe-fixes = true
 
@@ -486,6 +513,7 @@ convention = "pep257"
 # package) whose whole job is to print GitHub `::error::` annotations to stdout.
 "docs/check_warnings.py" = ["implicit-namespace-package", "print"]
 # The versioned-docs build orchestrator is a standalone CLI script under tools/,
+<<<<<<< before updating
 # not part of an importable package (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#docs-publish-only-the-current-version-and-carry-older-built-versions-forward-from-gh-pages).
 "tools/build_docs.py" = ["implicit-namespace-package"]
 # Typer uses Option()/Argument() defaults and passes bool flag defaults positionally.
@@ -497,6 +525,10 @@ convention = "pep257"
 ]
 # dataclass fields `id`/`license` shadow builtins by design.
 "src/peta/core/models.py" = ["builtin-attribute-shadowing"]
+=======
+# not part of an importable package.
+"tools/build_docs.py" = ["INP001"]
+>>>>>>> after updating
 
 
 [tool.ruff.lint.pyupgrade]
@@ -519,7 +551,11 @@ strict = true
 
 [tool.basedpyright]
 exclude = [".venv"]
+<<<<<<< before updating
 include = ["src/peta"]
+=======
+include = ["src/peta", "docs/examples"]
+>>>>>>> after updating
 pythonVersion = "3.11"
 venv = ".venv"
 # venvPath is the directory *containing* the venv, not the venv itself; ".venv"
@@ -543,7 +579,11 @@ error-on-warning = true
 
 [tool.pyrefly]
 python-version = "3.11"
+<<<<<<< before updating
 project-includes = ["src"]
+=======
+project-includes = ["src", "docs/examples"]
+>>>>>>> after updating
 
 [tool.pylint.main]
 # pylint runs as an always-on gate that deliberately overlaps ruff's PL* rules.
@@ -571,7 +611,7 @@ disable = [
   # are deliberately lazy so import-linter's layering contract holds and a
   # framework is only imported when the code path that needs it actually runs.
   # Textual is the exception: the TUI imports it at module scope so `InfoApp`
-  # can be defined there and driven by the headless pilot (https://hasansezertasan.github.io/copier-pyproject/context/testing-strategy/#interactive-components-expose-injected-driver-seams-so-headless-ci-measures-everything-but-the-blocking-call).
+  # can be defined there and driven by the headless pilot.
   "import-outside-toplevel",
   # W0706 — the generated TUI entry point explicitly re-raises
   # KeyboardInterrupt/SystemExit ahead of a broad `except Exception` to make the
@@ -580,7 +620,7 @@ disable = [
   "try-except-raise",
   # R0801 — the component skeletons (gui/tui/mcp/worker) are deliberately
   # parallel: each fetches package metadata and formats the same info block the
-  # same way. That structural symmetry is a feature of the scaffold, not
+  # same way. That structural symmetry is a feature of the layout, not
   # copy-paste debt, and R0801 cannot be suppressed inline at the call site.
   "duplicate-code",
 ]
@@ -591,10 +631,9 @@ max-positional-arguments = 10
 max-branches = 20
 
 [tool.typos.files]
-# copier records `_commit` as a `git describe` string (`v1.2.3-4-g<hash>`) when
-# the template is rendered from an untagged ref, and a fragment of the hex hash
-# can read as a misspelled word, failing the check on a hash nobody chose. The
-# file is machine-written with no prose to check. The prek hook passes
+# The answers file can record a `git describe` string (`v1.2.3-4-g<hash>`), and
+# a fragment of the hex hash can read as a misspelled word, failing the check on
+# a hash nobody chose. The file is machine-written with no prose to check. The prek hook passes
 # `--force-exclude`, so the exclusion holds there as well as in `tox -e style`.
 extend-exclude = [
   ".copier-answers.yml",
@@ -615,9 +654,12 @@ env_list = [
   # the classifiers, and the CI matrix (tests/smoke/test_python_support.py
   # enforces the first two).
   "3.11",
+<<<<<<< before updating
   "3.12",
   "3.13",
   "3.14",
+=======
+>>>>>>> after updating
 ]
 requires = ["tox>=4"]
 
@@ -649,7 +691,7 @@ pass_env = ["PETA_TEST_TARGET_PYTHON"]
 
 # Non-editable: `uv sync --no-editable` builds the project and installs it into
 # site-packages, the layout `[tool.coverage.paths]` remaps and the per-component
-# coverage gates measure (https://hasansezertasan.github.io/copier-pyproject/context/ci-topology/#per-component-markers-path-filtered-jobs-and-one-coverage-gate-per-component).
+# coverage gates measure.
 package = "wheel"
 # Every env installs from uv.lock (`uv sync --locked`), so tox tests and lints
 # the exact versions the lockfile pins. The plain `uv-venv-runner` resolves the
@@ -660,6 +702,7 @@ runner = "uv-venv-lock-runner"
 
 
 [tool.tox.env.style]
+<<<<<<< before updating
 base_python = ["3.14"]
 commands = [
   ["ruff", "check", "--no-fix"],
@@ -669,6 +712,31 @@ commands = [
   ["mypy", "--python-version", "3.12"],
   ["mypy", "--python-version", "3.13"],
   ["mypy", "--python-version", "3.14"],
+=======
+base_python = ["3.11"]
+commands = [
+  [
+    "ruff",
+    "check",
+    "--no-fix",
+  ],
+  [
+    "ruff",
+    "format",
+    "--check",
+    "--diff",
+  ],
+  [
+    "mypy",
+    "--python-version",
+    "3.11",
+  ],
+  [
+    "mypy",
+    "--python-version",
+    "3.14",
+  ],
+>>>>>>> after updating
   # Style runs once on Linux, so explicitly sweep platform-gated branches that
   # mypy would otherwise prune as unreachable on the host platform.
   [
@@ -715,7 +783,7 @@ commands = [
   # would make a registry request on every `git commit`. The ruleset is named
   # explicitly rather than `--config auto` so rule selection does not depend on
   # language auto-detection; it is still fetched from the registry, which is why
-  # this cannot be vendored (see https://hasansezertasan.github.io/copier-pyproject/context/lint-orchestration/#semgrep-runs-in-the-style-env-against-a-named-registry-ruleset-never-vendored). `--error` makes findings blocking;
+  # this cannot be vendored. `--error` makes findings blocking;
   # silence a false positive with a trailing `# nosemgrep: <rule-id>`.
   [
     "semgrep",
@@ -732,11 +800,12 @@ commands = [
     "*.toml",
   ],
   # A strict `--check` gate, not fix mode: a generated file that taplo would
-  # rewrite fails its own CI on first push and drifts on every `copier update`.
+  # rewrite fails its own CI on first push.
   # `.taplo.toml` disables array auto expand/collapse so the shipped layout is
   # the canonical one regardless of which components are enabled. The `*.toml`
   # glob is non-recursive, so it scopes taplo to this project's own root TOML
   # (pyproject/prek/mise/taplo) without walking vendored `.tox`/`.venv`/
+<<<<<<< before updating
   # site-packages trees.
   ["taplo", "format", "--check", "--diff", "*.toml"],
   ["validate-pyproject", "pyproject.toml"],
@@ -744,6 +813,28 @@ commands = [
   ["actionlint"],
   ["ec"],
   ["sphinx-lint", "docs"],
+=======
+  # site-packages trees — no `.taplo.toml` exclude config needed.
+  [
+    "taplo",
+    "format",
+    "--check",
+    "--diff",
+    "*.toml",
+  ],
+  [
+    "typos",
+    "--diff",
+  ],
+  [
+    "ec",
+  ],
+  [
+    "sphinx-lint",
+    "docs",
+    "REPOSITORY_SETUP.rst",
+  ],
+>>>>>>> after updating
   # Collects (does not run) the suite and flags fixtures that are never used --
   # cheap, deterministic, and a natural fit next to the other whole-program
   # analyzers above (lint-imports, slotscheck).

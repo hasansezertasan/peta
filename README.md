@@ -62,9 +62,57 @@ scoop install peta
 **Requires:** Python 3.11+ (3.11 through 3.14 are tested; see
 [supported Python versions](https://hasansezertasan.github.io/peta/latest/installation.html#supported-python-versions))
 
+<<<<<<< before updating
 ## Usage
 
 ### Inspect another Python environment
+=======
+## About
+
+<!-- TODO @hasansezertasan: Add background/context about the project, or remove this section. -->
+
+## Author :person_with_crown:
+
+This project is maintained by [Hasan Sezer Tasan][author], It's me :wave:
+
+## Analysis
+
+- [Snyk Python Package Health Analysis](https://snyk.io/advisor/python/peta)
+- [Libraries.io - PyPI](https://libraries.io/pypi/peta)
+- [Safety DB](https://data.safetycli.com/packages/pypi/peta)
+- [PePy Download Stats](https://www.pepy.tech/projects/peta)
+- [PyPI Download Stats](https://pypistats.org/packages/peta)
+- [Pip Trends Download Stats](https://piptrends.com/package/peta)
+- [PyPI Map Dependency Graph](https://pypimap.com/package/peta)
+
+## Contributing :heart:
+
+Any contributions are welcome! Please follow the [Contributing Guidelines](./.github/CONTRIBUTING.md) to contribute to this project.
+
+## Development :toolbox:
+
+See the [Contributing Guidelines](./.github/CONTRIBUTING.md#your-first-code-contribution)
+for local setup, the common development tasks (exposed via [mise](https://mise.jdx.dev)),
+building and previewing the documentation, and the VS Code debugging configurations.
+
+## Releasing
+
+Versioning and releases are automated with [release-please](https://github.com/googleapis/release-please), driven by [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) PR titles squash-merged into `main`. release-please maintains a release PR that bumps the version and `CHANGELOG.md`; merging it tags the release and publishes to PyPI. See the [Contributing Guidelines](./.github/CONTRIBUTING.md#releasing) for the commit conventions, and the [Repository setup](./REPOSITORY_SETUP.rst) guide for one-time configuration and optional post-launch integrations such as a social preview, downstream packaging, and Repology.
+
+Pause merges that change `.github/workflows/`, including Renovate action-pin updates, from merging a release PR until the entire Release run finishes. Workflow differences between the release commit and current `main` can block tag or release creation with a 403 when using `GITHUB_TOKEN`. See [Release recovery](./REPOSITORY_SETUP.rst#keep-workflow-changes-out-of-an-active-release) for prevention and recovery steps.
+
+For adopting this project's tooling into an existing package, or reconciling a
+template update with existing project behavior, see the **Template updates** and
+**Adopting into an existing project** sections of
+[REPOSITORY_SETUP.rst](./REPOSITORY_SETUP.rst). They cover the baseline,
+workflow and required-check overlap, custom tooling and documentation, and ask
+for a decision before consequential cleanup. Work through the repository
+settings and release steps in the same file.
+
+## Credits
+
+Generated from [copier-pyproject](https://github.com/hasansezertasan/copier-pyproject).
+>>>>>>> after updating
 
 `info`, `compare`, `deps`, `files`, and `origin` normally inspect the environment running
 `peta`. Pass `--python PATH` to inspect an explicit interpreter, or repeat
