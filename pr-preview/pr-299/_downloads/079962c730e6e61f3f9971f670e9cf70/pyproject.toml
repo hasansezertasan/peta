@@ -131,11 +131,11 @@ docs = [
   "shibuya==2026.7.12",
   "sphinx-autobuild==2025.8.25", # 2025.x drops Python 3.10 (requires-python >= 3.11)
   "sphinx-copybutton==0.5.2",
-  "sphinx-design==0.7.0", # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
+  "sphinx-design==0.8.0", # 0.7.0 drops Python 3.10 (requires-python >= 3.11)
   "sphinx-togglebutton==0.4.5",
   "sphinx-paramlinks==0.6.0",
   "auto-pytabs[sphinx]==0.5.0",
-  "myst-parser==5.1.0",
+  "myst-parser==5.2.0",
   # Per-page "last updated" footer sourced from git commit dates (https://hasansezertasan.github.io/copier-pyproject/context/docs-versioning/#per-page-last-updated-comes-from-git-history);
   # offline, no network. Works from full history (docs CI checks out depth 0).
   "sphinx-last-updated-by-git==0.3.8",
