@@ -71,7 +71,7 @@ peta = "peta.cli.app:run"
 [dependency-groups]
 dev = [
   "peta",
-  "tox==4.67.15",
+  "tox==4.67.16",
   "tox-uv==1.37.9",
   "debugpy==1.8.22",
   { include-group = "style" },
